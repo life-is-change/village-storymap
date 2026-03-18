@@ -17,6 +17,13 @@ let polygonMap = new Map();
 let currentGeoJSON = null;
 let resizeObserver = null;
 
+const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 /* =========================
    基础加载
 ========================= */
@@ -34,6 +41,39 @@ async function loadCSV(url) {
 async function loadGeoJSON(url) {
   const response = await fetch(url);
   return await response.json();
+}
+
+async function testSupabaseConnection() {
+  const { data, error } = await supabaseClient
+    .from("house_photos")
+    .select("*")
+    .limit(1);
+
+  if (error) {
+    console.error("Supabase 连接失败：", error);
+  } else {
+    console.log("Supabase 连接成功，测试数据：", data);
+  }
+}
+
+async function testStorageAccess() {
+  const testFile = new Blob(["hello village"], { type: "text/plain" });
+  const testPath = `test-folder/test-${Date.now()}.txt`;
+
+  const { error: uploadError } = await supabaseClient.storage
+    .from("house-photos")
+    .upload(testPath, testFile);
+
+  if (uploadError) {
+    console.error("Storage 上传测试失败：", uploadError);
+    return;
+  }
+
+  const { data } = supabaseClient.storage
+    .from("house-photos")
+    .getPublicUrl(testPath);
+
+  console.log("Storage 上传测试成功，公开地址：", data.publicUrl);
 }
 
 /* =========================
@@ -352,28 +392,114 @@ function showUnmatchedHouseInfo(code) {
   `;
 }
 
-function showHouseInfo(row) {
+async function fetchHousePhotos(houseCode) {
+  const { data, error } = await supabaseClient
+    .from("house_photos")
+    .select("*")
+    .eq("house_code", houseCode)
+    .order("uploaded_at", { ascending: false });
+
+  if (error) {
+    console.error("读取房屋照片失败：", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+async function handlePhotoUpload(row) {
+  const input = document.getElementById("photoUploadInput");
+  const statusEl = document.getElementById("uploadStatus");
+
+  if (!input || !input.files || !input.files.length) {
+    if (statusEl) statusEl.textContent = "请先选择一张图片。";
+    return;
+  }
+
+  const file = input.files[0];
+  const houseCode = row["房屋编码"] || "UNKNOWN";
+
+  if (file.size > 6 * 1024 * 1024) {
+    if (statusEl) statusEl.textContent = "请上传 6MB 以内图片。";
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = "正在上传...";
+
+  const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+  const filePath = `${houseCode}/${safeName}`;
+
+  const { error: uploadError } = await supabaseClient.storage
+    .from("house-photos")
+    .upload(filePath, file, {
+      upsert: false,
+      contentType: file.type || "image/jpeg"
+    });
+
+  if (uploadError) {
+    console.error("上传失败：", uploadError);
+    if (statusEl) statusEl.textContent = `上传失败：${uploadError.message}`;
+    return;
+  }
+
+  const { data: publicData } = supabaseClient.storage
+    .from("house-photos")
+    .getPublicUrl(filePath);
+
+  const photoUrl = publicData?.publicUrl || "";
+
+  const { error: insertError } = await supabaseClient
+    .from("house_photos")
+    .insert([
+      {
+        house_code: houseCode,
+        photo_url: photoUrl,
+        photo_path: filePath
+      }
+    ]);
+
+  if (insertError) {
+    console.error("写入数据库失败：", insertError);
+    if (statusEl) statusEl.textContent = `数据库写入失败：${insertError.message}`;
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = "上传成功。";
+
+  await showHouseInfo(row);
+}
+
+async function showHouseInfo(row) {
   infoPanel.classList.remove("empty");
 
-  const photoList = (row["照片"] || "")
+  const houseCode = row["房屋编码"] || "";
+  const dbPhotos = await fetchHousePhotos(houseCode);
+
+  const csvPhotoList = (row["照片"] || "")
     .split("|")
     .map((item) => item.trim())
     .filter((item) => item !== "");
 
-  const photosHtml = photoList.length
+  const mergedPhotos = [
+    ...csvPhotoList.map((src) => ({ src, source: "csv" })),
+    ...dbPhotos.map((item) => ({ src: item.photo_url, source: "db" }))
+  ];
+
+  const photosHtml = mergedPhotos.length
     ? `
       <div class="photo-card">
         <div class="photo-slider-wrapper">
           <div class="photo-slider">
-            ${photoList
+            ${mergedPhotos
               .map(
-                (src, index) => `
+                (item, index) => `
               <div class="photo-slide">
                 <img
                   class="house-photo"
-                  src="${src}"
+                  src="${item.src}"
                   alt="${row["房屋名称"] || "房屋照片"}-${index + 1}"
-                  onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>图片加载失败：${src}</div>')"
+                  onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>图片加载失败：${item.src}</div>')"
                 >
               </div>
             `
@@ -388,14 +514,32 @@ function showHouseInfo(row) {
   infoPanel.innerHTML = `
     <div class="info-card">
       <h3 class="house-title">${row["房屋名称"] || "未命名房屋"}</h3>
-      <div class="house-row"><span class="house-label">房屋编码：</span>${row["房屋编码"] || "-"}</div>
+      <div class="house-row"><span class="house-label">房屋编码：</span>${houseCode || "-"}</div>
       <div class="house-row"><span class="house-label">建成年代：</span>${row["建成年代"] || "-"}</div>
       <div class="house-row"><span class="house-label">占地面积：</span>${row["占地面积"] || "-"} ㎡</div>
+    </div>
+
+    <div class="info-card">
+      <h3 class="house-title">上传照片</h3>
+      <div class="house-row">
+        <input type="file" id="photoUploadInput" accept="image/*" />
+      </div>
+      <div class="house-row">
+        <button id="uploadPhotoBtn" class="upload-btn">上传到该房屋</button>
+      </div>
+      <div class="house-row" id="uploadStatus"></div>
     </div>
 
     <div class="house-row"><span class="house-label">房屋照片：</span></div>
     ${photosHtml}
   `;
+
+  const uploadBtn = document.getElementById("uploadPhotoBtn");
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", async () => {
+      await handlePhotoUpload(row);
+    });
+  }
 }
 
 /* =========================

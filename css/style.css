@@ -526,3 +526,22 @@ body {
     gap: 14px;
   }
 }
+
+.upload-btn {
+  background: #2f6928;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.upload-btn:hover {
+  opacity: 0.92;
+}
+
+#photoUploadInput {
+  width: 100%;
+  font-size: 14px;
+}
