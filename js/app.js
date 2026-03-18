@@ -407,6 +407,47 @@ async function fetchHousePhotos(houseCode) {
   return data || [];
 }
 
+async function handlePhotoDelete(photoItem, row) {
+  const statusEl = document.getElementById("uploadStatus");
+
+  if (!photoItem || !photoItem.photo_path) {
+    if (statusEl) statusEl.textContent = "这张照片没有可删除的存储路径。";
+    return;
+  }
+
+  const ok = window.confirm("确定要删除这张照片吗？");
+  if (!ok) return;
+
+  if (statusEl) statusEl.textContent = "正在删除...";
+
+  // 1. 先删 Storage 文件
+  const { error: storageError } = await supabaseClient.storage
+    .from("house-photos")
+    .remove([photoItem.photo_path]);
+
+  if (storageError) {
+    console.error("删除 Storage 文件失败：", storageError);
+    if (statusEl) statusEl.textContent = `删除文件失败：${storageError.message}`;
+    return;
+  }
+
+  // 2. 再删数据库记录
+  const { error: dbError } = await supabaseClient
+    .from("house_photos")
+    .delete()
+    .eq("id", photoItem.id);
+
+  if (dbError) {
+    console.error("删除数据库记录失败：", dbError);
+    if (statusEl) statusEl.textContent = `删除记录失败：${dbError.message}`;
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = "删除成功。";
+
+  await showHouseInfo(row);
+}
+
 async function handlePhotoUpload(row) {
   const input = document.getElementById("photoUploadInput");
   const statusEl = document.getElementById("uploadStatus");
@@ -482,8 +523,16 @@ async function showHouseInfo(row) {
     .filter((item) => item !== "");
 
   const mergedPhotos = [
-    ...csvPhotoList.map((src) => ({ src, source: "csv" })),
-    ...dbPhotos.map((item) => ({ src: item.photo_url, source: "db" }))
+    ...csvPhotoList.map((src) => ({
+      src,
+      source: "csv"
+    })),
+    ...dbPhotos.map((item) => ({
+      id: item.id,
+      src: item.photo_url,
+      photo_path: item.photo_path,
+      source: "db"
+    }))
   ];
 
   const photosHtml = mergedPhotos.length
@@ -501,6 +550,13 @@ async function showHouseInfo(row) {
                   alt="${row["房屋名称"] || "房屋照片"}-${index + 1}"
                   onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>图片加载失败：${item.src}</div>')"
                 >
+                ${
+                  item.source === "db"
+                    ? `<div class="photo-actions">
+                         <button class="delete-photo-btn" data-photo-id="${item.id}">删除这张照片</button>
+                       </div>`
+                    : `<div class="photo-source-tag">CSV 预置照片</div>`
+                }
               </div>
             `
               )
@@ -540,6 +596,17 @@ async function showHouseInfo(row) {
       await handlePhotoUpload(row);
     });
   }
+
+  const deleteButtons = document.querySelectorAll(".delete-photo-btn");
+  deleteButtons.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const photoId = Number(btn.dataset.photoId);
+      const targetPhoto = dbPhotos.find((item) => item.id === photoId);
+      if (targetPhoto) {
+        await handlePhotoDelete(targetPhoto, row);
+      }
+    });
+  });
 }
 
 /* =========================
