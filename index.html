@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>米埗村 · StoryMap 村庄规划平台</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app-card">
+      <header class="topbar">
+        <div>
+          <h1>🏡 米埗村 · StoryMap 村庄规划平台</h1>
+          <p>村庄基本信息展示、2D 建筑轮廓查看、3D 模型教学演示</p>
+        </div>
+        <div class="topbar-badge" id="statusBadge">当前模式：村庄基本信息</div>
+      </header>
+
+      <main class="main-layout mode-overview" id="mainLayout">
+        <!-- 左侧导航 -->
+        <aside class="story-panel">
+          <div class="panel-header">
+            <h2>📖 导航栏</h2>
+            <p>点击左侧章节，切换展示模式</p>
+          </div>
+
+          <div class="story-list">
+            <article class="story-item active" data-view="overview">
+              <div class="story-index">01</div>
+              <div>
+                <h3>村庄基本信息</h3>
+                <p>展示村庄区位、人口、空间格局、风貌特征与教学说明。</p>
+              </div>
+            </article>
+
+            <article class="story-item" data-view="plan2d">
+              <div class="story-index">02</div>
+              <div>
+                <h3>村庄 2D 平面建筑轮廓</h3>
+                <p>显示航拍图与建筑轮廓热区，点击房屋查看对应信息。</p>
+              </div>
+            </article>
+
+            <article class="story-item" data-view="model3d">
+              <div class="story-index">03</div>
+              <div>
+                <h3>村庄 3D 模型</h3>
+                <p>展示村庄三维模型区域，后续可接入 3D 浏览与编辑功能。</p>
+              </div>
+            </article>
+          </div>
+        </aside>
+
+        <!-- 中间区域 -->
+        <section class="center-panel">
+          <!-- 基本信息视图 -->
+          <div id="overviewView" class="content-view active">
+            <div class="text-frame">
+              <div class="text-card wide">
+                <h2>米埗村基本信息</h2>
+
+                <div class="overview-grid">
+                  <div class="overview-block">
+                    <h3>一、村庄概况</h3>
+                    <p>
+                      米埗村整体依山就势布局，建筑多沿道路和场地边缘分布，
+                      具有明显的山地村庄空间格局特征。村庄自然环境较好，
+                      周边植被丰富，整体景观资源基础较强。
+                    </p>
+                  </div>
+
+                  <div class="overview-block">
+                    <h3>二、空间结构</h3>
+                    <p>
+                      村庄内部形成了以道路为骨架、农房为主体、公共空间为节点的空间结构。
+                      建筑分布相对集中，但不同片区在建设年代、风貌品质和使用状态上存在差异。
+                    </p>
+                  </div>
+
+                  <div class="overview-block">
+                    <h3>三、现状问题</h3>
+                    <p>
+                      当前可重点关注农房风貌不统一、局部公共空间品质不足、部分闲置地利用效率不高、
+                      道路与建筑界面缺乏整体设计等问题，适合作为村庄规划课程的教学案例。
+                    </p>
+                  </div>
+
+                  <div class="overview-block">
+                    <h3>四、教学用途</h3>
+                    <p>
+                      本平台可用于村庄现状认知、2D 建筑轮廓识别、单体农房信息查看、
+                      村庄三维场景展示，以及后续规划设计表达与方案比对。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2D视图 -->
+          <div id="plan2dView" class="content-view">
+            <div class="map-frame">
+              <div class="map-wrapper">
+                <img id="villageImage" src="assets/orthophoto.jpg" alt="村庄航拍图" />
+                <svg id="svgOverlay" class="svg-overlay"></svg>
+              </div>
+            </div>
+            <div class="map-footer">
+              <span>✏️ 红色半透明框为可点击建筑轮廓</span>
+              <span>📌 当前为 2D 建筑轮廓教学模式</span>
+            </div>
+          </div>
+
+          <!-- 3D视图 -->
+          <div id="model3dView" class="content-view">
+            <div class="model-frame">
+              <div class="model-placeholder">
+                <div class="model-badge">3D</div>
+                <h2>村庄 3D 模型区域</h2>
+                <p>这里后续可以接入 Cesium / Three.js / 模型 iframe / 倾斜摄影场景。</p>
+                <p>当前先作为 3D 模型教学展示占位界面。</p>
+              </div>
+            </div>
+            <div class="map-footer">
+              <span>🧊 当前为 3D 模型教学模式</span>
+              <span>📌 后续可扩展旋转、缩放、点击与编辑</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 右侧详情 -->
+        <aside class="detail-panel" id="detailPanel">
+          <div class="panel-header">
+            <h2>📋 详细信息</h2>
+            <p id="detailSubtitle">点击地图中的房屋查看详情</p>
+          </div>
+
+          <div id="infoPanel" class="info-panel empty">
+            <div class="placeholder-block">
+              <h3>村庄基本信息</h3>
+              <p>当前为村庄基本信息模式，中间与右侧区域已合并显示。</p>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,528 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  background: #dfe4e8;
+  overflow: hidden;
+}
+
+body {
+  padding: 20px;
+  color: #223322;
+}
+
+.app-shell {
+  height: calc(100vh - 40px);
+}
+
+.app-card {
+  height: 100%;
+  background: #f3f5f6;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部栏 */
+.topbar {
+  height: 110px;
+  background: #2f6928;
+  color: white;
+  padding: 22px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.topbar h1 {
+  margin: 0 0 8px 0;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.topbar p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.topbar-badge {
+  background: rgba(255, 255, 255, 0.16);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+/* 主体布局 */
+.main-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 380px;
+  transition: grid-template-columns 0.25s ease;
+}
+
+.main-layout.mode-overview {
+  grid-template-columns: 260px minmax(0, 1fr) 0px;
+}
+
+.main-layout.mode-overview .detail-panel {
+  opacity: 0;
+  pointer-events: none;
+  border-left: none;
+  overflow: hidden;
+}
+
+.story-panel,
+.detail-panel,
+.center-panel {
+  min-height: 0;
+}
+
+.story-panel,
+.detail-panel {
+  background: #eef2f4;
+  display: flex;
+  flex-direction: column;
+}
+
+.story-panel {
+  border-right: 1px solid #d5dde3;
+}
+
+.detail-panel {
+  border-left: 1px solid #d5dde3;
+  transition: opacity 0.2s ease;
+}
+
+.center-panel {
+  background: #eef2f4;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 面板标题 */
+.panel-header {
+  padding: 20px 18px 14px 18px;
+  border-bottom: 1px solid #dce4ea;
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #244f20;
+  line-height: 1.3;
+}
+
+.panel-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #5c7083;
+  line-height: 1.6;
+}
+
+/* 左侧列表 */
+.story-list {
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.story-item {
+  display: flex;
+  gap: 12px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.story-item:hover {
+  transform: translateY(-1px);
+  border-color: #b7d2b2;
+}
+
+.story-item.active {
+  border-color: #2f6928;
+  background: #f7fbf6;
+}
+
+.story-index {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #2f6928;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.story-item h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #213721;
+}
+
+.story-item p {
+  margin: 0;
+  line-height: 1.65;
+  color: #5b6e7d;
+  font-size: 13px;
+}
+
+/* 内容视图 */
+.content-view {
+  display: none;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.content-view.active {
+  display: flex;
+}
+
+/* 基本信息视图 */
+.text-frame {
+  flex: 1;
+  min-height: 0;
+  border-radius: 22px;
+  background: #d7dde2;
+  padding: 24px;
+  overflow-y: auto;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.text-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.text-card.wide {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.text-card h2 {
+  margin: 0 0 20px 0;
+  font-size: 30px;
+  color: #1f3552;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.overview-block {
+  background: #f7f9fb;
+  border-radius: 18px;
+  padding: 20px;
+  border: 1px solid #e3eaef;
+}
+
+.overview-block h3 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  color: #23445e;
+}
+
+.overview-block p {
+  margin: 0;
+  line-height: 1.9;
+  font-size: 15px;
+  color: #55697b;
+}
+
+/* 2D地图视图 */
+.map-frame {
+  flex: 1;
+  min-height: 0;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #d7dde2;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.map-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d2dbe0;
+}
+
+.map-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.svg-overlay {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.house-polygon {
+  fill: rgba(255, 70, 70, 0.18);
+  stroke: #de3d3d;
+  stroke-width: 2.2;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.house-polygon:hover {
+  fill: rgba(255, 70, 70, 0.30);
+  stroke-width: 2.8;
+}
+
+.house-polygon.active {
+  fill: rgba(33, 150, 243, 0.26);
+  stroke: #1565c0;
+  stroke-width: 3.2;
+}
+
+/* 3D视图 */
+.model-frame {
+  flex: 1;
+  min-height: 0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #dbe3e8 0%, #cfd8df 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.model-placeholder {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+  border-radius: 24px;
+  padding: 48px 36px;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+}
+
+.model-badge {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 18px auto;
+  border-radius: 20px;
+  background: #2f6928;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.model-placeholder h2 {
+  margin: 0 0 16px 0;
+  color: #1f3552;
+  font-size: 30px;
+}
+
+.model-placeholder p {
+  margin: 0 0 10px 0;
+  color: #5a6f80;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.map-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px 0 4px;
+  font-size: 14px;
+  color: #556b7e;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+/* 右侧详情 */
+.info-panel {
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.info-panel.empty {
+  color: #617384;
+}
+
+.placeholder-block {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.placeholder-block h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #1f3552;
+}
+
+.placeholder-block p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #607285;
+}
+
+.info-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  margin-bottom: 14px;
+}
+
+.house-title {
+  margin: 0 0 14px 0;
+  font-size: 22px;
+  color: #1f3552;
+}
+
+.house-row {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4d6174;
+  word-break: break-word;
+}
+
+.house-label {
+  color: #223d55;
+  font-weight: 700;
+}
+
+.photo-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.photo-slider-wrapper {
+  width: 100%;
+}
+
+.photo-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.photo-slide {
+  width: 100%;
+}
+
+.house-photo {
+  width: 100%;
+  display: block;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #eef2f4;
+}
+
+.no-photo,
+.img-error {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 14px;
+  color: #6c7f90;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+@media (max-width: 1200px) {
+  .main-layout,
+  .main-layout.mode-overview {
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
+  }
+
+  .topbar h1 {
+    font-size: 26px;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  body {
+    overflow: auto;
+    padding: 12px;
+  }
+
+  .app-shell {
+    height: auto;
+  }
+
+  .app-card {
+    min-height: calc(100vh - 24px);
+  }
+
+  .main-layout,
+  .main-layout.mode-overview {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .story-panel,
+  .detail-panel {
+    border: none;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .center-panel {
+    min-height: 520px;
+  }
+
+  .topbar {
+    height: auto;
+    padding: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}
