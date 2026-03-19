@@ -34,13 +34,22 @@
               </div>
             </article>
 
-            <article class="story-item" data-view="plan2d">
-              <div class="story-index">02</div>
-              <div>
-                <h3>村庄 2D 平面建筑轮廓</h3>
-                <p>显示航拍图与建筑轮廓热区，点击房屋查看对应信息。</p>
+            <div class="story-group">
+              <article class="story-item" data-view="plan2d">
+                <div class="story-index">02</div>
+                <div>
+                  <h3>村庄 2D 图层</h3>
+                  <p>显示建筑、道路、农田、公共空间等不同矢量图层。</p>
+                </div>
+              </article>
+
+              <div class="substory-list" id="substoryList">
+                <button class="substory-item active" data-layer="building" type="button">建筑轮廓</button>
+                <button class="substory-item" data-layer="road" type="button">道路</button>
+                <button class="substory-item" data-layer="cropland" type="button">农田</button>
+                <button class="substory-item" data-layer="openSpace" type="button">公共空间</button>
               </div>
-            </article>
+            </div>
 
             <article class="story-item" data-view="model3d">
               <div class="story-index">03</div>
@@ -98,7 +107,7 @@
             </div>
           </div>
 
-          <!-- 2D视图 -->
+          <!-- 2D 图层视图 -->
           <div id="plan2dView" class="content-view">
             <div class="map-frame">
               <div class="map-wrapper">
@@ -107,12 +116,12 @@
               </div>
             </div>
             <div class="map-footer">
-              <span>✏️ 红色半透明框为可点击建筑轮廓</span>
-              <span>📌 当前为 2D 建筑轮廓教学模式</span>
+              <span>✏️ 红色半透明框为当前图层的可点击对象</span>
+              <span>📌 当前为 2D 图层教学模式</span>
             </div>
           </div>
 
-          <!-- 3D视图 -->
+          <!-- 3D 模型视图 -->
           <div id="model3dView" class="content-view">
             <div class="model-frame">
               <div class="model-placeholder">
@@ -130,16 +139,16 @@
         </section>
 
         <!-- 右侧详情 -->
-        <aside class="detail-panel" id="detailPanel">
+        <aside class="detail-panel">
           <div class="panel-header">
             <h2>📋 详细信息</h2>
-            <p id="detailSubtitle">点击地图中的房屋查看详情</p>
+            <p id="detailSubtitle">当前模式为整合展示</p>
           </div>
 
           <div id="infoPanel" class="info-panel empty">
             <div class="placeholder-block">
               <h3>村庄基本信息</h3>
-              <p>当前为村庄基本信息模式，中间与右侧区域已合并显示。</p>
+              <p>当前为村庄基本信息模式，中间与右侧区域合并显示。</p>
             </div>
           </div>
         </aside>
@@ -147,7 +156,8 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Supabase 可先保留，后续做对象通用上传/删除继续使用 -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
