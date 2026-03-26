@@ -6,13 +6,19 @@
   <title>村庄规划教学平台</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <div class="app-card">
       <header class="topbar">
         <div>
-          <h1>村庄规划教学平台</h1>
+          <h1>村庄规划互动平台（教学）</h1>
           <p>基于村庄航拍图、空间要素与调研信息的互动式教学界面</p>
         </div>
         <div id="statusBadge" class="topbar-badge">当前模式：村庄基本信息</div>
@@ -116,11 +122,9 @@
 
           <section id="model3dView" class="content-view">
             <div class="model-frame">
-              <div class="model-placeholder">
-                <div class="model-badge">3D</div>
-                <h2>村庄 3D 模型</h2>
-                <p>这里可作为后续村庄三维模型、规划方案表达与交互漫游的扩展入口。</p>
-                <p>当前先保留为教学平台预留模块。</p>
+              <div id="cesiumContainer" class="cesium-container"></div>
+              <div id="model3dHint" class="model-3d-hint">
+                操作提示：左键拖拽平移，滚动滚轮缩放，按住滚轮旋转。
               </div>
             </div>
           </section>
@@ -142,7 +146,12 @@
       </div>
     </div>
   </div>
+ 
+  <script>
+    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MDAzMTdmYy03MTlmLTRkNWQtODRiNy1hNTdhMGRmZTUwYzkiLCJpZCI6NDA4MjkyLCJpYXQiOjE3NzQzNDIxNDh9.Z21MNwyl3JGoYSOj18sI34-sgBU7DEZRQWkN0AN7Msk";
+  </script>
 
   <script src="app.js"></script>
+  <script src="app-3d.js"></script>
 </body>
 </html>

@@ -5,12 +5,49 @@ const PHOTO_BUCKET = "house-photos";
 const OBJECT_PHOTOS_TABLE = "object_photos";
 const OBJECT_EDITS_TABLE = "object_attribute_edits";
 
-const BUILDING_EDITABLE_FIELDS = [
-  { key: "房屋编码", label: "房屋编码", type: "text" },
-  { key: "房屋名称", label: "房屋名称", type: "text" },
-  { key: "建成年代", label: "建成年代", type: "text" },
-  { key: "占地面积", label: "占地面积", type: "number", suffix: "㎡" }
-];
+const EDITABLE_FIELDS_BY_LAYER = {
+  building: [
+    { key: "房屋编码", label: "房屋编码", type: "text" },
+    { key: "房屋名称", label: "房屋名称", type: "text" },
+    { key: "建成年代", label: "建成年代", type: "text" },
+    { key: "占地面积", label: "占地面积", type: "number", suffix: "㎡" },
+    { key: "房屋功能信息", label: "房屋功能信息", type: "text" },
+    { key: "房屋结构信息", label: "房屋结构信息", type: "text" },
+    { key: "户主信息", label: "户主信息", type: "text" }
+  ],
+  road: [
+    { key: "道路编码", label: "道路编码", type: "text" },
+    { key: "道路名称", label: "道路名称", type: "text" },
+    { key: "道路类型", label: "道路类型", type: "text" },
+    { key: "道路宽度", label: "道路宽度", type: "number", suffix: "m" },
+    { key: "路面材质", label: "路面材质", type: "text" },
+    { key: "道路状态", label: "道路状态", type: "text" }
+  ],
+  cropland: [
+    { key: "农田编码", label: "农田编码", type: "text" },
+    { key: "农田名称", label: "农田名称", type: "text" },
+    { key: "用地类型", label: "用地类型", type: "text" },
+    { key: "面积", label: "面积", type: "number", suffix: "㎡" },
+    { key: "种植情况", label: "种植情况", type: "text" },
+    { key: "备注", label: "备注", type: "text" }
+  ],
+  openSpace: [
+    { key: "公共空间编码", label: "公共空间编码", type: "text" },
+    { key: "公共空间名称", label: "公共空间名称", type: "text" },
+    { key: "空间类型", label: "空间类型", type: "text" },
+    { key: "面积", label: "面积", type: "number", suffix: "㎡" },
+    { key: "设施情况", label: "设施情况", type: "text" },
+    { key: "备注", label: "备注", type: "text" }
+  ],
+  water: [
+    { key: "水体编码", label: "水体编码", type: "text" },
+    { key: "水体名称", label: "水体名称", type: "text" },
+    { key: "水体类型", label: "水体类型", type: "text" },
+    { key: "面积", label: "面积", type: "number", suffix: "㎡" },
+    { key: "水质情况", label: "水质情况", type: "text" },
+    { key: "备注", label: "备注", type: "text" }
+  ]
+};
 
 const BASE_SPACE_ID = "current";
 const SPACE_STORAGE_KEY = "village_planning_spaces_v1";
@@ -100,6 +137,17 @@ const layerConfigs = {
     nameFields: ["水体名称", "名称", "name", "NAME"],
     photoFields: ["照片", "图片", "photo", "PHOTO"]
   },
+  
+  contours: {
+    label: "等高线",
+    objectType: "contours",
+    geojsonUrl: "data/contours.geojson",
+    tableUrl: null,
+    codeFields: ["id", "ID", "elev", "ELEV", "Contour", "CONTOUR"],
+    nameFields: ["name", "NAME", "elev", "ELEV", "Contour", "CONTOUR"],
+    photoFields: []
+  },
+
   figureGround: {
     label: "图底关系",
     objectType: "figure_ground",
@@ -109,6 +157,15 @@ const layerConfigs = {
     nameFields: [],
     photoFields: []
   }
+};
+
+const BASEMAP_GEOREF = {
+  imageUrl: "assets/orthophoto_georef.png",
+  minX: 113.6572059645772157,
+  minY: 23.6744933311960075,
+  maxX: 113.6634436030307853,
+  maxY: 23.6792748321960076,
+  crs: "EPSG:4326"
 };
 
 function getDefaultSpaces() {
@@ -147,10 +204,9 @@ function loadSpacesFromStorage() {
       title: s.id === BASE_SPACE_ID ? "村庄现状" : (s.title || "复制版"),
       readonly: s.id === BASE_SPACE_ID ? true : !!s.readonly,
       expanded: typeof s.expanded === "boolean" ? s.expanded : true,
-      selectedLayers:
-        s.id === BASE_SPACE_ID
-          ? ["figureGround"]
-          : (Array.isArray(s.selectedLayers) && s.selectedLayers.length ? s.selectedLayers : ["building"])
+      selectedLayers: Array.isArray(s.selectedLayers)
+        ? s.selectedLayers
+        : (s.id === BASE_SPACE_ID ? ["figureGround"] : ["building"])
     }));
   } catch (error) {
     console.warn("读取空间配置失败，已回退默认值：", error);
@@ -197,7 +253,7 @@ function getAvailableLayerKeysForSpace(space) {
     return ["figureGround", "building", "road", "cropland", "openSpace", "water"];
   }
 
-  return ["building", "road", "cropland", "openSpace"];
+  return ["building", "road", "cropland", "openSpace", "water"];
 }
 
 function syncBasemapUIBySpace(spaceId) {
@@ -237,8 +293,8 @@ function createCopySpace() {
   const copyIndex = spaces.filter((s) => s.id !== BASE_SPACE_ID).length + 1;
   const baseSpace = getSpaceById(BASE_SPACE_ID) || getCurrentSpace();
 
-  const filtered = (baseSpace?.selectedLayers || ["building"]).filter(
-    (key) => !["figureGround", "water"].includes(key)
+  const filtered = (baseSpace?.selectedLayers || []).filter(
+    (key) => !["figureGround"].includes(key)
   );
 
   const newSpace = {
@@ -246,7 +302,7 @@ function createCopySpace() {
     title: `复制版 ${copyIndex}`,
     readonly: false,
     expanded: true,
-    selectedLayers: filtered.length ? filtered : ["building"]
+    selectedLayers: filtered
   };
 
   spaces.push(newSpace);
@@ -319,10 +375,20 @@ function renderSpaceList() {
                 data-space-layer="${space.id}::${layerKey}"
                 type="button"
               >
-                ${layerConfigs[layerKey].label}
+                ${escapeHtml(layerConfigs[layerKey].label)}
               </button>
             `).join("")}
           </div>
+
+          ${
+            !space.readonly
+              ? `
+                <div class="space-actions">
+                  <button class="space-delete-btn" type="button" data-space-delete="${space.id}">删除空间</button>
+                </div>
+              `
+              : ""
+          }
         </div>
       `;
     })
@@ -333,70 +399,33 @@ function renderSpaceList() {
 
 function bindSpaceListEvents() {
   const selectButtons = document.querySelectorAll("[data-space-select]");
-  selectButtons.forEach((btn) => {
-    btn.addEventListener("click", async (event) => {
-      const targetInput = event.target.closest("[data-space-rename]");
-      if (targetInput) return;
+  selectButtons.forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      if (event.target && event.target.matches(".space-title-input")) return;
 
-      const spaceId = btn.dataset.spaceSelect;
+      const spaceId = button.dataset.spaceSelect;
       if (!spaceId) return;
 
       currentSpaceId = spaceId;
       currentSelectedObject = null;
       currentInfoMode = "readonly";
-
-      const currentTargetSpace = getSpaceById(spaceId);
-      if (currentTargetSpace && currentTargetSpace.id === BASE_SPACE_ID) {
-        currentTargetSpace.selectedLayers = ["figureGround"];
-        if (basemapToggle) {
-          basemapToggle.checked = false;
-        }
-      }
-
       saveSpacesToStorage();
       renderSpaceList();
       syncBasemapUIBySpace(spaceId);
 
-      await ensureSelectedLayersLoadedForSpace(spaceId);
-
-      setActiveStoryView("plan2d");
-      switchMode("plan2d");
-      showPlan2DOverview();
-    });
-  });
-
-  const renameInputs = document.querySelectorAll("[data-space-rename]");
-  renameInputs.forEach((input) => {
-    input.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-
-    input.addEventListener("input", (event) => {
-      const spaceId = event.target.dataset.spaceRename;
-      const target = getSpaceById(spaceId);
-      if (!target || target.readonly) return;
-
-      target.title = event.target.value.trim() || "复制版";
-      saveSpacesToStorage();
-      update2DStatusText();
-    });
-
-    input.addEventListener("blur", (event) => {
-      const spaceId = event.target.dataset.spaceRename;
-      const target = getSpaceById(spaceId);
-      if (!target || target.readonly) return;
-
-      target.title = event.target.value.trim() || "复制版";
-      saveSpacesToStorage();
-      renderSpaceList();
+      if (plan2dView.classList.contains("active")) {
+        await ensureSelectedLayersLoaded();
+        refresh2DOverlay();
+        showPlan2DOverview();
+      }
     });
   });
 
   const toggleButtons = document.querySelectorAll("[data-space-toggle]");
-  toggleButtons.forEach((btn) => {
-    btn.addEventListener("click", (event) => {
+  toggleButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
       event.stopPropagation();
-      const spaceId = btn.dataset.spaceToggle;
+      const spaceId = button.dataset.spaceToggle;
       const target = getSpaceById(spaceId);
       if (!target) return;
 
@@ -406,62 +435,91 @@ function bindSpaceListEvents() {
     });
   });
 
-  const layerButtons = document.querySelectorAll("[data-space-layer]");
-  layerButtons.forEach((btn) => {
-    btn.addEventListener("click", async (event) => {
+  const renameInputs = document.querySelectorAll("[data-space-rename]");
+  renameInputs.forEach((input) => {
+    input.addEventListener("click", (event) => {
       event.stopPropagation();
+    });
 
-      const raw = btn.dataset.spaceLayer || "";
-      const [spaceId, layerKey] = raw.split("::");
-      if (!spaceId || !layerKey) return;
+    input.addEventListener("input", () => {
+      const spaceId = input.dataset.spaceRename;
+      const target = getSpaceById(spaceId);
+      if (!target || target.readonly) return;
+      target.title = input.value.trim() || "复制版";
+      saveSpacesToStorage();
+    });
+  });
 
-      const targetSpace = getSpaceById(spaceId);
-      if (!targetSpace) return;
+  const layerButtons = document.querySelectorAll("[data-space-layer]");
+  layerButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const payload = button.dataset.spaceLayer || "";
+      const [spaceId, layerKey] = payload.split("::");
+      const target = getSpaceById(spaceId);
+      if (!target || !layerKey) return;
 
-      const allowedLayerKeys = getAvailableLayerKeysForSpace(targetSpace);
-      if (!allowedLayerKeys.includes(layerKey)) return;
+      const availableLayerKeys = getAvailableLayerKeysForSpace(target);
+      if (!availableLayerKeys.includes(layerKey)) return;
 
-      const nextSet = new Set(targetSpace.selectedLayers || []);
+      const selected = new Set(target.selectedLayers || []);
 
-      if (nextSet.has(layerKey)) {
-        nextSet.delete(layerKey);
-
-        if (
-          currentSelectedObject &&
-          currentSelectedObject.layerKey === layerKey &&
-          currentSelectedObject.spaceId === spaceId
-        ) {
-          currentSelectedObject = null;
-          currentInfoMode = "readonly";
-          setActivePolygon(null);
-        }
+      if (selected.has(layerKey)) {
+        selected.delete(layerKey);
       } else {
-        if (layerKey === "figureGround") {
-          await ensureLayerLoaded("building");
-          await ensureLayerLoaded("road");
-          await ensureLayerLoaded("water");
-        } else {
-          await ensureLayerLoaded(layerKey);
-        }
-        nextSet.add(layerKey);
+        selected.add(layerKey);
       }
 
-      if (spaceId === BASE_SPACE_ID && nextSet.size === 0) {
-        nextSet.add("figureGround");
+      // 复制空间本来就没有 figureGround，这里只是保险
+      if (target.id !== BASE_SPACE_ID) {
+        selected.delete("figureGround");
       }
 
-      setSpaceSelectedLayers(spaceId, Array.from(nextSet));
+      setSpaceSelectedLayers(spaceId, [...selected]);
+      currentSpaceId = spaceId;
+      currentSelectedObject = null;
+      currentInfoMode = "readonly";
 
-      if (currentSpaceId !== spaceId) {
-        currentSpaceId = spaceId;
-      }
-
+      await ensureSelectedLayersLoaded();
       renderSpaceList();
       syncBasemapUIBySpace(spaceId);
-
-      setActiveStoryView("plan2d");
-      switchMode("plan2d");
+      refresh2DOverlay();
       showPlan2DOverview();
+    });
+  });
+
+  const deleteButtons = document.querySelectorAll("[data-space-delete]");
+  deleteButtons.forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const spaceId = button.dataset.spaceDelete;
+      if (!spaceId || isBaseSpace(spaceId)) return;
+
+      const target = getSpaceById(spaceId);
+      const title = target?.title || "该空间";
+      const confirmed = window.confirm(`确定要删除“${title}”吗？此操作不会删除村庄现状空间。`);
+      if (!confirmed) return;
+
+      spaces = spaces.filter((s) => s.id !== spaceId);
+
+      if (!spaces.some((s) => s.id === BASE_SPACE_ID)) {
+        spaces.unshift(...getDefaultSpaces());
+      }
+
+      if (currentSpaceId === spaceId) {
+        currentSpaceId = BASE_SPACE_ID;
+      }
+
+      currentSelectedObject = null;
+      currentInfoMode = "readonly";
+      saveSpacesToStorage();
+      renderSpaceList();
+      syncBasemapUIBySpace(currentSpaceId);
+
+      if (plan2dView.classList.contains("active")) {
+        await ensureSelectedLayersLoaded();
+        refresh2DOverlay();
+        showPlan2DOverview();
+      }
     });
   });
 }
@@ -469,66 +527,17 @@ function bindSpaceListEvents() {
 function hasRequiredNewLayout() {
   return !!(
     mainLayout &&
+    overviewView &&
+    plan2dView &&
+    model3dView &&
     villageImage &&
     svgOverlay &&
     infoPanel &&
     statusBadge &&
     detailSubtitle &&
-    overviewView &&
-    plan2dView &&
-    model3dView &&
     spaceList &&
     addSpaceBtn
   );
-}
-
-async function loadText(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`加载失败：${url}`);
-  return await response.text();
-}
-
-async function loadCSV(url) {
-  const text = await loadText(url);
-  return parseCSV(text);
-}
-
-async function loadCSVOrEmpty(url) {
-  try {
-    return await loadCSV(url);
-  } catch (error) {
-    console.warn(`CSV 加载失败，按空表处理：${url}`, error);
-    return [];
-  }
-}
-
-async function loadGeoJSON(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`加载失败：${url}`);
-  return await response.json();
-}
-
-function parseCSV(text) {
-  const cleanText = text.replace(/^\uFEFF/, "").trim();
-  const lines = cleanText.split(/\r?\n/);
-  if (!lines.length) return [];
-
-  const delimiter = lines[0].includes("\t") ? "\t" : ",";
-  const headers = lines[0]
-    .split(delimiter)
-    .map((h) => h.replace(/^\uFEFF/, "").replace(/\r/g, "").trim());
-
-  return lines
-    .slice(1)
-    .filter((line) => line.trim() !== "")
-    .map((line) => {
-      const values = line.split(delimiter).map((v) => v.replace(/\r/g, "").trim());
-      const row = {};
-      headers.forEach((header, index) => {
-        row[header] = values[index] || "";
-      });
-      return row;
-    });
 }
 
 function normalizeCode(value) {
@@ -540,154 +549,816 @@ function normalizeCode(value) {
     .toUpperCase();
 }
 
-function getFeatureCode(feature) {
-  const p = feature.properties || {};
-  return p.CODE || p.Code || p.code || p.NAME || p.Name || p.name || p.编码 || p.ID || p.id || "";
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && nextChar === "\n") i += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell.length || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const filteredRows = rows.filter((r) => r.some((item) => String(item).trim() !== ""));
+  if (!filteredRows.length) return [];
+
+  const headers = filteredRows[0].map((h) => String(h || "").trim().replace(/^\uFEFF/, ""));
+  return filteredRows.slice(1).map((values) => {
+    const obj = {};
+    headers.forEach((header, index) => {
+      obj[header] = String(values[index] ?? "").trim();
+    });
+    return obj;
+  });
 }
 
-function getRowValueByFields(row, fields = []) {
+async function fetchText(url) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`加载失败：${url}`);
+  }
+  return response.text();
+}
+
+async function fetchJSON(url) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`加载失败：${url}`);
+  }
+  return response.json();
+}
+
+function getGeoJSONFeatures(data) {
+  if (!data) return [];
+  if (Array.isArray(data.features)) return data.features;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+function getFeatureProperties(feature) {
+  return feature?.properties || {};
+}
+
+function getFeatureGeometry(feature) {
+  return feature?.geometry || null;
+}
+
+function flattenCoordinates(coords) {
+  if (!Array.isArray(coords)) return [];
+  if (typeof coords[0] === "number") return [coords];
+  return coords.flatMap((item) => flattenCoordinates(item));
+}
+
+function getFeatureRings(feature) {
+  const geometry = getFeatureGeometry(feature);
+  if (!geometry) return [];
+
+  if (geometry.type === "Polygon") {
+    return Array.isArray(geometry.coordinates) ? [geometry.coordinates] : [];
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return Array.isArray(geometry.coordinates) ? geometry.coordinates : [];
+  }
+
+  return [];
+}
+
+function getFeatureLines(feature) {
+  const geometry = getFeatureGeometry(feature);
+  if (!geometry) return [];
+
+  if (geometry.type === "LineString") {
+    return [geometry.coordinates];
+  }
+
+  if (geometry.type === "MultiLineString") {
+    return geometry.coordinates || [];
+  }
+
+  return [];
+}
+
+function getFirstMatchingField(obj, fields = []) {
+  if (!obj || !fields.length) return "";
   for (const field of fields) {
-    if (row[field]) return row[field];
+    if (obj[field] !== undefined && obj[field] !== null && String(obj[field]).trim() !== "") {
+      return obj[field];
+    }
   }
   return "";
 }
 
+function getFeatureCode(feature, layerKey) {
+  const config = layerConfigs[layerKey];
+  const props = getFeatureProperties(feature);
+  return getFirstMatchingField(props, config?.codeFields || []);
+}
+
 function getRowCode(row, layerKey) {
   const config = layerConfigs[layerKey];
-  return config ? getRowValueByFields(row, config.codeFields) : "";
+  return getFirstMatchingField(row, config?.codeFields || []);
 }
 
 function getRowName(row, layerKey) {
   const config = layerConfigs[layerKey];
-  return config ? getRowValueByFields(row, config.nameFields) : "";
+  return getFirstMatchingField(row, config?.nameFields || []);
 }
 
 function getRowPhotoValue(row, layerKey) {
   const config = layerConfigs[layerKey];
-  return config ? getRowValueByFields(row, config.photoFields) : "";
+  return getFirstMatchingField(row, config?.photoFields || []);
 }
 
-function setupSVGSize() {
-  if (!villageImage || !villageImage.naturalWidth) return false;
-
-  const imgWidth = villageImage.naturalWidth;
-  const imgHeight = villageImage.naturalHeight;
-  const rect = villageImage.getBoundingClientRect();
-  const wrapperRect = villageImage.parentElement.getBoundingClientRect();
-
-  if (!rect.width || !rect.height) return false;
-
-  svgOverlay.setAttribute("width", rect.width);
-  svgOverlay.setAttribute("height", rect.height);
-  svgOverlay.setAttribute("viewBox", `0 0 ${imgWidth} ${imgHeight}`);
-  svgOverlay.style.width = `${rect.width}px`;
-  svgOverlay.style.height = `${rect.height}px`;
-  svgOverlay.style.left = `${rect.left - wrapperRect.left}px`;
-  svgOverlay.style.top = `${rect.top - wrapperRect.top}px`;
-
-  return true;
+function buildRowIndex(rows, layerKey) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const code = normalizeCode(getRowCode(row, layerKey));
+    if (code) {
+      map.set(code, row);
+    }
+  });
+  return map;
 }
 
-function qgisPointToImagePoint([x, y]) {
-  return [x, -y];
+function getEditableFields(layerKey) {
+  return EDITABLE_FIELDS_BY_LAYER[layerKey] || [];
 }
 
-function geometryToSVGPoints(feature) {
-  const geom = feature.geometry;
-  if (!geom) return [];
+function canEditLayer(layerKey, readonlySpace) {
+  return !readonlySpace && getEditableFields(layerKey).length > 0;
+}
 
-  let ring = null;
-  if (geom.type === "Polygon") {
-    ring = geom.coordinates[0];
-  } else if (geom.type === "MultiPolygon") {
-    ring = geom.coordinates[0][0];
-  } else {
-    return [];
+function getLayerStyle(layerKey) {
+  const isActive = false;
+  const styles = {
+    building: {
+      fill: isActive ? "rgba(33, 150, 243, 0.20)" : "rgba(255,70,70,0.30)",
+      stroke: isActive ? "#1565c0" : "#ef5350",
+      strokeWidth: isActive ? 3.2 : 2.3
+    },
+    contours: {
+      fill: "none",
+      stroke: "rgba(120, 140, 120, 0.55)",
+      strokeWidth: 1.2,
+      opacity: 1
+    },
+    road: {
+      fill: isActive ? "rgba(33, 150, 243, 0.20)" : "rgba(255,170,0,0.30)",
+      stroke: isActive ? "#1565c0" : "#ff9800",
+      strokeWidth: isActive ? 3.2 : 2.1
+    },
+    cropland: {
+      fill: isActive ? "rgba(33, 150, 243, 0.20)" : "rgba(60,179,113,0.30)",
+      stroke: isActive ? "#1565c0" : "#3cb371",
+      strokeWidth: isActive ? 3.2 : 2.1
+    },
+    openSpace: {
+      fill: isActive ? "rgba(33, 150, 243, 0.20)" : "rgba(70,140,255,0.30)",
+      stroke: isActive ? "#1565c0" : "#468cff",
+      strokeWidth: isActive ? 3.2 : 2.1
+    },
+    water: {
+      fill: "rgba(66, 133, 244, 0.55)",
+      stroke: "#4285f4",
+      strokeWidth: 2.2
+    },
+    figureGroundBuilding: {
+      fill: "rgba(0,0,0,0.96)",
+      stroke: "#000000",
+      strokeWidth: 1.2
+    },
+    figureGroundRoad: {
+      fill: "rgba(128,128,128,0.95)",
+      stroke: "#808080",
+      strokeWidth: 1.1
+    },
+    figureGroundWater: {
+      fill: "rgba(66,133,244,0.92)",
+      stroke: "#4285f4",
+      strokeWidth: 1.1
+    },
+    default: {
+      fill: "rgba(120, 120, 120, 0.25)",
+      stroke: "#666666",
+      strokeWidth: 2
+    }
+  };
+
+  return styles[layerKey] || styles.default;
+}
+
+function setPolygonVisualState(polygon, layerKey, active = false) {
+  if (!polygon) return;
+
+  let style = getLayerStyle(layerKey);
+
+  if (active) {
+    polygon.setAttribute("fill", "rgba(33, 150, 243, 0.20)");
+    polygon.setAttribute("stroke", "#1565c0");
+    polygon.setAttribute("stroke-width", "3.2");
+    polygon.classList.add("active");
+    return;
   }
 
-  return ring.map((point) => qgisPointToImagePoint(point));
+  polygon.classList.remove("active");
+  polygon.setAttribute("fill", style.fill);
+  polygon.setAttribute("stroke", style.stroke);
+  polygon.setAttribute("stroke-width", String(style.strokeWidth));
 }
 
-function pointsToString(points) {
-  return points.map(([x, y]) => `${x},${y}`).join(" ");
+function setActivePolygon(nextPolygon) {
+  if (activePolygon && activePolygon !== nextPolygon) {
+    const prevLayerKey = activePolygon.dataset.layerKey;
+    setPolygonVisualState(activePolygon, prevLayerKey, false);
+  }
+
+  activePolygon = nextPolygon;
+
+  if (activePolygon) {
+    const layerKey = activePolygon.dataset.layerKey;
+    setPolygonVisualState(activePolygon, layerKey, true);
+  }
+}
+
+function lonLatToImagePoint(lon, lat, bounds, width, height) {
+  const x = ((lon - bounds.minLon) / (bounds.maxLon - bounds.minLon || 1)) * width;
+  const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat || 1)) * height;
+  return [x, y];
+}
+
+function getBasemapBounds() {
+  if (
+    !BASEMAP_GEOREF ||
+    !Number.isFinite(BASEMAP_GEOREF.minX) ||
+    !Number.isFinite(BASEMAP_GEOREF.minY) ||
+    !Number.isFinite(BASEMAP_GEOREF.maxX) ||
+    !Number.isFinite(BASEMAP_GEOREF.maxY)
+  ) {
+    return null;
+  }
+
+  return {
+    minLon: BASEMAP_GEOREF.minX,
+    minLat: BASEMAP_GEOREF.minY,
+    maxLon: BASEMAP_GEOREF.maxX,
+    maxLat: BASEMAP_GEOREF.maxY
+  };
+}
+
+function computeBoundsFromLayers(layerKeys) {
+  let minLon = Infinity;
+  let minLat = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+
+  layerKeys.forEach((layerKey) => {
+    const cached = layerDataCache[layerKey];
+    if (!cached?.features) return;
+
+    cached.features.forEach((feature) => {
+      const rings = getFeatureRings(feature);
+      rings.forEach((polygonRings) => {
+        polygonRings.forEach((ring) => {
+          ring.forEach(([lon, lat]) => {
+            if (typeof lon !== "number" || typeof lat !== "number") return;
+            minLon = Math.min(minLon, lon);
+            minLat = Math.min(minLat, lat);
+            maxLon = Math.max(maxLon, lon);
+            maxLat = Math.max(maxLat, lat);
+          });
+        });
+      });
+    });
+  });
+
+  if (!Number.isFinite(minLon) || !Number.isFinite(minLat) || !Number.isFinite(maxLon) || !Number.isFinite(maxLat)) {
+    return null;
+  }
+
+  if (minLon === maxLon) maxLon = minLon + 0.0001;
+  if (minLat === maxLat) maxLat = minLat + 0.0001;
+
+  return { minLon, minLat, maxLon, maxLat };
 }
 
 async function ensureLayerLoaded(layerKey) {
-  const config = layerConfigs[layerKey];
-  if (!config) return null;
-
   if (layerDataCache[layerKey]) return layerDataCache[layerKey];
 
   if (layerKey === "figureGround") {
-    await ensureLayerLoaded("building");
-    await ensureLayerLoaded("road");
-    await ensureLayerLoaded("water");
-    layerDataCache[layerKey] = { tableData: [], geojson: null };
-    return layerDataCache[layerKey];
+    const result = { features: [], rows: [], rowIndex: new Map() };
+    layerDataCache[layerKey] = result;
+    return result;
   }
 
-  const [tableData, geojson] = await Promise.all([
-    config.tableUrl ? loadCSVOrEmpty(config.tableUrl) : Promise.resolve([]),
-    config.geojsonUrl ? loadGeoJSON(config.geojsonUrl) : Promise.resolve(null)
+  const config = layerConfigs[layerKey];
+  if (!config) {
+    throw new Error(`未找到图层配置：${layerKey}`);
+  }
+
+  const [geojson, csvText] = await Promise.all([
+    fetchJSON(config.geojsonUrl),
+    config.tableUrl ? fetchText(config.tableUrl).catch(() => "") : Promise.resolve("")
   ]);
 
-  layerDataCache[layerKey] = { tableData, geojson };
-  return layerDataCache[layerKey];
+  const features = getGeoJSONFeatures(geojson);
+  const rows = csvText ? parseCSV(csvText) : [];
+  const rowIndex = buildRowIndex(rows, layerKey);
+
+  const result = { features, rows, rowIndex };
+  layerDataCache[layerKey] = result;
+  return result;
 }
 
-async function ensureSelectedLayersLoadedForSpace(spaceId) {
-  const target = getSpaceById(spaceId);
-  if (!target) return;
+async function ensureSelectedLayersLoaded() {
+  const selectedLayers = getSelectedLayersForCurrentSpace();
 
-  for (const key of target.selectedLayers || []) {
-    if (key === "figureGround") {
-      await ensureLayerLoaded("building");
-      await ensureLayerLoaded("road");
-      await ensureLayerLoaded("water");
-      await ensureLayerLoaded("figureGround");
+  const effective = selectedLayers.includes("figureGround")
+    ? Array.from(new Set([...selectedLayers, "contours", "building", "road", "water"]))
+    : [...selectedLayers];
+
+  for (const layerKey of effective) {
+    await ensureLayerLoaded(layerKey);
+  }
+}
+
+function clearOverlay() {
+  svgOverlay.innerHTML = "";
+  polygonMap = new Map();
+  activePolygon = null;
+}
+
+function buildPolygonPointsString(ring, bounds, width, height) {
+  return ring
+    .map(([lon, lat]) => {
+      const [x, y] = lonLatToImagePoint(lon, lat, bounds, width, height);
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
+function buildLinePointsString(lineCoords, bounds, width, height) {
+  return lineCoords
+    .map(([lon, lat]) => {
+      const [x, y] = lonLatToImagePoint(lon, lat, bounds, width, height);
+      return `${x},${y}`;
+    })
+    .join(" ");
+}
+
+function makePolygonElement({
+  points,
+  layerKey,
+  sourceCode,
+  displayName,
+  feature,
+  baseRow
+}) {
+  const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  polygon.setAttribute("points", points);
+  polygon.setAttribute("class", `map-polygon layer-${layerKey}`);
+  polygon.dataset.layerKey = layerKey;
+  polygon.dataset.sourceCode = sourceCode || "";
+  polygon.dataset.displayName = displayName || "";
+  setPolygonVisualState(polygon, layerKey, false);
+
+  polygon.addEventListener("mouseenter", () => {
+    if (polygon !== activePolygon) {
+      polygon.setAttribute("stroke-width", "3");
+    }
+  });
+
+  polygon.addEventListener("mouseleave", () => {
+    if (polygon !== activePolygon) {
+      const style = getLayerStyle(layerKey);
+      polygon.setAttribute("stroke-width", String(style.strokeWidth));
+    }
+  });
+
+  polygon.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    setActivePolygon(polygon);
+
+    if (layerKey === "figureGround") {
+      showFigureGroundInfo();
+      return;
+    }
+
+    currentInfoMode = "readonly";
+
+    const effectiveRow = baseRow || buildFallbackObjectRow(sourceCode, layerKey, feature);
+
+    currentSelectedObject = {
+      sourceCode,
+      displayName: displayName || sourceCode || "未匹配对象",
+      layerKey,
+      layerLabel: layerConfigs[layerKey]?.label || "对象",
+      spaceId: currentSpaceId
+    };
+    update2DStatusText();
+
+    await showObjectInfo(effectiveRow, layerKey, sourceCode);
+  });
+
+  return polygon;
+}
+
+function makePolylineElement({ points, layerKey }) {
+  const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  polyline.setAttribute("points", points);
+  polyline.setAttribute("fill", "none");
+
+  const style = getLayerStyle(layerKey);
+  polyline.setAttribute("stroke", style.stroke);
+  polyline.setAttribute("stroke-width", String(style.strokeWidth));
+  polyline.setAttribute("stroke-linecap", "round");
+  polyline.setAttribute("stroke-linejoin", "round");
+  polyline.setAttribute("opacity", style.opacity != null ? String(style.opacity) : "1");
+  polyline.setAttribute("class", `map-line layer-${layerKey}`);
+
+  return polyline;
+}
+
+function showFigureGroundInfo() {
+  currentSelectedObject = null;
+  currentInfoMode = "readonly";
+  update2DStatusText();
+
+  infoPanel.classList.remove("empty");
+  infoPanel.innerHTML = `
+    <div class="info-card">
+      <h3 class="house-title">图底关系图层</h3>
+      <div class="house-row">当前显示图底关系模式：建筑为纯黑、道路为灰色、水体为蓝色、背景为白色。</div>
+      <div class="house-row">该模式主要用于识别村庄空间肌理、道路骨架与水系关系。</div>
+      <div class="house-row">可通过左侧图层按钮继续叠加建筑、道路、水体等图层。</div>
+    </div>
+  `;
+}
+
+function showUnmatchedObjectInfo(sourceCode, layerKey, feature = null) {
+  const layerLabel = layerConfigs[layerKey]?.label || "对象";
+  const props = feature ? getFeatureProperties(feature) : {};
+
+  infoPanel.classList.remove("empty");
+  infoPanel.innerHTML = `
+    <div class="info-card">
+      <h3 class="house-title">${escapeHtml(layerLabel)}信息</h3>
+      <div class="house-row"><span class="house-label">对象编码：</span>${escapeHtml(sourceCode || "未识别")}</div>
+      <div class="house-row"><span class="house-label">对象名称：</span>${escapeHtml(getFirstMatchingField(props, layerConfigs[layerKey]?.nameFields || []) || "未命名")}</div>
+      <div class="house-row">当前 GeoJSON 要素已识别，但在对应 CSV 中未匹配到详细属性。</div>
+      <div class="house-row">请检查该对象在 CSV 中是否有同名编码字段。</div>
+    </div>
+  `;
+}
+
+function buildFallbackObjectRow(sourceCode, layerKey, feature = null) {
+  const config = layerConfigs[layerKey] || {};
+  const props = feature ? getFeatureProperties(feature) : {};
+
+  const displayName =
+    getFirstMatchingField(props, config.nameFields || []) ||
+    sourceCode ||
+    "未命名对象";
+
+  if (layerKey === "building") {
+    return {
+      "房屋编码": sourceCode || "",
+      "房屋名称": displayName,
+      "建成年代": "",
+      "占地面积": "",
+      "房屋功能信息": "",
+      "房屋结构信息": "",
+      "户主信息": ""
+    };
+  }
+
+  if (layerKey === "road") {
+    return {
+      "道路编码": sourceCode || "",
+      "道路名称": displayName,
+      "道路类型": "",
+      "道路宽度": "",
+      "路面材质": "",
+      "道路状态": ""
+    };
+  }
+
+  if (layerKey === "cropland") {
+    return {
+      "农田编码": sourceCode || "",
+      "农田名称": displayName,
+      "用地类型": "",
+      "面积": "",
+      "种植情况": "",
+      "备注": ""
+    };
+  }
+
+  if (layerKey === "openSpace") {
+    return {
+      "公共空间编码": sourceCode || "",
+      "公共空间名称": displayName,
+      "空间类型": "",
+      "面积": "",
+      "设施情况": "",
+      "备注": ""
+    };
+  }
+
+  if (layerKey === "water") {
+    return {
+      "水体编码": sourceCode || "",
+      "水体名称": displayName,
+      "水体类型": "",
+      "面积": "",
+      "水质情况": "",
+      "备注": ""
+    };
+  }
+
+  return {
+    "对象编码": sourceCode || "",
+    "对象名称": displayName
+  };
+}
+
+function refresh2DOverlay() {
+  if (!plan2dView.classList.contains("active")) return;
+  if (!villageImage || !svgOverlay) return;
+
+  const width = villageImage.clientWidth || villageImage.naturalWidth || 1000;
+  const height = villageImage.clientHeight || villageImage.naturalHeight || 600;
+
+  svgOverlay.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svgOverlay.setAttribute("width", width);
+  svgOverlay.setAttribute("height", height);
+
+  clearOverlay();
+
+  const selectedLayers = getSelectedLayersForCurrentSpace();
+  const effectiveLayerKeys = selectedLayers.includes("figureGround")
+    ? ["contours", "water", "road", "building"]
+    : [...selectedLayers];
+
+  const bounds = getBasemapBounds();
+  if (!bounds) {
+    console.warn("未配置底图地理范围 BASEMAP_GEOREF，无法绘制坐标版图层。");
+    return;
+  }
+
+  effectiveLayerKeys.forEach((layerKey) => {
+    const cached = layerDataCache[layerKey];
+    if (!cached?.features) return;
+
+    cached.features.forEach((feature) => {
+      const props = getFeatureProperties(feature);
+      const sourceCode = getFeatureCode(feature, layerKey);
+      const row = cached.rowIndex.get(normalizeCode(sourceCode)) || null;
+      const displayName = row
+        ? getRowName(row, layerKey) || sourceCode
+        : getFirstMatchingField(props, layerConfigs[layerKey]?.nameFields || []) || sourceCode;
+
+      if (layerKey === "contours") {
+        const lines = getFeatureLines(feature);
+
+        lines.forEach((line) => {
+          if (!line || !line.length) return;
+
+          const points = buildLinePointsString(line, bounds, width, height);
+          const polyline = makePolylineElement({
+            points,
+            layerKey: "contours"
+          });
+
+          svgOverlay.appendChild(polyline);
+        });
+
+        return;
+      }
+
+      const rings = getFeatureRings(feature);
+
+      rings.forEach((polygonRings) => {
+        const outerRing = polygonRings?.[0];
+        if (!outerRing || !outerRing.length) return;
+
+        let actualLayerKey = layerKey;
+
+        if (selectedLayers.includes("figureGround")) {
+          if (layerKey === "building") actualLayerKey = "figureGroundBuilding";
+          if (layerKey === "road") actualLayerKey = "figureGroundRoad";
+          if (layerKey === "water") actualLayerKey = "figureGroundWater";
+        }
+
+        const points = buildPolygonPointsString(outerRing, bounds, width, height);
+        const polygon = makePolygonElement({
+          points,
+          layerKey: actualLayerKey,
+          sourceCode,
+          displayName,
+          feature,
+          baseRow: row
+        });
+
+        svgOverlay.appendChild(polygon);
+        if (sourceCode) {
+          polygonMap.set(`${actualLayerKey}::${normalizeCode(sourceCode)}`, polygon);
+        }
+      });
+    });
+  });
+}
+
+function setActiveStoryItem(viewKey) {
+  storyItems.forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === viewKey);
+  });
+}
+
+function switchMainView(viewKey) {
+  overviewView.classList.remove("active");
+  plan2dView.classList.remove("active");
+  model3dView.classList.remove("active");
+
+  if (viewKey === "overview") {
+    overviewView.classList.add("active");
+    mainLayout.classList.add("mode-overview");
+    mainLayout.classList.remove("mode-map");
+  } else if (viewKey === "plan2d") {
+    plan2dView.classList.add("active");
+    mainLayout.classList.remove("mode-overview");
+    mainLayout.classList.add("mode-map");
+  } else if (viewKey === "model3d") {
+    model3dView.classList.add("active");
+    mainLayout.classList.remove("mode-overview");
+    mainLayout.classList.add("mode-map");
+  }
+}
+
+function update2DStatusText() {
+  const currentSpace = getCurrentSpace();
+  if (!statusBadge) return;
+
+  if (!currentSelectedObject) {
+    statusBadge.textContent = `当前模式：村庄 2D 图层｜空间：${currentSpace?.title || "村庄现状"}`;
+    return;
+  }
+
+  statusBadge.textContent = `当前模式：村庄 2D 图层｜空间：${currentSpace?.title || "村庄现状"}｜已选对象：${currentSelectedObject.displayName}`;
+}
+
+function showVillageOverview() {
+  setActiveStoryItem("overview");
+  switchMainView("overview");
+
+  if (statusBadge) {
+    statusBadge.textContent = "当前模式：村庄基本信息";
+  }
+
+  if (detailSubtitle) {
+    detailSubtitle.textContent = "当前模式为整合展示";
+  }
+
+  infoPanel.classList.add("empty");
+  infoPanel.innerHTML = `
+    <div class="placeholder-block">
+      <h3>村庄基本信息</h3>
+      <p>此页面用于展示村庄概况、教学目标、区位条件、现状问题等整体信息。</p>
+      <p>如需查看具体建筑或空间对象，请切换到“村庄 2D 图层”或“村庄 3D 模型”。</p>
+    </div>
+  `;
+}
+
+function showPlan2DOverview() {
+  setActiveStoryItem("plan2d");
+  switchMainView("plan2d");
+  syncBasemapUIBySpace(currentSpaceId);
+  update2DStatusText();
+
+  const selectedLayers = getSelectedLayersForCurrentSpace();
+
+  if (!currentSelectedObject) {
+    infoPanel.classList.remove("empty");
+
+    if (!selectedLayers.length) {
+      infoPanel.innerHTML = `
+        <div class="placeholder-block">
+          <h3>当前未显示任何图层</h3>
+          <p>你已将当前空间中的所有图层关闭。</p>
+          <p>可在左侧重新点击任意图层按钮，恢复显示。</p>
+        </div>
+      `;
     } else {
-      await ensureLayerLoaded(key);
+      infoPanel.innerHTML = `
+        <div class="placeholder-block">
+          <h3>村庄 2D 图层</h3>
+          <p>可在左侧空间中切换不同图层组合，并点击地图中的对象查看详细信息。</p>
+          <p>复制版空间支持建筑、道路、水体、公共空间、农田等图层的属性编辑，以及对象照片上传与删除；村庄现状空间仅可读。</p>
+        </div>
+      `;
+    }
+  }
+
+  refresh2DOverlay();
+}
+
+async function showModel3DOverview() {
+  setActiveStoryItem("model3d");
+  switchMainView("model3d");
+
+  if (statusBadge) {
+    statusBadge.textContent = "当前模式：村庄 3D 模型";
+  }
+
+  if (detailSubtitle) {
+    detailSubtitle.textContent = "当前显示三维白模与地形";
+  }
+
+  infoPanel.classList.remove("empty");
+  infoPanel.innerHTML = `
+    <div class="placeholder-block">
+      <h3>村庄 3D 模型</h3>
+      <p>正在进入三维模式。点击白模建筑后，可在右侧查看对应对象信息。</p>
+    </div>
+  `;
+
+  if (window.Village3D && typeof window.Village3D.enter === "function") {
+    try {
+      await window.Village3D.enter();
+    } catch (error) {
+      console.error("进入 3D 模式失败：", error);
+      infoPanel.innerHTML = `
+        <div class="placeholder-block">
+          <h3>3D 模型加载失败</h3>
+          <p>${escapeHtml(error.message || "请检查 app-3d.js、Cesium token 与 3D 数据路径。")}</p>
+        </div>
+      `;
     }
   }
 }
 
-async function ensureSelectedLayersLoaded() {
-  await ensureSelectedLayersLoadedForSpace(currentSpaceId);
-}
-
-function mergeObjectRow(baseRow, editData) {
-  return { ...(baseRow || {}), ...(editData || {}) };
-}
-
 function getEditNamespaceObjectType(baseObjectType, spaceId) {
-  if (!spaceId || spaceId === BASE_SPACE_ID) return null;
-  return `${baseObjectType}__${spaceId}`;
+  if (!baseObjectType) return "";
+  return spaceId === BASE_SPACE_ID ? baseObjectType : `${baseObjectType}__${spaceId}`;
 }
 
 function getPhotoNamespaceObjectType(baseObjectType, spaceId) {
-  if (!spaceId || spaceId === BASE_SPACE_ID) return baseObjectType;
-  return `${baseObjectType}__${spaceId}`;
+  if (!baseObjectType) return "";
+  return spaceId === BASE_SPACE_ID ? baseObjectType : `${baseObjectType}__${spaceId}`;
 }
 
-async function fetchObjectEdits(sourceCode, namespacedObjectType) {
-  if (!supabaseClient || !sourceCode || !namespacedObjectType) return null;
+function mergeObjectRow(baseRow, editData) {
+  return {
+    ...(baseRow || {}),
+    ...(editData || {})
+  };
+}
+
+async function fetchObjectEdits(sourceCode, objectType) {
+  if (!supabaseClient || !sourceCode || !objectType) return null;
 
   const { data, error } = await supabaseClient
     .from(OBJECT_EDITS_TABLE)
     .select("data")
     .eq("object_code", sourceCode)
-    .eq("object_type", namespacedObjectType)
+    .eq("object_type", objectType)
     .maybeSingle();
 
   if (error) {
-    console.error("读取对象编辑数据失败：", error);
+    console.warn("读取对象编辑信息失败：", error);
     return null;
   }
 
   return data?.data || null;
 }
 
-async function saveObjectEdits(sourceCode, namespacedObjectType, payload) {
+async function saveObjectEdits(sourceCode, objectType, payload) {
   if (!supabaseClient) {
     throw new Error("当前未配置 Supabase。");
   }
@@ -695,674 +1366,217 @@ async function saveObjectEdits(sourceCode, namespacedObjectType, payload) {
   const { error } = await supabaseClient
     .from(OBJECT_EDITS_TABLE)
     .upsert(
-      [
-        {
-          object_code: sourceCode,
-          object_type: namespacedObjectType,
-          data: payload,
-          updated_at: new Date().toISOString()
-        }
-      ],
-      { onConflict: "object_code,object_type" }
+      {
+        object_code: sourceCode,
+        object_type: objectType,
+        data: payload,
+        updated_at: new Date().toISOString()
+      },
+      {
+        onConflict: "object_code,object_type"
+      }
     );
 
-  if (error) throw error;
-}
-
-function getSelectedLayerLabels() {
-  return getSelectedLayersForCurrentSpace()
-    .map((key) => layerConfigs[key]?.label)
-    .filter(Boolean);
-}
-
-function update2DStatusText() {
-  const labels = getSelectedLayerLabels();
-  const currentSpace = getCurrentSpace();
-
-  if (!labels.length) {
-    statusBadge.textContent = `当前空间：${currentSpace?.title || "未命名空间"}｜当前图层：未选择`;
-    detailSubtitle.textContent = "请在左侧勾选要显示的图层";
-    return;
-  }
-
-  statusBadge.textContent = `当前空间：${currentSpace?.title || "未命名空间"}｜当前图层：${labels.join(" + ")}`;
-
-  if (currentSelectedObject) {
-    const currentName = currentSelectedObject.displayName || currentSelectedObject.sourceCode || "未命名要素";
-    detailSubtitle.textContent = `当前查看：${currentSelectedObject.layerLabel} - ${currentName}`;
-  } else {
-    detailSubtitle.textContent = "鼠标悬停可高亮，点击后查看要素详情";
+  if (error) {
+    throw error;
   }
 }
 
-function refresh2DOverlay() {
-  if (!plan2dView.classList.contains("active")) return;
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (setupSVGSize()) {
-        drawSelectedGeoJSONLayers();
-      }
-
-      setTimeout(() => {
-        if (!plan2dView.classList.contains("active")) return;
-        if (setupSVGSize()) {
-          drawSelectedGeoJSONLayers();
-        }
-      }, 80);
-    });
-  });
-}
-
-function hideAllViews() {
-  overviewView.classList.remove("active");
-  plan2dView.classList.remove("active");
-  model3dView.classList.remove("active");
-}
-
-function setActiveStoryView(viewName) {
-  storyItems.forEach((item) => {
-    item.classList.remove("active");
-    if ((item.dataset.view || "") === viewName) {
-      item.classList.add("active");
-    }
-  });
-}
-
-function switchMode(mode) {
-  mainLayout.classList.remove("mode-overview");
-  hideAllViews();
-
-  if (mode === "overview") {
-    mainLayout.classList.add("mode-overview");
-    overviewView.classList.add("active");
-    statusBadge.textContent = "当前模式：村庄基本信息";
-    detailSubtitle.textContent = "当前模式为整合展示";
-    if (spaceList) spaceList.classList.remove("active");
-    if (addSpaceBtn) addSpaceBtn.style.display = "none";
-  } else if (mode === "plan2d") {
-    plan2dView.classList.add("active");
-    update2DStatusText();
-    if (spaceList) spaceList.classList.add("active");
-    if (addSpaceBtn) addSpaceBtn.style.display = "block";
-    renderSpaceList();
-    syncBasemapUIBySpace(currentSpaceId);
-    refresh2DOverlay();
-  } else if (mode === "model3d") {
-    model3dView.classList.add("active");
-    statusBadge.textContent = "当前模式：村庄 3D 模型";
-    detailSubtitle.textContent = "当前显示三维模型说明";
-    if (spaceList) spaceList.classList.remove("active");
-    if (addSpaceBtn) addSpaceBtn.style.display = "none";
-  }
-}
-
-function createPolygonElement(points, className, dataset = {}) {
-  const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  polygon.setAttribute("points", pointsToString(points));
-  polygon.setAttribute("class", className);
-
-  Object.entries(dataset).forEach(([key, value]) => {
-    polygon.dataset[key] = value;
-  });
-
-  return polygon;
-}
-
-function appendLayerFeaturesToSvg(layerKey, spaceId) {
-  const cache = layerDataCache[layerKey];
-  if (!cache || !cache.geojson || !Array.isArray(cache.geojson.features)) return;
-
-  const tableData = cache.tableData || [];
-  const rowMap = new Map();
-  tableData.forEach((row) => {
-    const normCode = normalizeCode(getRowCode(row, layerKey));
-    if (normCode) rowMap.set(normCode, row);
-  });
-
-  cache.geojson.features.forEach((feature, featureIndex) => {
-    const points = geometryToSVGPoints(feature);
-    if (!points.length) return;
-
-    const rawCode = getFeatureCode(feature) || "";
-    const baseRow = rowMap.get(normalizeCode(rawCode)) || null;
-
-    const polygon = createPolygonElement(points, `house-polygon layer-${layerKey}`, {
-      code: rawCode,
-      layer: layerKey
-    });
-
-    polygon.addEventListener("mouseenter", () => {
-      if (polygon !== activePolygon) {
-        polygon.classList.add("hovering");
-      }
-    });
-
-    polygon.addEventListener("mouseleave", () => {
-      polygon.classList.remove("hovering");
-    });
-
-    polygon.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      polygon.classList.remove("hovering");
-
-      setActiveStoryView("plan2d");
-      switchMode("plan2d");
-      setActivePolygon(polygon);
-      currentInfoMode = "readonly";
-
-      if (baseRow) {
-        await showObjectInfo(baseRow, layerKey, rawCode);
-      } else {
-        showUnmatchedObjectInfo(rawCode, layerKey);
-      }
-    });
-
-    svgOverlay.appendChild(polygon);
-    polygonMap.set(`${spaceId}__${layerKey}__${rawCode}`, { polygon, baseRow, layerKey });
-  });
-}
-
-function appendFigureGroundToSvg(spaceId) {
-  const mapping = [
-    { source: "road", className: "house-polygon layer-figureGround-road" },
-    { source: "water", className: "house-polygon layer-figureGround-water" },
-    { source: "building", className: "house-polygon layer-figureGround-building" }
-  ];
-
-  mapping.forEach(({ source, className }) => {
-    const cache = layerDataCache[source];
-    if (!cache || !cache.geojson || !Array.isArray(cache.geojson.features)) return;
-
-    cache.geojson.features.forEach((feature, featureIndex) => {
-      const points = geometryToSVGPoints(feature);
-      if (!points.length) return;
-
-      const rawCode = getFeatureCode(feature) || `${source}_${featureIndex}`;
-      const polygon = createPolygonElement(points, className, {
-        code: rawCode,
-        layer: "figureGround",
-        fgSource: source
-      });
-
-      polygon.addEventListener("mouseenter", () => {
-        if (polygon !== activePolygon) {
-          polygon.classList.add("hovering");
-        }
-      });
-
-      polygon.addEventListener("mouseleave", () => {
-        polygon.classList.remove("hovering");
-      });
-
-      polygon.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setActivePolygon(polygon);
-
-        currentSelectedObject = {
-          sourceCode: rawCode,
-          displayName: rawCode,
-          layerKey: "figureGround",
-          layerLabel: "图底关系",
-          spaceId
-        };
-        update2DStatusText();
-
-        infoPanel.classList.remove("empty");
-        infoPanel.innerHTML = `
-          <div class="info-card">
-            <h3 class="house-title">图底关系</h3>
-            <div class="house-row"><span class="house-label">要素来源：</span>${
-              source === "building" ? "建筑" : source === "road" ? "道路" : "水体"
-            }</div>
-            <div class="house-row"><span class="house-label">对象编码：</span>${escapeHtml(rawCode)}</div>
-            <div class="house-row">当前图底关系图层仅由建筑、道路、水体三类要素构成。</div>
-          </div>
-        `;
-      });
-
-      svgOverlay.appendChild(polygon);
-      polygonMap.set(`${spaceId}__figureGround__${rawCode}`, {
-        polygon,
-        baseRow: null,
-        layerKey: "figureGround"
-      });
-    });
-  });
-}
-
-function drawSelectedGeoJSONLayers() {
-  svgOverlay.innerHTML = "";
-  polygonMap.clear();
-
-  const currentSpace = getCurrentSpace();
-  const selectedKeys = getSelectedLayersForCurrentSpace();
-
-  if (!selectedKeys.length || !currentSpace) {
-    setActivePolygon(null);
-    return;
-  }
-
-  if (selectedKeys.includes("figureGround") && currentSpace.id === BASE_SPACE_ID) {
-    appendFigureGroundToSvg(currentSpace.id);
-  }
-
-  selectedKeys.forEach((layerKey) => {
-    if (layerKey === "figureGround") return;
-    appendLayerFeaturesToSvg(layerKey, currentSpace.id);
-  });
-
-  restoreActivePolygonAfterRedraw();
-}
-
-function restoreActivePolygonAfterRedraw() {
-  if (!currentSelectedObject) return;
-
-  const key = `${currentSelectedObject.spaceId}__${currentSelectedObject.layerKey}__${currentSelectedObject.sourceCode}`;
-  const matched = polygonMap.get(key);
-  if (matched && matched.polygon) {
-    setActivePolygon(matched.polygon);
-  } else {
-    activePolygon = null;
-  }
-}
-
-function setActivePolygon(polygon) {
-  if (activePolygon) {
-    activePolygon.classList.remove("active");
-    activePolygon.classList.remove("hovering");
-  }
-
-  if (polygon) {
-    polygon.classList.add("active");
-    polygon.classList.remove("hovering");
-    activePolygon = polygon;
-  } else {
-    activePolygon = null;
-  }
-}
-
-async function fetchObjectPhotos(sourceCode, photoObjectType) {
-  if (!supabaseClient || !photoObjectType) return [];
+async function fetchObjectPhotos(sourceCode, objectType) {
+  if (!supabaseClient || !sourceCode || !objectType) return [];
 
   const { data, error } = await supabaseClient
     .from(OBJECT_PHOTOS_TABLE)
-    .select("*")
+    .select("id, object_code, object_type, photo_url, photo_path, uploaded_at")
     .eq("object_code", sourceCode)
-    .eq("object_type", photoObjectType)
+    .eq("object_type", objectType)
     .order("uploaded_at", { ascending: false });
 
   if (error) {
-    console.error("读取对象照片失败：", error);
+    console.warn("读取照片列表失败：", error);
     return [];
   }
+
   return data || [];
 }
 
-async function handlePhotoUpload(context) {
-  const input = document.getElementById("photoUploadInput");
-  const statusEl = document.getElementById("uploadStatus");
-
-  if (!context) return;
-  if (!context.allowEdit) {
-    if (statusEl) statusEl.textContent = "村庄现状空间为只读，不能上传。";
-    return;
-  }
-
+async function uploadObjectPhoto(file, sourceCode, objectType) {
   if (!supabaseClient) {
-    if (statusEl) statusEl.textContent = "请先在 app.js 顶部填入真实的 Supabase URL 和 publishable key。";
-    return;
+    throw new Error("当前未配置 Supabase。");
   }
-
-  if (!input || !input.files || !input.files.length) {
-    if (statusEl) statusEl.textContent = "请先选择一张图片。";
-    return;
-  }
-
-  const file = input.files[0];
-  if (!context.sourceCode || !context.photoObjectType) {
-    if (statusEl) statusEl.textContent = "当前对象缺少编码或类型，无法上传。";
-    return;
-  }
-
-  if (file.size > 6 * 1024 * 1024) {
-    if (statusEl) statusEl.textContent = "请上传 6MB 以内图片。";
-    return;
-  }
-
-  if (statusEl) statusEl.textContent = "正在上传...";
 
   const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
-  const filePath = `${context.photoObjectType}/${context.sourceCode}/${safeName}`;
+  const safeCode = normalizeCode(sourceCode || "object");
+  const fileName = `${objectType}/${safeCode}_${Date.now()}.${fileExt}`;
 
   const { error: uploadError } = await supabaseClient.storage
     .from(PHOTO_BUCKET)
-    .upload(filePath, file, {
-      upsert: false,
-      contentType: file.type || "image/jpeg"
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false
     });
 
   if (uploadError) {
-    console.error("上传失败：", uploadError);
-    if (statusEl) statusEl.textContent = `上传失败：${uploadError.message}`;
-    return;
+    throw uploadError;
   }
 
-  const { data: publicData } = supabaseClient.storage
+  const { data: publicUrlData } = supabaseClient.storage
     .from(PHOTO_BUCKET)
-    .getPublicUrl(filePath);
+    .getPublicUrl(fileName);
 
-  const photoUrl = publicData?.publicUrl || "";
+  const photoUrl = publicUrlData?.publicUrl || "";
 
   const { error: insertError } = await supabaseClient
     .from(OBJECT_PHOTOS_TABLE)
-    .insert([
-      {
-        object_code: context.sourceCode,
-        object_type: context.photoObjectType,
-        photo_url: photoUrl,
-        photo_path: filePath
-      }
-    ]);
+    .insert({
+      object_code: sourceCode,
+      object_type: objectType,
+      photo_url: photoUrl,
+      photo_path: fileName
+    });
 
   if (insertError) {
-    console.error("写入数据库失败：", insertError);
-    if (statusEl) statusEl.textContent = `数据库写入失败：${insertError.message}`;
-    return;
+    throw insertError;
   }
 
-  if (statusEl) statusEl.textContent = "上传成功。";
-  await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
+  return { photoUrl, photoPath: fileName };
 }
 
-async function handlePhotoDelete(photoItem, context) {
-  const statusEl = document.getElementById("uploadStatus");
-
-  if (!context.allowEdit) {
-    if (statusEl) statusEl.textContent = "村庄现状空间为只读，不能删除。";
-    return;
-  }
-
+async function deleteObjectPhoto(photoRecord) {
   if (!supabaseClient) {
-    if (statusEl) statusEl.textContent = "当前未配置 Supabase。";
-    return;
+    throw new Error("当前未配置 Supabase。");
   }
 
-  if (!photoItem || !photoItem.photo_path) {
-    if (statusEl) statusEl.textContent = "这张照片没有可删除的存储路径。";
-    return;
+  if (photoRecord.photo_path) {
+    const { error: storageError } = await supabaseClient.storage
+      .from(PHOTO_BUCKET)
+      .remove([photoRecord.photo_path]);
+
+    if (storageError) {
+      console.warn("删除存储文件失败：", storageError);
+    }
   }
 
-  const ok = window.confirm("确定要删除这张照片吗？");
-  if (!ok) return;
-
-  if (statusEl) statusEl.textContent = "正在删除...";
-
-  const { error: storageError } = await supabaseClient.storage
-    .from(PHOTO_BUCKET)
-    .remove([photoItem.photo_path]);
-
-  if (storageError) {
-    console.error("删除 Storage 文件失败：", storageError);
-    if (statusEl) statusEl.textContent = `删除文件失败：${storageError.message}`;
-    return;
-  }
-
-  const { error: dbError } = await supabaseClient
+  const { error: deleteError } = await supabaseClient
     .from(OBJECT_PHOTOS_TABLE)
     .delete()
-    .eq("id", photoItem.id);
+    .eq("id", photoRecord.id);
 
-  if (dbError) {
-    console.error("删除数据库记录失败：", dbError);
-    if (statusEl) statusEl.textContent = `删除记录失败：${dbError.message}`;
-    return;
+  if (deleteError) {
+    throw deleteError;
   }
-
-  if (statusEl) statusEl.textContent = "删除成功。";
-  await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
-}
-
-function showVillageOverview() {
-  setActivePolygon(null);
-  currentSelectedObject = null;
-  setActiveStoryView("overview");
-  switchMode("overview");
-
-  infoPanel.classList.add("empty");
-  infoPanel.innerHTML = `
-    <div class="placeholder-block">
-      <h3>村庄基本信息</h3>
-      <p>当前为村庄基本信息模式，中间与右侧区域合并显示。你可以在中间区域布置村庄概况、现状问题、教学目标、区位分析、用地特征等内容。</p>
-    </div>
-  `;
-}
-
-function showPlan2DOverview() {
-  setActivePolygon(null);
-  currentSelectedObject = null;
-  currentInfoMode = "readonly";
-  setActiveStoryView("plan2d");
-  switchMode("plan2d");
-
-  const labels = getSelectedLayerLabels();
-  const currentSpace = getCurrentSpace();
-
-  if (!labels.length) {
-    infoPanel.classList.add("empty");
-    infoPanel.innerHTML = `
-      <div class="placeholder-block">
-        <h3>${currentSpace?.title || "当前空间"}</h3>
-        <p>当前未选择任何图层。请在左侧勾选要显示的图层。</p>
-      </div>
-    `;
-    return;
-  }
-
-  infoPanel.classList.add("empty");
-  infoPanel.innerHTML = `
-    <div class="placeholder-block">
-      <h3>${currentSpace?.title || "当前空间"}</h3>
-      <p>当前已开启：${labels.join("、")}。</p>
-      <p>${currentSpace?.readonly ? "该空间为只读，用于保留村庄现状信息。" : "该空间为复制版，可用于教学编辑与保存。"} </p>
-      <p>鼠标放到面要素上会临时高亮，点击后会保持高亮，并在右侧显示当前选中要素的详细信息。</p>
-    </div>
-  `;
-}
-
-function showModel3DOverview() {
-  setActivePolygon(null);
-  currentSelectedObject = null;
-  setActiveStoryView("model3d");
-  switchMode("model3d");
-
-  infoPanel.classList.add("empty");
-  infoPanel.innerHTML = `
-    <div class="placeholder-block">
-      <h3>村庄 3D 模型</h3>
-      <p>当前展示的是村庄 3D 模型模式。后续这里可以接入三维浏览、模型漫游、点击查询、规划方案叠加与编辑等功能。</p>
-    </div>
-  `;
-}
-
-function showUnmatchedObjectInfo(code, layerKey) {
-  const label = layerConfigs[layerKey]?.label || "对象";
-  const displayName = code || "未命名要素";
-
-  currentSelectedObject = {
-    sourceCode: code || "",
-    displayName,
-    layerKey,
-    layerLabel: label,
-    spaceId: currentSpaceId
-  };
-  update2DStatusText();
-
-  infoPanel.classList.remove("empty");
-  infoPanel.innerHTML = `
-    <div class="info-card">
-      <h3 class="house-title">未匹配数据</h3>
-      <div class="house-row"><span class="house-label">对象类型：</span>${label}</div>
-      <div class="house-row"><span class="house-label">对象编码：</span>${escapeHtml(code || "-")}</div>
-      <div class="house-row">该图层对象已读取，但没有在对应的数据表中找到匹配信息。</div>
-    </div>
-  `;
 }
 
 function buildReadOnlyDetailHtml(row, layerKey) {
-  if (layerKey === "building") {
-    return `
-      <div class="house-row"><span class="house-label">房屋编码：</span>${escapeHtml(row["房屋编码"] || row["编码"] || "-")}</div>
-      <div class="house-row"><span class="house-label">房屋名称：</span>${escapeHtml(row["房屋名称"] || row["名称"] || "-")}</div>
-      <div class="house-row"><span class="house-label">建成年代：</span>${escapeHtml(row["建成年代"] || "-")}</div>
-      <div class="house-row"><span class="house-label">占地面积：</span>${escapeHtml(row["占地面积"] || "-")} ㎡</div>
-    `;
+  const entries = Object.entries(row || {})
+    .filter(([key]) => key && String(key).trim() !== "")
+    .map(([key, value]) => {
+      return `<div class="house-row"><span class="house-label">${escapeHtml(key)}：</span>${escapeHtml(value)}</div>`;
+    });
+
+  if (!entries.length) {
+    return `<div class="house-row">暂无${escapeHtml(layerConfigs[layerKey]?.label || "对象")}属性信息。</div>`;
   }
 
-  if (layerKey === "road") {
-    return `
-      <div class="house-row"><span class="house-label">道路编码：</span>${escapeHtml(row["道路编码"] || row["编码"] || "-")}</div>
-      <div class="house-row"><span class="house-label">道路名称：</span>${escapeHtml(row["道路名称"] || row["名称"] || "-")}</div>
-      <div class="house-row"><span class="house-label">道路类型：</span>${escapeHtml(row["道路类型"] || "-")}</div>
-      <div class="house-row"><span class="house-label">路面材质：</span>${escapeHtml(row["路面材质"] || "-")}</div>
-    `;
-  }
-
-  if (layerKey === "cropland") {
-    return `
-      <div class="house-row"><span class="house-label">农田编码：</span>${escapeHtml(row["农田编码"] || row["编码"] || "-")}</div>
-      <div class="house-row"><span class="house-label">农田名称：</span>${escapeHtml(row["农田名称"] || row["名称"] || "-")}</div>
-      <div class="house-row"><span class="house-label">作物类型：</span>${escapeHtml(row["作物类型"] || "-")}</div>
-      <div class="house-row"><span class="house-label">面积：</span>${escapeHtml(row["面积"] || "-")} ㎡</div>
-    `;
-  }
-
-  if (layerKey === "openSpace") {
-    return `
-      <div class="house-row"><span class="house-label">空间编码：</span>${escapeHtml(row["公共空间编码"] || row["编码"] || "-")}</div>
-      <div class="house-row"><span class="house-label">空间名称：</span>${escapeHtml(row["公共空间名称"] || row["名称"] || "-")}</div>
-      <div class="house-row"><span class="house-label">空间类型：</span>${escapeHtml(row["空间类型"] || "-")}</div>
-      <div class="house-row"><span class="house-label">面积：</span>${escapeHtml(row["面积"] || "-")} ㎡</div>
-    `;
-  }
-
-  if (layerKey === "water") {
-    return `
-      <div class="house-row"><span class="house-label">水体编码：</span>${escapeHtml(row["水体编码"] || row["编码"] || "-")}</div>
-      <div class="house-row"><span class="house-label">水体名称：</span>${escapeHtml(row["水体名称"] || row["名称"] || "-")}</div>
-      <div class="house-row"><span class="house-label">类型：</span>${escapeHtml(row["水体类型"] || row["类型"] || "-")}</div>
-      <div class="house-row"><span class="house-label">面积：</span>${escapeHtml(row["面积"] || "-")} ㎡</div>
-    `;
-  }
-
-  if (layerKey === "figureGround") {
-    return `<div class="house-row">图底关系图层仅由建筑、道路、水体三类要素构成。</div>`;
-  }
-
-  return `<div class="house-row"><span class="house-label">编码：</span>${escapeHtml(getRowCode(row, layerKey) || "-")}</div>`;
+  return entries.join("");
 }
 
-function buildBuildingEditFormHtml(row) {
-  return `
-    <form id="buildingEditForm" class="edit-form">
-      ${BUILDING_EDITABLE_FIELDS.map((field) => {
-        const value = row[field.key] ?? "";
-        const inputMode = field.type === "number" ? "decimal" : "text";
-        return `
-          <div class="form-row">
-            <label class="form-label" for="field_${field.key}">${field.label}</label>
-            <div class="form-input-wrap">
-              <input
-                id="field_${field.key}"
-                class="form-input"
-                name="${field.key}"
-                type="${field.type === "number" ? "number" : "text"}"
-                inputmode="${inputMode}"
-                step="any"
-                value="${escapeHtml(value)}"
-              />
-              ${field.suffix ? `<span class="form-suffix">${field.suffix}</span>` : ""}
-            </div>
-          </div>
-        `;
-      }).join("")}
-    </form>
-  `;
+function buildEditFormHtml(row, layerKey) {
+  const fields = getEditableFields(layerKey);
+
+  return fields.map((field) => {
+    const value = row?.[field.key] ?? "";
+    const inputType = field.type === "number" ? "number" : "text";
+
+    return `
+      <label class="form-row">
+        <span class="form-label">${escapeHtml(field.label)}</span>
+        <span class="form-input-wrap">
+          <input
+            class="form-input"
+            type="${inputType}"
+            step="${field.type === "number" ? "0.01" : ""}"
+            value="${escapeHtml(value)}"
+            data-edit-field="${escapeHtml(field.key)}"
+          />
+          ${field.suffix ? `<span class="form-suffix">${escapeHtml(field.suffix)}</span>` : ""}
+        </span>
+      </label>
+    `;
+  }).join("");
 }
 
-function buildInfoModeSwitchHtml(options) {
-  const { layerKey, allowEdit, readonlySpace } = options;
-
-  if (readonlySpace) {
-    return `
-      <div class="mode-switch-card readonly-only-note">
-        <div class="mode-switch-title">信息模式</div>
-        <div class="mode-switch-tip">当前处于“村庄现状”空间，为只读展示，不提供编辑入口。</div>
-      </div>
-    `;
-  }
-
+function buildInfoModeSwitchHtml({ layerKey, allowEdit, readonlySpace }) {
   if (!allowEdit) {
     return `
-      <div class="mode-switch-card readonly-only-note">
-        <div class="mode-switch-title">信息模式</div>
-        <div class="mode-switch-tip">当前复制版仅对建筑图层开放属性编辑；${layerConfigs[layerKey]?.label || "该图层"}仍为只读展示。</div>
+      <div class="mode-switch-card">
+        <button class="mode-switch-btn active" type="button" disabled>只读模式</button>
+        <span class="mode-tip">${readonlySpace ? "村庄现状空间仅可查看" : "当前对象暂不支持编辑"}</span>
       </div>
     `;
   }
 
   return `
     <div class="mode-switch-card">
-      <div class="mode-switch-header">
-        <div class="mode-switch-title">信息模式</div>
-        <div class="mode-switch-pill">
-          <button type="button" class="mode-switch-btn ${currentInfoMode === "readonly" ? "active" : ""}" data-mode="readonly">只读模式</button>
-          <button type="button" class="mode-switch-btn ${currentInfoMode === "edit" ? "active" : ""}" data-mode="edit">编辑模式</button>
-        </div>
-      </div>
-      <div class="mode-switch-tip">当前为复制版空间，编辑后只会保存到本复制版，不会覆盖“村庄现状”。</div>
+      <button class="mode-switch-btn ${currentInfoMode === "readonly" ? "active" : ""}" type="button" data-mode="readonly">只读模式</button>
+      <button class="mode-switch-btn ${currentInfoMode === "edit" ? "active" : ""}" type="button" data-mode="edit">编辑模式</button>
     </div>
   `;
 }
 
-function collectBuildingFormData() {
-  const form = document.getElementById("buildingEditForm");
-  if (!form) return null;
-
-  const formData = new FormData(form);
+function collectEditPayload(layerKey) {
+  const inputs = document.querySelectorAll("[data-edit-field]");
   const payload = {};
+  const fields = getEditableFields(layerKey);
 
-  BUILDING_EDITABLE_FIELDS.forEach((field) => {
-    let value = formData.get(field.key);
-    if (typeof value === "string") value = value.trim();
-    payload[field.key] = value || "";
+  fields.forEach((field) => {
+    const input = Array.from(inputs).find((el) => el.dataset.editField === field.key);
+    payload[field.key] = input ? input.value.trim() : "";
   });
 
   return payload;
 }
 
-async function handleBuildingSave(context) {
+async function handlePhotoUpload(context) {
+  const uploadInput = document.getElementById("photoUploadInput");
+  const uploadStatus = document.getElementById("uploadStatus");
+  if (!uploadInput || !uploadInput.files?.length) {
+    if (uploadStatus) uploadStatus.textContent = "请先选择要上传的图片。";
+    return;
+  }
+
+  const file = uploadInput.files[0];
+
+  if (uploadStatus) uploadStatus.textContent = "正在上传...";
+  try {
+    await uploadObjectPhoto(file, context.sourceCode, context.photoObjectType);
+    if (uploadStatus) uploadStatus.textContent = "上传成功。";
+    await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
+  } catch (error) {
+    console.error("上传照片失败：", error);
+    if (uploadStatus) uploadStatus.textContent = `上传失败：${error.message}`;
+  }
+}
+
+async function handlePhotoDelete(photoRecord, context) {
+  const confirmed = window.confirm("确定要删除这张照片吗？");
+  if (!confirmed) return;
+
+  try {
+    await deleteObjectPhoto(photoRecord);
+    await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
+  } catch (error) {
+    console.error("删除照片失败：", error);
+    window.alert(`删除失败：${error.message}`);
+  }
+}
+
+async function handleObjectSave(context) {
   const saveStatus = document.getElementById("saveStatus");
   const saveBtn = document.getElementById("saveBuildingBtn");
 
-  if (!context) return;
-  if (!context.allowEdit || !context.editObjectType) {
-    if (saveStatus) saveStatus.textContent = "当前空间不可编辑。";
-    return;
-  }
-  if (!supabaseClient) {
-    if (saveStatus) saveStatus.textContent = "当前未配置 Supabase，无法保存。";
-    return;
-  }
-
-  const payload = collectBuildingFormData();
+  const payload = collectEditPayload(context.layerKey);
   if (!payload) return;
-
-  if (!payload["房屋编码"]) {
-    if (saveStatus) saveStatus.textContent = "房屋编码不能为空。";
-    return;
-  }
 
   if (saveBtn) saveBtn.disabled = true;
   if (saveStatus) saveStatus.textContent = "正在保存...";
@@ -1373,7 +1587,7 @@ async function handleBuildingSave(context) {
     if (saveStatus) saveStatus.textContent = "保存成功。";
     await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode, { flashSaved: true });
   } catch (error) {
-    console.error("保存建筑属性失败：", error);
+    console.error("保存对象属性失败：", error);
     if (saveStatus) saveStatus.textContent = `保存失败：${error.message}`;
   } finally {
     if (saveBtn) saveBtn.disabled = false;
@@ -1398,12 +1612,12 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const baseObjectType = config?.objectType || "";
 
   const readonlySpace = !!currentSpace?.readonly;
-  const allowBuildingEdit = !readonlySpace && layerKey === "building";
+  const allowLayerEdit = canEditLayer(layerKey, readonlySpace);
 
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
 
-  const editData = allowBuildingEdit
+  const editData = allowLayerEdit
     ? await fetchObjectEdits(sourceCode, editObjectType)
     : null;
 
@@ -1419,7 +1633,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     config,
     baseRow,
     mergedRow,
-    allowEdit: allowBuildingEdit,
+    allowEdit: allowLayerEdit,
     spaceId: currentSpaceId
   };
 
@@ -1448,11 +1662,11 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     }))
   ];
 
-  const detailHtml = allowBuildingEdit && currentInfoMode === "edit"
-    ? buildBuildingEditFormHtml(mergedRow)
+  const detailHtml = allowLayerEdit && currentInfoMode === "edit"
+    ? buildEditFormHtml(mergedRow, layerKey)
     : buildReadOnlyDetailHtml(mergedRow, layerKey);
 
-  const saveBarHtml = allowBuildingEdit && currentInfoMode === "edit"
+  const saveBarHtml = allowLayerEdit && currentInfoMode === "edit"
     ? `
       <div class="edit-actions">
         <button id="saveBuildingBtn" class="upload-btn" type="button">保存修改</button>
@@ -1463,7 +1677,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       ? `<div class="save-status success-inline">已显示本复制版的最新保存版本。</div>`
       : "";
 
-  const uploadBlockHtml = allowBuildingEdit
+  const uploadBlockHtml = allowLayerEdit
     ? `
       <div class="info-card">
         <h3 class="house-title">上传照片</h3>
@@ -1497,13 +1711,13 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
                   onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>图片加载失败：${item.src}</div>')"
                 >
                 ${
-                  item.source === "db" && allowBuildingEdit
+                  item.source === "db" && allowLayerEdit
                     ? `<div class="photo-actions">
                          <button class="delete-photo-btn" data-photo-id="${item.id}" type="button">删除这张照片</button>
                        </div>`
                     : item.source === "csv"
                       ? `<div class="photo-source-tag">本地预置照片</div>`
-                      : `<div class="photo-source-tag">${readonlySpace ? "复制版照片仅查看" : "对象照片"}</div>`
+                      : `<div class="photo-source-tag">${readonlySpace ? "当前空间仅查看" : "对象照片"}</div>`
                 }
               </div>
             `).join("")}
@@ -1517,7 +1731,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   infoPanel.innerHTML = `
     ${buildInfoModeSwitchHtml({
       layerKey,
-      allowEdit: allowBuildingEdit,
+      allowEdit: allowLayerEdit,
       readonlySpace
     })}
 
@@ -1538,7 +1752,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const saveBtn = document.getElementById("saveBuildingBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      await handleBuildingSave(context);
+      await handleObjectSave(context);
     });
   }
 
@@ -1571,7 +1785,7 @@ function bindStoryEvents() {
         await ensureSelectedLayersLoaded();
         showPlan2DOverview();
       } else if (view === "model3d") {
-        showModel3DOverview();
+        await showModel3DOverview();
       }
     });
   });
@@ -1637,6 +1851,9 @@ async function init() {
 
   try {
     spaces = loadSpacesFromStorage();
+    if (villageImage && BASEMAP_GEOREF?.imageUrl) {
+      villageImage.src = BASEMAP_GEOREF.imageUrl;
+    }
     currentSpaceId = spaces[0]?.id || BASE_SPACE_ID;
 
     if (basemapToggle) {
@@ -1646,6 +1863,7 @@ async function init() {
     await ensureLayerLoaded("building");
     await ensureLayerLoaded("road");
     await ensureLayerLoaded("water");
+    await ensureLayerLoaded("contours");
     await ensureLayerLoaded("figureGround");
 
     bindStoryEvents();
