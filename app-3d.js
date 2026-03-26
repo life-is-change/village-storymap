@@ -605,7 +605,6 @@
     ensure3DSpaceUI();
     if (!modelSpaceListEl) return;
 
-    modelSpaceListEl.classList.add("active");
     modelSpaceListEl.innerHTML = modelSpaces
       .map((space) => {
         const isCurrent = space.id === currentModelSpaceId;
@@ -667,11 +666,34 @@
         `;
       })
       .join("");
+    
+    modelSpaceListEl.classList.toggle("active", !!window.isModel3DSidebarExpanded);
 
+    if (addModelSpaceBtnEl) {
+      addModelSpaceBtnEl.style.display = !!window.isModel3DSidebarExpanded ? "" : "none";
+    }
+    
     bindModelSpaceListEvents();
   }
 
   function bindModelSpaceListEvents() {
+    const modelPanels = document.querySelectorAll(".space-panel[data-model-space-id]");
+    modelPanels.forEach((panel) => {
+      panel.onclick = async (event) => {
+        if (
+          event.target.closest("[data-model-space-toggle]") ||
+          event.target.closest("[data-model-space-delete]") ||
+          event.target.closest(".space-title-input")
+        ) {
+          return;
+        }
+
+        const spaceId = panel.dataset.modelSpaceId;
+        if (!spaceId) return;
+        await switchModelSpace(spaceId);
+      };
+    });
+    
     const selectButtons = document.querySelectorAll("[data-model-space-select]");
     selectButtons.forEach((button) => {
       button.onclick = async (event) => {

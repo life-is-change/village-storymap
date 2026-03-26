@@ -91,6 +91,12 @@ let currentInfoMode = "readonly";
 let spaces = [];
 let currentSpaceId = BASE_SPACE_ID;
 
+let isPlan2DSidebarExpanded = false;
+let isModel3DSidebarExpanded = false;
+
+window.isPlan2DSidebarExpanded = isPlan2DSidebarExpanded;
+window.isModel3DSidebarExpanded = isModel3DSidebarExpanded;
+
 const layerConfigs = {
   building: {
     label: "建筑轮廓",
@@ -325,10 +331,34 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function syncSidebarExpansionUI() {
+  window.isPlan2DSidebarExpanded = isPlan2DSidebarExpanded;
+  window.isModel3DSidebarExpanded = isModel3DSidebarExpanded;
+
+  if (spaceList) {
+    spaceList.classList.toggle("active", isPlan2DSidebarExpanded);
+  }
+
+  if (addSpaceBtn) {
+    addSpaceBtn.style.display = isPlan2DSidebarExpanded ? "" : "none";
+  }
+
+  const modelSpaceList = document.getElementById("modelSpaceList");
+  const addModelSpaceBtn = document.getElementById("addModelSpaceBtn");
+
+  if (modelSpaceList) {
+    modelSpaceList.classList.toggle("active", isModel3DSidebarExpanded);
+  }
+
+  if (addModelSpaceBtn) {
+    addModelSpaceBtn.style.display = isModel3DSidebarExpanded ? "" : "none";
+  }
+}
+
 function renderSpaceList() {
   if (!spaceList) return;
 
-  spaceList.classList.add("active");
+  spaceList.classList.toggle("active", isPlan2DSidebarExpanded);
   spaceList.innerHTML = spaces
     .map((space) => {
       const isCurrent = space.id === currentSpaceId;
@@ -398,6 +428,36 @@ function renderSpaceList() {
 }
 
 function bindSpaceListEvents() {
+  const spacePanels = document.querySelectorAll(".space-panel[data-space-id]");
+  spacePanels.forEach((panel) => {
+    panel.addEventListener("click", async (event) => {
+      if (
+        event.target.closest("[data-space-toggle]") ||
+        event.target.closest("[data-space-layer]") ||
+        event.target.closest("[data-space-delete]") ||
+        event.target.closest(".space-title-input")
+      ) {
+        return;
+      }
+
+      const spaceId = panel.dataset.spaceId;
+      if (!spaceId) return;
+
+      currentSpaceId = spaceId;
+      currentSelectedObject = null;
+      currentInfoMode = "readonly";
+      saveSpacesToStorage();
+      renderSpaceList();
+      syncBasemapUIBySpace(spaceId);
+
+      if (plan2dView.classList.contains("active")) {
+        await ensureSelectedLayersLoaded();
+        refresh2DOverlay();
+        showPlan2DOverview();
+      }
+    });
+  });
+
   const selectButtons = document.querySelectorAll("[data-space-select]");
   selectButtons.forEach((button) => {
     button.addEventListener("click", async (event) => {
@@ -1112,12 +1172,16 @@ function refresh2DOverlay() {
   if (!plan2dView.classList.contains("active")) return;
   if (!villageImage || !svgOverlay) return;
 
-  const width = villageImage.clientWidth || villageImage.naturalWidth || 1000;
-  const height = villageImage.clientHeight || villageImage.naturalHeight || 600;
+  const naturalWidth = villageImage.naturalWidth || 1000;
+  const naturalHeight = villageImage.naturalHeight || 600;
 
-  svgOverlay.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svgOverlay.setAttribute("width", width);
-  svgOverlay.setAttribute("height", height);
+  const displayWidth = villageImage.clientWidth || naturalWidth;
+  const displayHeight = villageImage.clientHeight || naturalHeight;
+
+  svgOverlay.setAttribute("viewBox", `0 0 ${naturalWidth} ${naturalHeight}`);
+  svgOverlay.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  svgOverlay.setAttribute("width", displayWidth);
+  svgOverlay.setAttribute("height", displayHeight);
 
   clearOverlay();
 
@@ -1150,7 +1214,7 @@ function refresh2DOverlay() {
         lines.forEach((line) => {
           if (!line || !line.length) return;
 
-          const points = buildLinePointsString(line, bounds, width, height);
+          const points = buildLinePointsString(line, bounds, naturalWidth, naturalHeight);
           const polyline = makePolylineElement({
             points,
             layerKey: "contours"
@@ -1176,7 +1240,7 @@ function refresh2DOverlay() {
           if (layerKey === "water") actualLayerKey = "figureGroundWater";
         }
 
-        const points = buildPolygonPointsString(outerRing, bounds, width, height);
+        const points = buildPolygonPointsString(outerRing, bounds, naturalWidth, naturalHeight);
         const polygon = makePolygonElement({
           points,
           layerKey: actualLayerKey,
@@ -1779,12 +1843,32 @@ function bindStoryEvents() {
   storyItems.forEach((item) => {
     item.addEventListener("click", async () => {
       const view = item.dataset.view || "";
+
       if (view === "overview") {
+        isPlan2DSidebarExpanded = false;
+        isModel3DSidebarExpanded = false;
+        syncSidebarExpansionUI();
         showVillageOverview();
-      } else if (view === "plan2d") {
+        return;
+      }
+
+      if (view === "plan2d") {
+        const alreadyActive = plan2dView.classList.contains("active");
+        isPlan2DSidebarExpanded = alreadyActive ? !isPlan2DSidebarExpanded : true;
+        isModel3DSidebarExpanded = false;
+        syncSidebarExpansionUI();
+
         await ensureSelectedLayersLoaded();
         showPlan2DOverview();
-      } else if (view === "model3d") {
+        return;
+      }
+
+      if (view === "model3d") {
+        const alreadyActive = model3dView.classList.contains("active");
+        isModel3DSidebarExpanded = alreadyActive ? !isModel3DSidebarExpanded : true;
+        isPlan2DSidebarExpanded = false;
+        syncSidebarExpansionUI();
+
         await showModel3DOverview();
       }
     });
@@ -1873,6 +1957,7 @@ async function init() {
     bindAddSpaceButton();
 
     renderSpaceList();
+    syncSidebarExpansionUI();
     syncBasemapUIBySpace(currentSpaceId);
     showVillageOverview();
 
