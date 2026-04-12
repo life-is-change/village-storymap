@@ -163,13 +163,47 @@ let currentGeometryEditLayer = "building";
 let communityGameTablesReady = true;
 const communityTasksCache = new Map();
 const communityTaskEditState = {
-  mode: "idle"
+  mode: "idle",
+  category: "garbage",
+  categoryLabel: "垃圾点上报",
+  promptTitle: "上报垃圾点",
+  hintText: "点击地图标记垃圾点位置。"
+};
+
+const COMMUNITY_TASK_TYPE_META = {
+  garbage: {
+    label: "垃圾点上报",
+    promptTitle: "上报垃圾点",
+    hintText: "点击地图标记垃圾点位置。"
+  },
+  road_damage: {
+    label: "道路破损上报",
+    promptTitle: "上报道路破损",
+    hintText: "点击地图标记道路破损位置。"
+  },
+  drainage_issue: {
+    label: "排水问题上报",
+    promptTitle: "上报排水问题",
+    hintText: "点击地图标记积水/排水问题位置。"
+  },
+  safety_hazard: {
+    label: "安全隐患上报",
+    promptTitle: "上报安全隐患",
+    hintText: "点击地图标记安全隐患位置。"
+  },
+  public_space_need: {
+    label: "公共空间需求",
+    promptTitle: "上报公共空间需求",
+    hintText: "点击地图标记需要增设公共空间的位置。"
+  }
 };
 
 // 统一侧边栏展开状态（默认展开，空间列表常驻显示）
 let isSpaceSidebarExpanded = true;
 let isToolboxExpanded = false;
 let isSpaceOptionsExpanded = true;
+let isCommunityExpanded = true;
+let isCommunityCompact = false;
 window.isSpaceSidebarExpanded = isSpaceSidebarExpanded;
 
 const layerConfigs = {
@@ -1010,6 +1044,31 @@ function renderSpaceList() {
               </div>
             ` : ''}
           </div>
+          <div class="space-community-section">
+            <div class="space-options-title-row">
+              <div class="space-options-title">社区共建<span class="toolbox-info-icon" title="可发起社区问题任务，其他村民核实后双方可获得贡献值。">i</span></div>
+              <div class="space-options-toggle-group">
+                <button class="space-options-toggle ${isCommunityCompact ? 'is-active' : ''}" type="button" data-community-size-toggle title="${isCommunityCompact ? "切换标准尺寸" : "切换紧凑尺寸"}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                    <path d="M16 3h3a2 2 0 0 1 2 2v3"></path>
+                    <path d="M8 21H5a2 2 0 0 1-2-2v-3"></path>
+                    <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                  </svg>
+                </button>
+                <button class="space-options-toggle" type="button" data-community-toggle>
+                  <svg class="toggle-triangle ${isCommunityExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            ${isCommunityExpanded ? `
+              <div class="community-content ${isCommunityCompact ? 'is-compact' : ''}">
+                <div id="communityBuildMount"></div>
+              </div>
+            ` : ''}
+          </div>
         ` : ''}
       ` : `
         <div class="space-3d-hint">立体视图下，暂不支持图层与工具箱</div>
@@ -1030,6 +1089,7 @@ function renderSpaceList() {
 
   bindSpaceListEvents();
   ensureBuildingEditorToolbar();
+  ensureCommunityBuildPanel();
   updateBuildingEditorToolbarState();
 }
 
@@ -1060,6 +1120,24 @@ function bindSpaceListEvents() {
     toolboxToggle.addEventListener("click", (event) => {
       event.stopPropagation();
       isToolboxExpanded = !isToolboxExpanded;
+      renderSpaceList();
+    });
+  }
+
+  const communityToggle = document.querySelector("[data-community-toggle]");
+  if (communityToggle) {
+    communityToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      isCommunityExpanded = !isCommunityExpanded;
+      renderSpaceList();
+    });
+  }
+
+  const communitySizeToggle = document.querySelector("[data-community-size-toggle]");
+  if (communitySizeToggle) {
+    communitySizeToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      isCommunityCompact = !isCommunityCompact;
       renderSpaceList();
     });
   }
@@ -1292,6 +1370,7 @@ async function handleSpaceSelect(spaceId) {
   sync2DSpaceStateTo3D();
   renderSpaceList();
   ensureBuildingEditorToolbar();
+  ensureCommunityBuildPanel();
   updateBuildingEditorToolbarState();
   syncBasemapUIBySpace(spaceId);
 
@@ -2989,14 +3068,7 @@ function ensureBuildingEditorToolbar() {
         <button type="button" id="btnSaveBuildingGeom">保存编辑</button>
         <button type="button" id="btnStopBuildingEdit">退出编辑</button>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-row toolbar-row-center">
-        <button type="button" id="btnReportGarbageTask">上报垃圾点</button>
-        <button type="button" id="btnRefreshCommunityTask">刷新任务</button>
-      </div>
-      <div class="toolbar-row toolbar-row-center">
-        <div id="communityScoreBadge" style="font-size:12px;color:#1f3552;padding:4px 2px;">贡献值：--</div>
-      </div>
+
     `;
 
     mount.innerHTML = "";
@@ -3044,21 +3116,8 @@ function ensureBuildingEditorToolbar() {
       clearBuildingInteractions();
     });
 
-    document.getElementById("btnReportGarbageTask")?.addEventListener("click", async () => {
-      if (!currentUserName) {
-        showToast("请先确认身份后再上报。", "error");
-        return;
-      }
-      communityTaskEditState.mode = "report";
-      showToast("点击地图标记垃圾点位置。", "info");
-    });
 
-    document.getElementById("btnRefreshCommunityTask")?.addEventListener("click", async () => {
-      invalidateCommunityTaskCache(currentSpaceId);
-      await refresh2DOverlay();
-      await refreshCommunityScoreBadge();
-      showToast("社区任务已刷新。", "success");
-    });
+
   } else if (toolbar.parentElement !== mount) {
     mount.innerHTML = "";
     mount.appendChild(toolbar);
@@ -3068,6 +3127,79 @@ function ensureBuildingEditorToolbar() {
   updateBuildingEditorToolbarState();
 }
 
+function getCommunityTaskTypeMeta(category) {
+  return COMMUNITY_TASK_TYPE_META[category] || COMMUNITY_TASK_TYPE_META.garbage;
+}
+
+function startCommunityTaskReport(category) {
+  const meta = getCommunityTaskTypeMeta(category);
+  if (!currentUserName) {
+    showToast("请先确认身份后再上报。", "error");
+    return;
+  }
+  communityTaskEditState.mode = "report";
+  communityTaskEditState.category = category;
+  communityTaskEditState.categoryLabel = meta.label;
+  communityTaskEditState.promptTitle = meta.promptTitle;
+  communityTaskEditState.hintText = meta.hintText;
+  showToast(meta.hintText, "info");
+}
+
+function ensureCommunityBuildPanel() {
+  const mount = document.getElementById("communityBuildMount");
+  if (!mount) return;
+
+  mount.innerHTML = `
+    <div id="communityBuildPanel" class="community-build-panel">
+      <div class="community-task-grid">
+        <button type="button" class="community-task-btn task-garbage" data-community-task="garbage">
+          <span class="task-title">垃圾点</span>
+          <span class="task-desc">上报垃圾堆放和脏乱点位</span>
+        </button>
+        <button type="button" class="community-task-btn task-road-damage" data-community-task="road_damage">
+          <span class="task-title">道路破损</span>
+          <span class="task-desc">上报道路坑洼或损坏问题</span>
+        </button>
+        <button type="button" class="community-task-btn task-drainage" data-community-task="drainage_issue">
+          <span class="task-title">排水问题</span>
+          <span class="task-desc">上报积水、排水不畅区域</span>
+        </button>
+        <button type="button" class="community-task-btn task-safety" data-community-task="safety_hazard">
+          <span class="task-title">安全隐患</span>
+          <span class="task-desc">上报危险设施与风险点位</span>
+        </button>
+        <button type="button" class="community-task-btn task-public-space" data-community-task="public_space_need">
+          <span class="task-title">公共空间需求</span>
+          <span class="task-desc">上报活动场地和设施需求</span>
+        </button>
+      </div>
+      <div class="community-action-row">
+        <button type="button" id="btnRefreshCommunityTask" class="community-refresh-btn">刷新任务图层</button>
+      </div>
+      <div class="community-score-row">
+        <div id="communityScoreBadge" class="community-score-badge">贡献值：--</div>
+      </div>
+    </div>
+  `;
+
+  mount.querySelectorAll("[data-community-task]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mount.querySelectorAll("[data-community-task]").forEach((item) => item.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      const category = btn.getAttribute("data-community-task") || "garbage";
+      startCommunityTaskReport(category);
+    });
+  });
+
+  mount.querySelector("#btnRefreshCommunityTask")?.addEventListener("click", async () => {
+    invalidateCommunityTaskCache(currentSpaceId);
+    await refresh2DOverlay();
+    await refreshCommunityScoreBadge();
+    showToast("社区任务已刷新。", "success");
+  });
+
+  refreshCommunityScoreBadge();
+}
 async function startAddBuildingMode(layerKey = "building") {
   if (!isEditableSpace()) {
     showToast("现状空间为只读，不能新增要素。", "error");
@@ -4069,7 +4201,8 @@ async function ensurePlanMap() {
         communityTaskEditState.mode = "idle";
         return;
       }
-      const desc = await customPrompt("请输入垃圾点描述（可选）", "", "上报垃圾点", { requireNonEmpty: false, maxLength: 120 });
+      const taskMeta = getCommunityTaskTypeMeta(communityTaskEditState.category);
+      const desc = await customPrompt(`请输入${taskMeta.label}描述（可选）`, "", taskMeta.promptTitle, { requireNonEmpty: false, maxLength: 120 });
       if (desc === null) {
         communityTaskEditState.mode = "idle";
         showToast("已取消上报。", "info");
@@ -4081,7 +4214,7 @@ async function ensurePlanMap() {
           reporterName: currentUserName,
           lng,
           lat,
-          category: "garbage",
+          category: communityTaskEditState.category || "garbage",
           description: String(desc || "").trim()
         });
         communityTaskEditState.mode = "idle";
@@ -4093,7 +4226,7 @@ async function ensurePlanMap() {
         } catch (_) {}
         invalidateCommunityTaskCache(currentSpaceId);
         await refreshCommunityScoreBadge();
-        showToast("垃圾点上报成功，等待他人核实。", "success");
+        showToast(`${taskMeta.label}提交成功，等待他人核实。`, "success");
       } catch (error) {
         communityTaskEditState.mode = "idle";
         showToast(error?.message || "上报失败，请查看控制台。", "error");
@@ -4579,7 +4712,8 @@ function addCommunityTaskFeatureToMap(taskRow, format) {
   });
   feature.set("layerKey", "communityTask");
   feature.set("sourceCode", `TASK_${taskRow.id}`);
-  feature.set("displayName", taskRow.category === "garbage" ? "垃圾点任务" : "社区任务");
+  const taskMeta = getCommunityTaskTypeMeta(taskRow.category);
+  feature.set("displayName", `${taskMeta.label}`);
   feature.set("taskRow", taskRow);
   feature.set("baseRow", taskRow);
   planVectorSource.addFeature(feature);
@@ -4942,7 +5076,7 @@ async function showCommunityTaskInfo(taskRow) {
   infoPanel.innerHTML = `
     <div class="info-card">
       <h3 class="house-title">社区任务</h3>
-      <div class="house-row"><span class="house-label">任务类型：</span>垃圾点上报</div>
+      <div class="house-row"><span class="house-label">任务类型：</span>${escapeHtml(getCommunityTaskTypeMeta(taskRow.category).label)}</div>
       <div class="house-row"><span class="house-label">状态：</span>${escapeHtml(statusMap[taskRow.status] || taskRow.status || "待核实")}</div>
       <div class="house-row"><span class="house-label">上报人：</span>${escapeHtml(taskRow.reporter_name || "未知")}</div>
       <div class="house-row"><span class="house-label">描述：</span>${escapeHtml(taskRow.description || "（无）")}</div>
@@ -6516,6 +6650,15 @@ window.customConfirm = customConfirm;
 window.customPrompt = customPrompt;
 
 init();
+
+
+
+
+
+
+
+
+
 
 
 

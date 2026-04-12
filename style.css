@@ -475,7 +475,8 @@ body {
 }
 
 .space-options-section,
-.space-toolbox-section {
+.space-toolbox-section,
+.space-community-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -704,6 +705,17 @@ body {
 
 .space-options-toggle:hover {
   background: rgba(31, 53, 82, 0.08);
+}
+
+.space-options-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.space-options-toggle.is-active {
+  background: rgba(47, 105, 40, 0.16);
+  color: #2f6928;
 }
 
 .toggle-triangle {
@@ -2610,4 +2622,144 @@ body {
 .toast-item.info { border-left: 4px solid #42a5f5; }
 .toast-item.success { border-left: 4px solid #66bb6a; }
 .toast-item.error { border-left: 4px solid #ef5350; }
+
+
+#communityBuildMount .community-build-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+#communityBuildMount .community-task-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#communityBuildMount .community-task-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+  gap: 4px;
+  border: 1px solid rgba(31, 53, 82, 0.18);
+  border-radius: 12px;
+  min-height: 56px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #1f3552;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+#communityBuildMount .community-task-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(47, 105, 40, 0.35);
+  box-shadow: 0 8px 18px rgba(31, 53, 82, 0.09);
+}
+
+#communityBuildMount .community-task-btn .task-title {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+#communityBuildMount .community-task-btn .task-desc {
+  font-size: 11px;
+  color: #5f7385;
+  line-height: 1.35;
+}
+
+#communityBuildMount .community-task-btn.is-active {
+  border-color: rgba(47, 105, 40, 0.56);
+  background: linear-gradient(180deg, #f8fff6, #eef8eb);
+  box-shadow: inset 3px 0 0 #2f6928, 0 8px 20px rgba(47, 105, 40, 0.18);
+}
+
+#communityBuildMount .community-task-btn.task-garbage {
+  border-left: 3px solid rgba(198, 64, 64, 0.8);
+}
+
+#communityBuildMount .community-task-btn.task-road-damage {
+  border-left: 3px solid rgba(239, 108, 0, 0.8);
+}
+
+#communityBuildMount .community-task-btn.task-drainage {
+  border-left: 3px solid rgba(33, 150, 243, 0.8);
+}
+
+#communityBuildMount .community-task-btn.task-safety {
+  border-left: 3px solid rgba(123, 31, 162, 0.8);
+}
+
+#communityBuildMount .community-task-btn.task-public-space {
+  grid-column: 1 / -1;
+  border-left: 3px solid rgba(46, 125, 50, 0.8);
+}
+
+#communityBuildMount .community-action-row {
+  display: flex;
+}
+
+#communityBuildMount .community-refresh-btn {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid rgba(31, 53, 82, 0.22);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #355066;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.16s ease;
+}
+
+#communityBuildMount .community-refresh-btn:hover {
+  background: #f4f8fb;
+  border-color: rgba(31, 53, 82, 0.36);
+  transform: translateY(-1px);
+}
+
+#communityBuildMount .community-score-row {
+  margin-top: 2px;
+  border-top: 1px solid rgba(31, 53, 82, 0.12);
+  padding-top: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+#communityBuildMount .community-score-badge {
+  font-size: 12px;
+  color: #2f4f66;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(47, 105, 40, 0.08);
+  border: 1px solid rgba(47, 105, 40, 0.2);
+}
+
+.community-content.is-compact #communityBuildMount .community-task-grid {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.community-content.is-compact #communityBuildMount .community-task-btn {
+  min-height: 46px;
+  padding: 7px 9px;
+}
+
+.community-content.is-compact #communityBuildMount .community-task-btn .task-title {
+  font-size: 11px;
+}
+
+.community-content.is-compact #communityBuildMount .community-task-btn .task-desc {
+  font-size: 10px;
+}
+
+.community-content.is-compact #communityBuildMount .community-task-btn.task-public-space {
+  grid-column: auto;
+}
+
 
