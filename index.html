@@ -1,0 +1,276 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>村庄规划互动平台（教学）</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
+</head>
+<body>
+  <div id="toastContainer" class="toast-container"></div>
+  <div class="app-shell">
+    <div class="app-card">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="homeBtn" class="home-btn" title="返回首页">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </button>
+          <div>
+            <h1>村庄规划互动平台（教学）</h1>
+
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div id="userGreetingBadge" class="topbar-user-badge" style="display:none;"></div>
+          <div id="statusBadge" class="topbar-badge">当前模式：首页</div>
+        </div>
+      </header>
+
+      <div id="mainLayout" class="main-layout mode-overview">
+        <aside class="story-panel">
+          <div class="panel-header">
+            <h2>菜单</h2>
+            <div id="spaceHeaderSelect" class="space-header-select"></div>
+          </div>
+
+          <div class="story-list">
+            <div id="spaceList" class="space-list-panel active"></div>
+          </div>
+        </aside>
+
+        <main class="center-panel">
+          <div class="panel-header">
+            <h2>村庄空间展示</h2>
+            <p id="detailSubtitle">当前模式为整合展示</p>
+          </div>
+
+          <section id="overviewView" class="content-view active">
+            <div class="text-frame">
+              <div class="text-card wide">
+                <h2>首页</h2>
+                <div class="overview-block identity-overview-block">
+                  <h3>身份选择</h3>
+                  <p>请先选择身份，再点击右上角“进入互动平台”。</p>
+                  <div class="identity-controls">
+                    <select id="identitySelect" class="identity-select"></select>
+                    <div class="identity-actions">
+                      <button id="confirmIdentityBtn" type="button" class="upload-btn">确认身份</button>
+                      <button id="createIdentityBtn" type="button" class="toolbox-btn">创建新身份</button>
+                      <button id="deleteIdentityBtn" type="button" class="toolbox-btn danger-outline-btn">删除身份</button>
+                    </div>
+                  </div>
+                  <p id="identityCurrentText" class="identity-tip">当前身份：未选择</p>
+                </div>
+                <div class="overview-grid">
+                  <div class="overview-block">
+                    <h3>村庄概况</h3>
+                    <p>这里可展示村庄名称、行政归属、人口、用地规模、历史沿革等基础资料。</p>
+                  </div>
+                  <div class="overview-block">
+                    <h3>教学目标</h3>
+                    <p>这里可展示课程训练目标，如现状识别、问题归纳、空间优化与村庄设计表达等。</p>
+                  </div>
+                  <div class="overview-block">
+                    <h3>现状问题</h3>
+                    <p>这里可归纳当前村庄在住房、道路、公共空间、产业与环境等方面的问题。</p>
+                  </div>
+                  <div class="overview-block">
+                    <h3>区位与环境</h3>
+                    <p>这里可展示村庄区位条件、交通联系、山水格局与景观资源等内容。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="plan2dView" class="content-view">
+            <div class="map-frame">
+              <div id="map2d" class="map2d-container"></div>
+              <div id="mapViewModeSwitch" class="map-view-mode-switch"></div>
+              
+              <!-- 定位按钮：点击回到村庄中心 -->
+              <button id="recenterBtn" class="map-recenter-btn" title="重置视角">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+                </svg>
+              </button>
+
+
+            </div>
+          </section>
+
+          <section id="model3dView" class="content-view">
+            <div class="model-frame">
+              <div id="cesiumContainer" class="cesium-container"></div>
+              <div id="modelViewModeSwitch" class="map-view-mode-switch"></div>
+              
+              <!-- 3D 定位按钮：点击回到村庄中心 -->
+              <button id="recenter3dBtn" class="map-recenter-btn" title="重置视角">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+                </svg>
+              </button>
+              
+              <div id="model3dHint" class="model-3d-hint">
+                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <aside class="detail-panel">
+          <div class="panel-header">
+            <h2>要素信息</h2>
+            <p>点击图中对象后，在此查看或编辑对象信息。</p>
+          </div>
+
+          <div id="infoPanel" class="info-panel empty">
+            <div class="placeholder-block">
+              <h3>欢迎使用</h3>
+              <p>请先在左侧切换到“规划空间”，选择具体空间后点击图中对象查看详细信息。</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+ 
+  <script>
+    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MDAzMTdmYy03MTlmLTRkNWQtODRiNy1hNTdhMGRmZTUwYzkiLCJpZCI6NDA4MjkyLCJpYXQiOjE3NzQzNDIxNDh9.Z21MNwyl3JGoYSOj18sI34-sgBU7DEZRQWkN0AN7Msk";
+  </script>
+
+  <script type="module">
+    window.__olReady = (async () => {
+      const [
+        MapMod,
+        ViewMod,
+        FeatureMod,
+        GeoJSONMod,
+        TileLayerMod,
+        ImageLayerMod,
+        VectorLayerMod,
+        OSMMod,
+        XYZMod,
+        ImageStaticMod,
+        VectorSourceMod,
+        DrawMod,
+        StyleMod,
+        FillMod,
+        StrokeMod,
+        TextStyleMod,
+        CircleStyleMod,
+        ModifyMod,
+        TranslateMod,
+        SnapMod,
+        CollectionMod,
+        projMod,
+      ] = await Promise.all([
+        import("https://esm.sh/ol@10.8.0/Map"),
+        import("https://esm.sh/ol@10.8.0/View"),
+        import("https://esm.sh/ol@10.8.0/Feature"),
+        import("https://esm.sh/ol@10.8.0/format/GeoJSON"),
+        import("https://esm.sh/ol@10.8.0/layer/Tile"),
+        import("https://esm.sh/ol@10.8.0/layer/Image"),
+        import("https://esm.sh/ol@10.8.0/layer/Vector"),
+        import("https://esm.sh/ol@10.8.0/source/OSM"),
+        import("https://esm.sh/ol@10.8.0/source/XYZ"),
+        import("https://esm.sh/ol@10.8.0/source/ImageStatic"),
+        import("https://esm.sh/ol@10.8.0/source/Vector"),
+        import("https://esm.sh/ol@10.8.0/interaction/Draw"),
+        import("https://esm.sh/ol@10.8.0/style/Style"),
+        import("https://esm.sh/ol@10.8.0/style/Fill"),
+        import("https://esm.sh/ol@10.8.0/style/Stroke"),
+        import("https://esm.sh/ol@10.8.0/style/Text"),
+        import("https://esm.sh/ol@10.8.0/style/Circle"),
+        import("https://esm.sh/ol@10.8.0/interaction/Modify"),
+        import("https://esm.sh/ol@10.8.0/interaction/Translate"),
+        import("https://esm.sh/ol@10.8.0/interaction/Snap"),
+        import("https://esm.sh/ol@10.8.0/Collection"),
+        import("https://esm.sh/ol@10.8.0/proj")
+      ]);
+
+      projMod.useGeographic();
+
+      window.__OL__ = {
+        Map: MapMod.default,
+        View: ViewMod.default,
+        Feature: FeatureMod.default,
+        GeoJSON: GeoJSONMod.default,
+        TileLayer: TileLayerMod.default,
+        ImageLayer: ImageLayerMod.default,
+        VectorLayer: VectorLayerMod.default,
+        OSM: OSMMod.default,
+        XYZ: XYZMod.default,
+        ImageStatic: ImageStaticMod.default,
+        VectorSource: VectorSourceMod.default,
+        Draw: DrawMod.default,
+        Style: StyleMod.default,
+        Fill: FillMod.default,
+        Stroke: StrokeMod.default,
+        Text: TextStyleMod.default,
+        Modify: ModifyMod.default,
+        Translate: TranslateMod.default,
+        Snap: SnapMod.default,
+        Collection: CollectionMod.default,
+        CircleStyle: CircleStyleMod.default,
+        fromLonLat: projMod.fromLonLat,
+        transformExtent: projMod.transformExtent
+      };
+
+      return window.__OL__;
+    })();
+  </script>
+
+  <script defer src="app.js"></script>
+  <script defer src="app-3d.js"></script>
+  
+  <!-- Custom Confirm Modal -->
+  <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title">确认</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customConfirmMessage"></p>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customConfirmCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customConfirmOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Prompt Modal -->
+  <div id="customPromptModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title" id="customPromptTitle">输入</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customPromptMessage"></p>
+        <div class="custom-modal-input-wrap">
+          <input type="text" id="customPromptInput" class="custom-modal-input" />
+          <span id="customPromptCount" class="custom-modal-input-count"></span>
+        </div>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customPromptCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customPromptOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
