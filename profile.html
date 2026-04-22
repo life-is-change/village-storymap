@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人中心 - 村庄规划互动平台</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body.profile-page {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      color: #1f3552;
+      background:
+        linear-gradient(135deg, rgba(235, 247, 232, 0.88), rgba(237, 246, 255, 0.92)),
+        url("./assets/orthophoto.png") center / cover fixed;
+    }
+
+    .profile-page::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.72);
+      pointer-events: none;
+    }
+
+    .profile-shell {
+      position: relative;
+      z-index: 1;
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 64px;
+    }
+
+    .profile-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .profile-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #1f3552;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .profile-brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #2f7a2a, #1f7a8c);
+      box-shadow: 0 8px 20px rgba(47, 105, 40, 0.18);
+    }
+
+    .profile-btn,
+    .profile-link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(31, 53, 82, 0.12);
+      background: #ffffff;
+      color: #1f3552;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .profile-btn:hover,
+    .profile-link-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(31, 53, 82, 0.12);
+    }
+
+    .profile-btn-primary {
+      border-color: transparent;
+      background: linear-gradient(135deg, #2f7a2a, #2f6928);
+      color: #ffffff;
+    }
+
+    .profile-btn-danger {
+      border-color: rgba(201, 74, 74, 0.18);
+      color: #a43e3e;
+      background: #fff;
+    }
+
+    /* Locked state */
+    .profile-locked {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      padding: 64px 32px;
+      text-align: center;
+    }
+
+    .profile-locked h1 {
+      margin: 0 0 12px;
+      color: #1f3552;
+      font-size: 26px;
+    }
+
+    .profile-locked p {
+      margin: 0 0 28px;
+      color: #5f7385;
+      font-size: 15px;
+    }
+
+    /* Profile Hero */
+    .profile-hero {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      padding: 40px 32px 32px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .profile-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 36px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #2f7a2a, #1f7a8c);
+      box-shadow: 0 10px 28px rgba(47, 105, 40, 0.22);
+      margin-bottom: 16px;
+    }
+
+    .profile-hero h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      color: #1f3552;
+      letter-spacing: 0;
+    }
+
+    .profile-hero p {
+      margin: 0;
+      color: #5f7385;
+      font-size: 15px;
+    }
+
+    /* Info card */
+    .profile-card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      overflow: hidden;
+    }
+
+    .profile-card-header {
+      padding: 22px 28px 0;
+      font-size: 17px;
+      font-weight: 800;
+      color: #1f3552;
+    }
+
+    .profile-info-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      background: rgba(31, 53, 82, 0.06);
+      margin: 18px 0 0;
+    }
+
+    .profile-info-cell {
+      background: rgba(255, 255, 255, 0.92);
+      padding: 18px 16px;
+      text-align: center;
+    }
+
+    .profile-info-label {
+      display: block;
+      color: #728296;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .profile-info-value {
+      display: block;
+      color: #1f3552;
+      font-size: 16px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    /* Form */
+    .profile-form {
+      padding: 24px 28px 28px;
+    }
+
+    .profile-form h2 {
+      margin: 0 0 18px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #1f3552;
+    }
+
+    .profile-form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .profile-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .profile-form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #5f7385;
+    }
+
+    .profile-form-group input,
+    .profile-form-group select {
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid rgba(31, 53, 82, 0.14);
+      border-radius: 10px;
+      background: #ffffff;
+      font-size: 14px;
+      color: #1f3552;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .profile-form-group input:focus,
+    .profile-form-group select:focus {
+      border-color: rgba(47, 105, 40, 0.5);
+      box-shadow: 0 0 0 3px rgba(47, 105, 40, 0.1);
+    }
+
+    .profile-form-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .profile-status {
+      color: #2f6928;
+      font-size: 13px;
+      font-weight: 700;
+      min-height: 20px;
+    }
+
+    @media (max-width: 720px) {
+      .profile-shell {
+        width: calc(100% - 24px);
+        padding: 20px 0 40px;
+      }
+
+      .profile-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .profile-info-cell:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .profile-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .profile-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .profile-hero h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body class="profile-page">
+  <main class="profile-shell">
+    <header class="profile-topbar">
+      <a class="profile-brand" href="./index.html" aria-label="返回首页">
+        <span class="profile-brand-mark">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </span>
+        <span>村庄规划互动平台</span>
+      </a>
+      <div>
+        <a class="profile-link-btn" href="./index.html">返回首页</a>
+        <button id="profileLogoutBtn" class="profile-btn profile-btn-danger" type="button" style="display:none;">退出登录</button>
+      </div>
+    </header>
+
+    <section id="profileLocked" class="profile-locked" style="display:none;">
+      <h1>请先登录</h1>
+      <p>登录后即可查看和管理个人资料。</p>
+      <button id="profileLoginBtn" class="profile-btn profile-btn-primary" type="button">登录/注册</button>
+    </section>
+
+    <section id="profileContent" style="display:none;">
+      <div class="profile-hero">
+        <div id="profileInitial" class="profile-avatar">用</div>
+        <h1 id="profileName">--</h1>
+        <p id="profileStudentId">学号：--</p>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-header">基本资料</div>
+        <div class="profile-info-grid" aria-label="个人信息">
+          <div class="profile-info-cell">
+            <span class="profile-info-label">用户名</span>
+            <span id="profileFieldName" class="profile-info-value">--</span>
+          </div>
+          <div class="profile-info-cell">
+            <span class="profile-info-label">学号</span>
+            <span id="profileFieldStudentId" class="profile-info-value">--</span>
+          </div>
+          <div class="profile-info-cell">
+            <span class="profile-info-label">性别</span>
+            <span id="profileFieldGender" class="profile-info-value">未填写</span>
+          </div>
+          <div class="profile-info-cell">
+            <span class="profile-info-label">班级</span>
+            <span id="profileFieldClassName" class="profile-info-value">未填写</span>
+          </div>
+          <div class="profile-info-cell">
+            <span class="profile-info-label">年级</span>
+            <span id="profileFieldGrade" class="profile-info-value">未填写</span>
+          </div>
+        </div>
+
+        <form id="profileForm" class="profile-form">
+          <h2>编辑资料</h2>
+          <div class="profile-form-grid">
+            <div class="profile-form-group">
+              <label for="profileGender">性别</label>
+              <select id="profileGender">
+                <option value="">未填写</option>
+                <option value="男">男</option>
+                <option value="女">女</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div class="profile-form-group">
+              <label for="profileClassName">班级</label>
+              <input id="profileClassName" type="text" maxlength="30" placeholder="例如：城乡规划1班" />
+            </div>
+            <div class="profile-form-group">
+              <label for="profileGrade">年级</label>
+              <input id="profileGrade" type="text" maxlength="20" placeholder="例如：2024级" />
+            </div>
+          </div>
+          <div class="profile-form-actions">
+            <button class="profile-btn profile-btn-primary" type="submit">保存资料</button>
+            <span id="profileStatus" class="profile-status"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script defer src="auth-system.js"></script>
+  <script defer src="profile-center.js"></script>
+</body>
+</html>

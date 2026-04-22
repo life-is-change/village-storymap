@@ -1,0 +1,334 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 页面基础设置：声明字符集、移动端缩放方式和浏览器标签页标题 -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>村庄规划互动平台（教学）</title>
+  <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
+
+  <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Cesium 3D 地图/模型引擎：用于右侧 3D 村庄模型视图 -->
+  <link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet"
+  />
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.118/Build/Cesium/Cesium.js"></script>
+</head>
+<body>
+  <!-- 全局提示容器：JS 会把成功/失败提示消息插入到这里 -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- 应用外壳：包住整个平台的主界面，内部再分为顶部栏、左侧栏、中间内容和右侧详情栏 -->
+  <div class="app-shell">
+    <div class="app-card">
+      <!-- 顶部栏：显示平台标题、返回首页按钮、当前用户和当前模式 -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <!-- 返回首页按钮：由 app.js 绑定点击事件，切回首页总览 -->
+          <button id="homeBtn" class="home-btn" title="返回首页">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </button>
+          <div>
+            <h1>村庄规划互动平台（教学）</h1>
+
+          </div>
+        </div>
+        <div class="topbar-right">
+          <!-- 登录后显示当前用户问候；statusBadge 同时承担“当前模式显示”和“进入平台”的点击入口 -->
+          <div id="userGreetingBadge" class="topbar-user-badge" style="display:none;"></div>
+          <div id="statusBadge" class="topbar-badge">当前模式：首页</div>
+        </div>
+      </header>
+
+      <!-- 主布局：左侧为空间/菜单列表，中间为首页/2D/3D 视图，右侧为对象详情面板 -->
+      <div id="mainLayout" class="main-layout mode-overview">
+        <!-- 左侧栏：空间列表、规划空间入口等内容由 space-panel.js 动态渲染 -->
+        <aside class="story-panel">
+          <div class="panel-header">
+            <h2>菜单</h2>
+            <!-- 当前空间选择器的容器，具体下拉控件由 JS 生成 -->
+            <div id="spaceHeaderSelect" class="space-header-select"></div>
+          </div>
+
+          <div class="story-list">
+            <!-- 空间列表容器：现状空间、规划空间等卡片会渲染到这里 -->
+            <div id="spaceList" class="space-list-panel active"></div>
+          </div>
+        </aside>
+
+        <!-- 中间主内容区：同一时间只显示一个 content-view，例如首页、2D 地图或 3D 模型 -->
+        <main class="center-panel">
+          <div class="panel-header">
+            <h2>村庄空间展示</h2>
+            <p id="detailSubtitle">当前模式为整合展示</p>
+          </div>
+
+          <!-- 浮动控制区：进入地图/模型视图后，提供返回首页和用户提示的浮动按钮 -->
+          <div id="mapFloatingControls" class="map-floating-controls">
+            <button id="floatingHomeBtn" class="map-floating-home-btn" title="返回主页">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </button>
+            <div id="floatingUserGreetingBadge" class="map-floating-user-badge" style="display:none;"></div>
+          </div>
+
+          <!-- 左右面板收起按钮：用于给地图/模型视图腾出更多空间 -->
+          <button id="leftPanelToggleBtn" type="button" class="map-side-toggle map-side-toggle-left" title="收起左栏">◀</button>
+          <button id="rightPanelToggleBtn" type="button" class="map-side-toggle map-side-toggle-right" title="收起右栏">▶</button>
+
+          <!-- 首页视图：默认 active。这里通过 iframe 嵌入 homepage/dist 里的 React 首页 -->
+          <section id="overviewView" class="content-view active">
+            <div class="home-landing-shell" style="position:relative;">
+              <!-- 嵌入式首页构建产物：源码在 homepage/index.html 和 homepage/src/ 中 -->
+              <iframe
+                id="homeLandingFrame"
+                class="home-landing-frame"
+                src="./homepage/dist/index.html"
+                title="村庄规划互动平台首页"
+                data-entry-role="embedded-homepage-build"
+                data-source-entry="homepage/index.html"
+              ></iframe>
+              <!-- 旧版浮动登录按钮，目前由 auth-system.js/app.js 控制显示状态，通常保持隐藏 -->
+              <button id="authLoginBtn" type="button" class="auth-floating-btn" style="display:none;" title="点击登录/注册"></button>
+            </div>
+
+            <!-- 旧账号系统兼容桥：保留这些隐藏控件，供老逻辑读取/同步账号，不作为主要界面展示 -->
+            <div class="legacy-identity-bridge" aria-hidden="true">
+              <select id="identitySelect" class="identity-select"></select>
+              <button id="confirmIdentityBtn" type="button">确认账号</button>
+              <button id="createIdentityBtn" type="button">创建新账号</button>
+              <button id="deleteIdentityBtn" type="button">删除账号</button>
+              <p id="identityCurrentText">当前账号：未选择</p>
+            </div>
+          </section>
+
+          <!-- 2D 地图视图：OpenLayers 地图容器和测量/重置视角等控件 -->
+          <section id="plan2dView" class="content-view">
+            <div class="map-frame">
+              <!-- OpenLayers 会挂载到这个容器里，图层、要素和交互都由 JS 初始化 -->
+              <div id="map2d" class="map2d-container"></div>
+              <!-- 测量结果显示区：测距时由 app.js 更新文本 -->
+              <div id="measure2dReadout" class="map-measure-readout"></div>
+            </div>
+          </section>
+          <!-- 2D/3D 模式切换控件（移出地图视图，避免被侧边栏遮挡并保持动画一致） -->
+          <div id="mapViewModeSwitch" class="map-view-mode-switch"></div>
+          <!-- 2D 测量按钮：进入距离测量模式 -->
+          <button id="measure2dBtn" class="map-recenter-btn map-measure-btn" title="测量距离">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l14-4 4 14-14 4z"></path>
+              <path d="M7 8l2 2M10 7l2 2M13 6l2 2M6 11l2 2M5 14l2 2"></path>
+            </svg>
+          </button>
+          <!-- 2D 重置视角按钮：回到村庄中心/默认缩放级别 -->
+          <button id="recenterBtn" class="map-recenter-btn" title="重置视角">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+            </svg>
+          </button>
+
+          <!-- 3D 模型视图：Cesium 场景容器和 3D 测量/重置视角等控件 -->
+          <section id="model3dView" class="content-view">
+            <div class="model-frame">
+              <!-- Cesium 会挂载到这个容器里，用于显示地形、建筑白模和替换模型 -->
+              <div id="cesiumContainer" class="cesium-container"></div>
+              <!-- 3D 测量结果显示区 -->
+              <div id="measure3dReadout" class="map-measure-readout"></div>
+              <!-- 3D 操作提示：告诉用户如何移动、缩放、旋转场景 -->
+              <div id="model3dHint" class="model-3d-hint">
+                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
+              </div>
+            </div>
+          </section>
+          <!-- 2D/3D 模式切换控件的 3D 版本（移出模型视图，避免被侧边栏遮挡并保持动画一致） -->
+          <div id="modelViewModeSwitch" class="map-view-mode-switch"></div>
+          <!-- 3D 测量按钮：进入三维距离测量模式 -->
+          <button id="measure3dBtn" class="map-recenter-btn map-measure-btn" title="测量距离">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l14-4 4 14-14 4z"></path>
+              <path d="M7 8l2 2M10 7l2 2M13 6l2 2M6 11l2 2M5 14l2 2"></path>
+            </svg>
+          </button>
+          <!-- 3D 重置视角按钮：将相机飞回村庄默认观察位置 -->
+          <button id="recenter3dBtn" class="map-recenter-btn" title="重置视角">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+            </svg>
+          </button>
+        </main>
+
+        <!-- 右侧详情栏：点击地图/模型中的对象后，这里显示属性、照片、评论、编辑表单等 -->
+        <aside class="detail-panel">
+          <div class="panel-header">
+            <h2>要素信息</h2>
+            <p>点击图中对象后，在此查看或编辑对象信息。</p>
+          </div>
+
+          <div id="infoPanel" class="info-panel empty">
+            <div class="placeholder-block">
+              <h3>欢迎使用</h3>
+              <p>请先在左侧切换到“规划空间”，选择具体空间后点击图中对象查看详细信息。</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- Cesium Ion 访问令牌：用于加载 Cesium 的在线资源/服务 -->
+  <script>
+    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5MDAzMTdmYy03MTlmLTRkNWQtODRiNy1hNTdhMGRmZTUwYzkiLCJpZCI6NDA4MjkyLCJpYXQiOjE3NzQzNDIxNDh9.Z21MNwyl3JGoYSOj18sI34-sgBU7DEZRQWkN0AN7Msk";
+  </script>
+
+  <!-- OpenLayers 动态导入：把需要的 OL 类统一挂到 window.__OL__，供 app.js 等普通脚本使用 -->
+  <script type="module">
+    window.__olReady = (async () => {
+      const [
+        MapMod,
+        ViewMod,
+        FeatureMod,
+        GeoJSONMod,
+        TileLayerMod,
+        ImageLayerMod,
+        VectorLayerMod,
+        OSMMod,
+        XYZMod,
+        ImageStaticMod,
+        VectorSourceMod,
+        DrawMod,
+        StyleMod,
+        FillMod,
+        StrokeMod,
+        TextStyleMod,
+        CircleStyleMod,
+        ModifyMod,
+        TranslateMod,
+        SnapMod,
+        CollectionMod,
+        projMod,
+      ] = await Promise.all([
+        import("https://esm.sh/ol@10.8.0/Map"),
+        import("https://esm.sh/ol@10.8.0/View"),
+        import("https://esm.sh/ol@10.8.0/Feature"),
+        import("https://esm.sh/ol@10.8.0/format/GeoJSON"),
+        import("https://esm.sh/ol@10.8.0/layer/Tile"),
+        import("https://esm.sh/ol@10.8.0/layer/Image"),
+        import("https://esm.sh/ol@10.8.0/layer/Vector"),
+        import("https://esm.sh/ol@10.8.0/source/OSM"),
+        import("https://esm.sh/ol@10.8.0/source/XYZ"),
+        import("https://esm.sh/ol@10.8.0/source/ImageStatic"),
+        import("https://esm.sh/ol@10.8.0/source/Vector"),
+        import("https://esm.sh/ol@10.8.0/interaction/Draw"),
+        import("https://esm.sh/ol@10.8.0/style/Style"),
+        import("https://esm.sh/ol@10.8.0/style/Fill"),
+        import("https://esm.sh/ol@10.8.0/style/Stroke"),
+        import("https://esm.sh/ol@10.8.0/style/Text"),
+        import("https://esm.sh/ol@10.8.0/style/Circle"),
+        import("https://esm.sh/ol@10.8.0/interaction/Modify"),
+        import("https://esm.sh/ol@10.8.0/interaction/Translate"),
+        import("https://esm.sh/ol@10.8.0/interaction/Snap"),
+        import("https://esm.sh/ol@10.8.0/Collection"),
+        import("https://esm.sh/ol@10.8.0/proj")
+      ]);
+
+      // 使用经纬度坐标，便于直接读取项目中的 GeoJSON/影像坐标。
+      projMod.useGeographic();
+
+      // 暴露给非 module 脚本：后续 app.js 可以从 window.__OL__ 里取 Map、Layer、Style 等类。
+      window.__OL__ = {
+        Map: MapMod.default,
+        View: ViewMod.default,
+        Feature: FeatureMod.default,
+        GeoJSON: GeoJSONMod.default,
+        TileLayer: TileLayerMod.default,
+        ImageLayer: ImageLayerMod.default,
+        VectorLayer: VectorLayerMod.default,
+        OSM: OSMMod.default,
+        XYZ: XYZMod.default,
+        ImageStatic: ImageStaticMod.default,
+        VectorSource: VectorSourceMod.default,
+        Draw: DrawMod.default,
+        Style: StyleMod.default,
+        Fill: FillMod.default,
+        Stroke: StrokeMod.default,
+        Text: TextStyleMod.default,
+        Modify: ModifyMod.default,
+        Translate: TranslateMod.default,
+        Snap: SnapMod.default,
+        Collection: CollectionMod.default,
+        CircleStyle: CircleStyleMod.default,
+        fromLonLat: projMod.fromLonLat,
+        transformExtent: projMod.transformExtent
+      };
+
+      return window.__OL__;
+    })();
+  </script>
+
+  <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 和 3D app-3d.js 最后启动 -->
+  <script defer src="auth-system.js"></script>
+  <script defer src="community-tasks.js"></script>
+  <script defer src="map-style.js"></script>
+  <script defer src="space-panel.js"></script>
+  <script defer src="space-panel-events.js"></script>
+  <script defer src="view-switcher.js"></script>
+  <script defer src="data-service.js"></script>
+  <script defer src="feature-db.js"></script>
+  <script defer src="copy-space-seed.js"></script>
+  <script defer src="geometry-editor.js"></script>
+  <script defer src="mc-bridge.js"></script>
+  <script defer src="map-hover-handler.js"></script>
+  <script defer src="map-click-handler.js"></script>
+  <script defer src="overlay-renderer.js"></script>
+  <script defer src="app.js"></script>
+  <script defer src="app-3d.js"></script>
+  
+  <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
+  <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title">确认</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customConfirmMessage"></p>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customConfirmCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customConfirmOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义输入弹窗模板：替代浏览器原生 prompt，用于输入名称等短文本 -->
+  <div id="customPromptModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title" id="customPromptTitle">输入</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customPromptMessage"></p>
+        <div class="custom-modal-input-wrap">
+          <input type="text" id="customPromptInput" class="custom-modal-input" />
+          <span id="customPromptCount" class="custom-modal-input-count"></span>
+        </div>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customPromptCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customPromptOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

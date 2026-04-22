@@ -1,0 +1,225 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>乡村住宅参数生成器 v1</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>乡村住宅参数生成器</h1>
+      <p>输入长宽、楼层和各层空间数量，自动生成 2D 平面与 3D 体块</p>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnGenerate" class="primary">生成建筑</button>
+      <button id="btnApplyToMain" class="primary">应用到主平台</button>
+    </div>
+  </header>
+  <div id="bridgeNotice" class="bridge-notice"></div>
+
+  <main class="layout">
+    <aside class="panel panel-left">
+      <section class="card">
+        <h2>基础参数</h2>
+        <div class="form-grid">
+          <label>
+            <span>建筑长度 (m)</span>
+            <input id="length" type="number" min="5" max="15" step="0.5" value="12" />
+          </label>
+          <label>
+            <span>建筑宽度 (m)</span>
+            <input id="width" type="number" min="5" max="15" step="0.5" value="9" />
+          </label>
+          <label>
+            <span>楼层数</span>
+            <select id="floors">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+            </select>
+          </label>
+          <label>
+            <span>层高 (m)</span>
+            <input id="floorHeight" type="number" min="2.8" max="4.2" step="0.1" value="3.3" />
+          </label>
+          <label>
+            <span>屋顶类型</span>
+            <select id="roofType">
+              <option value="flat_parapet" selected>平顶-女儿墙</option>
+              <option value="flat_eave">平顶-挑檐</option>
+              <option value="flat">平顶-基础</option>
+              <option value="gable">双坡屋顶</option>
+              <option value="hip">四坡屋顶</option>
+            </select>
+          </label>
+          <label>
+            <span>建筑风格</span>
+            <select id="styleType">
+              <option value="simple" selected>普通乡村</option>
+              <option value="modern">现代简约</option>
+              <option value="chinese">中式民居</option>
+            </select>
+          </label>
+          <label>
+            <span>开窗密度</span>
+            <select id="windowDensity">
+              <option value="low">低</option>
+              <option value="medium" selected>中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+          <label>
+            <span>窗户样式</span>
+            <select id="windowStyle">
+              <option value="random" selected>随机组合</option>
+              <option value="grid">乡村格窗</option>
+              <option value="modern">现代落地窗</option>
+              <option value="simple">简约方窗</option>
+            </select>
+          </label>
+          <label>
+            <span>阳台样式</span>
+            <select id="balconyStyle">
+              <option value="random" selected>随机组合</option>
+              <option value="railing">普通护栏</option>
+              <option value="glass">玻璃栏板</option>
+              <option value="none">无护栏</option>
+            </select>
+          </label>
+        </div>
+        <p class="form-note">可设置地块长/宽范围：5.0-15.0m， 可设置占地面积范围：40.0-150.0㎡。</p>
+      </section>
+
+      <section class="function-zone-title">
+        <h2>功能区设置</h2>
+      </section>
+
+      <section class="card floor-card function-zone-card" id="floor1Card">
+        <button class="floor-card-toggle" type="button" data-target="floor1Body" aria-expanded="true">
+          <span>一层空间</span>
+          <span class="toggle-icon">▾</span>
+        </button>
+        <div class="floor-card-body room-tile-grid" id="floor1Body">
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛋</span><span class="room-name">客厅</span></span>
+            <input id="f1_living" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🍽</span><span class="room-name">餐厅</span></span>
+            <input id="f1_dining" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛏</span><span class="room-name">卧室</span></span>
+            <input id="f1_bedroom" type="number" min="2" max="3" step="1" value="2" />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🍳</span><span class="room-name">厨房</span></span>
+            <input id="f1_kitchen" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🚻</span><span class="room-name">卫生间</span></span>
+            <input id="f1_bathroom" type="number" min="1" max="2" step="1" value="2" readonly disabled />
+          </label>
+        </div>
+      </section>
+
+      <section class="card floor-card function-zone-card" id="floor2Card">
+        <button class="floor-card-toggle" type="button" data-target="floor2Body" aria-expanded="true">
+          <span>二层空间</span>
+          <span class="toggle-icon">▾</span>
+        </button>
+        <div class="floor-card-body room-tile-grid" id="floor2Body">
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛋</span><span class="room-name">客厅</span></span>
+            <input id="f2_living" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛏</span><span class="room-name">卧室</span></span>
+            <input id="f2_bedroom" type="number" min="2" max="4" step="1" value="2" />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🚻</span><span class="room-name">卫生间</span></span>
+            <input id="f2_bathroom" type="number" min="1" max="2" step="1" value="1" />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🏞</span><span class="room-name">露台</span></span>
+            <input id="f2_terrace" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">📦</span><span class="room-name">储藏室</span></span>
+            <input id="f2_storage" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+        </div>
+      </section>
+
+      <section class="card floor-card function-zone-card" id="floor3Card">
+        <button class="floor-card-toggle" type="button" data-target="floor3Body" aria-expanded="true">
+          <span>三层空间</span>
+          <span class="toggle-icon">▾</span>
+        </button>
+        <div class="floor-card-body room-tile-grid" id="floor3Body">
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛋</span><span class="room-name">客厅</span></span>
+            <input id="f3_living" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🛏</span><span class="room-name">卧室</span></span>
+            <input id="f3_bedroom" type="number" min="2" max="4" step="1" value="2" />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🚻</span><span class="room-name">卫生间</span></span>
+            <input id="f3_bathroom" type="number" min="1" max="2" step="1" value="1" />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🏞</span><span class="room-name">露台</span></span>
+            <input id="f3_terrace" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+          <label class="room-tile">
+            <span class="room-meta"><span class="room-icon">🔥</span><span class="room-name">热水器房</span></span>
+            <input id="f3_hot_water_room" type="number" min="1" max="1" step="1" value="1" readonly disabled />
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>生成结果</h2>
+        <div id="summary" class="summary"></div>
+        <div id="messages" class="messages"></div>
+      </section>
+    </aside>
+
+    <section class="panel panel-center">
+      <div class="panel-header">
+        <h2>2D 平面</h2>
+        <div class="floor-tabs" id="floorTabs"></div>
+      </div>
+      <div class="canvas-wrap">
+        <svg id="planSvg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </section>
+
+    <section class="panel panel-right">
+      <div class="panel-header">
+        <h2>3D 建筑预览</h2>
+      </div>
+      <div id="threeContainer" class="three-wrap"></div>
+      <!-- roof-switcher removed: now randomized by default -->
+      <div class="hint">
+        鼠标左键旋转，滚轮缩放，右键平移
+      </div>
+    </section>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.166.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.166.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
