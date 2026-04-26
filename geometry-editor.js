@@ -156,7 +156,7 @@
     },
 
     clearBuildingInteractions(deps, options = {}) {
-      const { skipRestore = false } = options;
+      const { skipRestore = false, skipReleaseLock = false } = options;
       const map = getMap(deps);
       const source = getSource(deps);
       const layer = getLayer(deps);
@@ -219,8 +219,10 @@
       api.updateBuildingEditorToolbarState(deps);
       layer?.changed();
 
-      // 停止编辑时释放现状空间编辑锁
-      deps.releaseCurrentSpaceEditLock?.();
+      // 仅在显式要求时释放现状空间编辑锁（避免切换编辑工具时误释放）
+      if (!skipReleaseLock) {
+        deps.releaseCurrentSpaceEditLock?.();
+      }
     },
 
     updateBuildingEditorToolbarState(deps) {
@@ -467,7 +469,7 @@
       }
 
       await deps.ensurePlanMap();
-      api.clearBuildingInteractions(deps);
+      api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.pendingAddedFeatures = [];
       state.editLayerKey = layerKey;
       if (layerKey === "building") {
@@ -564,7 +566,7 @@
       if (!(await checkBaseSpaceEditLock(deps))) return;
 
       await deps.ensurePlanMap();
-      api.clearBuildingInteractions(deps);
+      api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
       state.editLayerKey = layerKey;
 
@@ -582,7 +584,7 @@
       if (!(await checkBaseSpaceEditLock(deps))) return;
 
       await deps.ensurePlanMap();
-      api.clearBuildingInteractions(deps);
+      api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
       state.editLayerKey = layerKey;
 
@@ -605,7 +607,7 @@
       }
 
       await deps.ensurePlanMap();
-      api.clearBuildingInteractions(deps);
+      api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
       state.editLayerKey = layerKey;
 
@@ -623,7 +625,7 @@
       if (!(await checkBaseSpaceEditLock(deps))) return;
 
       await deps.ensurePlanMap();
-      api.clearBuildingInteractions(deps);
+      api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.pendingDeletedFeatures = [];
       state.editLayerKey = layerKey;
 
@@ -646,7 +648,7 @@
         return;
       }
 
-      api.clearBuildingInteractions(deps, { skipRestore: true });
+      api.clearBuildingInteractions(deps, { skipRestore: true, skipReleaseLock: true });
 
       const spaceId = deps.getCurrent2DBuildingSpaceId();
       const features = api.getFeaturesOnMapByLayer(deps, layerKey);

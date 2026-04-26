@@ -50,8 +50,7 @@
 
   function loadAuthSession() {
     try {
-      // 优先读取 sessionStorage（标签页隔离），fallback 到 localStorage（刷新后保持）
-      const raw = sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY);
+      const raw = localStorage.getItem(AUTH_SESSION_KEY);
       if (!raw) return null;
       return JSON.parse(raw);
     } catch (_) {
@@ -62,12 +61,9 @@
   function saveAuthSession(session) {
     try {
       if (!session) {
-        sessionStorage.removeItem(AUTH_SESSION_KEY);
         localStorage.removeItem(AUTH_SESSION_KEY);
       } else {
-        const serialized = JSON.stringify(session);
-        sessionStorage.setItem(AUTH_SESSION_KEY, serialized);
-        localStorage.setItem(AUTH_SESSION_KEY, serialized);
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
       }
     } catch (e) {
       console.warn("保存会话失败:", e);
@@ -157,9 +153,6 @@
   }
 
   function forceLogoutWithMessage(message) {
-    try {
-      sessionStorage.removeItem(AUTH_SESSION_KEY);
-    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -341,9 +334,6 @@
     if (session && session.name) {
       await removeUserSessionFromRemote(session.name);
     }
-    try {
-      sessionStorage.removeItem(AUTH_SESSION_KEY);
-    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -358,9 +348,6 @@
     const users = loadAuthUsers();
     const filtered = users.filter((u) => !(u.name === user.name && u.studentId === user.studentId));
     saveAuthUsers(filtered);
-    try {
-      sessionStorage.removeItem(AUTH_SESSION_KEY);
-    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -654,9 +641,6 @@
     if (session) {
       const valid = await validateCurrentSession();
       if (!valid) {
-        try {
-          sessionStorage.removeItem(AUTH_SESSION_KEY);
-        } catch (_) {}
         saveAuthSession(null);
         syncLegacyActiveUser("");
         if (typeof window.showToast === "function") {
@@ -680,9 +664,6 @@
           await upsertUserSessionToRemote(session.name, session.token);
           initSessionRealtimeListener();
         } else {
-          try {
-            sessionStorage.removeItem(AUTH_SESSION_KEY);
-          } catch (_) {}
           saveAuthSession(null);
           syncLegacyActiveUser("");
         }
