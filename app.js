@@ -4653,6 +4653,14 @@ function showVillageOverview() {
   updateUserGreeting("overview");
 }
 function showPlan2DOverview() {
+  // 共建模式下右侧栏始终显示留言板，不覆盖为 2D 概览占位
+  if (!isPlanningMode) {
+    if (!document.getElementById("communityMessageBoard")) {
+      refreshCommunityMessageBoard();
+    }
+    return;
+  }
+
   update2DStatusText();
 
   const selectedLayers = getSelectedLayersForCurrentSpace();
