@@ -1,0 +1,231 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>村庄规划互动平台</title>
+    <script type="module" crossorigin src="./assets/index-fEijEQrv.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-s-SHo2LZ.css">
+    <style>
+      .hero-action-style {
+        min-width: 12rem;
+        background: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.96) !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+        animation: none !important;
+      }
+
+      .hero-action-style:hover {
+        background: #f3f4f6 !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        transform: translateY(-1px);
+      }
+
+      .hero-action-style svg {
+        color: currentColor;
+      }
+
+      .hero-action-primary {
+        color: #15803d !important;
+      }
+
+      .hero-action-primary:hover {
+        color: #166534 !important;
+      }
+
+      .hero-action-secondary {
+        min-width: 10rem;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        color: #6b7280 !important;
+      }
+
+      .hero-action-secondary:hover {
+        color: #374151 !important;
+      }
+
+      .home-nav-list-fix {
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
+      }
+
+      .home-nav-link-fix {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 5rem !important;
+        height: 2.5rem !important;
+        padding: 0 0.25rem !important;
+        line-height: 1 !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+      }
+
+      .home-auth-pill-fix,
+      [data-home-identity-btn="1"] {
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        background: rgba(255, 255, 255, 0.16) !important;
+        color: #ffffff !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+        backdrop-filter: blur(8px);
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+
+      .home-auth-pill-fix *,
+      [data-home-identity-btn="1"] * {
+        color: currentColor !important;
+      }
+
+      nav.glass .home-auth-pill-fix,
+      nav.glass [data-home-identity-btn="1"] {
+        background: #dcfce7 !important;
+        border-color: rgba(22, 101, 52, 0.18) !important;
+        color: #166534 !important;
+        box-shadow: 0 10px 24px rgba(22, 101, 52, 0.14) !important;
+      }
+
+      .home-logout-fix {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.45rem !important;
+        padding: 0.5rem 0.85rem !important;
+        border-radius: 999px !important;
+        border: 1px solid rgba(255, 255, 255, 0.28) !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #ffffff !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        backdrop-filter: blur(8px);
+        cursor: pointer !important;
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+
+      .home-logout-fix svg {
+        width: 16px !important;
+        height: 16px !important;
+        flex-shrink: 0 !important;
+      }
+
+      .home-logout-fix * {
+        color: currentColor !important;
+      }
+
+      .home-logout-fix:hover {
+        background: rgba(255, 255, 255, 0.22) !important;
+        color: #ffffff !important;
+      }
+
+      nav.glass .home-logout-fix {
+        background: #ffffff !important;
+        border-color: rgba(22, 101, 52, 0.16) !important;
+        color: #166534 !important;
+        box-shadow: 0 8px 20px rgba(22, 101, 52, 0.1) !important;
+      }
+
+      nav.glass .home-logout-fix:hover {
+        background: #ecfdf5 !important;
+        color: #14532d !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Built homepage artifact embedded by ../../index.html. Rebuild from homepage/index.html. -->
+    <div id="root"></div>
+    <script>
+      (() => {
+        const normalize = (text) => String(text || "").replace(/\s+/g, "");
+        const arrowSvg = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
+          </svg>
+        `;
+        const logoutSvg = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        `;
+
+        const navLabels = new Set(["村庄现状", "教学目的", "现状问题", "区位与环境"]);
+
+        const decorateHeroButtons = () => {
+          const nav = document.querySelector("nav");
+
+          Array.from(document.querySelectorAll("button")).forEach((button) => {
+            const label = normalize(button.textContent);
+            const isPrimary = label.includes("进入互动平台");
+            const isSecondary = label.includes("了解更多");
+
+            if (isPrimary || isSecondary) {
+              button.classList.add("hero-action-style");
+              button.classList.toggle("hero-action-primary", isPrimary);
+              button.classList.toggle("hero-action-secondary", isSecondary);
+
+              if (isSecondary && !button.querySelector("svg")) {
+                button.insertAdjacentHTML("beforeend", arrowSvg);
+              }
+            }
+
+            if (navLabels.has(label) && button.parentElement?.classList.contains("md:flex")) {
+              button.parentElement.classList.add("home-nav-list-fix");
+              button.parentElement.parentElement?.classList.add("relative");
+              button.classList.add("home-nav-link-fix");
+            }
+          });
+
+          if (nav) {
+            Array.from(nav.querySelectorAll("div")).forEach((element) => {
+              const parent = element.parentElement;
+              const isDesktopAuthGroup =
+                parent?.classList.contains("md:flex") &&
+                parent?.classList.contains("gap-3");
+              const looksLikeUserPill =
+                isDesktopAuthGroup &&
+                element.classList.contains("rounded-full") &&
+                !!element.querySelector("svg") &&
+                !!element.querySelector("span");
+
+              if (looksLikeUserPill) {
+                element.classList.add("home-auth-pill-fix");
+                const span = element.querySelector("span");
+                if (span && !normalize(span.textContent).startsWith("你好，")) {
+                  span.textContent = `你好，${String(span.textContent || "").trim()}`;
+                }
+
+                if (!parent.querySelector("[data-home-logout-btn='1']")) {
+                  const logoutButton = document.createElement("button");
+                  logoutButton.type = "button";
+                  logoutButton.className = "home-logout-fix";
+                  logoutButton.setAttribute("data-home-logout-btn", "1");
+                  logoutButton.title = "退出登录";
+                  logoutButton.innerHTML = `${logoutSvg}<span>退出登录</span>`;
+                  logoutButton.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    window.parent.postMessage({ type: "village-auth-logout" }, "*");
+                  });
+                  parent.appendChild(logoutButton);
+                }
+              }
+            });
+          }
+        };
+
+        decorateHeroButtons();
+        new MutationObserver(decorateHeroButtons).observe(document.documentElement, {
+          childList: true,
+          subtree: true
+        });
+      })();
+    </script>
+  </body>
+</html>
+
