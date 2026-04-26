@@ -37,6 +37,7 @@
   }
 
   async function getAllUsers() {
+    let remoteUsers = [];
     if (supabaseClient) {
       try {
         const { data, error } = await supabaseClient
@@ -44,7 +45,7 @@
           .select("name, student_id, gender, class_name, grade, created_at")
           .order("created_at", { ascending: false });
         if (!error && Array.isArray(data)) {
-          return data.map((row) => ({
+          remoteUsers = data.map((row) => ({
             name: row.name,
             studentId: row.student_id,
             gender: row.gender || "",
@@ -57,13 +58,26 @@
         console.warn("从远端读取用户列表失败：", e);
       }
     }
-    // fallback 到本地
-    if (!window.VillageAuth || typeof window.VillageAuth.loadAuthUsers !== "function") return [];
-    try {
-      return window.VillageAuth.loadAuthUsers() || [];
-    } catch (_) {
-      return [];
+
+    // 同时读取本地用户，合并去重（确保当前电脑上注册的用户一定能看到）
+    let localUsers = [];
+    if (window.VillageAuth && typeof window.VillageAuth.loadAuthUsers === "function") {
+      try {
+        localUsers = window.VillageAuth.loadAuthUsers() || [];
+      } catch (_) {
+        localUsers = [];
+      }
     }
+
+    const mergedMap = new Map();
+    [...remoteUsers, ...localUsers].forEach((u) => {
+      const key = `${String(u.name || "").trim()}::${String(u.studentId || "").trim()}`;
+      if (!key || key === "::") return;
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, u);
+      }
+    });
+    return Array.from(mergedMap.values());
   }
 
   function writeAuthUsers(users) {

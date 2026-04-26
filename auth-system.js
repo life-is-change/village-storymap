@@ -50,7 +50,8 @@
 
   function loadAuthSession() {
     try {
-      const raw = localStorage.getItem(AUTH_SESSION_KEY);
+      // 优先读取 sessionStorage（标签页隔离），fallback 到 localStorage（刷新后保持）
+      const raw = sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY);
       if (!raw) return null;
       return JSON.parse(raw);
     } catch (_) {
@@ -61,9 +62,12 @@
   function saveAuthSession(session) {
     try {
       if (!session) {
+        sessionStorage.removeItem(AUTH_SESSION_KEY);
         localStorage.removeItem(AUTH_SESSION_KEY);
       } else {
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        const serialized = JSON.stringify(session);
+        sessionStorage.setItem(AUTH_SESSION_KEY, serialized);
+        localStorage.setItem(AUTH_SESSION_KEY, serialized);
       }
     } catch (e) {
       console.warn("保存会话失败:", e);
@@ -134,7 +138,9 @@
 
   async function validateCurrentSession() {
     const session = loadAuthSession();
-    if (!session || !session.name || !session.token) return false;
+    if (!session || !session.name) return false;
+    // 兼容老用户：没有 token 的会话视为有效（避免强制登出老用户）
+    if (!session.token) return true;
     if (!supabaseClient) return true;
     try {
       const { data, error } = await supabaseClient
@@ -151,6 +157,9 @@
   }
 
   function forceLogoutWithMessage(message) {
+    try {
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -180,6 +189,7 @@
         (payload) => {
           const newToken = payload.new?.session_token;
           const currentSession = loadAuthSession();
+          // 老用户没有 token，不触发挤下线（避免误踢）
           if (!currentSession || !currentSession.token) return;
           if (newToken && newToken !== currentSession.token) {
             forceLogoutWithMessage("您的账号已在其他地方登录，您已被退出。");
@@ -331,6 +341,9 @@
     if (session && session.name) {
       await removeUserSessionFromRemote(session.name);
     }
+    try {
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -345,6 +358,9 @@
     const users = loadAuthUsers();
     const filtered = users.filter((u) => !(u.name === user.name && u.studentId === user.studentId));
     saveAuthUsers(filtered);
+    try {
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+    } catch (_) {}
     saveAuthSession(null);
     syncLegacyActiveUser("");
     onAuthStateChanged();
@@ -595,12 +611,14 @@
     const users = loadAuthUsers();
     const hasAdmin = users.some((u) => u.name === "管理员" && u.studentId === "332");
     if (!hasAdmin) {
-      users.push({
+      const adminUser = {
         name: "管理员",
         studentId: "332",
         createdAt: new Date().toISOString()
-      });
+      };
+      users.push(adminUser);
       saveAuthUsers(users);
+      upsertAuthUserToRemote(adminUser).catch(() => {});
     }
   }
 
@@ -623,11 +641,22 @@
   clearLegacyIdentityData();
   ensureDefaultAdmin();
 
+  async function syncAllLocalUsersToRemote() {
+    const users = loadAuthUsers();
+    if (!supabaseClient || users.length === 0) return;
+    for (const user of users) {
+      await upsertAuthUserToRemote(user);
+    }
+  }
+
   (async function syncOnLoad() {
     const session = loadAuthSession();
     if (session) {
       const valid = await validateCurrentSession();
       if (!valid) {
+        try {
+          sessionStorage.removeItem(AUTH_SESSION_KEY);
+        } catch (_) {}
         saveAuthSession(null);
         syncLegacyActiveUser("");
         if (typeof window.showToast === "function") {
@@ -638,17 +667,29 @@
         if (user) {
           syncLegacyActiveUser(user.name);
           setTimeout(onAuthStateChanged, 0);
-          // 同步用户到远端，更新远端 last_seen_at 并启动 Realtime 监听
-          await upsertAuthUserToRemote(user);
-          if (session.token) {
-            await upsertUserSessionToRemote(session.name, session.token);
+          // 兼容老用户：如果没有 token，生成一个并保存
+          if (!session.token) {
+            session.token = generateSessionToken();
+            saveAuthSession(session);
           }
+          // 同步当前用户到远端
+          await upsertAuthUserToRemote(user);
+          // 把本地所有用户都批量同步到远端（解决其他电脑上的用户看不到的问题）
+          await syncAllLocalUsersToRemote();
+          // 同步会话并启动 Realtime 监听
+          await upsertUserSessionToRemote(session.name, session.token);
           initSessionRealtimeListener();
         } else {
+          try {
+            sessionStorage.removeItem(AUTH_SESSION_KEY);
+          } catch (_) {}
           saveAuthSession(null);
           syncLegacyActiveUser("");
         }
       }
+    } else {
+      // 即使没有登录，也尝试把本地用户列表同步到远端（后台管理需要看到全部）
+      await syncAllLocalUsersToRemote();
     }
     updateAuthFloatingButton();
   })();
