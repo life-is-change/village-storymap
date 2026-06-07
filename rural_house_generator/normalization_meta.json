@@ -1,0 +1,5216 @@
+{
+  "version": "complete_v2_manual_crop_fixes",
+  "generatedAt": "2026-05-13T11:42:47",
+  "generator": {
+    "name": "generate_normalization_meta.py",
+    "floorHeight": 3.0,
+    "sourceFolder": "./building_styles",
+    "processedFolder": "./runtime_storage/processed/_normalization_meta"
+  },
+  "imageLayout": {
+    "type": "fourQuadrant",
+    "quadrants": {
+      "front": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 0.5,
+        "h": 0.5
+      },
+      "back": {
+        "x": 0.5,
+        "y": 0.0,
+        "w": 0.5,
+        "h": 0.5
+      },
+      "left": {
+        "x": 0.0,
+        "y": 0.5,
+        "w": 0.5,
+        "h": 0.5
+      },
+      "right": {
+        "x": 0.5,
+        "y": 0.5,
+        "w": 0.5,
+        "h": 0.5
+      }
+    }
+  },
+  "presets": [
+    {
+      "id": "2-1",
+      "name": "2-1",
+      "url": "./building_styles/2-1.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 9.392,
+        "width": 7.567,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-1/2-1_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-1/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-1/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-1/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2b2b2e",
+          "tileColor": "#1e1e21",
+          "ridgeColor": "#131314",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.09375,
+            "y": 0.339844,
+            "w": 0.833984,
+            "h": 0.527344
+          },
+          "sourceCrop": {
+            "x": 0.046875,
+            "y": 0.169922,
+            "w": 0.416992,
+            "h": 0.263672
+          },
+          "pixelCrop": {
+            "x": 48,
+            "y": 174,
+            "w": 427,
+            "h": 270
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-1/2-1_front_facade.png",
+            "width": 427,
+            "height": 270,
+            "aspect": 1.581481
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.080078,
+            "y": 0.337891,
+            "w": 0.832031,
+            "h": 0.537109
+          },
+          "sourceCrop": {
+            "x": 0.540039,
+            "y": 0.168945,
+            "w": 0.416016,
+            "h": 0.268555
+          },
+          "pixelCrop": {
+            "x": 553,
+            "y": 173,
+            "w": 426,
+            "h": 275
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-1/2-1_back_facade.png",
+            "width": 426,
+            "height": 275,
+            "aspect": 1.549091
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.189453,
+            "y": 0.353516,
+            "w": 0.640625,
+            "h": 0.507812
+          },
+          "sourceCrop": {
+            "x": 0.094727,
+            "y": 0.676758,
+            "w": 0.320312,
+            "h": 0.253906
+          },
+          "pixelCrop": {
+            "x": 97,
+            "y": 693,
+            "w": 328,
+            "h": 260
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-1/2-1_left_facade.png",
+            "width": 328,
+            "height": 260,
+            "aspect": 1.261538
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.177734,
+            "y": 0.363281,
+            "w": 0.632812,
+            "h": 0.501953
+          },
+          "sourceCrop": {
+            "x": 0.588867,
+            "y": 0.681641,
+            "w": 0.316406,
+            "h": 0.250977
+          },
+          "pixelCrop": {
+            "x": 603,
+            "y": 698,
+            "w": 324,
+            "h": 257
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-1/2-1_right_facade.png",
+            "width": 324,
+            "height": 257,
+            "aspect": 1.2607
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-1/2-1_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,482) cues=[63]",
+          "front: fast_body_cut_refine_rejected_large_shift: 73 -> 94",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.5272",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,464) cues=[63]",
+          "back: fast_body_cut_refine_rejected_large_shift: 73 -> 94",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.5342",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 133 -> 88 using floor prior 65",
+          "left: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,380) cues=[65, 88]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=133 exceeds limit 109",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.1856",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 131 -> 88 using floor prior 65",
+          "right: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,375) cues=[65, 88]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=131 exceeds limit 109",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.1944",
+          "style_sheet_common_vertical_crop: y_top=73, y_bottom=388",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-2",
+      "name": "2-2",
+      "url": "./building_styles/2-2.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 10.157,
+        "width": 9.806,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-2/2-2_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-2/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-2/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-2/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#202023",
+          "tileColor": "#171719",
+          "ridgeColor": "#0e0e0f",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.085938,
+            "y": 0.347656,
+            "w": 0.818359,
+            "h": 0.5
+          },
+          "sourceCrop": {
+            "x": 0.042969,
+            "y": 0.173828,
+            "w": 0.40918,
+            "h": 0.25
+          },
+          "pixelCrop": {
+            "x": 44,
+            "y": 178,
+            "w": 419,
+            "h": 256
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-2/2-2_front_facade.png",
+            "width": 419,
+            "height": 256,
+            "aspect": 1.636719
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.091797,
+            "y": 0.380859,
+            "w": 0.816406,
+            "h": 0.466797
+          },
+          "sourceCrop": {
+            "x": 0.545898,
+            "y": 0.19043,
+            "w": 0.408203,
+            "h": 0.233398
+          },
+          "pixelCrop": {
+            "x": 559,
+            "y": 195,
+            "w": 418,
+            "h": 239
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-2/2-2_back_facade.png",
+            "width": 418,
+            "height": 239,
+            "aspect": 1.748954
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.101562,
+            "y": 0.349609,
+            "w": 0.806641,
+            "h": 0.494141
+          },
+          "sourceCrop": {
+            "x": 0.050781,
+            "y": 0.674805,
+            "w": 0.40332,
+            "h": 0.24707
+          },
+          "pixelCrop": {
+            "x": 52,
+            "y": 691,
+            "w": 413,
+            "h": 253
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-2/2-2_left_facade.png",
+            "width": 413,
+            "height": 253,
+            "aspect": 1.632411
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.095703,
+            "y": 0.349609,
+            "w": 0.808594,
+            "h": 0.494141
+          },
+          "sourceCrop": {
+            "x": 0.547852,
+            "y": 0.674805,
+            "w": 0.404297,
+            "h": 0.24707
+          },
+          "pixelCrop": {
+            "x": 561,
+            "y": 691,
+            "w": 414,
+            "h": 253
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-2/2-2_right_facade.png",
+            "width": 414,
+            "height": 253,
+            "aspect": 1.636364
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-2/2-2_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 86 -> 80 using floor prior 59",
+          "front: roof_mask_fallback=geometry y_bottom=69 y_cut=77 x_span=[0,472) cues=[59, 80]",
+          "front: fast_body_cut_refine_rejected_large_shift: 79 -> 106",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.6302",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 88 -> 81 using floor prior 60",
+          "back: roof_mask_fallback=geometry y_bottom=70 y_cut=78 x_span=[0,477) cues=[60, 81]",
+          "back: fast_body_cut_refine_rejected_large_shift: 80 -> 105",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.6364",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 88 -> 81 using floor prior 60",
+          "left: roof_mask_fallback=geometry y_bottom=70 y_cut=78 x_span=[0,471) cues=[60, 81]",
+          "left: fast_body_cut_refined_below_roof: 80 -> 91",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.6537",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 89 -> 81 using floor prior 60",
+          "right: roof_mask_fallback=geometry y_bottom=70 y_cut=78 x_span=[0,473) cues=[60, 81]",
+          "right: y_cut corrected by edge line: 80 -> 81 (edge_y=89)",
+          "right: fast_body_cut_refined_below_roof: 81 -> 91",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.6525",
+          "style_sheet_common_vertical_crop: y_top=79, y_bottom=363",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-3",
+      "name": "2-3",
+      "url": "./building_styles/2-3.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 10.083,
+        "width": 8.06,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-3/2-3_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-3/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-3/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-3/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#202123",
+          "tileColor": "#171719",
+          "ridgeColor": "#0e0e0f",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.083984,
+            "y": 0.386719,
+            "w": 0.814453,
+            "h": 0.46875
+          },
+          "sourceCrop": {
+            "x": 0.041992,
+            "y": 0.193359,
+            "w": 0.407227,
+            "h": 0.234375
+          },
+          "pixelCrop": {
+            "x": 43,
+            "y": 198,
+            "w": 417,
+            "h": 240
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-3/2-3_front_facade.png",
+            "width": 417,
+            "height": 240,
+            "aspect": 1.7375
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.085938,
+            "y": 0.349609,
+            "w": 0.833984,
+            "h": 0.513672
+          },
+          "sourceCrop": {
+            "x": 0.542969,
+            "y": 0.174805,
+            "w": 0.416992,
+            "h": 0.256836
+          },
+          "pixelCrop": {
+            "x": 556,
+            "y": 179,
+            "w": 427,
+            "h": 263
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-3/2-3_back_facade.png",
+            "width": 427,
+            "height": 263,
+            "aspect": 1.623574
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.140625,
+            "y": 0.306641,
+            "w": 0.701172,
+            "h": 0.523438
+          },
+          "sourceCrop": {
+            "x": 0.070312,
+            "y": 0.65332,
+            "w": 0.350586,
+            "h": 0.261719
+          },
+          "pixelCrop": {
+            "x": 72,
+            "y": 669,
+            "w": 359,
+            "h": 268
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-3/2-3_left_facade.png",
+            "width": 359,
+            "height": 268,
+            "aspect": 1.339552
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.160156,
+            "y": 0.308594,
+            "w": 0.697266,
+            "h": 0.517578
+          },
+          "sourceCrop": {
+            "x": 0.580078,
+            "y": 0.654297,
+            "w": 0.348633,
+            "h": 0.258789
+          },
+          "pixelCrop": {
+            "x": 594,
+            "y": 670,
+            "w": 357,
+            "h": 265
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-3/2-3_right_facade.png",
+            "width": 357,
+            "height": 265,
+            "aspect": 1.34717
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-3/2-3_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 149 -> 82 using floor prior 61",
+          "front: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,479) cues=[61, 82]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=149 exceeds limit 102",
+          "front: fast_body_cut_refine_rejected_large_shift: 81 -> 104",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.6391",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 169 -> 84 using floor prior 62",
+          "back: roof_mask_fallback=geometry y_bottom=73 y_cut=81 x_span=[0,481) cues=[62, 84]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=169 exceeds limit 105",
+          "back: fast_body_cut_refine_rejected_large_shift: 83 -> 102",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.6259",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 89 -> 85 using floor prior 63",
+          "left: roof_mask_fallback=geometry y_bottom=74 y_cut=82 x_span=[0,421) cues=[63, 85]",
+          "left: fast_body_cut_refined_below_roof: 84 -> 92",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.3866",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 89 -> 85 using floor prior 63",
+          "right: roof_mask_fallback=geometry y_bottom=74 y_cut=82 x_span=[0,418) cues=[63, 85]",
+          "right: fast_body_cut_refined_below_roof: 84 -> 94",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.3970",
+          "style_sheet_common_vertical_crop: y_top=81, y_bottom=378",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-4",
+      "name": "2-4",
+      "url": "./building_styles/2-4.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 9.532,
+        "width": 8.577,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 1.983,
+        "heightRatioToBody": 0.330537,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-4/2-4_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-4/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-4/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-4/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2b2d31",
+          "tileColor": "#1e2023",
+          "ridgeColor": "#131416",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.039062,
+            "y": 0.365234,
+            "w": 0.927734,
+            "h": 0.583984
+          },
+          "sourceCrop": {
+            "x": 0.019531,
+            "y": 0.182617,
+            "w": 0.463867,
+            "h": 0.291992
+          },
+          "pixelCrop": {
+            "x": 20,
+            "y": 187,
+            "w": 475,
+            "h": 299
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-4/2-4_front_facade.png",
+            "width": 475,
+            "height": 299,
+            "aspect": 1.588629
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.029297,
+            "y": 0.365234,
+            "w": 0.927734,
+            "h": 0.583984
+          },
+          "sourceCrop": {
+            "x": 0.514648,
+            "y": 0.182617,
+            "w": 0.463867,
+            "h": 0.291992
+          },
+          "pixelCrop": {
+            "x": 527,
+            "y": 187,
+            "w": 475,
+            "h": 299
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-4/2-4_back_facade.png",
+            "width": 475,
+            "height": 299,
+            "aspect": 1.588629
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.083984,
+            "y": 0.267578,
+            "w": 0.826172,
+            "h": 0.582031
+          },
+          "sourceCrop": {
+            "x": 0.041992,
+            "y": 0.633789,
+            "w": 0.413086,
+            "h": 0.291016
+          },
+          "pixelCrop": {
+            "x": 43,
+            "y": 649,
+            "w": 423,
+            "h": 298
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-4/2-4_left_facade.png",
+            "width": 423,
+            "height": 298,
+            "aspect": 1.419463
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.074219,
+            "y": 0.267578,
+            "w": 0.837891,
+            "h": 0.582031
+          },
+          "sourceCrop": {
+            "x": 0.537109,
+            "y": 0.633789,
+            "w": 0.418945,
+            "h": 0.291016
+          },
+          "pixelCrop": {
+            "x": 550,
+            "y": 649,
+            "w": 429,
+            "h": 298
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-4/2-4_right_facade.png",
+            "width": 429,
+            "height": 298,
+            "aspect": 1.439597
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-4/2-4_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 94 -> 91 using floor prior 67",
+          "front: roof_mask_fallback=geometry y_bottom=79 y_cut=87 x_span=[0,502) cues=[67, 91]",
+          "front: fast_body_cut_refined_below_roof: 89 -> 97",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.5354",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 94 -> 91 using floor prior 67",
+          "back: roof_mask_fallback=geometry y_bottom=79 y_cut=87 x_span=[0,501) cues=[67, 91]",
+          "back: fast_body_cut_refined_below_roof: 89 -> 97",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.5387",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 95 -> 91 using floor prior 67",
+          "left: roof_mask_fallback=geometry y_bottom=79 y_cut=87 x_span=[0,483) cues=[67, 91]",
+          "left: fast_body_cut_refined_below_roof: 89 -> 98",
+          "left: floor peaks=1 -> floors=2",
+          "left: geometry_aspect_from_body_crop=1.5034",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 96 -> 91 using floor prior 67",
+          "right: roof_mask_fallback=geometry y_bottom=79 y_cut=87 x_span=[0,486) cues=[67, 91]",
+          "right: fast_body_cut_refined_below_roof: 89 -> 99",
+          "right: floor peaks=1 -> floors=2",
+          "right: geometry_aspect_from_body_crop=1.5188",
+          "style_sheet_common_vertical_crop: y_top=97, y_bottom=403",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-5",
+      "name": "2-5",
+      "url": "./building_styles/2-5.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 8.786,
+        "width": 8.156,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-5/2-5_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-5/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-5/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-5/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#232325",
+          "tileColor": "#19191a",
+          "ridgeColor": "#0f0f10",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.107422,
+            "y": 0.423828,
+            "w": 0.824219,
+            "h": 0.564453
+          },
+          "sourceCrop": {
+            "x": 0.053711,
+            "y": 0.211914,
+            "w": 0.412109,
+            "h": 0.282227
+          },
+          "pixelCrop": {
+            "x": 55,
+            "y": 217,
+            "w": 422,
+            "h": 289
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-5/2-5_front_facade.png",
+            "width": 422,
+            "height": 289,
+            "aspect": 1.460208
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.068359,
+            "y": 0.435547,
+            "w": 0.820312,
+            "h": 0.558594
+          },
+          "sourceCrop": {
+            "x": 0.53418,
+            "y": 0.217773,
+            "w": 0.410156,
+            "h": 0.279297
+          },
+          "pixelCrop": {
+            "x": 547,
+            "y": 223,
+            "w": 420,
+            "h": 286
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-5/2-5_back_facade.png",
+            "width": 420,
+            "height": 286,
+            "aspect": 1.468531
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.199219,
+            "y": 0.332031,
+            "w": 0.669922,
+            "h": 0.498047
+          },
+          "sourceCrop": {
+            "x": 0.099609,
+            "y": 0.666016,
+            "w": 0.334961,
+            "h": 0.249023
+          },
+          "pixelCrop": {
+            "x": 102,
+            "y": 682,
+            "w": 343,
+            "h": 255
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-5/2-5_left_facade.png",
+            "width": 343,
+            "height": 255,
+            "aspect": 1.345098
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.130859,
+            "y": 0.345703,
+            "w": 0.667969,
+            "h": 0.486328
+          },
+          "sourceCrop": {
+            "x": 0.56543,
+            "y": 0.672852,
+            "w": 0.333984,
+            "h": 0.243164
+          },
+          "pixelCrop": {
+            "x": 579,
+            "y": 689,
+            "w": 342,
+            "h": 249
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-5/2-5_right_facade.png",
+            "width": 342,
+            "height": 249,
+            "aspect": 1.373494
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-5/2-5_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 121 -> 96 using floor prior 71",
+          "front: roof_mask_fallback=geometry y_bottom=83 y_cut=91 x_span=[0,462) cues=[71, 96]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=121 exceeds limit 118",
+          "front: fast_body_cut_refine_rejected_large_shift: 93 -> 124",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.3631",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 121 -> 96 using floor prior 71",
+          "back: roof_mask_fallback=geometry y_bottom=83 y_cut=91 x_span=[0,464) cues=[71, 96]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=121 exceeds limit 118",
+          "back: fast_body_cut_refine_rejected_large_shift: 93 -> 124",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.3735",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 146 -> 91 using floor prior 67",
+          "left: roof_mask_fallback=geometry y_bottom=79 y_cut=87 x_span=[0,382) cues=[67, 91]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=146 exceeds limit 113",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "left: geometry_aspect_from_body_crop=1.1672",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 146 -> 92 using floor prior 68",
+          "right: roof_mask_fallback=geometry y_bottom=80 y_cut=88 x_span=[0,382) cues=[68, 92]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=146 exceeds limit 114",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.1672",
+          "style_sheet_common_vertical_crop: y_top=89, y_bottom=425",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-6",
+      "name": "2-6",
+      "url": "./building_styles/2-6.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 11.082,
+        "width": 10.634,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "hipped",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-6/2-6_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-6/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-6/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-6/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#242526",
+          "tileColor": "#191a1b",
+          "ridgeColor": "#101011",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.060547,
+            "y": 0.431641,
+            "w": 0.900391,
+            "h": 0.455078
+          },
+          "sourceCrop": {
+            "x": 0.030273,
+            "y": 0.21582,
+            "w": 0.450195,
+            "h": 0.227539
+          },
+          "pixelCrop": {
+            "x": 31,
+            "y": 221,
+            "w": 461,
+            "h": 233
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-6/2-6_front_facade.png",
+            "width": 461,
+            "height": 233,
+            "aspect": 1.978541
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.082031,
+            "y": 0.410156,
+            "w": 0.824219,
+            "h": 0.480469
+          },
+          "sourceCrop": {
+            "x": 0.541016,
+            "y": 0.205078,
+            "w": 0.412109,
+            "h": 0.240234
+          },
+          "pixelCrop": {
+            "x": 554,
+            "y": 210,
+            "w": 422,
+            "h": 246
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-6/2-6_back_facade.png",
+            "width": 422,
+            "height": 246,
+            "aspect": 1.715447
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.097656,
+            "y": 0.257812,
+            "w": 0.810547,
+            "h": 0.458984
+          },
+          "sourceCrop": {
+            "x": 0.048828,
+            "y": 0.628906,
+            "w": 0.405273,
+            "h": 0.229492
+          },
+          "pixelCrop": {
+            "x": 50,
+            "y": 644,
+            "w": 415,
+            "h": 235
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-6/2-6_left_facade.png",
+            "width": 415,
+            "height": 235,
+            "aspect": 1.765957
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.091797,
+            "y": 0.257812,
+            "w": 0.816406,
+            "h": 0.458984
+          },
+          "sourceCrop": {
+            "x": 0.545898,
+            "y": 0.628906,
+            "w": 0.408203,
+            "h": 0.229492
+          },
+          "pixelCrop": {
+            "x": 559,
+            "y": 644,
+            "w": 418,
+            "h": 235
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-6/2-6_right_facade.png",
+            "width": 418,
+            "height": 235,
+            "aspect": 1.778723
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-6/2-6_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 87 -> 78 using floor prior 58",
+          "front: roof_mask_fallback=geometry y_bottom=68 y_cut=76 x_span=[0,512) cues=[58, 78]",
+          "front: y_cut corrected by edge line: 78 -> 79 (edge_y=87)",
+          "front: fast_body_cut_refined_below_roof: 79 -> 93",
+          "front: floor peaks=2 -> floors=3",
+          "front: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "front: geometry_aspect_from_body_crop=2.0984",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 87 -> 78 using floor prior 58",
+          "back: roof_mask_fallback=geometry y_bottom=68 y_cut=76 x_span=[0,487) cues=[58, 78]",
+          "back: y_cut corrected by edge line: 78 -> 79 (edge_y=87)",
+          "back: fast_body_cut_refined_below_roof: 79 -> 91",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.9309",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=60 y_cut=68 x_span=[0,512) cues=[56, 65]",
+          "left: fast_body_cut_refined_below_roof: 70 -> 76",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.9194",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=60 y_cut=68 x_span=[0,512) cues=[56, 65]",
+          "right: fast_body_cut_refined_below_roof: 70 -> 76",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.8669",
+          "style_sheet_common_vertical_crop: y_top=76, y_bottom=347",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-7",
+      "name": "2-7",
+      "url": "./building_styles/2-7.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 9.048,
+        "width": 8.441,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "hipped",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-7/2-7_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-7/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-7/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-7/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#262727",
+          "tileColor": "#1b1c1c",
+          "ridgeColor": "#111111",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.097656,
+            "y": 0.392578,
+            "w": 0.849609,
+            "h": 0.533203
+          },
+          "sourceCrop": {
+            "x": 0.048828,
+            "y": 0.196289,
+            "w": 0.424805,
+            "h": 0.266602
+          },
+          "pixelCrop": {
+            "x": 50,
+            "y": 201,
+            "w": 435,
+            "h": 273
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-7/2-7_front_facade.png",
+            "width": 435,
+            "height": 273,
+            "aspect": 1.593407
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.074219,
+            "y": 0.341797,
+            "w": 0.841797,
+            "h": 0.591797
+          },
+          "sourceCrop": {
+            "x": 0.537109,
+            "y": 0.170898,
+            "w": 0.420898,
+            "h": 0.295898
+          },
+          "pixelCrop": {
+            "x": 550,
+            "y": 175,
+            "w": 431,
+            "h": 303
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-7/2-7_back_facade.png",
+            "width": 431,
+            "height": 303,
+            "aspect": 1.422442
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.115234,
+            "y": 0.244141,
+            "w": 0.810547,
+            "h": 0.578125
+          },
+          "sourceCrop": {
+            "x": 0.057617,
+            "y": 0.62207,
+            "w": 0.405273,
+            "h": 0.289062
+          },
+          "pixelCrop": {
+            "x": 59,
+            "y": 637,
+            "w": 415,
+            "h": 296
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-7/2-7_left_facade.png",
+            "width": 415,
+            "height": 296,
+            "aspect": 1.402027
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.082031,
+            "y": 0.25,
+            "w": 0.810547,
+            "h": 0.574219
+          },
+          "sourceCrop": {
+            "x": 0.541016,
+            "y": 0.625,
+            "w": 0.405273,
+            "h": 0.287109
+          },
+          "pixelCrop": {
+            "x": 554,
+            "y": 640,
+            "w": 415,
+            "h": 294
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-7/2-7_right_facade.png",
+            "width": 415,
+            "height": 294,
+            "aspect": 1.411565
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-7/2-7_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 100 -> 96 using floor prior 71",
+          "front: roof_mask_fallback=geometry y_bottom=83 y_cut=91 x_span=[0,490) cues=[71, 96]",
+          "front: fast_body_cut_refine_rejected_large_shift: 93 -> 125",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.3808",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 98 -> 96 using floor prior 71",
+          "back: roof_mask_fallback=geometry y_bottom=83 y_cut=91 x_span=[0,498) cues=[71, 96]",
+          "back: fast_body_cut_refine_rejected_large_shift: 93 -> 118",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=2 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.3832",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=82 y_cut=90 x_span=[0,475) cues=[70, 95]",
+          "left: fast_body_cut_refine_rejected_large_shift: 92 -> 114",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.3386",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=82 y_cut=90 x_span=[0,478) cues=[70, 95]",
+          "right: fast_body_cut_refine_rejected_large_shift: 92 -> 114",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.3438",
+          "style_sheet_common_vertical_crop: y_top=92, y_bottom=426",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "2-8",
+      "name": "2-8",
+      "url": "./building_styles/2-8.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 2,
+      "dimensions": {
+        "length": 10.06,
+        "width": 8.736,
+        "floorHeight": 3.0,
+        "bodyHeight": 6.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.16,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/2-8/2-8_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/2-8/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/2-8/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/2-8/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#333334",
+          "tileColor": "#242425",
+          "ridgeColor": "#161617",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.070312,
+            "y": 0.451172,
+            "w": 0.876953,
+            "h": 0.513672
+          },
+          "sourceCrop": {
+            "x": 0.035156,
+            "y": 0.225586,
+            "w": 0.438477,
+            "h": 0.256836
+          },
+          "pixelCrop": {
+            "x": 36,
+            "y": 231,
+            "w": 449,
+            "h": 263
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-8/2-8_front_facade.png",
+            "width": 449,
+            "height": 263,
+            "aspect": 1.707224
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.058594,
+            "y": 0.431641,
+            "w": 0.880859,
+            "h": 0.535156
+          },
+          "sourceCrop": {
+            "x": 0.529297,
+            "y": 0.21582,
+            "w": 0.44043,
+            "h": 0.267578
+          },
+          "pixelCrop": {
+            "x": 542,
+            "y": 221,
+            "w": 451,
+            "h": 274
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-8/2-8_back_facade.png",
+            "width": 451,
+            "height": 274,
+            "aspect": 1.645985
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.166016,
+            "y": 0.300781,
+            "w": 0.685547,
+            "h": 0.478516
+          },
+          "sourceCrop": {
+            "x": 0.083008,
+            "y": 0.650391,
+            "w": 0.342773,
+            "h": 0.239258
+          },
+          "pixelCrop": {
+            "x": 85,
+            "y": 666,
+            "w": 351,
+            "h": 245
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-8/2-8_left_facade.png",
+            "width": 351,
+            "height": 245,
+            "aspect": 1.432653
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.140625,
+            "y": 0.306641,
+            "w": 0.699219,
+            "h": 0.472656
+          },
+          "sourceCrop": {
+            "x": 0.570312,
+            "y": 0.65332,
+            "w": 0.349609,
+            "h": 0.236328
+          },
+          "pixelCrop": {
+            "x": 584,
+            "y": 669,
+            "w": 358,
+            "h": 242
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/2-8/2-8_right_facade.png",
+            "width": 358,
+            "height": 242,
+            "aspect": 1.479339
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/2-8/2-8_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 110 -> 88 using floor prior 65",
+          "front: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,495) cues=[65, 88]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=110 exceeds limit 109",
+          "front: fast_body_cut_refine_rejected_large_shift: 86 -> 113",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.5980",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 111 -> 88 using floor prior 65",
+          "back: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,486) cues=[65, 88]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=111 exceeds limit 109",
+          "back: fast_body_cut_refine_rejected_large_shift: 86 -> 114",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=2 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.5791",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 129 -> 88 using floor prior 65",
+          "left: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,394) cues=[65, 88]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=129 exceeds limit 109",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.2526",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 130 -> 88 using floor prior 65",
+          "right: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,403) cues=[65, 88]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=130 exceeds limit 109",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=2 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.2833",
+          "style_sheet_common_vertical_crop: y_top=86, y_bottom=392",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-1",
+      "name": "3-1",
+      "url": "./building_styles/3-1.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 11.816,
+        "width": 10.958,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "hipped",
+        "height": 3.24,
+        "heightRatioToBody": 0.36,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-1/3-1_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-1/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-1/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-1/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2b2829",
+          "tileColor": "#1e1c1d",
+          "ridgeColor": "#131212",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.091797,
+            "y": 0.275391,
+            "w": 0.822266,
+            "h": 0.626953
+          },
+          "sourceCrop": {
+            "x": 0.045898,
+            "y": 0.137695,
+            "w": 0.411133,
+            "h": 0.313477
+          },
+          "pixelCrop": {
+            "x": 47,
+            "y": 141,
+            "w": 421,
+            "h": 321
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-1/3-1_front_facade.png",
+            "width": 421,
+            "height": 321,
+            "aspect": 1.311526
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.095703,
+            "y": 0.291016,
+            "w": 0.808594,
+            "h": 0.615234
+          },
+          "sourceCrop": {
+            "x": 0.547852,
+            "y": 0.145508,
+            "w": 0.404297,
+            "h": 0.307617
+          },
+          "pixelCrop": {
+            "x": 561,
+            "y": 149,
+            "w": 414,
+            "h": 315
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-1/3-1_back_facade.png",
+            "width": 414,
+            "height": 315,
+            "aspect": 1.314286
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.099609,
+            "y": 0.240234,
+            "w": 0.792969,
+            "h": 0.654297
+          },
+          "sourceCrop": {
+            "x": 0.049805,
+            "y": 0.620117,
+            "w": 0.396484,
+            "h": 0.327148
+          },
+          "pixelCrop": {
+            "x": 51,
+            "y": 635,
+            "w": 406,
+            "h": 335
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-1/3-1_left_facade.png",
+            "width": 406,
+            "height": 335,
+            "aspect": 1.21194
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.107422,
+            "y": 0.248047,
+            "w": 0.78125,
+            "h": 0.638672
+          },
+          "sourceCrop": {
+            "x": 0.553711,
+            "y": 0.624023,
+            "w": 0.390625,
+            "h": 0.319336
+          },
+          "pixelCrop": {
+            "x": 567,
+            "y": 639,
+            "w": 400,
+            "h": 327
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-1/3-1_right_facade.png",
+            "width": 400,
+            "height": 327,
+            "aspect": 1.223242
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-1/3-1_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 222 -> 91 using floor prior 61",
+          "front: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,512) cues=[61, 91]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=222 exceeds limit 116",
+          "front: fast_body_cut_refine_rejected_large_shift: 86 -> 124",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.9243",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 222 -> 85 using floor prior 57",
+          "back: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,512) cues=[57, 85]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=222 exceeds limit 109",
+          "back: fast_body_cut_refine_rejected_large_shift: 81 -> 118",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.8992",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 214 -> 91 using floor prior 61",
+          "left: roof_mask_fallback=geometry y_bottom=76 y_cut=84 x_span=[0,512) cues=[61, 91]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=214 exceeds limit 116",
+          "left: fast_body_cut_refine_rejected_large_shift: 86 -> 126",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "left: geometry_aspect_from_body_crop=1.2019",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 169 -> 84 using floor prior 56",
+          "right: roof_mask_fallback=geometry y_bottom=70 y_cut=78 x_span=[0,512) cues=[56, 84]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=169 exceeds limit 108",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.3230",
+          "style_sheet_common_vertical_crop: y_top=80, y_bottom=512",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-10",
+      "name": "3-10",
+      "url": "./building_styles/3-10.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 11.734,
+        "width": 9.582,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 1.863,
+        "heightRatioToBody": 0.207047,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-10/3-10_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-10/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-10/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-10/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#313235",
+          "tileColor": "#232426",
+          "ridgeColor": "#161617",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.035156,
+            "y": 0.246094,
+            "w": 0.925781,
+            "h": 0.707031
+          },
+          "sourceCrop": {
+            "x": 0.017578,
+            "y": 0.123047,
+            "w": 0.462891,
+            "h": 0.353516
+          },
+          "pixelCrop": {
+            "x": 18,
+            "y": 126,
+            "w": 474,
+            "h": 362
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-10/3-10_front_facade.png",
+            "width": 474,
+            "height": 362,
+            "aspect": 1.309392
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.072266,
+            "y": 0.285156,
+            "w": 0.867188,
+            "h": 0.667969
+          },
+          "sourceCrop": {
+            "x": 0.536133,
+            "y": 0.142578,
+            "w": 0.433594,
+            "h": 0.333984
+          },
+          "pixelCrop": {
+            "x": 549,
+            "y": 146,
+            "w": 444,
+            "h": 342
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-10/3-10_back_facade.png",
+            "width": 444,
+            "height": 342,
+            "aspect": 1.298246
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.144531,
+            "y": 0.203125,
+            "w": 0.705078,
+            "h": 0.666016
+          },
+          "sourceCrop": {
+            "x": 0.072266,
+            "y": 0.601562,
+            "w": 0.352539,
+            "h": 0.333008
+          },
+          "pixelCrop": {
+            "x": 74,
+            "y": 616,
+            "w": 361,
+            "h": 341
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-10/3-10_left_facade.png",
+            "width": 361,
+            "height": 341,
+            "aspect": 1.058651
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.136719,
+            "y": 0.205078,
+            "w": 0.710938,
+            "h": 0.664062
+          },
+          "sourceCrop": {
+            "x": 0.568359,
+            "y": 0.602539,
+            "w": 0.355469,
+            "h": 0.332031
+          },
+          "pixelCrop": {
+            "x": 582,
+            "y": 617,
+            "w": 364,
+            "h": 340
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-10/3-10_right_facade.png",
+            "width": 364,
+            "height": 340,
+            "aspect": 1.070588
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-10/3-10_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,477) cues=[52, 71]",
+          "front: fast_body_cut_refined_below_roof: 71 -> 88",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.2929",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 178 -> 78 using floor prior 52",
+          "back: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,477) cues=[52, 78]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=178 exceeds limit 101",
+          "back: fast_body_cut_refined_below_roof: 75 -> 87",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.2891",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,423) cues=[52, 71]",
+          "left: fast_body_cut_refine_rejected_large_shift: 71 -> 91",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.0534",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=60 y_cut=68 x_span=[0,421) cues=[52, 69]",
+          "right: fast_body_cut_refine_rejected_large_shift: 70 -> 91",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.0587",
+          "style_sheet_common_vertical_crop: y_top=70, y_bottom=437",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-11",
+      "name": "3-11",
+      "url": "./building_styles/3-11.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 10.286,
+        "width": 9.906,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "frontGable",
+        "height": 1.89,
+        "heightRatioToBody": 0.21,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-11/3-11_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-11/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-11/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-11/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#3a3937",
+          "tileColor": "#292927",
+          "ridgeColor": "#1a1918",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.109375,
+            "y": 0.283203,
+            "w": 0.78125,
+            "h": 0.683594
+          },
+          "sourceCrop": {
+            "x": 0.054688,
+            "y": 0.162109,
+            "w": 0.390625,
+            "h": 0.321289
+          },
+          "pixelCrop": {
+            "x": 56,
+            "y": 166,
+            "w": 400,
+            "h": 329
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-11/3-11_front_facade.png",
+            "width": 400,
+            "height": 329,
+            "aspect": 1.215805
+          },
+          "manualOverride": "complete_v2_1_3_11_trim_roof_more"
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.070312,
+            "y": 0.283203,
+            "w": 0.78125,
+            "h": 0.683594
+          },
+          "sourceCrop": {
+            "x": 0.535156,
+            "y": 0.162109,
+            "w": 0.390625,
+            "h": 0.321289
+          },
+          "pixelCrop": {
+            "x": 548,
+            "y": 166,
+            "w": 400,
+            "h": 329
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-11/3-11_back_facade.png",
+            "width": 400,
+            "height": 329,
+            "aspect": 1.215805
+          },
+          "manualOverride": "complete_v2_1_3_11_trim_roof_more"
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.160156,
+            "y": 0.246094,
+            "w": 0.683594,
+            "h": 0.621094
+          },
+          "sourceCrop": {
+            "x": 0.080078,
+            "y": 0.644531,
+            "w": 0.341797,
+            "h": 0.289062
+          },
+          "pixelCrop": {
+            "x": 82,
+            "y": 660,
+            "w": 350,
+            "h": 296
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-11/3-11_left_facade.png",
+            "width": 350,
+            "height": 296,
+            "aspect": 1.182432
+          },
+          "manualOverride": "complete_v2_1_3_11_trim_roof_more"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.158203,
+            "y": 0.246094,
+            "w": 0.683594,
+            "h": 0.621094
+          },
+          "sourceCrop": {
+            "x": 0.579102,
+            "y": 0.644531,
+            "w": 0.341797,
+            "h": 0.289062
+          },
+          "pixelCrop": {
+            "x": 593,
+            "y": 660,
+            "w": 350,
+            "h": 296
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-11/3-11_right_facade.png",
+            "width": 350,
+            "height": 296,
+            "aspect": 1.182432
+          },
+          "manualOverride": "complete_v2_1_3_11_trim_roof_more"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-11/3-11_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 105 -> 79 using floor prior 53",
+          "front: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,473) cues=[53, 79]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=105 exceeds limit 102",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.2829",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 103 -> 79 using floor prior 53",
+          "back: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,475) cues=[53, 79]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=103 exceeds limit 102",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.2857",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 96 -> 75 using floor prior 50",
+          "left: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,416) cues=[50, 75]",
+          "left: y_cut corrected by edge line: 72 -> 88 (edge_y=96)",
+          "left: floor peaks=2 -> floors=3",
+          "left: geometry_aspect_from_body_crop=1.2320",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 95 -> 74 using floor prior 50",
+          "right: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,412) cues=[50, 74]",
+          "right: y_cut corrected by edge line: 72 -> 87 (edge_y=95)",
+          "right: floor peaks=2 -> floors=3",
+          "right: geometry_aspect_from_body_crop=1.2226",
+          "style_sheet_common_vertical_crop: y_top=76, y_bottom=443",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled",
+          "manual_refine_v2_1: 3-11 roof trimmed further for all facades; raised crop y to reduce residual roof."
+        ]
+      }
+    },
+    {
+      "id": "3-12",
+      "name": "3-12",
+      "url": "./building_styles/3-12.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 10.43,
+        "width": 8.858,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.011,
+        "heightRatioToBody": 0.223496,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-12/3-12_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-12/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-12/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-12/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#272727",
+          "tileColor": "#1c1c1c",
+          "ridgeColor": "#111111",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.070312,
+            "y": 0.234375,
+            "w": 0.861328,
+            "h": 0.742188
+          },
+          "sourceCrop": {
+            "x": 0.035156,
+            "y": 0.117188,
+            "w": 0.430664,
+            "h": 0.371094
+          },
+          "pixelCrop": {
+            "x": 36,
+            "y": 120,
+            "w": 441,
+            "h": 380
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-12/3-12_front_facade.png",
+            "width": 441,
+            "height": 380,
+            "aspect": 1.160526
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.099609,
+            "y": 0.292969,
+            "w": 0.791016,
+            "h": 0.683594
+          },
+          "sourceCrop": {
+            "x": 0.549805,
+            "y": 0.146484,
+            "w": 0.395508,
+            "h": 0.341797
+          },
+          "pixelCrop": {
+            "x": 563,
+            "y": 150,
+            "w": 405,
+            "h": 350
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-12/3-12_back_facade.png",
+            "width": 405,
+            "height": 350,
+            "aspect": 1.157143
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.164062,
+            "y": 0.220703,
+            "w": 0.669922,
+            "h": 0.681641
+          },
+          "sourceCrop": {
+            "x": 0.082031,
+            "y": 0.610352,
+            "w": 0.334961,
+            "h": 0.34082
+          },
+          "pixelCrop": {
+            "x": 84,
+            "y": 625,
+            "w": 343,
+            "h": 349
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-12/3-12_left_facade.png",
+            "width": 343,
+            "height": 349,
+            "aspect": 0.982808
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.154297,
+            "y": 0.220703,
+            "w": 0.671875,
+            "h": 0.681641
+          },
+          "sourceCrop": {
+            "x": 0.577148,
+            "y": 0.610352,
+            "w": 0.335938,
+            "h": 0.34082
+          },
+          "pixelCrop": {
+            "x": 591,
+            "y": 625,
+            "w": 344,
+            "h": 349
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-12/3-12_right_facade.png",
+            "width": 344,
+            "height": 349,
+            "aspect": 0.985673
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-12/3-12_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,451) cues=[56, 77]",
+          "front: fast_body_cut_refine_rejected_large_shift: 76 -> 106",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=1.1013",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,448) cues=[56, 77]",
+          "back: fast_body_cut_refine_rejected_large_shift: 76 -> 103",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.0963",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=68 y_cut=76 x_span=[0,415) cues=[55, 81]",
+          "left: fast_body_cut_refine_rejected_large_shift: 78 -> 99",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "left: geometry_aspect_from_body_crop=1.0351",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=68 y_cut=76 x_span=[0,418) cues=[55, 81]",
+          "right: fast_body_cut_refine_rejected_large_shift: 78 -> 99",
+          "right: floor peaks=4 -> floors=5",
+          "right: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "right: geometry_aspect_from_body_crop=1.0407",
+          "style_sheet_common_vertical_crop: y_top=76, y_bottom=468",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-13",
+      "name": "3-13",
+      "url": "./building_styles/3-13.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 10.84,
+        "width": 7.364,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 1.8,
+        "heightRatioToBody": 0.2,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-13/3-13_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-13/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-13/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-13/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#27282b",
+          "tileColor": "#1c1c1e",
+          "ridgeColor": "#111213",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.095703,
+            "y": 0.283203,
+            "w": 0.806641,
+            "h": 0.664062
+          },
+          "sourceCrop": {
+            "x": 0.047852,
+            "y": 0.141602,
+            "w": 0.40332,
+            "h": 0.332031
+          },
+          "pixelCrop": {
+            "x": 49,
+            "y": 145,
+            "w": 413,
+            "h": 340
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-13/3-13_front_facade.png",
+            "width": 413,
+            "height": 340,
+            "aspect": 1.214706
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.09375,
+            "y": 0.267578,
+            "w": 0.804688,
+            "h": 0.673828
+          },
+          "sourceCrop": {
+            "x": 0.546875,
+            "y": 0.133789,
+            "w": 0.402344,
+            "h": 0.336914
+          },
+          "pixelCrop": {
+            "x": 560,
+            "y": 137,
+            "w": 412,
+            "h": 345
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-13/3-13_back_facade.png",
+            "width": 412,
+            "height": 345,
+            "aspect": 1.194203
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.222656,
+            "y": 0.269531,
+            "w": 0.546875,
+            "h": 0.666016
+          },
+          "sourceCrop": {
+            "x": 0.111328,
+            "y": 0.634766,
+            "w": 0.273438,
+            "h": 0.333008
+          },
+          "pixelCrop": {
+            "x": 114,
+            "y": 650,
+            "w": 280,
+            "h": 341
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-13/3-13_left_facade.png",
+            "width": 280,
+            "height": 341,
+            "aspect": 0.821114
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.224609,
+            "y": 0.269531,
+            "w": 0.542969,
+            "h": 0.666016
+          },
+          "sourceCrop": {
+            "x": 0.612305,
+            "y": 0.634766,
+            "w": 0.271484,
+            "h": 0.333008
+          },
+          "pixelCrop": {
+            "x": 627,
+            "y": 650,
+            "w": 278,
+            "h": 341
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-13/3-13_right_facade.png",
+            "width": 278,
+            "height": 341,
+            "aspect": 0.815249
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-13/3-13_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 81 -> 79 using floor prior 53",
+          "front: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,443) cues=[53, 79]",
+          "front: fast_body_cut_refine_rejected_large_shift: 76 -> 101",
+          "front: floor peaks=2 -> floors=3",
+          "front: geometry_aspect_from_body_crop=1.1694",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 81 -> 79 using floor prior 53",
+          "back: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,442) cues=[53, 79]",
+          "back: fast_body_cut_refine_rejected_large_shift: 76 -> 103",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.1831",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 94 -> 81 using floor prior 54",
+          "left: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,351) cues=[54, 81]",
+          "left: y_cut corrected by edge line: 77 -> 86 (edge_y=94)",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "left: geometry_aspect_from_body_crop=0.8870",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 98 -> 81 using floor prior 54",
+          "right: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,352) cues=[54, 81]",
+          "right: y_cut corrected by edge line: 77 -> 90 (edge_y=98)",
+          "right: floor peaks=4 -> floors=5",
+          "right: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "right: geometry_aspect_from_body_crop=0.8870",
+          "style_sheet_common_vertical_crop: y_top=76, y_bottom=454",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-14",
+      "name": "3-14",
+      "url": "./building_styles/3-14.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 12.217,
+        "width": 8.511,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "hip",
+        "height": 1.62,
+        "heightRatioToBody": 0.18,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-14/3-14_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-14/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-14/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-14/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#303236",
+          "tileColor": "#222426",
+          "ridgeColor": "#151618",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.115234,
+            "y": 0.314453,
+            "w": 0.771484,
+            "h": 0.566406
+          },
+          "sourceCrop": {
+            "x": 0.057617,
+            "y": 0.157227,
+            "w": 0.385742,
+            "h": 0.283203
+          },
+          "pixelCrop": {
+            "x": 59,
+            "y": 161,
+            "w": 395,
+            "h": 290
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-14/3-14_front_facade.png",
+            "width": 395,
+            "height": 290,
+            "aspect": 1.362069
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.115234,
+            "y": 0.306641,
+            "w": 0.771484,
+            "h": 0.570312
+          },
+          "sourceCrop": {
+            "x": 0.557617,
+            "y": 0.15332,
+            "w": 0.385742,
+            "h": 0.285156
+          },
+          "pixelCrop": {
+            "x": 571,
+            "y": 157,
+            "w": 395,
+            "h": 292
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-14/3-14_back_facade.png",
+            "width": 395,
+            "height": 292,
+            "aspect": 1.35274
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.210938,
+            "y": 0.261719,
+            "w": 0.578125,
+            "h": 0.611328
+          },
+          "sourceCrop": {
+            "x": 0.105469,
+            "y": 0.630859,
+            "w": 0.289062,
+            "h": 0.305664
+          },
+          "pixelCrop": {
+            "x": 108,
+            "y": 646,
+            "w": 296,
+            "h": 313
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-14/3-14_left_facade.png",
+            "width": 296,
+            "height": 313,
+            "aspect": 0.945687
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.210938,
+            "y": 0.261719,
+            "w": 0.578125,
+            "h": 0.611328
+          },
+          "sourceCrop": {
+            "x": 0.605469,
+            "y": 0.630859,
+            "w": 0.289062,
+            "h": 0.305664
+          },
+          "pixelCrop": {
+            "x": 620,
+            "y": 646,
+            "w": 296,
+            "h": 313
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-14/3-14_right_facade.png",
+            "width": 296,
+            "height": 313,
+            "aspect": 0.945687
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-14/3-14_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=56 y_cut=64 x_span=[0,471) cues=[47, 66]",
+          "front: fast_body_cut_refine_rejected_large_shift: 66 -> 93",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.2618",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=56 y_cut=64 x_span=[0,471) cues=[47, 66]",
+          "back: fast_body_cut_refine_rejected_large_shift: 66 -> 93",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.2739",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 223 -> 81 using floor prior 54",
+          "left: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,450) cues=[54, 81]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=223 exceeds limit 104",
+          "left: fast_body_cut_refine_rejected_large_shift: 77 -> 112",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "left: geometry_aspect_from_body_crop=0.9423",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 223 -> 81 using floor prior 54",
+          "right: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,450) cues=[54, 81]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=223 exceeds limit 104",
+          "right: fast_body_cut_refine_rejected_large_shift: 77 -> 112",
+          "right: floor peaks=4 -> floors=5",
+          "right: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "right: geometry_aspect_from_body_crop=0.9423",
+          "style_sheet_common_vertical_crop: y_top=66, y_bottom=451",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-15",
+      "name": "3-15",
+      "url": "./building_styles/3-15.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 12.45,
+        "width": 10.037,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.358,
+        "heightRatioToBody": 0.261974,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-15/3-15_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-15/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-15/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-15/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#272725",
+          "tileColor": "#1c1c1a",
+          "ridgeColor": "#111110",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.070312,
+            "y": 0.25,
+            "w": 0.871094,
+            "h": 0.660156
+          },
+          "sourceCrop": {
+            "x": 0.035156,
+            "y": 0.125,
+            "w": 0.435547,
+            "h": 0.330078
+          },
+          "pixelCrop": {
+            "x": 36,
+            "y": 128,
+            "w": 446,
+            "h": 338
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-15/3-15_front_facade.png",
+            "width": 446,
+            "height": 338,
+            "aspect": 1.319527
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.037109,
+            "y": 0.271484,
+            "w": 0.935547,
+            "h": 0.646484
+          },
+          "sourceCrop": {
+            "x": 0.518555,
+            "y": 0.135742,
+            "w": 0.467773,
+            "h": 0.323242
+          },
+          "pixelCrop": {
+            "x": 531,
+            "y": 139,
+            "w": 479,
+            "h": 331
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-15/3-15_back_facade.png",
+            "width": 479,
+            "height": 331,
+            "aspect": 1.44713
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.138672,
+            "y": 0.228516,
+            "w": 0.730469,
+            "h": 0.654297
+          },
+          "sourceCrop": {
+            "x": 0.069336,
+            "y": 0.614258,
+            "w": 0.365234,
+            "h": 0.327148
+          },
+          "pixelCrop": {
+            "x": 71,
+            "y": 629,
+            "w": 374,
+            "h": 335
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-15/3-15_left_facade.png",
+            "width": 374,
+            "height": 335,
+            "aspect": 1.116418
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.126953,
+            "y": 0.230469,
+            "w": 0.724609,
+            "h": 0.650391
+          },
+          "sourceCrop": {
+            "x": 0.563477,
+            "y": 0.615234,
+            "w": 0.362305,
+            "h": 0.325195
+          },
+          "pixelCrop": {
+            "x": 577,
+            "y": 630,
+            "w": 371,
+            "h": 333
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-15/3-15_right_facade.png",
+            "width": 371,
+            "height": 333,
+            "aspect": 1.114114
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-15/3-15_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 188 -> 77 using floor prior 52",
+          "front: roof_mask_fallback=geometry y_bottom=64 y_cut=72 x_span=[0,464) cues=[52, 77]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=188 exceeds limit 99",
+          "front: fast_body_cut_refined_below_roof: 74 -> 90",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.2771",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 194 -> 78 using floor prior 52",
+          "back: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,493) cues=[52, 78]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=194 exceeds limit 101",
+          "back: fast_body_cut_refined_below_roof: 75 -> 92",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.2844",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 192 -> 79 using floor prior 53",
+          "left: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,427) cues=[53, 79]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=192 exceeds limit 102",
+          "left: fast_body_cut_refined_below_roof: 76 -> 88",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.1471",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 190 -> 78 using floor prior 52",
+          "right: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,424) cues=[52, 78]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=190 exceeds limit 101",
+          "right: fast_body_cut_refined_below_roof: 75 -> 87",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.1479",
+          "style_sheet_common_vertical_crop: y_top=87, y_bottom=438",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-2",
+      "name": "3-2",
+      "url": "./building_styles/3-2.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 9.94,
+        "width": 7.574,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 1.853,
+        "heightRatioToBody": 0.205902,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-2/3-2_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-2/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-2/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-2/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#323234",
+          "tileColor": "#242425",
+          "ridgeColor": "#161617",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.142578,
+            "y": 0.279297,
+            "w": 0.712891,
+            "h": 0.646484
+          },
+          "sourceCrop": {
+            "x": 0.071289,
+            "y": 0.139648,
+            "w": 0.356445,
+            "h": 0.323242
+          },
+          "pixelCrop": {
+            "x": 73,
+            "y": 143,
+            "w": 365,
+            "h": 331
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-2/3-2_front_facade.png",
+            "width": 365,
+            "height": 331,
+            "aspect": 1.102719
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.128906,
+            "y": 0.273438,
+            "w": 0.712891,
+            "h": 0.644531
+          },
+          "sourceCrop": {
+            "x": 0.564453,
+            "y": 0.136719,
+            "w": 0.356445,
+            "h": 0.322266
+          },
+          "pixelCrop": {
+            "x": 578,
+            "y": 140,
+            "w": 365,
+            "h": 330
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-2/3-2_back_facade.png",
+            "width": 365,
+            "height": 330,
+            "aspect": 1.106061
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.212891,
+            "y": 0.244141,
+            "w": 0.554688,
+            "h": 0.652344
+          },
+          "sourceCrop": {
+            "x": 0.106445,
+            "y": 0.62207,
+            "w": 0.277344,
+            "h": 0.326172
+          },
+          "pixelCrop": {
+            "x": 109,
+            "y": 637,
+            "w": 284,
+            "h": 334
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-2/3-2_left_facade.png",
+            "width": 284,
+            "height": 334,
+            "aspect": 0.850299
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.205078,
+            "y": 0.226562,
+            "w": 0.554688,
+            "h": 0.666016
+          },
+          "sourceCrop": {
+            "x": 0.602539,
+            "y": 0.613281,
+            "w": 0.277344,
+            "h": 0.333008
+          },
+          "pixelCrop": {
+            "x": 617,
+            "y": 628,
+            "w": 284,
+            "h": 341
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-2/3-2_right_facade.png",
+            "width": 284,
+            "height": 341,
+            "aspect": 0.832845
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-2/3-2_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=50 y_cut=58 x_span=[0,376) cues=[50]",
+          "front: fast_body_cut_refine_rejected_large_shift: 60 -> 80",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.0456",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=50 y_cut=58 x_span=[0,376) cues=[50]",
+          "back: fast_body_cut_refine_rejected_large_shift: 60 -> 81",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.8376",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 99 -> 70 using floor prior 47",
+          "left: roof_mask_fallback=geometry y_bottom=58 y_cut=66 x_span=[0,320) cues=[47, 70]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=99 exceeds limit 91",
+          "left: floor peaks=2 -> floors=3",
+          "left: geometry_aspect_from_body_crop=1.0063",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 203 -> 73 using floor prior 49",
+          "right: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,321) cues=[49, 73]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=203 exceeds limit 95",
+          "right: floor peaks=2 -> floors=3",
+          "right: geometry_aspect_from_body_crop=0.9907",
+          "style_sheet_common_vertical_crop: y_top=60, y_bottom=418",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-3",
+      "name": "3-3",
+      "url": "./building_styles/3-3.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 10.842,
+        "width": 10.049,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.193,
+        "heightRatioToBody": 0.243645,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-3/3-3_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-3/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-3/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-3/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#252627",
+          "tileColor": "#1a1b1c",
+          "ridgeColor": "#101111",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.097656,
+            "y": 0.271484,
+            "w": 0.824219,
+            "h": 0.675781
+          },
+          "sourceCrop": {
+            "x": 0.048828,
+            "y": 0.135742,
+            "w": 0.412109,
+            "h": 0.337891
+          },
+          "pixelCrop": {
+            "x": 50,
+            "y": 139,
+            "w": 422,
+            "h": 346
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-3/3-3_front_facade.png",
+            "width": 422,
+            "height": 346,
+            "aspect": 1.219653
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.107422,
+            "y": 0.292969,
+            "w": 0.771484,
+            "h": 0.648438
+          },
+          "sourceCrop": {
+            "x": 0.553711,
+            "y": 0.146484,
+            "w": 0.385742,
+            "h": 0.324219
+          },
+          "pixelCrop": {
+            "x": 567,
+            "y": 150,
+            "w": 395,
+            "h": 332
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-3/3-3_back_facade.png",
+            "width": 395,
+            "height": 332,
+            "aspect": 1.189759
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.134766,
+            "y": 0.244141,
+            "w": 0.736328,
+            "h": 0.65625
+          },
+          "sourceCrop": {
+            "x": 0.067383,
+            "y": 0.62207,
+            "w": 0.368164,
+            "h": 0.328125
+          },
+          "pixelCrop": {
+            "x": 69,
+            "y": 637,
+            "w": 377,
+            "h": 336
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-3/3-3_left_facade.png",
+            "width": 377,
+            "height": 336,
+            "aspect": 1.122024
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.132812,
+            "y": 0.244141,
+            "w": 0.722656,
+            "h": 0.650391
+          },
+          "sourceCrop": {
+            "x": 0.566406,
+            "y": 0.62207,
+            "w": 0.361328,
+            "h": 0.325195
+          },
+          "pixelCrop": {
+            "x": 580,
+            "y": 637,
+            "w": 370,
+            "h": 333
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-3/3-3_right_facade.png",
+            "width": 370,
+            "height": 333,
+            "aspect": 1.111111
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-3/3-3_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 177 -> 75 using floor prior 50",
+          "front: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,431) cues=[50, 75]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=177 exceeds limit 97",
+          "front: fast_body_cut_refine_rejected_large_shift: 72 -> 97",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.1150",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 177 -> 75 using floor prior 50",
+          "back: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,423) cues=[50, 75]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=177 exceeds limit 97",
+          "back: fast_body_cut_refine_rejected_large_shift: 72 -> 96",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.9497",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 175 -> 75 using floor prior 50",
+          "left: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,426) cues=[50, 75]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=175 exceeds limit 97",
+          "left: fast_body_cut_refined_below_roof: 72 -> 82",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "left: geometry_aspect_from_body_crop=1.2805",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 174 -> 75 using floor prior 50",
+          "right: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,417) cues=[50, 75]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=174 exceeds limit 97",
+          "right: fast_body_cut_refined_below_roof: 72 -> 81",
+          "right: floor peaks=4 -> floors=5",
+          "right: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "right: geometry_aspect_from_body_crop=1.1768",
+          "style_sheet_common_vertical_crop: y_top=72, y_bottom=420",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-4",
+      "name": "3-4",
+      "url": "./building_styles/3-4.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 11.706,
+        "width": 9.839,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.19,
+        "heightRatioToBody": 0.243287,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-4/3-4_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-4/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-4/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-4/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#252627",
+          "tileColor": "#1a1b1c",
+          "ridgeColor": "#101111",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.087891,
+            "y": 0.273438,
+            "w": 0.847656,
+            "h": 0.667969
+          },
+          "sourceCrop": {
+            "x": 0.043945,
+            "y": 0.136719,
+            "w": 0.423828,
+            "h": 0.333984
+          },
+          "pixelCrop": {
+            "x": 45,
+            "y": 140,
+            "w": 434,
+            "h": 342
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-4/3-4_front_facade.png",
+            "width": 434,
+            "height": 342,
+            "aspect": 1.269006
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.080078,
+            "y": 0.318359,
+            "w": 0.822266,
+            "h": 0.617188
+          },
+          "sourceCrop": {
+            "x": 0.540039,
+            "y": 0.15918,
+            "w": 0.411133,
+            "h": 0.308594
+          },
+          "pixelCrop": {
+            "x": 553,
+            "y": 163,
+            "w": 421,
+            "h": 316
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-4/3-4_back_facade.png",
+            "width": 421,
+            "height": 316,
+            "aspect": 1.332278
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.166016,
+            "y": 0.273438,
+            "w": 0.677734,
+            "h": 0.619141
+          },
+          "sourceCrop": {
+            "x": 0.083008,
+            "y": 0.636719,
+            "w": 0.338867,
+            "h": 0.30957
+          },
+          "pixelCrop": {
+            "x": 85,
+            "y": 652,
+            "w": 347,
+            "h": 317
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-4/3-4_left_facade.png",
+            "width": 347,
+            "height": 317,
+            "aspect": 1.094637
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.150391,
+            "y": 0.275391,
+            "w": 0.673828,
+            "h": 0.617188
+          },
+          "sourceCrop": {
+            "x": 0.575195,
+            "y": 0.637695,
+            "w": 0.336914,
+            "h": 0.308594
+          },
+          "pixelCrop": {
+            "x": 589,
+            "y": 653,
+            "w": 345,
+            "h": 316
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-4/3-4_right_facade.png",
+            "width": 345,
+            "height": 316,
+            "aspect": 1.091772
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-4/3-4_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 186 -> 76 using floor prior 51",
+          "front: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,443) cues=[51, 76]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=186 exceeds limit 98",
+          "front: fast_body_cut_refine_rejected_large_shift: 73 -> 93",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.2269",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 191 -> 76 using floor prior 51",
+          "back: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,446) cues=[51, 76]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=191 exceeds limit 98",
+          "back: fast_body_cut_refined_below_roof: 73 -> 92",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.2997",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 164 -> 73 using floor prior 49",
+          "left: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,404) cues=[49, 73]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=164 exceeds limit 95",
+          "left: fast_body_cut_refined_below_roof: 71 -> 77",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.1420",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 164 -> 73 using floor prior 49",
+          "right: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,403) cues=[49, 73]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=164 exceeds limit 95",
+          "right: fast_body_cut_refined_below_roof: 71 -> 77",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.1356",
+          "style_sheet_common_vertical_crop: y_top=73, y_bottom=423",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-5",
+      "name": "3-5",
+      "url": "./building_styles/3-5.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 12.136,
+        "width": 11.058,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.134,
+        "heightRatioToBody": 0.237062,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-5/3-5_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-5/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-5/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-5/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#202021",
+          "tileColor": "#171717",
+          "ridgeColor": "#0e0e0e",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.085938,
+            "y": 0.271484,
+            "w": 0.833984,
+            "h": 0.625
+          },
+          "sourceCrop": {
+            "x": 0.042969,
+            "y": 0.135742,
+            "w": 0.416992,
+            "h": 0.3125
+          },
+          "pixelCrop": {
+            "x": 44,
+            "y": 139,
+            "w": 427,
+            "h": 320
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-5/3-5_front_facade.png",
+            "width": 427,
+            "height": 320,
+            "aspect": 1.334375
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.107422,
+            "y": 0.314453,
+            "w": 0.792969,
+            "h": 0.582031
+          },
+          "sourceCrop": {
+            "x": 0.553711,
+            "y": 0.157227,
+            "w": 0.396484,
+            "h": 0.291016
+          },
+          "pixelCrop": {
+            "x": 567,
+            "y": 161,
+            "w": 406,
+            "h": 298
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-5/3-5_back_facade.png",
+            "width": 406,
+            "height": 298,
+            "aspect": 1.362416
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.140625,
+            "y": 0.28125,
+            "w": 0.722656,
+            "h": 0.585938
+          },
+          "sourceCrop": {
+            "x": 0.070312,
+            "y": 0.640625,
+            "w": 0.361328,
+            "h": 0.292969
+          },
+          "pixelCrop": {
+            "x": 72,
+            "y": 656,
+            "w": 370,
+            "h": 300
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-5/3-5_left_facade.png",
+            "width": 370,
+            "height": 300,
+            "aspect": 1.233333
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.140625,
+            "y": 0.283203,
+            "w": 0.714844,
+            "h": 0.583984
+          },
+          "sourceCrop": {
+            "x": 0.570312,
+            "y": 0.641602,
+            "w": 0.357422,
+            "h": 0.291992
+          },
+          "pixelCrop": {
+            "x": 584,
+            "y": 657,
+            "w": 366,
+            "h": 299
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-5/3-5_right_facade.png",
+            "width": 366,
+            "height": 299,
+            "aspect": 1.22408
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-5/3-5_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 159 -> 70 using floor prior 47",
+          "front: roof_mask_fallback=geometry y_bottom=58 y_cut=66 x_span=[0,444) cues=[47, 70]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=159 exceeds limit 91",
+          "front: fast_body_cut_refine_rejected_large_shift: 68 -> 87",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.3057",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 162 -> 70 using floor prior 47",
+          "back: roof_mask_fallback=geometry y_bottom=58 y_cut=66 x_span=[0,446) cues=[47, 70]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=162 exceeds limit 91",
+          "back: fast_body_cut_refine_rejected_large_shift: 68 -> 87",
+          "back: floor peaks=3 -> floors=4",
+          "back: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "back: geometry_aspect_from_body_crop=1.3089",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 155 -> 69 using floor prior 46",
+          "left: roof_mask_fallback=geometry y_bottom=57 y_cut=65 x_span=[0,421) cues=[46, 69]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=155 exceeds limit 90",
+          "left: fast_body_cut_refined_below_roof: 67 -> 71",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.2800",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 155 -> 68 using floor prior 46",
+          "right: roof_mask_fallback=geometry y_bottom=57 y_cut=65 x_span=[0,416) cues=[46, 68]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=155 exceeds limit 89",
+          "right: fast_body_cut_refined_below_roof: 67 -> 71",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.2676",
+          "style_sheet_common_vertical_crop: y_top=68, y_bottom=394",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-6",
+      "name": "3-6",
+      "url": "./building_styles/3-6.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 10.557,
+        "width": 9.911,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.35,
+        "heightRatioToBody": 0.261076,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-6/3-6_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-6/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-6/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-6/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#1d1e20",
+          "tileColor": "#141517",
+          "ridgeColor": "#0d0d0e",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.099609,
+            "y": 0.255859,
+            "w": 0.798828,
+            "h": 0.685547
+          },
+          "sourceCrop": {
+            "x": 0.049805,
+            "y": 0.12793,
+            "w": 0.399414,
+            "h": 0.342773
+          },
+          "pixelCrop": {
+            "x": 51,
+            "y": 131,
+            "w": 409,
+            "h": 351
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-6/3-6_front_facade.png",
+            "width": 409,
+            "height": 351,
+            "aspect": 1.165242
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.107422,
+            "y": 0.291016,
+            "w": 0.765625,
+            "h": 0.648438
+          },
+          "sourceCrop": {
+            "x": 0.553711,
+            "y": 0.145508,
+            "w": 0.382812,
+            "h": 0.324219
+          },
+          "pixelCrop": {
+            "x": 567,
+            "y": 149,
+            "w": 392,
+            "h": 332
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-6/3-6_back_facade.png",
+            "width": 392,
+            "height": 332,
+            "aspect": 1.180723
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.162109,
+            "y": 0.271484,
+            "w": 0.677734,
+            "h": 0.617188
+          },
+          "sourceCrop": {
+            "x": 0.081055,
+            "y": 0.635742,
+            "w": 0.338867,
+            "h": 0.308594
+          },
+          "pixelCrop": {
+            "x": 83,
+            "y": 651,
+            "w": 347,
+            "h": 316
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-6/3-6_left_facade.png",
+            "width": 347,
+            "height": 316,
+            "aspect": 1.098101
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.148438,
+            "y": 0.271484,
+            "w": 0.681641,
+            "h": 0.617188
+          },
+          "sourceCrop": {
+            "x": 0.574219,
+            "y": 0.635742,
+            "w": 0.34082,
+            "h": 0.308594
+          },
+          "pixelCrop": {
+            "x": 588,
+            "y": 651,
+            "w": 349,
+            "h": 316
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-6/3-6_right_facade.png",
+            "width": 349,
+            "height": 316,
+            "aspect": 1.10443
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-6/3-6_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 83 -> 76 using floor prior 51",
+          "front: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,409) cues=[51, 76]",
+          "front: y_cut corrected by edge line: 73 -> 75 (edge_y=83)",
+          "front: fast_body_cut_refine_rejected_large_shift: 75 -> 101",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.9621",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 162 -> 76 using floor prior 51",
+          "back: roof_mask_fallback=geometry y_bottom=63 y_cut=71 x_span=[0,413) cues=[51, 76]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=162 exceeds limit 98",
+          "back: fast_body_cut_refine_rejected_large_shift: 73 -> 100",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.9536",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 79 -> 73 using floor prior 49",
+          "left: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,382) cues=[49, 73]",
+          "left: fast_body_cut_refined_below_roof: 71 -> 82",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.2204",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 80 -> 73 using floor prior 49",
+          "right: roof_mask_fallback=geometry y_bottom=61 y_cut=69 x_span=[0,383) cues=[49, 73]",
+          "right: y_cut corrected by edge line: 71 -> 72 (edge_y=80)",
+          "right: fast_body_cut_refined_below_roof: 72 -> 83",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.2236",
+          "style_sheet_common_vertical_crop: y_top=73, y_bottom=429",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-7",
+      "name": "3-7",
+      "url": "./building_styles/3-7.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 11.507,
+        "width": 9.996,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.395,
+        "heightRatioToBody": 0.266069,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-7/3-7_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-7/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-7/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-7/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2b2d31",
+          "tileColor": "#1e2023",
+          "ridgeColor": "#131416",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.064453,
+            "y": 0.251953,
+            "w": 0.894531,
+            "h": 0.693359
+          },
+          "sourceCrop": {
+            "x": 0.032227,
+            "y": 0.125977,
+            "w": 0.447266,
+            "h": 0.34668
+          },
+          "pixelCrop": {
+            "x": 33,
+            "y": 129,
+            "w": 458,
+            "h": 355
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-7/3-7_front_facade.png",
+            "width": 458,
+            "height": 355,
+            "aspect": 1.290141
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.091797,
+            "y": 0.308594,
+            "w": 0.806641,
+            "h": 0.636719
+          },
+          "sourceCrop": {
+            "x": 0.545898,
+            "y": 0.154297,
+            "w": 0.40332,
+            "h": 0.318359
+          },
+          "pixelCrop": {
+            "x": 559,
+            "y": 158,
+            "w": 413,
+            "h": 326
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-7/3-7_back_facade.png",
+            "width": 413,
+            "height": 326,
+            "aspect": 1.266871
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.148438,
+            "y": 0.226562,
+            "w": 0.720703,
+            "h": 0.654297
+          },
+          "sourceCrop": {
+            "x": 0.074219,
+            "y": 0.613281,
+            "w": 0.360352,
+            "h": 0.327148
+          },
+          "pixelCrop": {
+            "x": 76,
+            "y": 628,
+            "w": 369,
+            "h": 335
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-7/3-7_left_facade.png",
+            "width": 369,
+            "height": 335,
+            "aspect": 1.101493
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.121094,
+            "y": 0.228516,
+            "w": 0.730469,
+            "h": 0.652344
+          },
+          "sourceCrop": {
+            "x": 0.560547,
+            "y": 0.614258,
+            "w": 0.365234,
+            "h": 0.326172
+          },
+          "pixelCrop": {
+            "x": 574,
+            "y": 629,
+            "w": 374,
+            "h": 334
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-7/3-7_right_facade.png",
+            "width": 374,
+            "height": 334,
+            "aspect": 1.11976
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-7/3-7_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=59 y_cut=67 x_span=[0,468) cues=[52, 66]",
+          "front: fast_body_cut_refine_rejected_large_shift: 69 -> 98",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.9887",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 197 -> 77 using floor prior 52",
+          "back: roof_mask_fallback=geometry y_bottom=64 y_cut=72 x_span=[0,466) cues=[52, 77]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=197 exceeds limit 99",
+          "back: fast_body_cut_refine_rejected_large_shift: 74 -> 95",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.9454",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 84 -> 78 using floor prior 52",
+          "left: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,415) cues=[52, 78]",
+          "left: y_cut corrected by edge line: 75 -> 76 (edge_y=84)",
+          "left: fast_body_cut_refined_below_roof: 76 -> 89",
+          "left: floor peaks=3 -> floors=4",
+          "left: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "left: geometry_aspect_from_body_crop=1.2388",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 84 -> 78 using floor prior 52",
+          "right: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,419) cues=[52, 78]",
+          "right: y_cut corrected by edge line: 75 -> 76 (edge_y=84)",
+          "right: fast_body_cut_refined_below_roof: 76 -> 89",
+          "right: floor peaks=3 -> floors=4",
+          "right: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "right: geometry_aspect_from_body_crop=1.2507",
+          "style_sheet_common_vertical_crop: y_top=69, y_bottom=434",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "3-8",
+      "name": "3-8",
+      "url": "./building_styles/3-8.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 3,
+      "dimensions": {
+        "length": 9.343,
+        "width": 8.763,
+        "floorHeight": 3.0,
+        "bodyHeight": 9.0
+      },
+      "roof": {
+        "type": "hip",
+        "height": 1.71,
+        "heightRatioToBody": 0.19,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/3-8/3-8_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/3-8/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/3-8/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/3-8/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#272729",
+          "tileColor": "#1c1c1d",
+          "ridgeColor": "#111112",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.140625,
+            "y": 0.28125,
+            "w": 0.679688,
+            "h": 0.619141
+          },
+          "sourceCrop": {
+            "x": 0.070312,
+            "y": 0.140625,
+            "w": 0.339844,
+            "h": 0.30957
+          },
+          "pixelCrop": {
+            "x": 72,
+            "y": 144,
+            "w": 348,
+            "h": 317
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-8/3-8_front_facade.png",
+            "width": 348,
+            "height": 317,
+            "aspect": 1.097792
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.175781,
+            "y": 0.271484,
+            "w": 0.621094,
+            "h": 0.634766
+          },
+          "sourceCrop": {
+            "x": 0.587891,
+            "y": 0.135742,
+            "w": 0.310547,
+            "h": 0.317383
+          },
+          "pixelCrop": {
+            "x": 602,
+            "y": 139,
+            "w": 318,
+            "h": 325
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-8/3-8_back_facade.png",
+            "width": 318,
+            "height": 325,
+            "aspect": 0.978462
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.238281,
+            "y": 0.275391,
+            "w": 0.574219,
+            "h": 0.59375
+          },
+          "sourceCrop": {
+            "x": 0.119141,
+            "y": 0.637695,
+            "w": 0.287109,
+            "h": 0.296875
+          },
+          "pixelCrop": {
+            "x": 122,
+            "y": 653,
+            "w": 294,
+            "h": 304
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-8/3-8_left_facade.png",
+            "width": 294,
+            "height": 304,
+            "aspect": 0.967105
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.15625,
+            "y": 0.275391,
+            "w": 0.582031,
+            "h": 0.59375
+          },
+          "sourceCrop": {
+            "x": 0.578125,
+            "y": 0.637695,
+            "w": 0.291016,
+            "h": 0.296875
+          },
+          "pixelCrop": {
+            "x": 592,
+            "y": 653,
+            "w": 298,
+            "h": 304
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/3-8/3-8_right_facade.png",
+            "width": 298,
+            "height": 304,
+            "aspect": 0.980263
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/3-8/3-8_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 201 -> 84 using floor prior 56",
+          "front: roof_mask_fallback=geometry y_bottom=70 y_cut=78 x_span=[0,512) cues=[56, 84]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=201 exceeds limit 108",
+          "front: floor peaks=3 -> floors=4",
+          "front: floor_count fast-mode fallback to hint=3 (detected=4)",
+          "front: geometry_aspect_from_body_crop=1.0979",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 136 -> 83 using floor prior 56",
+          "back: roof_mask_fallback=geometry y_bottom=69 y_cut=77 x_span=[0,512) cues=[56, 83]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=136 exceeds limit 106",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=3 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.8700",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 135 -> 81 using floor prior 54",
+          "left: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,512) cues=[54, 81]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=135 exceeds limit 104",
+          "left: floor peaks=2 -> floors=3",
+          "left: geometry_aspect_from_body_crop=0.9918",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 135 -> 81 using floor prior 54",
+          "right: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,512) cues=[54, 81]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=135 exceeds limit 104",
+          "right: floor peaks=2 -> floors=3",
+          "right: geometry_aspect_from_body_crop=1.0027",
+          "style_sheet_common_vertical_crop: y_top=77, y_bottom=468",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-1",
+      "name": "4-1",
+      "url": "./building_styles/4-1.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 9.707,
+        "width": 9.418,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "hipped",
+        "height": 3.663,
+        "heightRatioToBody": 0.305222,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-1/4-1_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-1/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-1/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-1/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2c2d30",
+          "tileColor": "#1f2022",
+          "ridgeColor": "#131415",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.228516,
+            "y": 0.275391,
+            "w": 0.548828,
+            "h": 0.660156
+          },
+          "sourceCrop": {
+            "x": 0.114258,
+            "y": 0.137695,
+            "w": 0.274414,
+            "h": 0.330078
+          },
+          "pixelCrop": {
+            "x": 117,
+            "y": 141,
+            "w": 281,
+            "h": 338
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-1/4-1_front_facade.png",
+            "width": 281,
+            "height": 338,
+            "aspect": 0.831361
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.228516,
+            "y": 0.242188,
+            "w": 0.546875,
+            "h": 0.695312
+          },
+          "sourceCrop": {
+            "x": 0.614258,
+            "y": 0.121094,
+            "w": 0.273438,
+            "h": 0.347656
+          },
+          "pixelCrop": {
+            "x": 629,
+            "y": 124,
+            "w": 280,
+            "h": 356
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-1/4-1_back_facade.png",
+            "width": 280,
+            "height": 356,
+            "aspect": 0.786517
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.228516,
+            "y": 0.214844,
+            "w": 0.550781,
+            "h": 0.691406
+          },
+          "sourceCrop": {
+            "x": 0.114258,
+            "y": 0.607422,
+            "w": 0.275391,
+            "h": 0.345703
+          },
+          "pixelCrop": {
+            "x": 117,
+            "y": 622,
+            "w": 282,
+            "h": 354
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-1/4-1_left_facade.png",
+            "width": 282,
+            "height": 354,
+            "aspect": 0.79661
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.228516,
+            "y": 0.208984,
+            "w": 0.539062,
+            "h": 0.697266
+          },
+          "sourceCrop": {
+            "x": 0.614258,
+            "y": 0.604492,
+            "w": 0.269531,
+            "h": 0.348633
+          },
+          "pixelCrop": {
+            "x": 629,
+            "y": 619,
+            "w": 276,
+            "h": 357
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-1/4-1_right_facade.png",
+            "width": 276,
+            "height": 357,
+            "aspect": 0.773109
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-1/4-1_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 163 -> 80 using floor prior 54",
+          "front: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,309) cues=[54, 80]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=163 exceeds limit 103",
+          "front: fast_body_cut_refined_below_roof: 77 -> 84",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.8272",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=58 y_cut=66 x_span=[0,310) cues=[54, 63]",
+          "back: fast_body_cut_refined_below_roof: 68 -> 82",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.7183",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=56 y_cut=64 x_span=[0,307) cues=[52, 60]",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "left: geometry_aspect_from_body_crop=0.8146",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=56 y_cut=64 x_span=[0,306) cues=[52, 60]",
+          "right: floor peaks=4 -> floors=5",
+          "right: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "right: geometry_aspect_from_body_crop=0.8090",
+          "style_sheet_common_vertical_crop: y_top=66, y_bottom=448",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-2",
+      "name": "4-2",
+      "url": "./building_styles/4-2.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 12.27,
+        "width": 12.268,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "hipped",
+        "height": 4.201,
+        "heightRatioToBody": 0.350054,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-2/4-2_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-2/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-2/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-2/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#27292b",
+          "tileColor": "#1c1d1e",
+          "ridgeColor": "#111213",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.117188,
+            "y": 0.255859,
+            "w": 0.771484,
+            "h": 0.738281
+          },
+          "sourceCrop": {
+            "x": 0.058594,
+            "y": 0.12793,
+            "w": 0.385742,
+            "h": 0.369141
+          },
+          "pixelCrop": {
+            "x": 60,
+            "y": 131,
+            "w": 395,
+            "h": 378
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-2/4-2_front_facade.png",
+            "width": 395,
+            "height": 378,
+            "aspect": 1.044974
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.113281,
+            "y": 0.240234,
+            "w": 0.753906,
+            "h": 0.753906
+          },
+          "sourceCrop": {
+            "x": 0.556641,
+            "y": 0.120117,
+            "w": 0.376953,
+            "h": 0.376953
+          },
+          "pixelCrop": {
+            "x": 570,
+            "y": 123,
+            "w": 386,
+            "h": 386
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-2/4-2_back_facade.png",
+            "width": 386,
+            "height": 386,
+            "aspect": 1.0
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.142578,
+            "y": 0.240234,
+            "w": 0.720703,
+            "h": 0.703125
+          },
+          "sourceCrop": {
+            "x": 0.071289,
+            "y": 0.620117,
+            "w": 0.360352,
+            "h": 0.351562
+          },
+          "pixelCrop": {
+            "x": 73,
+            "y": 635,
+            "w": 369,
+            "h": 360
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-2/4-2_left_facade.png",
+            "width": 369,
+            "height": 360,
+            "aspect": 1.025
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.142578,
+            "y": 0.25,
+            "w": 0.710938,
+            "h": 0.697266
+          },
+          "sourceCrop": {
+            "x": 0.571289,
+            "y": 0.625,
+            "w": 0.355469,
+            "h": 0.348633
+          },
+          "pixelCrop": {
+            "x": 585,
+            "y": 640,
+            "w": 364,
+            "h": 357
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-2/4-2_right_facade.png",
+            "width": 364,
+            "height": 357,
+            "aspect": 1.019608
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-2/4-2_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,425) cues=[58, 85]",
+          "front: fast_body_cut_refined_below_roof: 81 -> 87",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.8075",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 88 -> 87 using floor prior 58",
+          "back: roof_mask_fallback=geometry y_bottom=72 y_cut=80 x_span=[0,427) cues=[58, 87]",
+          "back: fast_body_cut_refined_below_roof: 82 -> 94",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.7532",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=59 y_cut=67 x_span=[0,468) cues=[59]",
+          "left: fast_body_cut_refine_rejected_large_shift: 69 -> 107",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=4 (detected=3)",
+          "left: geometry_aspect_from_body_crop=0.9927",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=59 y_cut=67 x_span=[0,469) cues=[59]",
+          "right: fast_body_cut_refine_rejected_large_shift: 69 -> 107",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=4 (detected=3)",
+          "right: geometry_aspect_from_body_crop=0.9879",
+          "style_sheet_common_vertical_crop: y_top=69, y_bottom=492",
+          "style_sheet_crop_overrides=applied",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-3",
+      "name": "4-3",
+      "url": "./building_styles/4-3.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 9.963,
+        "width": 9.146,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "frontGable",
+        "height": 2.4,
+        "heightRatioToBody": 0.2,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-3/4-3_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-3/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-3/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-3/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#252626",
+          "tileColor": "#1a1b1b",
+          "ridgeColor": "#101111",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.246094,
+            "y": 0.25,
+            "w": 0.613281,
+            "h": 0.734375
+          },
+          "sourceCrop": {
+            "x": 0.123047,
+            "y": 0.125,
+            "w": 0.306641,
+            "h": 0.367188
+          },
+          "pixelCrop": {
+            "x": 126,
+            "y": 128,
+            "w": 314,
+            "h": 376
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-3/4-3_front_facade.png",
+            "width": 314,
+            "height": 376,
+            "aspect": 0.835106
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.152344,
+            "y": 0.25,
+            "w": 0.609375,
+            "h": 0.738281
+          },
+          "sourceCrop": {
+            "x": 0.576172,
+            "y": 0.125,
+            "w": 0.304688,
+            "h": 0.369141
+          },
+          "pixelCrop": {
+            "x": 590,
+            "y": 128,
+            "w": 312,
+            "h": 378
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-3/4-3_back_facade.png",
+            "width": 312,
+            "height": 378,
+            "aspect": 0.825397
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.283203,
+            "y": 0.265625,
+            "w": 0.519531,
+            "h": 0.683594
+          },
+          "sourceCrop": {
+            "x": 0.141602,
+            "y": 0.632812,
+            "w": 0.259766,
+            "h": 0.341797
+          },
+          "pixelCrop": {
+            "x": 145,
+            "y": 648,
+            "w": 266,
+            "h": 350
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-3/4-3_left_facade.png",
+            "width": 266,
+            "height": 350,
+            "aspect": 0.76
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.197266,
+            "y": 0.265625,
+            "w": 0.519531,
+            "h": 0.679688
+          },
+          "sourceCrop": {
+            "x": 0.598633,
+            "y": 0.632812,
+            "w": 0.259766,
+            "h": 0.339844
+          },
+          "pixelCrop": {
+            "x": 613,
+            "y": 648,
+            "w": 266,
+            "h": 348
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-3/4-3_right_facade.png",
+            "width": 266,
+            "height": 348,
+            "aspect": 0.764368
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-3/4-3_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_fallback_geometry: clamped low edge_y 115 -> 88 using floor prior 59",
+          "front: roof_mask_fallback=geometry y_bottom=73 y_cut=81 x_span=[0,340) cues=[59, 88]",
+          "front: y_cut edge correction skipped in fast mode: edge_y=115 exceeds limit 112",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.6870",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_fallback_geometry: clamped low edge_y 116 -> 88 using floor prior 59",
+          "back: roof_mask_fallback=geometry y_bottom=73 y_cut=81 x_span=[0,336) cues=[59, 88]",
+          "back: y_cut edge correction skipped in fast mode: edge_y=116 exceeds limit 112",
+          "back: floor peaks=5 -> floors=6",
+          "back: floor_count fast-mode fallback to hint=4 (detected=6)",
+          "back: geometry_aspect_from_body_crop=0.6853",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 109 -> 85 using floor prior 57",
+          "left: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,332) cues=[57, 85]",
+          "left: y_cut corrected by edge line: 81 -> 101 (edge_y=109)",
+          "left: floor peaks=4 -> floors=5",
+          "left: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "left: geometry_aspect_from_body_crop=0.8379",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 110 -> 85 using floor prior 57",
+          "right: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,333) cues=[57, 85]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=110 exceeds limit 109",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=4 (detected=3)",
+          "right: geometry_aspect_from_body_crop=0.7927",
+          "style_sheet_common_vertical_crop: y_top=81, y_bottom=490",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-4",
+      "name": "4-4",
+      "url": "./building_styles/4-4.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 13.065,
+        "width": 10.529,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.579,
+        "heightRatioToBody": 0.214893,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-4/4-4_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-4/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-4/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-4/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#36373b",
+          "tileColor": "#26272a",
+          "ridgeColor": "#18181a",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.125,
+            "y": 0.285156,
+            "w": 0.761719,
+            "h": 0.671875
+          },
+          "sourceCrop": {
+            "x": 0.0625,
+            "y": 0.142578,
+            "w": 0.380859,
+            "h": 0.335938
+          },
+          "pixelCrop": {
+            "x": 64,
+            "y": 146,
+            "w": 390,
+            "h": 344
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-4/4-4_front_facade.png",
+            "width": 390,
+            "height": 344,
+            "aspect": 1.133721
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.123047,
+            "y": 0.242188,
+            "w": 0.746094,
+            "h": 0.714844
+          },
+          "sourceCrop": {
+            "x": 0.561523,
+            "y": 0.121094,
+            "w": 0.373047,
+            "h": 0.357422
+          },
+          "pixelCrop": {
+            "x": 575,
+            "y": 124,
+            "w": 382,
+            "h": 366
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-4/4-4_back_facade.png",
+            "width": 382,
+            "height": 366,
+            "aspect": 1.043716
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.205078,
+            "y": 0.236328,
+            "w": 0.623047,
+            "h": 0.710938
+          },
+          "sourceCrop": {
+            "x": 0.102539,
+            "y": 0.618164,
+            "w": 0.311523,
+            "h": 0.355469
+          },
+          "pixelCrop": {
+            "x": 105,
+            "y": 633,
+            "w": 319,
+            "h": 364
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-4/4-4_left_facade.png",
+            "width": 319,
+            "height": 364,
+            "aspect": 0.876374
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.171875,
+            "y": 0.240234,
+            "w": 0.621094,
+            "h": 0.707031
+          },
+          "sourceCrop": {
+            "x": 0.585938,
+            "y": 0.620117,
+            "w": 0.310547,
+            "h": 0.353516
+          },
+          "pixelCrop": {
+            "x": 600,
+            "y": 635,
+            "w": 318,
+            "h": 362
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-4/4-4_right_facade.png",
+            "width": 318,
+            "height": 362,
+            "aspect": 0.878453
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-4/4-4_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=65 y_cut=73 x_span=[0,409) cues=[55, 76]",
+          "front: fast_body_cut_refined_below_roof: 75 -> 92",
+          "front: floor peaks=3 -> floors=4",
+          "front: geometry_aspect_from_body_crop=0.8901",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=67 y_cut=75 x_span=[0,400) cues=[55, 80]",
+          "back: fast_body_cut_refined_below_roof: 77 -> 90",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.7313",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_mask_fallback=geometry y_bottom=62 y_cut=70 x_span=[0,366) cues=[53, 72]",
+          "left: fast_body_cut_refined_below_roof: 72 -> 76",
+          "left: floor peaks=3 -> floors=4",
+          "left: geometry_aspect_from_body_crop=1.0223",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_mask_fallback=geometry y_bottom=64 y_cut=72 x_span=[0,367) cues=[54, 75]",
+          "right: fast_body_cut_refined_below_roof: 74 -> 80",
+          "right: floor peaks=3 -> floors=4",
+          "right: geometry_aspect_from_body_crop=1.0280",
+          "style_sheet_common_vertical_crop: y_top=76, y_bottom=461",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-5",
+      "name": "4-5",
+      "url": "./building_styles/4-5.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 12.278,
+        "width": 9.274,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "sideGable",
+        "height": 2.727,
+        "heightRatioToBody": 0.227209,
+        "overhangRatioToWidth": 0.05,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-5/4-5_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-5/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-5/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-5/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#27282b",
+          "tileColor": "#1c1c1e",
+          "ridgeColor": "#111213",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.125,
+            "y": 0.232422,
+            "w": 0.736328,
+            "h": 0.716797
+          },
+          "sourceCrop": {
+            "x": 0.0625,
+            "y": 0.116211,
+            "w": 0.368164,
+            "h": 0.358398
+          },
+          "pixelCrop": {
+            "x": 64,
+            "y": 119,
+            "w": 377,
+            "h": 367
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-5/4-5_front_facade.png",
+            "width": 377,
+            "height": 367,
+            "aspect": 1.027248
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.128906,
+            "y": 0.236328,
+            "w": 0.730469,
+            "h": 0.716797
+          },
+          "sourceCrop": {
+            "x": 0.564453,
+            "y": 0.118164,
+            "w": 0.365234,
+            "h": 0.358398
+          },
+          "pixelCrop": {
+            "x": 578,
+            "y": 121,
+            "w": 374,
+            "h": 367
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-5/4-5_back_facade.png",
+            "width": 374,
+            "height": 367,
+            "aspect": 1.019074
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.234375,
+            "y": 0.230469,
+            "w": 0.537109,
+            "h": 0.697266
+          },
+          "sourceCrop": {
+            "x": 0.117188,
+            "y": 0.615234,
+            "w": 0.268555,
+            "h": 0.348633
+          },
+          "pixelCrop": {
+            "x": 120,
+            "y": 630,
+            "w": 275,
+            "h": 357
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-5/4-5_left_facade.png",
+            "width": 275,
+            "height": 357,
+            "aspect": 0.770308
+          }
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.203125,
+            "y": 0.232422,
+            "w": 0.539062,
+            "h": 0.695312
+          },
+          "sourceCrop": {
+            "x": 0.601562,
+            "y": 0.616211,
+            "w": 0.269531,
+            "h": 0.347656
+          },
+          "pixelCrop": {
+            "x": 616,
+            "y": 631,
+            "w": 276,
+            "h": 356
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-5/4-5_right_facade.png",
+            "width": 276,
+            "height": 356,
+            "aspect": 0.775281
+          }
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-5/4-5_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=59 y_cut=67 x_span=[0,512) cues=[59, 60]",
+          "front: fast_body_cut_refine_rejected_large_shift: 69 -> 107",
+          "front: floor peaks=4 -> floors=5",
+          "front: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "front: geometry_aspect_from_body_crop=0.9367",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=59 y_cut=67 x_span=[0,512) cues=[59, 60]",
+          "back: fast_body_cut_refine_rejected_large_shift: 69 -> 107",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "back: geometry_aspect_from_body_crop=0.9179",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 189 -> 85 using floor prior 57",
+          "left: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,512) cues=[57, 85]",
+          "left: y_cut edge correction skipped in fast mode: edge_y=189 exceeds limit 109",
+          "left: floor peaks=2 -> floors=3",
+          "left: floor_count fast-mode fallback to hint=4 (detected=3)",
+          "left: geometry_aspect_from_body_crop=1.3128",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 189 -> 85 using floor prior 57",
+          "right: roof_mask_fallback=geometry y_bottom=71 y_cut=79 x_span=[0,512) cues=[57, 85]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=189 exceeds limit 109",
+          "right: floor peaks=2 -> floors=3",
+          "right: floor_count fast-mode fallback to hint=4 (detected=3)",
+          "right: geometry_aspect_from_body_crop=1.2864",
+          "style_sheet_common_vertical_crop: y_top=69, y_bottom=491",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    },
+    {
+      "id": "4-6",
+      "name": "4-6",
+      "url": "./building_styles/4-6.jpg",
+      "sourceImage": {
+        "width": 1024,
+        "height": 1024,
+        "format": "jpg"
+      },
+      "floors": 4,
+      "dimensions": {
+        "length": 13.764,
+        "width": 10.647,
+        "floorHeight": 3.0,
+        "bodyHeight": 12.0
+      },
+      "roof": {
+        "type": "hip",
+        "height": 2.16,
+        "heightRatioToBody": 0.18,
+        "overhangRatioToWidth": 0.045,
+        "texture": "./runtime_storage/processed/_normalization_meta/4-6/4-6_roof_texture.png",
+        "cropTexture": "./runtime_storage/processed/_normalization_meta/4-6/style_sheet_split/front/roof.png",
+        "mask": "./runtime_storage/processed/_normalization_meta/4-6/style_sheet_split/front/roof_mask.png",
+        "debugOverlay": "./runtime_storage/processed/_normalization_meta/4-6/style_sheet_split/front/debug_overlay.png",
+        "material": {
+          "baseColor": "#2e2e32",
+          "tileColor": "#212124",
+          "ridgeColor": "#141416",
+          "roughness": 0.86
+        }
+      },
+      "facades": {
+        "front": {
+          "quadrant": "front",
+          "standardizedFacade": {
+            "x": 0.09375,
+            "y": 0.220703,
+            "w": 0.818359,
+            "h": 0.744141
+          },
+          "sourceCrop": {
+            "x": 0.046875,
+            "y": 0.110352,
+            "w": 0.40918,
+            "h": 0.37207
+          },
+          "pixelCrop": {
+            "x": 48,
+            "y": 113,
+            "w": 419,
+            "h": 381
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-6/4-6_front_facade.png",
+            "width": 419,
+            "height": 381,
+            "aspect": 1.099738
+          }
+        },
+        "back": {
+          "quadrant": "back",
+          "standardizedFacade": {
+            "x": 0.097656,
+            "y": 0.291016,
+            "w": 0.804688,
+            "h": 0.673828
+          },
+          "sourceCrop": {
+            "x": 0.548828,
+            "y": 0.145508,
+            "w": 0.402344,
+            "h": 0.336914
+          },
+          "pixelCrop": {
+            "x": 562,
+            "y": 149,
+            "w": 412,
+            "h": 345
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-6/4-6_back_facade.png",
+            "width": 412,
+            "height": 345,
+            "aspect": 1.194203
+          }
+        },
+        "left": {
+          "quadrant": "left",
+          "standardizedFacade": {
+            "x": 0.207031,
+            "y": 0.261719,
+            "w": 0.582031,
+            "h": 0.658203
+          },
+          "sourceCrop": {
+            "x": 0.103516,
+            "y": 0.630859,
+            "w": 0.291016,
+            "h": 0.329102
+          },
+          "pixelCrop": {
+            "x": 106,
+            "y": 646,
+            "w": 298,
+            "h": 337
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-6/4-6_left_facade.png",
+            "width": 298,
+            "height": 337,
+            "aspect": 0.884273
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        },
+        "right": {
+          "quadrant": "right",
+          "standardizedFacade": {
+            "x": 0.214844,
+            "y": 0.261719,
+            "w": 0.585938,
+            "h": 0.658203
+          },
+          "sourceCrop": {
+            "x": 0.607422,
+            "y": 0.630859,
+            "w": 0.292969,
+            "h": 0.329102
+          },
+          "pixelCrop": {
+            "x": 622,
+            "y": 646,
+            "w": 300,
+            "h": 337
+          },
+          "matchError": 0.0,
+          "texture": {
+            "url": "./runtime_storage/processed/_normalization_meta/4-6/4-6_right_facade.png",
+            "width": 300,
+            "height": 337,
+            "aspect": 0.890208
+          },
+          "manualOverride": "complete_v2_user_reported_case"
+        }
+      },
+      "processing": {
+        "provider": "preset_style_sheet_split",
+        "manifest": "./runtime_storage/processed/_normalization_meta/4-6/4-6_material_manifest.json",
+        "notes": [
+          "front: SAM3 roof segmentation skipped by fast mode.",
+          "front: roof_mask_fallback=geometry y_bottom=54 y_cut=62 x_span=[0,422) cues=[54]",
+          "front: fast_body_cut_refine_rejected_large_shift: 64 -> 95",
+          "front: floor peaks=5 -> floors=6",
+          "front: floor_count fast-mode fallback to hint=4 (detected=6)",
+          "front: geometry_aspect_from_body_crop=1.0933",
+          "back: SAM3 roof segmentation skipped by fast mode.",
+          "back: roof_mask_fallback=geometry y_bottom=53 y_cut=61 x_span=[0,430) cues=[53]",
+          "back: fast_body_cut_refine_rejected_large_shift: 63 -> 95",
+          "back: floor peaks=4 -> floors=5",
+          "back: floor_count fast-mode fallback to hint=4 (detected=5)",
+          "back: geometry_aspect_from_body_crop=1.1294",
+          "left: SAM3 roof segmentation skipped by fast mode.",
+          "left: roof_fallback_geometry: clamped low edge_y 93 -> 79 using floor prior 53",
+          "left: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,334) cues=[53, 79]",
+          "left: y_cut corrected by edge line: 76 -> 85 (edge_y=93)",
+          "left: floor peaks=5 -> floors=6",
+          "left: floor_count fast-mode fallback to hint=4 (detected=6)",
+          "left: geometry_aspect_from_body_crop=0.9104",
+          "right: SAM3 roof segmentation skipped by fast mode.",
+          "right: roof_fallback_geometry: clamped low edge_y 169 -> 79 using floor prior 53",
+          "right: roof_mask_fallback=geometry y_bottom=66 y_cut=74 x_span=[0,337) cues=[53, 79]",
+          "right: y_cut edge correction skipped in fast mode: edge_y=169 exceeds limit 102",
+          "right: floor peaks=5 -> floors=6",
+          "right: floor_count fast-mode fallback to hint=4 (detected=6)",
+          "right: geometry_aspect_from_body_crop=0.8904",
+          "style_sheet_common_vertical_crop: y_top=63, y_bottom=447",
+          "style_sheet_crop_overrides=none",
+          "style_sheet_sam3_roof_segmentation=disabled"
+        ]
+      }
+    }
+  ],
+  "manualFixes": {
+    "reason": "User reported roof residue, side compression, and dirty crops for 4-6, 4-3, 3-14, 3-13, 3-11, 3-8. Fixed by editing JSON crop boxes and recomputing dimensions; original images unchanged.",
+    "changedPresets": [
+      "3-11",
+      "3-13",
+      "3-14",
+      "3-8",
+      "4-3",
+      "4-6"
+    ],
+    "note": "The apparent stretching was mainly caused by dirty or inconsistent crop boxes; Three.js maps each crop to a rectangular facade plane, so wrong crop aspect ratios become visual compression/stretching. This version corrects the crop aspect and model dimensions for the reported presets."
+  }
+}
