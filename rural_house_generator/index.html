@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>乡村建筑 3D 生成器</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <h1>乡村建筑 3D 生成器</h1>
+        <p>从预设四立面图库中选择样式，自动拆分 front/back/left/right 并生成 3D 建筑模型</p>
+      </div>
+      <div class="top-actions">
+        <button id="generateBtn" class="primary">生成 3D 建筑</button>
+        <button id="downloadBtn" disabled>下载 GLB</button>
+        <button id="sendBtn" disabled>替换原建筑</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <section class="card config-card">
+          <h2>基础参数</h2>
+          <div class="form-grid">
+            <label>
+              <span>建筑长度 L</span>
+              <input id="lengthInput" type="number" min="3" step="0.1" />
+            </label>
+            <label>
+              <span>建筑宽度 W</span>
+              <input id="widthInput" type="number" min="3" step="0.1" />
+            </label>
+            <label>
+              <span>楼层数</span>
+              <input id="floorsInput" type="number" min="1" max="8" step="1" />
+            </label>
+            <label>
+              <span>层高</span>
+              <input id="floorHeightInput" type="number" min="2.4" max="6" step="0.1" />
+            </label>
+          </div>
+          <p class="hint">默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。</p>
+        </section>
+
+        <section class="card list-card">
+          <div class="section-title">
+            <h2>样式选择</h2>
+            <span id="presetCount">读取中</span>
+          </div>
+          <input id="searchInput" class="search" placeholder="搜索，例如 4-1 / 3层" />
+          <div id="presetList" class="preset-list"></div>
+        </section>
+
+        <section class="card status-card">
+          <h2>任务状态</h2>
+          <div class="progress"><div id="progressFill"></div></div>
+          <div id="statusText" class="status-text">等待加载预设。</div>
+          <div id="downloadLink" class="download-link"></div>
+        </section>
+      </aside>
+
+      <section class="panel right-panel">
+        <div class="panel-header">
+          <h2>3D 预览</h2>
+          <span id="activeLabel">当前：-</span>
+        </div>
+        <div id="viewer" class="three-wrap"></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
