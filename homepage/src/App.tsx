@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { VillageMapSection } from '@/features/village-map/VillageMapSection';
+import { DEFAULT_VILLAGE_ID, getVillageById } from '@/features/village-map/village-data.js';
 import { 
   MapPin, 
   BookOpen, 
@@ -235,6 +237,7 @@ function App() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
+  const [selectedVillageId, setSelectedVillageId] = useState(DEFAULT_VILLAGE_ID);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [currentLessonStep, setCurrentLessonStep] = useState('intro');
   const [lessonGuideOpen, setLessonGuideOpen] = useState(true);
@@ -252,6 +255,7 @@ function App() {
 
   const activeLesson = lessons.find((lesson) => lesson.id === activeLessonId);
   const activeStep = activeLesson?.steps.find((step) => step.id === currentLessonStep) || activeLesson?.steps[0];
+  const selectedVillage = getVillageById(selectedVillageId);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -644,12 +648,12 @@ function App() {
             {/* Desktop Navigation */}
             <div className="home-nav-list hidden md:flex items-center justify-center gap-8">
               <button 
-                onClick={() => scrollToSection('village-status')}
+                onClick={() => scrollToSection('teaching-purpose')}
                 className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
                   isScrolled ? 'text-gray-700' : 'text-white/90'
                 }`}
               >
-                村庄现状
+                教学目的
               </button>
               <button 
                 onClick={() => scrollToSection('theory-learning')}
@@ -660,28 +664,12 @@ function App() {
                 理论学习
               </button>
               <button 
-                onClick={() => scrollToSection('teaching-purpose')}
+                onClick={() => scrollToSection('practice')}
                 className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
                   isScrolled ? 'text-gray-700' : 'text-white/90'
                 }`}
               >
-                教学目的
-              </button>
-              <button 
-                onClick={() => scrollToSection('current-issues')}
-                className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
-                  isScrolled ? 'text-gray-700' : 'text-white/90'
-                }`}
-              >
-                现状问题
-              </button>
-              <button 
-                onClick={() => scrollToSection('location-environment')}
-                className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
-                  isScrolled ? 'text-gray-700' : 'text-white/90'
-                }`}
-              >
-                区位与环境
+                开始实践
               </button>
             </div>
 
@@ -744,10 +732,10 @@ function App() {
           <div className="md:hidden glass mt-3 mx-4 rounded-2xl shadow-xl p-4 animate-slide-up">
             <div className="flex flex-col gap-3">
               <button 
-                onClick={() => scrollToSection('village-status')}
+                onClick={() => scrollToSection('teaching-purpose')}
                 className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
               >
-                村庄现状
+                教学目的
               </button>
               <button 
                 onClick={() => scrollToSection('theory-learning')}
@@ -756,22 +744,10 @@ function App() {
                 理论学习
               </button>
               <button 
-                onClick={() => scrollToSection('teaching-purpose')}
+                onClick={() => scrollToSection('practice')}
                 className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
               >
-                教学目的
-              </button>
-              <button 
-                onClick={() => scrollToSection('current-issues')}
-                className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
-              >
-                现状问题
-              </button>
-              <button 
-                onClick={() => scrollToSection('location-environment')}
-                className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
-              >
-                区位与环境
+                开始实践
               </button>
               <hr className="my-2" />
               {authState.isLoggedIn ? (
@@ -812,7 +788,7 @@ function App() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-green-400 rounded-full blur-3xl opacity-30" />
           </div>
           {/* Grid Pattern */}
-          <div 
+          <div
             className="absolute inset-0 opacity-5"
             style={{
               backgroundImage: `linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),
@@ -858,7 +834,7 @@ function App() {
               <Button 
                 size="lg"
                 className="home-hero-action-btn home-hero-secondary-btn home-hero-secondary-compact w-full sm:w-auto gap-3 text-lg px-8 py-6 rounded-xl font-semibold"
-                onClick={() => scrollToSection('theory-learning')}
+                onClick={() => scrollToSection('teaching-purpose')}
               >
                 了解更多
                 <ArrowRight className="w-5 h-5" />
@@ -874,7 +850,7 @@ function App() {
               { label: '规划方案', value: '200+' },
               { label: '覆盖面积', value: '5000亩' },
             ].map((stat, index) => (
-              <div 
+              <div
                 key={index} 
                 className="text-center p-4 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10"
               >
@@ -889,6 +865,56 @@ function App() {
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
           <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
             <div className="w-1.5 h-3 bg-white/60 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* Teaching Purpose Section */}
+      <section id="teaching-purpose" className="py-24 px-4 sm:px-6 lg:px-8 bg-white/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 mb-6">
+              <GraduationCap className="w-4 h-4" />
+              <span className="text-sm font-medium">教学目的</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
+              培养规划思维与实践能力
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              通过互动式学习，让学生掌握村庄规划的基本方法和技能
+            </p>
+          </div>
+
+          {/* Features Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: BookOpen, title: '理论学习', desc: '村庄规划基础知识' },
+              { icon: Map, title: '案例分析', desc: '典型村庄规划案例' },
+              { icon: Compass, title: '实践操作', desc: '动手设计规划方案' },
+              { icon: Trees, title: '创新思维', desc: '培养创新规划理念' },
+            ].map((item, index) => (
+              <div
+                key={index}
+                className="text-center p-6 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                  <item.icon className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.title}</h3>
+                <p className="text-gray-600 text-sm">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Content Placeholder */}
+          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 text-center">
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-6">
+              <GraduationCap className="w-10 h-10 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">教学目的内容区域</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              此处预留教学目的的详细内容展示区域，可放置教学目标、课程大纲、学习路径等内容
+            </p>
           </div>
         </div>
       </section>
@@ -948,214 +974,75 @@ function App() {
         </div>
       </section>
 
-      {/* Village Status Section */}
-      <section id="village-status" className="py-24 px-4 sm:px-6 lg:px-8">
+      {/* Practice Section */}
+      <section id="practice" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 text-green-700 mb-6">
               <Home className="w-4 h-4" />
-              <span className="text-sm font-medium">村庄现状</span>
+              <span className="text-sm font-medium">开始实践</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
-              了解村庄当前发展状况
+              选择村庄，了解现状并识别问题
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              全面展示村庄的人口、经济、基础设施等基本情况，为规划提供数据支撑
+              村庄选择将同步更新地图、村庄现状与现状问题，为后续规划实践提供统一信息基础
             </p>
           </div>
 
-          {/* Placeholder Cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { title: '人口概况', desc: '村庄人口数量、年龄结构、劳动力分布等数据' },
-              { title: '经济发展', desc: '主要产业、收入水平、就业情况等经济指标' },
-              { title: '基础设施', desc: '道路、水电、通信等基础设施建设情况' },
-            ].map((item, index) => (
-              <div 
-                key={index}
-                className="group p-8 rounded-3xl bg-white/70 backdrop-blur-sm border border-green-100 hover:bg-white hover:shadow-xl transition-all duration-300 cursor-pointer"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mb-6 group-hover:bg-green-600 transition-colors">
-                  <MapPin className="w-7 h-7 text-green-600 group-hover:text-white transition-colors" />
+          <VillageMapSection
+            selectedVillageId={selectedVillageId}
+            onVillageChange={setSelectedVillageId}
+          />
+
+          <div id="village-status" className="mt-20 scroll-mt-24">
+            <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-green-700">
+                  <MapPin className="h-4 w-4" />
+                  村庄现状
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">{item.title}</h3>
-                <p className="text-gray-600">{item.desc}</p>
-                <div className="mt-6 flex items-center text-green-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span>查看详情</span>
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
+                <h3 className="text-2xl sm:text-3xl font-bold text-gray-800">{selectedVillage.name}现状概览</h3>
               </div>
-            ))}
-          </div>
-
-          {/* Content Placeholder */}
-          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-dashed border-green-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-              <Home className="w-10 h-10 text-green-400" />
+              <p className="max-w-xl text-sm leading-6 text-gray-500">以下内容随上方村庄选择同步切换。</p>
             </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">村庄现状内容区域</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              此处预留村庄现状的详细内容展示区域，可放置数据图表、图片、文字介绍等内容
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Teaching Purpose Section */}
-      <section id="teaching-purpose" className="py-24 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 mb-6">
-              <GraduationCap className="w-4 h-4" />
-              <span className="text-sm font-medium">教学目的</span>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {selectedVillage.statusItems.map((item) => (
+                <article key={item.title} className="group p-8 rounded-3xl bg-white/70 backdrop-blur-sm border border-green-100 hover:bg-white hover:shadow-xl transition-all duration-300">
+                  <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mb-6 group-hover:bg-green-600 transition-colors">
+                    <MapPin className="w-7 h-7 text-green-600 group-hover:text-white transition-colors" />
+                  </div>
+                  <h4 className="text-xl font-semibold text-gray-800 mb-3">{item.title}</h4>
+                  <p className="text-gray-600 leading-7">{item.desc}</p>
+                </article>
+              ))}
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
-              培养规划思维与实践能力
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              通过互动式学习，让学生掌握村庄规划的基本方法和技能
-            </p>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: BookOpen, title: '理论学习', desc: '村庄规划基础知识' },
-              { icon: Map, title: '案例分析', desc: '典型村庄规划案例' },
-              { icon: Compass, title: '实践操作', desc: '动手设计规划方案' },
-              { icon: Trees, title: '创新思维', desc: '培养创新规划理念' },
-            ].map((item, index) => (
-              <div 
-                key={index}
-                className="text-center p-6 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.title}</h3>
-                <p className="text-gray-600 text-sm">{item.desc}</p>
+          <div id="current-issues" className="mt-20 scroll-mt-24">
+            <div className="mb-8">
+              <div className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+                现状问题
               </div>
-            ))}
-          </div>
-
-          {/* Content Placeholder */}
-          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-6">
-              <GraduationCap className="w-10 h-10 text-blue-400" />
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-800">{selectedVillage.name}发展问题识别</h3>
             </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">教学目的内容区域</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              此处预留教学目的的详细内容展示区域，可放置教学目标、课程大纲、学习路径等内容
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Current Issues Section */}
-      <section id="current-issues" className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 mb-6">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm font-medium">现状问题</span>
+            <div className="grid md:grid-cols-2 gap-6">
+              {selectedVillage.issueItems.map((item) => (
+                <article key={item.title} className="flex items-start gap-4 p-6 rounded-2xl bg-white/70 backdrop-blur-sm border border-amber-100 hover:shadow-lg transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-2">{item.title}</h4>
+                    <p className="text-gray-600 leading-7">{item.desc}</p>
+                  </div>
+                </article>
+              ))}
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
-              识别发展中的挑战与机遇
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              深入分析村庄发展中面临的问题，为制定解决方案提供依据
-            </p>
           </div>
 
-          {/* Issues List */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { title: '人口流失', desc: '青壮年劳动力外出务工，村庄空心化问题' },
-              { title: '产业单一', desc: '经济结构单一，缺乏多元化发展' },
-              { title: '设施老化', desc: '部分基础设施年久失修，需要更新改造' },
-              { title: '环境压力', desc: '生态环境保护与发展的平衡问题' },
-            ].map((item, index) => (
-              <div 
-                key={index}
-                className="flex items-start gap-4 p-6 rounded-2xl bg-white/70 backdrop-blur-sm border border-amber-100 hover:shadow-lg transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.title}</h3>
-                  <p className="text-gray-600">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Content Placeholder */}
-          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-dashed border-amber-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
-              <AlertTriangle className="w-10 h-10 text-amber-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">现状问题内容区域</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              此处预留现状问题的详细内容展示区域，可放置问题分析、数据报告、调研结果等内容
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Location & Environment Section */}
-      <section id="location-environment" className="py-24 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-100 text-cyan-700 mb-6">
-              <Compass className="w-4 h-4" />
-              <span className="text-sm font-medium">区位与环境</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
-              探索地理优势与生态资源
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              全面了解村庄的地理位置、交通条件和自然环境特征
-            </p>
-          </div>
-
-          {/* Environment Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { title: '地理位置', desc: '区域位置、行政区划、相邻关系' },
-              { title: '交通条件', desc: '道路网络、公共交通、出行便利度' },
-              { title: '自然资源', desc: '土地、水源、森林、矿产等资源' },
-            ].map((item, index) => (
-              <div 
-                key={index}
-                className="p-8 rounded-3xl bg-gradient-to-br from-cyan-50 to-teal-50 border border-cyan-100 hover:shadow-xl transition-all"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-cyan-100 flex items-center justify-center mb-6">
-                  <Compass className="w-7 h-7 text-cyan-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">{item.title}</h3>
-                <p className="text-gray-600">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Content Placeholder */}
-          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-cyan-50 to-teal-50 border-2 border-dashed border-cyan-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-cyan-100 flex items-center justify-center mx-auto mb-6">
-              <Map className="w-10 h-10 text-cyan-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">区位与环境内容区域</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              此处预留区位与环境的详细内容展示区域，可放置地图、环境照片、区位分析等内容
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-hero p-12 sm:p-16 text-center">
+          <div className="relative mt-20 overflow-hidden rounded-3xl bg-gradient-hero p-12 sm:p-16 text-center">
             {/* Background Decoration */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
@@ -1247,11 +1134,9 @@ function App() {
             <div>
               <h4 className="font-semibold mb-4">快速链接</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><button onClick={() => scrollToSection('village-status')} className="hover:text-white transition-colors">村庄现状</button></li>
-                <li><button onClick={() => scrollToSection('theory-learning')} className="hover:text-white transition-colors">理论学习</button></li>
                 <li><button onClick={() => scrollToSection('teaching-purpose')} className="hover:text-white transition-colors">教学目的</button></li>
-                <li><button onClick={() => scrollToSection('current-issues')} className="hover:text-white transition-colors">现状问题</button></li>
-                <li><button onClick={() => scrollToSection('location-environment')} className="hover:text-white transition-colors">区位与环境</button></li>
+                <li><button onClick={() => scrollToSection('theory-learning')} className="hover:text-white transition-colors">理论学习</button></li>
+                <li><button onClick={() => scrollToSection('practice')} className="hover:text-white transition-colors">开始实践</button></li>
               </ul>
             </div>
             <div>

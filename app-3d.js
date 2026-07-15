@@ -69,6 +69,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const PERF_RESOLUTION_SCALE_CAP = 1.0;
   const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
   const ENABLE_ION_WORLD_IMAGERY = false;
+  const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
   const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转；点击人形按钮可进入过肩视角漫游。";
 
   const supabaseClient =
@@ -1157,6 +1158,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
     });
   }
 
+  function createTianDiTuWorldImageryProvider() {
+    const url = `https://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TDT_TOKEN}`;
+    return new Cesium.UrlTemplateImageryProvider({
+      url,
+      tilingScheme: new Cesium.WebMercatorTilingScheme(),
+      minimumLevel: 0,
+      maximumLevel: 18
+    });
+  }
+
   async function createArcGisTerrainProvider() {
     const arcGisTerrainUrl =
       "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer";
@@ -1291,7 +1302,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     if (!hasGlobalOnlineImagery) {
-      // Ion 不可用或失败时，优先尝试 ArcGIS 全球卫星影像，尽量避免大面积绿色底图
+      // 复用 2D 模块的天地图卫星瓦片，提供地形全范围的连续影像底图。
+      try {
+        const tianDiTuLayer = viewer.imageryLayers.addImageryProvider(createTianDiTuWorldImageryProvider());
+        if (naturalEarthLayer) {
+          naturalEarthLayer.show = false;
+        }
+        viewer.imageryLayers.raiseToTop(tianDiTuLayer);
+        hasImagery = true;
+        hasGlobalOnlineImagery = true;
+        console.log("天地图全球卫星影像加载成功");
+      } catch (tdtError) {
+        console.warn("天地图全球卫星影像加载失败：", tdtError?.message || tdtError);
+      }
+    }
+
+    if (!hasGlobalOnlineImagery) {
+      // 天地图不可用时，再尝试 ArcGIS 全球卫星影像。
       try {
         const arcGisProvider = await withTimeout(
           createArcGisWorldImageryProvider(),
@@ -1320,29 +1347,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       console.warn("已跳过 OSM 在线底图回退，使用本地/内置底图保持稳定显示。");
     }
 
-    try {
-      const contextGeoref = getContextBasemapGeoref();
-      const contextRectValues = [contextGeoref.minX, contextGeoref.minY, contextGeoref.maxX, contextGeoref.maxY].map((v) => Number(v));
-      const validContextRect =
-        contextRectValues.every((v) => Number.isFinite(v)) &&
-        contextGeoref.minX < contextGeoref.maxX &&
-        contextGeoref.minY < contextGeoref.maxY;
-      if (validContextRect) {
-        const contextRect = Cesium.Rectangle.fromDegrees(
-          contextGeoref.minX,
-          contextGeoref.minY,
-          contextGeoref.maxX,
-          contextGeoref.maxY
-        );
-        const contextProvider = await createSingleTileImageryProvider(contextGeoref.imageUrl, contextRect);
-        const contextLayer = viewer.imageryLayers.addImageryProvider(contextProvider);
-        viewer.imageryLayers.raiseToTop(contextLayer);
-        hasImagery = true;
-      }
-    } catch (error) {
-      console.warn("Failed to load 3D context orthophoto; continuing with the drone orthophoto only.", error);
-    }
-
     const georef = getBasemapGeoref();
     const rectValues = [georef.minX, georef.minY, georef.maxX, georef.maxY].map((v) => Number(v));
     const validRect = rectValues.every((v) => Number.isFinite(v)) && georef.minX < georef.maxX && georef.minY < georef.maxY;
@@ -1361,6 +1365,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const localProvider = await createSingleTileImageryProvider(georef.imageUrl, localRect);
       const localLayer = viewer.imageryLayers.addImageryProvider(localProvider);
       viewer.imageryLayers.raiseToTop(localLayer);
+      // 正射影像只覆盖 world file 所定义的米埗村范围，并始终压在全球底图之上。
+      localLayer.alpha = 1.0;
       hasImagery = true;
     } catch (error) {
       console.warn("无法加载本地正射影像，3D 白模将使用纯色地球底图。", error);
