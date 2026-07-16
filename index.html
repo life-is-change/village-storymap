@@ -45,6 +45,27 @@
 
       <!-- 主布局：左侧为空间/菜单列表，中间为首页/2D/3D 视图，右侧为对象详情面板 -->
       <div id="mainLayout" class="main-layout mode-overview">
+        <!-- 课程任务栏：地图模式下位于最左侧，图标轨道常驻，详情抽屉可展开/收起 -->
+        <aside id="courseTaskSidebar" class="course-task-sidebar is-expanded" aria-label="课程任务">
+          <div class="course-task-rail">
+            <button
+              id="courseTaskToggleBtn"
+              type="button"
+              class="course-task-toggle"
+              aria-expanded="true"
+              title="收起课程任务"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m15 6-6 6 6 6"></path>
+              </svg>
+            </button>
+            <nav id="courseTaskNav" class="course-task-nav" aria-label="课程任务导航"></nav>
+          </div>
+          <div class="course-task-drawer">
+            <div id="courseWorkbenchContent" class="course-workbench-content"></div>
+          </div>
+        </aside>
+
         <!-- 左侧栏：空间列表、规划空间入口等内容由 space-panel.js 动态渲染 -->
         <aside class="story-panel">
           <div class="panel-header">
@@ -318,12 +339,18 @@
   </script>
 
   <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 启动；3D 脚本进入 3D 时再按需加载 -->
+  <script defer src="features/auth/access-control.js"></script>
   <script defer src="auth-system.js"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/map-style.js"></script>
   <script defer src="features/ui/space-panel.js"></script>
   <script defer src="features/ui/space-panel-events.js"></script>
   <script defer src="features/ui/view-switcher.js"></script>
+  <script defer src="features/course/course-model.js"></script>
+  <script defer src="features/course/course-service.js"></script>
+  <script defer src="features/course/activity-logger.js"></script>
+  <script defer src="features/course/course-workspace-adapter.js"></script>
+  <script defer src="features/ui/course-workbench.js"></script>
   <script defer src="features/data/data-service.js"></script>
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
   <script defer src="features/data/copy-space-seed.js"></script>

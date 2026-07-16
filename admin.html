@@ -478,6 +478,30 @@
         padding: 12px 14px;
       }
     }
+    .admin-course-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(31, 53, 82, 0.08);
+      background: rgba(247, 250, 247, 0.9);
+    }
+
+    .admin-course-input,
+    .admin-course-select {
+      min-height: 38px;
+      box-sizing: border-box;
+      padding: 0 12px;
+      border: 1px solid rgba(31, 53, 82, 0.16);
+      border-radius: 10px;
+      background: #fff;
+      color: #1f3552;
+      font: inherit;
+    }
+
+    .admin-course-input { min-width: 190px; }
+    .admin-course-hint { margin: 6px 0 0; color: #728296; font-size: 13px; }
   </style>
 </head>
 <body class="admin-page">
@@ -527,6 +551,18 @@
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
               <span>留言管理</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="courseGroups">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="7" r="4"></circle><path d="M3 21v-2a6 6 0 0 1 12 0v2"></path><path d="M16 3.5a4 4 0 0 1 0 7"></path><path d="M18 15a5 5 0 0 1 3 4.5V21"></path>
+              </svg>
+              <span>课程小组</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="activity">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16v16H4z"></path><path d="M8 9h8M8 13h8M8 17h5"></path>
+              </svg>
+              <span>操作记录</span>
             </button>
           </nav>
         </aside>
@@ -609,6 +645,44 @@
               </div>
             </div>
           </div>
+          <div id="adminTabCourseGroups" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <div><h1>课程小组管理</h1><p class="admin-course-hint">教师预建小组并生成组码；学生可在课程工作台输入组码加入。</p></div>
+                <span id="adminCourseGroupCount" class="admin-count">共 0 个小组</span>
+              </div>
+              <form id="adminCreateGroupForm" class="admin-course-toolbar">
+                <input id="adminGroupNameInput" class="admin-course-input" type="text" placeholder="例如：米埗村第一组" required />
+                <input id="adminGroupCodeInput" class="admin-course-input" type="text" maxlength="12" placeholder="组码（可留空自动生成）" />
+                <button class="admin-btn admin-btn-primary" type="submit">创建小组</button>
+              </form>
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>小组</th><th>组码</th><th>成员数</th><th>已开始任务人数</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="adminCourseGroupTableBody"><tr><td colspan="6" class="admin-empty">加载中...</td></tr></tbody>
+              </table></div>
+            </div>
+          </div>
+          <div id="adminTabActivity" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <div><h1>学生操作记录</h1><p class="admin-course-hint">按学生、小组和操作类型追踪课程过程，可导出 CSV 用于教学分析与论文研究。</p></div>
+                <span id="adminActivityCount" class="admin-count">共 0 条记录</span>
+              </div>
+              <div class="admin-course-toolbar">
+                <select id="adminActivityGroupFilter" class="admin-course-select"><option value="">全部小组</option></select>
+                <input id="adminActivityStudentFilter" class="admin-course-input" type="search" placeholder="筛选学生姓名" />
+                <select id="adminActivityActionFilter" class="admin-course-select"><option value="">全部操作</option></select>
+                <select id="adminActivityTaskFilter" class="admin-course-select"><option value="">全部任务</option></select>
+                <label class="admin-course-hint">从 <input id="adminActivityDateFrom" class="admin-course-input" type="date" /></label>
+                <label class="admin-course-hint">至 <input id="adminActivityDateTo" class="admin-course-input" type="date" /></label>
+                <button id="adminActivityExportBtn" class="admin-btn" type="button">导出 CSV</button>
+              </div>
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>时间</th><th>学生</th><th>小组</th><th>任务</th><th>操作</th><th>对象</th><th>视图</th></tr></thead>
+                <tbody id="adminActivityTableBody"><tr><td colspan="7" class="admin-empty">加载中...</td></tr></tbody>
+              </table></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -643,8 +717,13 @@
     </div>
   </div>
 
+  <script defer src="features/auth/access-control.js"></script>
   <script defer src="auth-system.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="features/course/course-model.js"></script>
+  <script defer src="features/course/course-service.js"></script>
+  <script defer src="features/course/activity-logger.js"></script>
+  <script defer src="features/admin/course-admin.js"></script>
   <script defer src="admin.js"></script>
 </body>
 </html>

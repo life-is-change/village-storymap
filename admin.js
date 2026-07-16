@@ -33,6 +33,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let isDeletingUser = false;
   let remoteCleanupWarnings = [];
   let messageBoardSortOrder = "time_desc";
+  let courseAdminService = null;
+  let courseAdminLogger = null;
+  let courseGroupRows = [];
+  let courseActivityRows = [];
 
   function $(id) {
     return document.getElementById(id);
@@ -261,7 +265,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const grade = escapeHtml(u.grade || "—");
       const contribution = escapeHtml(formatContribution(statsMap[rawName]));
       const createdAt = formatDate(u.createdAt);
-      const actionHtml = rawName === "管理员"
+      const actionHtml = window.AccessControlModule?.isAdminCredential(rawName, rawStudentId)
         ? `<span class="admin-action-muted">管理员账号</span>`
         : `<button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-user-name="${escapeHtml(rawName)}" data-delete-user-student-id="${escapeHtml(rawStudentId)}">删除</button>`;
 
@@ -439,7 +443,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function deleteUserAndData(userName, studentId) {
     const targetName = String(userName || "").trim();
     const targetStudentId = String(studentId || "").trim();
-    if (!targetName || targetName === "管理员") {
+    if (!targetName || window.AccessControlModule?.isAdminCredential(targetName, targetStudentId)) {
       throw new Error("管理员账号不能删除。");
     }
 
@@ -499,7 +503,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (isDeletingUser) return;
     const userName = String(button.dataset.deleteUserName || "").trim();
     const studentId = String(button.dataset.deleteUserStudentId || "").trim();
-    if (!userName || userName === "管理员") return;
+    if (!userName || window.AccessControlModule?.isAdminCredential(userName, studentId)) return;
 
     const confirmed = await adminConfirm(
       `确认删除账号“${userName}”（学号：${studentId || "—"}）吗？该操作会删除此账号及其名下的规划空间、照片、任务和积分数据，删除后不可恢复。`,
@@ -1052,6 +1056,247 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
   }
 
+  async function readCourseTable(table, columns = "*") {
+    if (!supabaseClient) return [];
+    try {
+      let query = supabaseClient.from(table).select(columns).eq("course_id", "mibu-village-planning");
+      if (table === "activity_events") query = query.order("occurred_at", { ascending: false });
+      const { data, error } = await query;
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.warn(`读取 ${table} 失败：`, error);
+      return [];
+    }
+  }
+
+  function readLocalActivityRows() {
+    try {
+      const key = window.ActivityLoggerModule?.STORAGE_KEY || "village_activity_events_v1";
+      const rows = JSON.parse(localStorage.getItem(key) || "[]");
+      return (Array.isArray(rows) ? rows : []).map((row) => ({
+        occurred_at: row.occurredAt,
+        student_name: row.studentName,
+        student_key: row.studentKey,
+        course_id: row.courseId,
+        group_id: row.groupId,
+        task_id: row.taskId,
+        space_id: row.spaceId,
+        action: row.action,
+        target_type: row.targetType,
+        target_id: row.targetId,
+        view_mode: row.viewMode
+      }));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function getGroupName(groupId) {
+    return courseGroupRows.find((group) => group.id === groupId)?.name || groupId || "—";
+  }
+
+  async function renderCourseGroups() {
+    const tbody = $("adminCourseGroupTableBody");
+    if (!tbody || !courseAdminService) return;
+    courseGroupRows = await courseAdminService.listGroups({ refresh: true });
+    const [memberships, progress] = await Promise.all([
+      readCourseTable("group_memberships"),
+      readCourseTable("task_progress")
+    ]);
+    const summaries = window.CourseAdminModule.summarizeGroups(courseGroupRows, memberships, progress);
+    $("adminCourseGroupCount").textContent = `共 ${summaries.length} 个小组`;
+    tbody.innerHTML = summaries.length
+      ? summaries.map((summary) => {
+          const group = courseGroupRows.find((item) => item.id === summary.id) || {};
+          const memberNames = memberships
+            .filter((row) => row.group_id === group.id)
+            .map((row) => row.student_name)
+            .filter(Boolean);
+          return `<tr>
+            <td>${escapeHtml(summary.name)}${memberNames.length ? `<div class="cell-muted">${escapeHtml(memberNames.join("、"))}</div>` : ""}</td>
+            <td><strong>${escapeHtml(group.joinCode || "—")}</strong></td>
+            <td>${summary.memberCount}</td>
+            <td>${summary.completedCount}</td>
+            <td>${group.locked ? "已锁定" : "开放加入"}</td>
+            <td>
+              <button class="admin-btn admin-delete-btn" type="button" data-copy-group-code="${escapeHtml(group.joinCode || "")}">复制组码</button>
+              <button class="admin-btn admin-delete-btn" type="button" data-course-group-lock="${escapeHtml(group.id)}" data-next-locked="${group.locked ? "false" : "true"}">${group.locked ? "重新开放" : "锁定成员"}</button>
+            </td>
+          </tr>`;
+        }).join("")
+      : '<tr><td colspan="6" class="admin-empty">暂未创建课程小组。</td></tr>';
+    renderActivityFilters();
+  }
+
+  function renderActivityFilters() {
+    const groupFilter = $("adminActivityGroupFilter");
+    const actionFilter = $("adminActivityActionFilter");
+    const taskFilter = $("adminActivityTaskFilter");
+    if (groupFilter) {
+      const selected = groupFilter.value;
+      groupFilter.innerHTML = '<option value="">全部小组</option>' + courseGroupRows
+        .map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)}</option>`)
+        .join("");
+      groupFilter.value = selected;
+    }
+    if (actionFilter) {
+      const selected = actionFilter.value;
+      const actions = [...new Set(courseActivityRows.map((row) => row.action).filter(Boolean))].sort();
+      actionFilter.innerHTML = '<option value="">全部操作</option>' + actions
+        .map((action) => `<option value="${escapeHtml(action)}">${escapeHtml(action)}</option>`)
+        .join("");
+      actionFilter.value = selected;
+    }
+    if (taskFilter) {
+      const selected = taskFilter.value;
+      const tasks = window.CourseModelModule?.DEFAULT_COURSE?.tasks || [];
+      taskFilter.innerHTML = '<option value="">全部任务</option>' + tasks
+        .map((task) => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`)
+        .join("");
+      taskFilter.value = selected;
+    }
+  }
+
+  function getFilteredActivityRows() {
+    return window.CourseAdminModule.filterActivityEvents(courseActivityRows, {
+      groupId: $("adminActivityGroupFilter")?.value || "",
+      student: $("adminActivityStudentFilter")?.value || "",
+      action: $("adminActivityActionFilter")?.value || "",
+      taskId: $("adminActivityTaskFilter")?.value || "",
+      dateFrom: $("adminActivityDateFrom")?.value || "",
+      dateTo: $("adminActivityDateTo")?.value || ""
+    });
+  }
+
+  function renderActivityRows() {
+    const tbody = $("adminActivityTableBody");
+    if (!tbody) return;
+    const rows = getFilteredActivityRows();
+    $("adminActivityCount").textContent = `共 ${rows.length} 条记录`;
+    tbody.innerHTML = rows.length
+      ? rows.map((row) => `<tr>
+          <td>${escapeHtml(formatDate(row.occurred_at))}</td>
+          <td>${escapeHtml(row.student_name || "—")}</td>
+          <td>${escapeHtml(getGroupName(row.group_id))}</td>
+          <td>${escapeHtml(row.task_id || "—")}</td>
+          <td>${escapeHtml(row.action || "—")}</td>
+          <td>${escapeHtml([row.target_type, row.target_id].filter(Boolean).join(" / ") || "—")}</td>
+          <td>${escapeHtml(row.view_mode || "—")}</td>
+        </tr>`).join("")
+      : '<tr><td colspan="7" class="admin-empty">没有符合条件的操作记录。</td></tr>';
+  }
+
+  async function loadCourseActivity() {
+    const remoteRows = await readCourseTable("activity_events");
+    const merged = new Map();
+    [...readLocalActivityRows(), ...remoteRows].forEach((row) => {
+      const key = row.client_event_id || row.event_id || `${row.occurred_at}:${row.student_name}:${row.action}:${row.target_id || ""}`;
+      merged.set(key, row);
+    });
+    courseActivityRows = [...merged.values()].sort((a, b) => String(b.occurred_at || "").localeCompare(String(a.occurred_at || "")));
+    renderActivityFilters();
+    renderActivityRows();
+  }
+
+  function downloadActivityCsv() {
+    const csv = window.CourseAdminModule.exportEventsCsv(getFilteredActivityRows());
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `课程操作记录-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyTextToClipboard(value) {
+    const text = String(value || "");
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    input.remove();
+  }
+
+  function bindCourseAdminEvents() {
+    const form = $("adminCreateGroupForm");
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = "1";
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const group = await courseAdminService.createGroup($("adminGroupNameInput").value, $("adminGroupCodeInput").value);
+          await courseAdminLogger?.record("group_created", { type: "group", id: group.id }, { groupName: group.name, joinCode: group.joinCode });
+          courseAdminLogger?.flush().catch(() => {});
+          form.reset();
+          showAdminNotice(`已创建 ${group.name}，组码为 ${group.joinCode}。`, "success");
+          await renderCourseGroups();
+        } catch (error) {
+          showAdminNotice(error?.message || "创建小组失败。", "error");
+        }
+      });
+    }
+    $("adminCourseGroupTableBody")?.addEventListener("click", async (event) => {
+      const copyButton = event.target.closest("[data-copy-group-code]");
+      if (copyButton) {
+        await copyTextToClipboard(copyButton.dataset.copyGroupCode || "");
+        showAdminNotice("组码已复制。", "success");
+        return;
+      }
+      const button = event.target.closest("[data-course-group-lock]");
+      if (!button) return;
+      const nextLocked = button.dataset.nextLocked === "true";
+      await courseAdminService.setGroupLocked(button.dataset.courseGroupLock, nextLocked);
+      await courseAdminLogger?.record(nextLocked ? "group_locked" : "group_unlocked", {
+        type: "group",
+        id: button.dataset.courseGroupLock
+      });
+      courseAdminLogger?.flush().catch(() => {});
+      await renderCourseGroups();
+    });
+    [
+      $("adminActivityGroupFilter"),
+      $("adminActivityStudentFilter"),
+      $("adminActivityActionFilter"),
+      $("adminActivityTaskFilter"),
+      $("adminActivityDateFrom"),
+      $("adminActivityDateTo")
+    ]
+      .filter(Boolean)
+      .forEach((control) => {
+        const eventName = control.tagName === "INPUT" ? "input" : "change";
+        control.addEventListener(eventName, renderActivityRows);
+      });
+    $("adminActivityExportBtn")?.addEventListener("click", downloadActivityCsv);
+  }
+
+  async function initializeCourseAdmin() {
+    if (!window.CourseServiceModule || !window.CourseAdminModule) return;
+    courseAdminService = window.CourseServiceModule.createCourseService({
+      supabaseClient,
+      actorName: getCurrentUser()?.name || "管理员"
+    });
+    courseAdminLogger = window.ActivityLoggerModule?.createActivityLogger({
+      storage: localStorage,
+      supabaseClient,
+      getContext: () => ({
+        actor: { studentKey: "admin::管理员", name: getCurrentUser()?.name || "管理员" },
+        courseId: "mibu-village-planning"
+      })
+    }) || null;
+    bindCourseAdminEvents();
+    await renderCourseGroups();
+    await loadCourseActivity();
+  }
+
   function bindAdminTabs() {
     const menu = document.querySelector(".admin-menu");
     if (!menu || menu.dataset.bound) return;
@@ -1063,14 +1308,21 @@ const ENABLE_SUPABASE_SYNC = (() => {
       menu.querySelectorAll(".admin-menu-item").forEach((item) => item.classList.remove("active"));
       btn.classList.add("active");
       document.querySelectorAll(".admin-tab-panel").forEach((panel) => panel.classList.remove("active"));
-      const target = tab === "users" ? $("adminTabUsers") : tab === "messages" ? $("adminTabMessages") : $("adminTabPhotos");
+      const targetByTab = {
+        users: $("adminTabUsers"),
+        photos: $("adminTabPhotos"),
+        messages: $("adminTabMessages"),
+        courseGroups: $("adminTabCourseGroups"),
+        activity: $("adminTabActivity")
+      };
+      const target = targetByTab[tab];
       if (target) target.classList.add("active");
     });
   }
 
   function init() {
     const user = getCurrentUser();
-    const isAdmin = user && user.name === "管理员";
+    const isAdmin = window.AccessControlModule?.isAdminUser(user) === true;
 
     const locked = $("adminLocked");
     const content = $("adminContent");
@@ -1092,6 +1344,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     renderPhotos();
     bindMessageEvents();
     renderMessages();
+    initializeCourseAdmin().catch((error) => {
+      console.warn("课程管理模块初始化失败：", error);
+      showAdminNotice("课程小组或操作记录暂时无法加载。", "warning");
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);

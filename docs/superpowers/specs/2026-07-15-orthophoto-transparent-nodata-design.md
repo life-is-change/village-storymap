@@ -1,5 +1,7 @@
 # 正射影像外围黑边透明化设计
 
+> **过程文档：** 本文件仅用于记录方案讨论与设计依据，不属于平台运行文件。
+
 ## 目标
 
 处理 `assets/orthophoto.webp` 中与图片外围连通的黑色 NoData 区，使其在 2D OpenLayers 和 3D Cesium 中透明显示。

@@ -117,6 +117,10 @@ const detailSubtitle = document.getElementById("detailSubtitle");
 const storyItems = document.querySelectorAll(".story-item");
 
 const overviewView = document.getElementById("overviewView");
+const courseTaskSidebar = document.getElementById("courseTaskSidebar");
+const courseTaskToggleBtn = document.getElementById("courseTaskToggleBtn");
+const courseWorkbenchContent = document.getElementById("courseWorkbenchContent");
+const courseTaskNav = document.getElementById("courseTaskNav");
 const plan2dView = document.getElementById("plan2dView");
 const model3dView = document.getElementById("model3dView");
 
@@ -131,6 +135,7 @@ const basemapToggle = document.getElementById("basemapToggle");
 const basemapToggleWrap = document.getElementById("basemapToggleWrap");
 
 const BASEMAP_LABEL_VISIBLE_KEY = "village_planning_basemap_label_visible_v1";
+const COURSE_TASK_SIDEBAR_KEY = "village_course_task_sidebar_expanded_v1";
 let basemapLabelToggle = null;
 
 const supabaseClient =
@@ -184,6 +189,9 @@ let lastPlanningSpaceId = BASE_SPACE_ID;
 let lastCollabSpaceId = BASE_SPACE_ID;
 let userProfiles = [];
 let currentUserName = "";
+let courseService = null;
+let activityLogger = null;
+let courseWorkbench = null;
 let isCreatingSpace = false;
 let currentGeometryEditLayer = "";
 let communityGameTablesReady = true;
@@ -242,6 +250,7 @@ let isSpaceOptionsExpanded = true;
 let isPlanningMode = false;
 let isLeftPanelCollapsed = false;
 let isRightPanelCollapsed = false;
+let isCourseTaskSidebarExpanded = true;
 let shouldApplyInitialPlatformDefaults = false;
 window.isSpaceSidebarExpanded = isSpaceSidebarExpanded;
 
@@ -555,7 +564,10 @@ function loadSpacesFromStorage() {
         ? s.selectedLayers
         : (s.id === BASE_SPACE_ID ? [...DEFAULT_SELECTED_LAYER_KEYS] : ["building"]),
       basemapVisible: !!s.basemapVisible,
-      viewMode: s.viewMode || "2d"
+      viewMode: s.viewMode || "2d",
+      courseId: String(s?.courseId || ""),
+      courseGroupId: String(s?.courseGroupId || ""),
+      spaceType: String(s?.spaceType || "")
     };
     });
 
@@ -601,7 +613,10 @@ async function loadSpacesFromSupabase() {
       expanded: typeof row.expanded === "boolean" ? row.expanded : true,
       selectedLayers: Array.isArray(row.selected_layers) ? row.selected_layers : ["building"],
       basemapVisible: !!row.basemap_visible,
-      viewMode: row.view_mode || "2d"
+      viewMode: row.view_mode || "2d",
+      courseId: row.course_id || "",
+      courseGroupId: row.group_id || "",
+      spaceType: row.space_type || ""
     }));
   } catch (err) {
     console.warn("从 Supabase 加载空间列表异常：", err);
@@ -627,7 +642,10 @@ async function saveSpacesToSupabase() {
       expanded: typeof s.expanded === "boolean" ? s.expanded : true,
       selected_layers: Array.isArray(s.selectedLayers) ? s.selectedLayers : ["building"],
       basemap_visible: !!s.basemapVisible,
-      view_mode: s.viewMode || "2d"
+      view_mode: s.viewMode || "2d",
+      course_id: s.courseId || null,
+      group_id: s.courseGroupId || null,
+      space_type: s.spaceType || null
     }));
 
     const { error } = await supabaseClient
@@ -972,75 +990,6 @@ function openProfileCenterPage() {
 
 function renderHomepageIdentityUi(frameDoc = getHomeLandingFrameDoc()) {
   if (!frameDoc) return;
-  applyHomepageVisualTweaks(frameDoc);
-
-  const user = window.VillageAuth ? window.VillageAuth.getCurrentUser() : null;
-  const isLoggedIn = !!user;
-  const displayName = String(user?.name || "管理员").trim() || "管理员";
-
-  const allButtons = Array.from(frameDoc.querySelectorAll("button"));
-  const authButtons = allButtons.filter((btn) => {
-    const label = normalizeBridgeButtonLabel(btn.textContent);
-    return !label.includes("退出登录") && (label.includes("登录") || label.includes("注册"));
-  });
-
-  const authGroups = [];
-  const seen = new Set();
-  authButtons.forEach((btn) => {
-    const group = btn.parentElement;
-    if (!group || seen.has(group)) return;
-    seen.add(group);
-    authGroups.push(group);
-  });
-
-  authGroups.forEach((group) => {
-    const groupButtons = Array.from(group.querySelectorAll("button"));
-    const groupAuthButtons = groupButtons.filter((btn) => {
-      const label = normalizeBridgeButtonLabel(btn.textContent);
-      return !label.includes("退出登录") && (label.includes("登录") || label.includes("注册"));
-    });
-
-    let identityBtn = group.querySelector("[data-home-identity-btn='1']");
-    let userWrap = group.querySelector("[data-home-user-wrap='1']");
-    if (isLoggedIn) {
-      groupAuthButtons.forEach((btn) => {
-        btn.style.display = "none";
-      });
-      if (identityBtn) identityBtn.remove();
-      if (!userWrap) {
-        userWrap = frameDoc.createElement("div");
-        userWrap.setAttribute("data-home-user-wrap", "1");
-        group.appendChild(userWrap);
-      }
-      userWrap.innerHTML = `
-        <span data-home-greeting-text="1">你好，</span>
-        <button type="button" data-home-auth-pill="1" data-home-profile-btn="1" title="进入个人中心">
-          <span data-home-profile-name="1">${escapeHtml(displayName)}</span>
-        </button>
-        <button type="button" data-home-logout-btn="1">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span>退出登录</span>
-        </button>
-      `;
-      userWrap.style.display = "inline-flex";
-    } else {
-      groupAuthButtons.forEach((btn, idx) => {
-        if (idx === 0) {
-          btn.textContent = "登录/注册";
-          btn.style.display = "";
-        } else {
-          btn.style.display = "none";
-        }
-      });
-      if (identityBtn) identityBtn.remove();
-      if (userWrap) userWrap.remove();
-    }
-  });
-
   if (window.VillageAuth && typeof window.VillageAuth.broadcastAuthState === "function") {
     window.VillageAuth.broadcastAuthState();
   }
@@ -1413,7 +1362,6 @@ function bindHomepageLandingBridge() {
     const frameDoc = frame.contentDocument;
     if (!frameDoc) return;
 
-    applyHomepageVisualTweaks(frameDoc);
     renderHomepageIdentityUi(frameDoc);
     ensureHomepageLogoutButton(frameDoc);
     scheduleIdentitySync(frameDoc);
@@ -1552,6 +1500,139 @@ function getSpaceById(spaceId) {
   return spaces.find((s) => s.id === spaceId) || null;
 }
 
+function getCourseUser() {
+  const authUser = window.VillageAuth?.getCurrentUser?.() || {};
+  return {
+    name: String(authUser.name || currentUserName || "").trim(),
+    student_id: String(authUser.student_id || authUser.studentId || "").trim()
+  };
+}
+
+function ensureCourseGroupSpace(group) {
+  if (!group?.id || !group?.spaceId) return { space: null, created: false };
+  const existing = getSpaceById(group.spaceId);
+  if (existing) {
+    existing.courseId = group.courseId || existing.courseId || "";
+    existing.courseGroupId = group.id;
+    existing.spaceType = "course_group";
+    return { space: existing, created: false };
+  }
+  const baseSpace = getSpaceById(BASE_SPACE_ID) || getCurrentSpace();
+  const newSpace = window.CourseWorkspaceAdapterModule.buildGroupPlanningSpace(
+    group,
+    getCourseUser().name,
+    baseSpace
+  );
+  spaces.push(newSpace);
+  saveSpacesToStorage();
+  renderSpaceList();
+  return { space: newSpace, created: true };
+}
+
+async function initializeCourseGroupSpaceData(spaceId) {
+  const results = await Promise.allSettled([
+    seedBuildingsForCopySpace(spaceId),
+    seedRoadsForCopySpace(spaceId),
+    seedCroplandsForCopySpace(spaceId),
+    seedOpenSpacesForCopySpace(spaceId),
+    seedWaterForCopySpace(spaceId)
+  ]);
+  const rejected = results.filter((result) => result.status === "rejected");
+  if (rejected.length) {
+    console.warn("课程小组空间部分基础数据初始化失败：", rejected.map((item) => item.reason));
+  }
+}
+
+async function openCoursePlanningWorkspace(viewMode, group) {
+  if (!group) {
+    const baseSpace = getSpaceById(BASE_SPACE_ID);
+    if (!baseSpace) {
+      showToast("原有规划空间不存在", "error");
+      return;
+    }
+    baseSpace.viewMode = viewMode === "3d" ? "3d" : "2d";
+    setCurrentSpaceIdAndRemember(baseSpace.id);
+    saveSpacesToStorage();
+    saveAppState();
+    sync2DSpaceStateTo3D();
+    await handleSpaceSelect(baseSpace.id);
+    return;
+  }
+  const { space, created } = ensureCourseGroupSpace(group);
+  if (!space) {
+    showToast("当前小组尚未建立规划空间", "error");
+    return;
+  }
+  isPlanningMode = true;
+  space.viewMode = viewMode === "3d" ? "3d" : "2d";
+  setCurrentSpaceIdAndRemember(space.id);
+  saveSpacesToStorage();
+  saveAppState();
+  sync2DSpaceStateTo3D();
+  if (created) {
+    showToast("正在初始化小组规划空间…", "info");
+    await initializeCourseGroupSpaceData(space.id);
+  }
+  await handleSpaceSelect(space.id);
+}
+
+async function ensureCourseWorkbenchInitialized() {
+  if (courseWorkbench) return courseWorkbench;
+  if (
+    !window.CourseModelModule ||
+    !window.CourseServiceModule ||
+    !window.ActivityLoggerModule ||
+    !window.CourseWorkbenchModule ||
+    !window.CourseWorkspaceAdapterModule
+  ) {
+    throw new Error("课程工作台模块未完整加载。");
+  }
+
+  courseService = window.CourseServiceModule.createCourseService({
+    storage: localStorage,
+    supabaseClient,
+    actorName: getCourseUser().name
+  });
+  activityLogger = window.ActivityLoggerModule.createActivityLogger({
+    storage: localStorage,
+    supabaseClient,
+    getContext: () => {
+      const user = getCourseUser();
+      const context = courseWorkbench?.getContext?.() || {};
+      return {
+        actor: {
+          studentKey: window.CourseModelModule.buildStudentKey(user),
+          name: user.name
+        },
+        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+        groupId: context.group?.id || "",
+        taskId: courseWorkbench?.getActiveTaskId?.() || "",
+        spaceId: context.group?.spaceId || currentSpaceId || "",
+        viewMode: model3dView?.classList.contains("active") ? "3d" : "2d"
+      };
+    }
+  });
+  courseWorkbench = window.CourseWorkbenchModule.createCourseWorkbench({
+    container: courseWorkbenchContent,
+    navContainer: courseTaskNav,
+    course: window.CourseModelModule.DEFAULT_COURSE,
+    service: courseService,
+    logger: activityLogger,
+    getUser: getCourseUser,
+    showToast,
+    onTaskSelected: () => setCourseTaskSidebarExpanded(true)
+  });
+  await courseWorkbench.init();
+  return courseWorkbench;
+}
+
+async function recordCourseActivity(action, target = {}, metadata = {}) {
+  if (!activityLogger || !String(currentUserName || "").trim()) return null;
+  const event = await activityLogger.record(action, target, metadata);
+  activityLogger.flush().catch(() => {});
+  return event;
+}
+
 function getValidSpaceId(spaceId, fallback = BASE_SPACE_ID) {
   if (getSpaceById(spaceId)) return spaceId;
   if (getSpaceById(fallback)) return fallback;
@@ -1588,7 +1669,9 @@ function normalizeIdentityName(name) {
 }
 
 function isAdminIdentity(name) {
-  return normalizeIdentityName(name) === "管理员";
+  const user = window.VillageAuth?.getCurrentUser?.() || null;
+  if (!user || normalizeIdentityName(name) !== normalizeIdentityName(user.name)) return false;
+  return Boolean(window.AccessControlModule?.isAdminUser(user));
 }
 
 function getSpaceCreatorName(spaceOrId) {
@@ -1603,6 +1686,13 @@ function canManageSpace(spaceOrId, actorName = currentUserName) {
   if (!space) return false;
   if (space.readonly) return false;
   const actor = normalizeIdentityName(actorName);
+  if (space.courseGroupId && window.CourseWorkspaceAdapterModule) {
+    return window.CourseWorkspaceAdapterModule.canActorAccessGroupSpace(
+      space,
+      courseWorkbench?.getContext?.() || null,
+      isAdminIdentity(actor)
+    );
+  }
   if (space.id === BASE_SPACE_ID) {
     return !!actor; // 现状空间：登录用户即可编辑
   }
@@ -2555,6 +2645,10 @@ function hasRequiredNewLayout() {
   return !!(
     mainLayout &&
     overviewView &&
+    courseTaskSidebar &&
+    courseTaskToggleBtn &&
+    courseWorkbenchContent &&
+    courseTaskNav &&
     plan2dView &&
     model3dView &&
     map2dEl &&
@@ -4007,7 +4101,9 @@ async function startDeleteBuildingMode(layerKey = "building") {
 }
 
 async function saveDirtyBuildings(layerKey = "building") {
-  return getGeometryEditorModule().saveDirtyBuildings(buildGeometryEditorDeps(), layerKey);
+  const result = await getGeometryEditorModule().saveDirtyBuildings(buildGeometryEditorDeps(), layerKey);
+  await recordCourseActivity("feature_geometry_saved", { type: layerKey, id: currentSpaceId }, { layerKey });
+  return result;
 }
 
 function getGeoJSONFeatures(data) {
@@ -4631,8 +4727,9 @@ function setActiveStoryItem(viewKey) {
 
 function switchMainView(viewKey) {
   const isOverview = viewKey === "overview";
+  const isMapView = viewKey === "plan2d" || viewKey === "model3d";
   const isEnteringMapFromOverview =
-    !isOverview &&
+    isMapView &&
     mainLayout &&
     (mainLayout.classList.contains("mode-overview") || document.body.classList.contains("landing-only-mode"));
 
@@ -4641,24 +4738,29 @@ function switchMainView(viewKey) {
   }
 
   document.body.classList.toggle("landing-only-mode", isOverview);
-  document.body.classList.toggle("map-view-active", !isOverview);
+  document.body.classList.toggle("map-view-active", isMapView);
+  document.body.classList.remove("course-workbench-active");
 
   overviewView.classList.remove("active");
   plan2dView.classList.remove("active");
   model3dView.classList.remove("active");
 
+  mainLayout.classList.remove("mode-overview", "mode-map");
+
   if (viewKey === "overview") {
     overviewView.classList.add("active");
     mainLayout.classList.add("mode-overview");
-    mainLayout.classList.remove("mode-map");
   } else if (viewKey === "plan2d") {
     plan2dView.classList.add("active");
-    mainLayout.classList.remove("mode-overview");
     mainLayout.classList.add("mode-map");
   } else if (viewKey === "model3d") {
     model3dView.classList.add("active");
-    mainLayout.classList.remove("mode-overview");
     mainLayout.classList.add("mode-map");
+  }
+
+  const storyPanelTitle = document.querySelector(".story-panel > .panel-header h2");
+  if (storyPanelTitle) {
+    storyPanelTitle.textContent = "菜单";
   }
 
   if (statusBadge) {
@@ -4681,6 +4783,13 @@ function syncMapSidePanelLayout() {
   if (!mainLayout) return;
   mainLayout.classList.toggle("mode-map-left-collapsed", !!isLeftPanelCollapsed);
   mainLayout.classList.toggle("mode-map-right-collapsed", !!isRightPanelCollapsed);
+  mainLayout.classList.toggle("course-task-expanded", !!isCourseTaskSidebarExpanded);
+  courseTaskSidebar?.classList.toggle("is-expanded", !!isCourseTaskSidebarExpanded);
+
+  if (courseTaskToggleBtn) {
+    courseTaskToggleBtn.setAttribute("aria-expanded", String(isCourseTaskSidebarExpanded));
+    courseTaskToggleBtn.title = isCourseTaskSidebarExpanded ? "收起课程任务" : "展开课程任务";
+  }
 
   if (leftPanelToggleBtn) {
     leftPanelToggleBtn.textContent = isLeftPanelCollapsed ? "▶" : "◀";
@@ -4697,6 +4806,33 @@ function syncMapSidePanelLayout() {
       planMap?.updateSize();
     }
   });
+}
+
+function setCourseTaskSidebarExpanded(expanded, { persist = true } = {}) {
+  isCourseTaskSidebarExpanded = Boolean(expanded);
+  if (persist) {
+    try {
+      localStorage.setItem(COURSE_TASK_SIDEBAR_KEY, String(isCourseTaskSidebarExpanded));
+    } catch (error) {
+      console.warn("保存课程任务栏状态失败：", error);
+    }
+  }
+  syncMapSidePanelLayout();
+}
+
+function bindCourseTaskSidebarToggle() {
+  try {
+    isCourseTaskSidebarExpanded = localStorage.getItem(COURSE_TASK_SIDEBAR_KEY) !== "false";
+  } catch (error) {
+    isCourseTaskSidebarExpanded = true;
+  }
+  if (courseTaskToggleBtn && !courseTaskToggleBtn.dataset.bound) {
+    courseTaskToggleBtn.dataset.bound = "1";
+    courseTaskToggleBtn.addEventListener("click", () => {
+      setCourseTaskSidebarExpanded(!isCourseTaskSidebarExpanded);
+    });
+  }
+  syncMapSidePanelLayout();
 }
 
 function bindMapSidePanelToggleButtons() {
@@ -4816,7 +4952,11 @@ async function fetchObjectEdits(sourceCode, objectType) {
 }
 
 async function saveObjectEdits(sourceCode, objectType, payload) {
-  return getDataServiceModule().saveObjectEdits(buildDataServiceDeps(), sourceCode, objectType, payload);
+  const result = await getDataServiceModule().saveObjectEdits(buildDataServiceDeps(), sourceCode, objectType, payload);
+  await recordCourseActivity("object_attributes_updated", { type: objectType, id: sourceCode }, {
+    fields: Object.keys(payload || {})
+  });
+  return result;
 }
 
 async function migrateObjectEdits(oldCode, newCode, objectType) {
@@ -4905,7 +5045,7 @@ async function fetchCommunityTaskPhotos(taskId) {
 }
 
 async function createCommunityTask({ spaceId, reporterName, lng, lat, category = "garbage", description = "" }) {
-  return getCommunityTasksModule().createCommunityTask(buildCommunityTaskDeps(), {
+  const result = await getCommunityTasksModule().createCommunityTask(buildCommunityTaskDeps(), {
     spaceId,
     reporterName,
     lng,
@@ -4913,6 +5053,11 @@ async function createCommunityTask({ spaceId, reporterName, lng, lat, category =
     category,
     description
   });
+  await recordCourseActivity(category ? "diagnosis_created" : "comment_created", {
+    type: "community_task",
+    id: result?.id || ""
+  }, { category: category || "comment", hasLocation: Number.isFinite(Number(lng)) && Number.isFinite(Number(lat)) });
+  return result;
 }
 
 async function awardCommunityPoints({ userName, delta, reason, taskId, spaceId }) {
@@ -4942,7 +5087,12 @@ async function fetchObjectPhotos(sourceCode, objectType) {
 }
 
 async function uploadObjectPhoto(file, sourceCode, objectType, uploadedBy) {
-  return getDataServiceModule().uploadObjectPhoto(buildDataServiceDeps(), file, sourceCode, objectType, uploadedBy);
+  const result = await getDataServiceModule().uploadObjectPhoto(buildDataServiceDeps(), file, sourceCode, objectType, uploadedBy);
+  await recordCourseActivity("photo_uploaded", { type: objectType, id: sourceCode }, {
+    fileName: file?.name || "",
+    fileSize: Number(file?.size || 0)
+  });
+  return result;
 }
 
 async function deleteObjectPhoto(photoRecord) {
@@ -5124,6 +5274,7 @@ async function handleFieldSave(context, fieldKey, newValue) {
   try {
     // Special handling for building code rename
     if (fieldKey === "房屋编码" && newValue.trim() !== context.sourceCode) {
+      const previousCode = context.sourceCode;
       await renameBuildingCodeInDb(context.spaceId, context.sourceCode, newValue.trim());
 
       if (activeFeature && activeFeature.get("sourceCode") === context.sourceCode) {
@@ -5146,6 +5297,10 @@ async function handleFieldSave(context, fieldKey, newValue) {
       await showObjectInfo(refreshedBaseRow, context.layerKey, newValue.trim(), { flashSaved: true });
 
       if (saveStatus) saveStatus.textContent = "保存成功。";
+      await recordCourseActivity("object_attributes_updated", { type: context.editObjectType, id: newValue.trim() }, {
+        fields: [fieldKey],
+        previousCode
+      });
       setTimeout(() => { if (saveStatus) saveStatus.textContent = ""; }, 2000);
       return true;
     }
@@ -5566,24 +5721,19 @@ function bindStatusBadgeClick() {
       showToast("请先登录", "error");
       return;
     }
-
-    if (shouldApplyInitialPlatformDefaults) {
-      const baseSpace = getSpaceById(BASE_SPACE_ID);
-      if (!baseSpace) return;
-
+    try {
+      const workbench = await ensureCourseWorkbenchInitialized();
+      const context = await workbench.showDashboard();
+      await openCoursePlanningWorkspace("2d", context?.group || null);
+      await recordCourseActivity("course_entered", {
+        type: "course",
+        id: window.CourseModelModule.DEFAULT_COURSE.id
+      });
       shouldApplyInitialPlatformDefaults = false;
-      isPlanningMode = false;
-      baseSpace.viewMode = "2d";
-      baseSpace.basemapVisible = false;
-      saveBasemapLabelVisible(false);
-      setSpaceSelectedLayers(BASE_SPACE_ID, DEFAULT_SELECTED_LAYER_KEYS);
-
-      await handleSpaceSelect(BASE_SPACE_ID);
-      return;
+    } catch (error) {
+      console.error("进入课程工作台失败：", error);
+      showToast(error?.message || "课程工作台加载失败", "error");
     }
-
-    const targetSpaceId = getSpaceById(currentSpaceId) ? currentSpaceId : BASE_SPACE_ID;
-    await handleSpaceSelect(targetSpaceId);
   });
 }
 
@@ -5705,11 +5855,13 @@ async function init() {
     sync2DSpaceStateTo3D();
 
     renderSpaceList();
+    await ensureCourseWorkbenchInitialized();
     syncSidebarExpansionUI();
     bindHomeButton();
     bindAuthLoginButton();
     bindProfileCenterEntrypoints();
     bindStatusBadgeClick();
+    bindCourseTaskSidebarToggle();
     bindMapSidePanelToggleButtons();
     bindBasemapToggle();
     bindAddSpaceButton();
@@ -5720,7 +5872,7 @@ async function init() {
     syncMapSidePanelLayout();
 
     // 监听认证状态变化
-    window.addEventListener("village-auth-change", () => {
+    window.addEventListener("village-auth-change", async () => {
       updateAuthButtonUI();
       const user = window.VillageAuth ? window.VillageAuth.getCurrentUser() : null;
       const displayName = user ? user.name : "";
@@ -5728,6 +5880,9 @@ async function init() {
         setCurrentUser(displayName);
       }
       renderHomepageIdentityUi();
+      if (courseWorkbench) {
+        await courseWorkbench.refresh();
+      }
     });
     updateAuthButtonUI();
     // 首次加载时同步认证状态到旧系统

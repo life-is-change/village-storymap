@@ -1,5 +1,7 @@
 # Orthophoto Transparent NoData Implementation Plan
 
+> **过程文档：** 本文件仅用于记录方案实施过程与验证步骤，不属于平台运行文件。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将 2D、3D 共用正射影像外围的黑色 NoData 区透明化，同时保持尺寸和地理配准不变。

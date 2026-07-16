@@ -1,5 +1,7 @@
 # 首页村庄现状地图 Implementation Plan
 
+> **过程文档：** 本文件仅用于记录方案实施过程与验证步骤，不属于平台运行文件。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在首页村庄现状区域提供可扩展的村庄选择、米埗村简介和带完整控制项的天地图影像地图。

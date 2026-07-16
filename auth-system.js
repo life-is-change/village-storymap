@@ -200,15 +200,19 @@ const ENABLE_SUPABASE_SYNC = (() => {
       .subscribe();
   }
 
-  function findUserByName(name) {
+  function findUserByCredential(name, studentId) {
     const users = loadAuthUsers();
-    return users.find((u) => u.name === name) || null;
+    const normalizedName = String(name || "").trim();
+    const normalizedId = String(studentId || "").trim();
+    return users.find(
+      (u) => String(u.name || "").trim() === normalizedName && String(u.studentId || "").trim() === normalizedId
+    ) || null;
   }
 
   function getCurrentUser() {
     const session = loadAuthSession();
     if (!session || !session.name) return null;
-    return findUserByName(session.name);
+    return findUserByCredential(session.name, session.studentId);
   }
 
   function isLoggedIn() {
@@ -225,7 +229,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const trimmedId = String(studentId || "").trim();
 
     if (!trimmedName) return { success: false, message: "请输入姓名" };
-    if (!trimmedId) return { success: false, message: "请输入学号" };
+    if (!trimmedId) return { success: false, message: "请输入学号或管理员凭据" };
     if (trimmedName.length > 20) return { success: false, message: "姓名不能超过20个字符" };
     if (trimmedId.length > 20) return { success: false, message: "学号不能超过20个字符" };
 
@@ -410,8 +414,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
               <input type="text" id="authName" class="auth-form-input" placeholder="请输入姓名" maxlength="20">
             </div>
             <div class="auth-form-group">
-              <label class="auth-form-label">学号</label>
-              <input type="text" id="authStudentId" class="auth-form-input" placeholder="请输入学号" maxlength="20">
+              <label class="auth-form-label">学号 / 管理员凭据</label>
+              <input type="text" id="authStudentId" class="auth-form-input" placeholder="普通用户输入学号；管理员输入 332" maxlength="20">
             </div>
             <div class="auth-form-tip" id="authModeTip"></div>
             <div class="auth-form-tip" id="authTip"></div>
@@ -487,7 +491,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const currentName = document.getElementById("authCurrentName");
       const currentStudentId = document.getElementById("authCurrentStudentId");
       if (currentName) currentName.textContent = user.name;
-      if (currentStudentId) currentStudentId.textContent = `学号：${user.studentId}`;
+      if (currentStudentId) {
+        currentStudentId.textContent = window.AccessControlModule?.isAdminUser(user)
+          ? "管理员凭据：已验证"
+          : `学号：${user.studentId}`;
+      }
     } else {
       loggedInPanel.style.display = "none";
       loggedOutPanel.style.display = "";
@@ -499,7 +507,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       if (authName) authName.value = "";
       if (authStudentId) authStudentId.value = "";
       if (modeTipEl) {
-        modeTipEl.textContent = "未注册的账号将自动注册";
+        modeTipEl.textContent = "普通用户输入姓名和学号；管理员使用账号“管理员”和凭据“332”";
         modeTipEl.className = "auth-form-tip";
       }
       const submitBtn = document.getElementById("authSubmitBtn");
@@ -655,7 +663,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           window.showToast("您的账号已在其他地方登录，您已被退出。", "error");
         }
       } else {
-        const user = findUserByName(session.name);
+        const user = findUserByCredential(session.name, session.studentId);
         if (user) {
           syncLegacyActiveUser(user.name);
           setTimeout(onAuthStateChanged, 0);
