@@ -52,35 +52,6 @@
         });
       }
 
-      const modeSwitch = document.querySelector("[data-mode-switch]");
-      if (modeSwitch) {
-        modeSwitch.querySelectorAll("[data-mode]").forEach((btn) => {
-          btn.addEventListener("click", async (event) => {
-            event.stopPropagation();
-            const mode = btn.dataset.mode;
-            const currentMode = deps.getIsPlanningMode() ? "planning" : "collab";
-            if (mode === currentMode) return;
-            const isPlanning = mode === "planning";
-            deps.rememberCurrentSpaceForActiveMode?.();
-            deps.setIsPlanningMode(isPlanning);
-
-            // 共建模式强制切换到现状空间的平面视图
-            if (!isPlanning) {
-              const baseSpace = deps.getSpaceById(deps.BASE_SPACE_ID);
-              if (baseSpace) {
-                baseSpace.viewMode = "2d";
-                deps.saveSpacesToStorage();
-              }
-            }
-
-            const targetSpaceId = isPlanning
-              ? (deps.getSpaceById(deps.getLastPlanningSpaceId?.()) ? deps.getLastPlanningSpaceId() : deps.BASE_SPACE_ID)
-              : deps.BASE_SPACE_ID; // 共建模式强制锁定现状空间
-            await deps.handleSpaceSelect(targetSpaceId);
-          });
-        });
-      }
-
       const viewModeButtons = document.querySelectorAll("[data-space-view]");
       viewModeButtons.forEach((button) => {
         button.addEventListener("click", async (event) => {
@@ -96,8 +67,6 @@
           deps.saveSpacesToStorage();
 
           deps.setCurrentSpaceId(spaceId);
-          deps.setCurrentSelectedObject(null);
-          deps.setCurrentInfoMode("readonly");
           deps.saveSpacesToStorage();
           deps.sync2DSpaceStateTo3D();
 

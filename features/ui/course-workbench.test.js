@@ -19,10 +19,25 @@ test("task drawer renders only the active stage guidance without a standalone pl
     activeTaskId: "survey-collect"
   });
 
-  assert.match(html, /整理调研照片与备注/);
+  assert.match(html, /调研采集与现状校核/);
   assert.match(html, /调研照片/);
   assert.doesNotMatch(html, /平台入口|进入原有 2D|进入原有 3D/);
   assert.doesNotMatch(html, /最近操作|个人记录/);
+});
+
+test("survey context focuses on outcomes, resources and recommended actions", () => {
+  const html = renderDashboard({
+    course: DEFAULT_COURSE,
+    user: student,
+    context: { group: null, progress: { completedTaskIds: [] } },
+    nextTask: DEFAULT_COURSE.tasks[0],
+    activeTaskId: "survey-collect"
+  });
+
+  assert.match(html, /阶段成果/);
+  assert.match(html, /相关资料/);
+  assert.match(html, /建议操作/);
+  assert.doesNotMatch(html, /进入原有 2D|进入原有 3D|最近操作/);
 });
 
 test("join-group stage shows the join form inside the task drawer", () => {
@@ -76,7 +91,9 @@ test("task navigation is an icon rail with accessible stage names", () => {
 
   assert.match(html, /course-task-rail-item is-complete/);
   assert.match(html, /course-task-rail-item is-active/);
-  assert.match(html, /aria-label="3\. 调研采集，进行中"/);
+  assert.match(html, /aria-label="3\. 调研采集与现状校核，进行中"/);
   assert.match(html, /course-task-rail-icon/);
   assert.doesNotMatch(html, /course-task-nav-copy/);
+  assert.equal((html.match(/data-stage-kind="preparation"/g) || []).length, 2);
+  assert.equal((html.match(/data-stage-kind="practice"/g) || []).length, 4);
 });

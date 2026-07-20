@@ -10,22 +10,30 @@ const {
   canJoinGroup
 } = require("./course-model.js");
 
-test("default course follows the approved seven-stage workflow", () => {
+test("default course has two preparation statuses and four practice stages", () => {
   assert.deepEqual(DEFAULT_COURSE.stages.map((stage) => stage.key), [
     "group_join",
     "learning",
     "survey",
     "diagnosis",
     "design",
-    "review",
     "submission"
   ]);
+  assert.deepEqual(DEFAULT_COURSE.stages.map((stage) => stage.kind), [
+    "preparation",
+    "preparation",
+    "practice",
+    "practice",
+    "practice",
+    "practice"
+  ]);
+  assert.equal(DEFAULT_COURSE.tasks.some((task) => task.id === "review-plan"), false);
 });
 
 test("ordered stages return a copy instead of mutating the course", () => {
   const ordered = getOrderedStages(DEFAULT_COURSE);
   ordered.shift();
-  assert.equal(DEFAULT_COURSE.stages.length, 7);
+  assert.equal(DEFAULT_COURSE.stages.length, 6);
 });
 
 test("next task is the first incomplete ordered task", () => {

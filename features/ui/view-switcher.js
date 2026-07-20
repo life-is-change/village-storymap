@@ -33,6 +33,10 @@
       deps.switchMainView("plan2d");
       deps.syncBasemapUIBySpace(deps.getCurrentSpaceId());
       deps.update2DStatusText();
+      const detailSubtitle = deps.getDetailSubtitle();
+      if (detailSubtitle) {
+        detailSubtitle.textContent = "选择地图对象，查看属性、照片与相关讨论";
+      }
 
       const map = await deps.ensurePlanMap();
       if (map && !window.__hasInitialZoomed) {
@@ -47,37 +51,32 @@
         window.__hasInitialZoomed = true;
       }
 
-      const isPlanningMode = deps.getIsPlanningMode ? deps.getIsPlanningMode() : true;
-      // 控制右侧栏标题显示
+      // 2D/3D 共用同一对象信息栏。
       const detailPanel = document.querySelector(".detail-panel");
       if (detailPanel) {
         const header = detailPanel.querySelector(".panel-header");
-        if (header) header.style.display = isPlanningMode ? "" : "none";
+        if (header) header.style.display = "";
       }
 
       if (!deps.getCurrentSelectedObject()) {
-        if (!isPlanningMode) {
-          await deps.refreshCommunityMessageBoard?.();
+        const selectedLayers = deps.getSelectedLayersForCurrentSpace();
+        const infoPanel = deps.getInfoPanel();
+        infoPanel.classList.remove("empty");
+        if (!selectedLayers.length) {
+          infoPanel.innerHTML = `
+            <div class="placeholder-block">
+              <h3>当前未显示任何图层</h3>
+              <p>你已将当前空间中的所有图层关闭。</p>
+              <p>可在“图层与项目设置”中重新开启图层。</p>
+            </div>
+          `;
         } else {
-          const selectedLayers = deps.getSelectedLayersForCurrentSpace();
-          const infoPanel = deps.getInfoPanel();
-          infoPanel.classList.remove("empty");
-          if (!selectedLayers.length) {
-            infoPanel.innerHTML = `
-          <div class="placeholder-block">
-            <h3>当前未显示任何图层</h3>
-            <p>你已将当前空间中的所有图层关闭。</p>
-            <p>可在左侧重新点击任意图层按钮，恢复显示。</p>
-          </div>
-        `;
-          } else {
-            infoPanel.innerHTML = `
-          <div class="placeholder-block">
-            <h3>村庄 2D 图层</h3>
-            <p>可在左侧空间中切换不同图层组合，并点击地图中的对象查看详细信息。</p>
-          </div>
-        `;
-          }
+          infoPanel.innerHTML = `
+            <div class="placeholder-block">
+              <h3>对象信息与协作</h3>
+              <p>点击地图中的建筑、道路等对象查看属性、照片和相关讨论。</p>
+            </div>
+          `;
         }
       }
 
@@ -125,17 +124,19 @@
       }
       const detailSubtitle = deps.getDetailSubtitle();
       if (detailSubtitle) {
-        detailSubtitle.textContent = "当前显示三维白模与地形";
+        detailSubtitle.textContent = "2D 与 3D 共用对象信息；点击三维建筑可继续查看与讨论";
       }
 
       const infoPanel = deps.getInfoPanel();
-      infoPanel.classList.remove("empty");
-      infoPanel.innerHTML = `
-    <div class="placeholder-block">
-      <h3>村庄 3D 模型</h3>
-      <p>正在进入三维模式。点击白模建筑后，可在右侧查看对应对象信息。</p>
-    </div>
-  `;
+      if (!deps.getCurrentSelectedObject()) {
+        infoPanel.classList.remove("empty");
+        infoPanel.innerHTML = `
+          <div class="placeholder-block">
+            <h3>对象信息与协作</h3>
+            <p>2D 与 3D 共用当前空间和对象。点击三维建筑后可继续查看属性与讨论。</p>
+          </div>
+        `;
+      }
 
       try {
         if (!window.Village3D || typeof window.Village3D.enter !== "function") {

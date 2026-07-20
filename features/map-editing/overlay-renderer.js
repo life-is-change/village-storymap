@@ -387,12 +387,10 @@
         currentVectorSource.addFeatures(nextVectorSource.getFeatures());
       }
 
-      if (!deps.getIsPlanningMode()) {
-        try {
-          await deps.refreshCommunityTasksOnMap(format);
-        } catch (taskLayerError) {
-          console.warn("社区任务图层刷新失败（不影响基础图层）：", taskLayerError);
-        }
+      try {
+        await deps.refreshCommunityTasksOnMap(format);
+      } catch (taskLayerError) {
+        console.warn("问题标记图层刷新失败（不影响基础图层）：", taskLayerError);
       }
 
       planVectorLayer.changed();

@@ -158,8 +158,6 @@
       const planVectorSource = deps.getPlanVectorSource();
       const buildingEditState = deps.getBuildingEditState();
       const communityTaskEditState = deps.getCommunityTaskEditState();
-      const isPlanningMode = deps.getIsPlanningMode ? deps.getIsPlanningMode() : true;
-
       const clicked = pickInteractiveFeatureAtPixel(planMap, evt.pixel, deps.isNonInteractiveLayerKey);
 
       if (communityTaskEditState.mode === "report") {
@@ -167,16 +165,13 @@
         if (handled) return;
       }
 
-      // 共建模式下只允许点击社区任务标记，自动定位右侧留言板并高亮
-      if (!isPlanningMode) {
-        if (clicked && clicked.get("layerKey") === "communityTask") {
-          deps.setActiveFeature(clicked);
-          planVectorLayer?.changed();
-          const taskRow = clicked.get("taskRow");
-          // 直接定位到留言板对应留言并高亮，不弹出老版本任务详情
-          if (taskRow?.id) {
-            deps.scrollToAndHighlightMessage?.(taskRow.id);
-          }
+      // 问题点与普通要素在统一工作区中同时可交互。
+      if (clicked && clicked.get("layerKey") === "communityTask") {
+        deps.setActiveFeature(clicked);
+        planVectorLayer?.changed();
+        const taskRow = clicked.get("taskRow");
+        if (taskRow?.id) {
+          deps.scrollToAndHighlightMessage?.(taskRow.id);
         }
         return;
       }

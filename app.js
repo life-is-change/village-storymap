@@ -121,6 +121,11 @@ const courseTaskSidebar = document.getElementById("courseTaskSidebar");
 const courseTaskToggleBtn = document.getElementById("courseTaskToggleBtn");
 const courseWorkbenchContent = document.getElementById("courseWorkbenchContent");
 const courseTaskNav = document.getElementById("courseTaskNav");
+const workspaceVillageLabel = document.getElementById("workspaceVillageLabel");
+const workspaceStageLabel = document.getElementById("workspaceStageLabel");
+const projectSettingsBtn = document.getElementById("projectSettingsBtn");
+const projectSettingsDrawer = document.getElementById("projectSettingsDrawer");
+const projectSettingsCloseBtn = document.getElementById("projectSettingsCloseBtn");
 const plan2dView = document.getElementById("plan2dView");
 const model3dView = document.getElementById("model3dView");
 
@@ -251,6 +256,8 @@ let isPlanningMode = false;
 let isLeftPanelCollapsed = false;
 let isRightPanelCollapsed = false;
 let isCourseTaskSidebarExpanded = true;
+let isProjectSettingsOpen = false;
+let activeCourseTaskContext = null;
 let shouldApplyInitialPlatformDefaults = false;
 window.isSpaceSidebarExpanded = isSpaceSidebarExpanded;
 
@@ -1360,7 +1367,7 @@ function bindHomepageLandingBridge() {
 
   const bindInFrame = () => {
     const frameDoc = frame.contentDocument;
-    if (!frameDoc) return;
+    if (!frameDoc?.documentElement) return;
 
     renderHomepageIdentityUi(frameDoc);
     ensureHomepageLogoutButton(frameDoc);
@@ -1620,7 +1627,11 @@ async function ensureCourseWorkbenchInitialized() {
     logger: activityLogger,
     getUser: getCourseUser,
     showToast,
-    onTaskSelected: () => setCourseTaskSidebarExpanded(true)
+    onTaskSelected: () => setCourseTaskSidebarExpanded(true),
+    onTaskChanged: (context) => {
+      activeCourseTaskContext = context;
+      updateWorkspaceContextBar(context);
+    }
   });
   await courseWorkbench.init();
   return courseWorkbench;
@@ -2620,7 +2631,14 @@ function getLayerIconSvg(layerKey) {
 }
 
 function renderSpaceList() {
-  return getSpacePanelModule().renderSpaceList(buildSpacePanelDeps());
+  const result = getSpacePanelModule().renderSpaceList(buildSpacePanelDeps());
+  updateWorkspaceContextBar();
+  if (isProjectSettingsOpen) {
+    Promise.resolve(refreshCommunityMessageBoard()).catch((error) => {
+      console.warn("刷新问题与留言失败：", error);
+    });
+  }
+  return result;
 }
 
 function bindSpaceListEvents() {
@@ -3548,6 +3566,12 @@ function ensureCommunityBuildPanel() {
 
   mount.innerHTML = `
     <div id="communityBuildPanel" class="community-build-panel">
+      <div class="community-panel-actions">
+        <button type="button" class="community-report-btn" data-community-action="report">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          <span>新增问题标记或留言</span>
+        </button>
+      </div>
       <div class="community-type-section">
         <div class="community-type-list" data-community-type-body>
           ${Object.entries(typeMeta).map(([key, meta]) => `
@@ -3560,6 +3584,19 @@ function ensureCommunityBuildPanel() {
       </div>
     </div>
   `;
+
+  mount.querySelectorAll('[data-community-action="report"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (communityTaskEditState.mode === "report") {
+        communityTaskEditState.mode = "idle";
+        communityTaskEditState.pendingPayload = null;
+        showToast("已取消问题标记", "info");
+      } else {
+        startCommunityTaskReport();
+      }
+      syncCommunityTaskUiState();
+    });
+  });
 
   mount.querySelectorAll("[data-community-task-type]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -3594,58 +3631,6 @@ async function refreshCommunityTasksOnMapAsync() {
 async function refreshCommunityMessageBoard() {
   let listEl = document.getElementById("communityMessageList");
   let boardEl = document.getElementById("communityMessageBoard");
-
-  // 共建模式下，留言板渲染到右侧 infoPanel
-  if (!listEl && !isPlanningMode) {
-    const infoPanel = document.getElementById("infoPanel");
-    if (infoPanel) {
-      infoPanel.classList.remove("empty");
-      infoPanel.innerHTML = `
-        <div class="community-message-board" id="communityMessageBoard" style="padding:12px; min-height:100%; display:flex; flex-direction:column;">
-          <div class="community-message-board-header">
-            <span>留言板</span>
-          </div>
-          <div class="community-message-sort-row">
-            <select id="communityMessageSortSelect" class="community-message-sort-select">
-              <option value="time_desc">时间晚→早</option>
-              <option value="time_asc">时间早→晚</option>
-              <option value="likes_desc">点赞多→少</option>
-              <option value="likes_asc">点赞少→多</option>
-              <option value="replies_desc">评论多→少</option>
-              <option value="replies_asc">评论少→多</option>
-            </select>
-            <button type="button" class="community-report-btn" data-community-action="report">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-              <span>发布留言</span>
-            </button>
-          </div>
-          <div class="community-message-list" id="communityMessageList" style="flex:1; overflow-y:auto;"></div>
-        </div>
-      `;
-      const reportBtn = infoPanel.querySelector('[data-community-action="report"]');
-      if (reportBtn) {
-        reportBtn.addEventListener("click", () => {
-          if (communityTaskEditState.mode === "report") {
-            communityTaskEditState.mode = "idle";
-            showToast("已取消创建", "info");
-          } else {
-            startCommunityTaskReport();
-          }
-          syncCommunityTaskUiState();
-        });
-      }
-      const sortSelect = document.getElementById("communityMessageSortSelect");
-      if (sortSelect) {
-        sortSelect.value = messageBoardSortOrder;
-        sortSelect.addEventListener("change", (e) => {
-          messageBoardSortOrder = e.target.value;
-          refreshCommunityMessageBoard();
-        });
-      }
-      listEl = document.getElementById("communityMessageList");
-      boardEl = document.getElementById("communityMessageBoard");
-    }
-  }
 
   // 如果已有留言板但没有排序下拉框，补一个
   if (boardEl && !boardEl.querySelector("#communityMessageSortSelect")) {
@@ -4748,6 +4733,7 @@ function switchMainView(viewKey) {
   mainLayout.classList.remove("mode-overview", "mode-map");
 
   if (viewKey === "overview") {
+    setProjectSettingsOpen(false);
     overviewView.classList.add("active");
     mainLayout.classList.add("mode-overview");
   } else if (viewKey === "plan2d") {
@@ -4775,6 +4761,55 @@ function switchMainView(viewKey) {
       requestAnimationFrame(() => {
         mainLayout.classList.remove("is-view-switching");
       });
+    });
+  }
+}
+
+function updateWorkspaceContextBar(context = activeCourseTaskContext) {
+  if (context) activeCourseTaskContext = context;
+  const course = window.CourseModelModule?.DEFAULT_COURSE;
+  const currentSpace = getCurrentSpace();
+  const stageTitle = context?.stage?.title || context?.task?.title || "课程实践";
+
+  if (workspaceVillageLabel) {
+    workspaceVillageLabel.textContent = course?.villageName || "米埗村";
+  }
+  if (workspaceStageLabel) {
+    workspaceStageLabel.textContent = stageTitle;
+    workspaceStageLabel.title = currentSpace?.title
+      ? `${stageTitle} · ${currentSpace.title}`
+      : stageTitle;
+  }
+}
+
+function setProjectSettingsOpen(open) {
+  isProjectSettingsOpen = Boolean(open);
+  projectSettingsDrawer?.classList.toggle("is-open", isProjectSettingsOpen);
+  projectSettingsDrawer?.setAttribute("aria-hidden", String(!isProjectSettingsOpen));
+  projectSettingsBtn?.setAttribute("aria-expanded", String(isProjectSettingsOpen));
+
+  if (isProjectSettingsOpen) {
+    renderSpaceList();
+  }
+}
+
+function bindProjectSettingsDrawer() {
+  if (projectSettingsBtn && !projectSettingsBtn.dataset.bound) {
+    projectSettingsBtn.dataset.bound = "1";
+    projectSettingsBtn.addEventListener("click", () => {
+      setProjectSettingsOpen(!isProjectSettingsOpen);
+    });
+  }
+  if (projectSettingsCloseBtn && !projectSettingsCloseBtn.dataset.bound) {
+    projectSettingsCloseBtn.dataset.bound = "1";
+    projectSettingsCloseBtn.addEventListener("click", () => setProjectSettingsOpen(false));
+  }
+  if (!document.body.dataset.projectSettingsEscapeBound) {
+    document.body.dataset.projectSettingsEscapeBound = "1";
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && isProjectSettingsOpen) {
+        setProjectSettingsOpen(false);
+      }
     });
   }
 }
@@ -4895,14 +4930,6 @@ function showVillageOverview() {
   updateUserGreeting("overview");
 }
 function showPlan2DOverview() {
-  // 共建模式下右侧栏始终显示留言板，不覆盖为 2D 概览占位
-  if (!isPlanningMode) {
-    if (!document.getElementById("communityMessageBoard")) {
-      refreshCommunityMessageBoard();
-    }
-    return;
-  }
-
   update2DStatusText();
 
   const selectedLayers = getSelectedLayersForCurrentSpace();
@@ -5863,6 +5890,7 @@ async function init() {
     bindStatusBadgeClick();
     bindCourseTaskSidebarToggle();
     bindMapSidePanelToggleButtons();
+    bindProjectSettingsDrawer();
     bindBasemapToggle();
     bindAddSpaceButton();
     bindResizeObserver();

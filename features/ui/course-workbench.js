@@ -60,6 +60,7 @@
             type="button"
             class="course-task-rail-item${stateClass}"
             data-course-task-id="${escapeHtml(stageTaskId)}"
+            data-stage-kind="${escapeHtml(stage.kind || "practice")}"
             aria-label="${stage.index + 1}. ${escapeHtml(stage.title)}，${stateText}"
             title="${stage.index + 1}. ${escapeHtml(stage.title)}"
           >
@@ -81,7 +82,7 @@
         spaceId: context?.group?.spaceId || ""
       };
     }
-    if (["survey-collect", "diagnosis-list", "review-plan"].includes(task?.id)) {
+    if (["survey-collect", "diagnosis-list"].includes(task?.id)) {
       return { type: "map_task", viewModes: ["2d"], spaceId: context?.group?.spaceId || "" };
     }
     return { type: "complete_task" };
@@ -99,39 +100,6 @@
   }
 
   function renderTaskGuidance(task, context) {
-    const guidance = {
-      "learning-ready": [
-        "返回首页完成理论学习内容。",
-        "阅读当前村庄的现状与问题信息。",
-        "与小组成员确认本次实践分工。"
-      ],
-      "survey-collect": [
-        "在当前地图中定位调研对象或现场位置。",
-        "点击对象后上传调研照片并填写说明。",
-        "补充照片类型、时间和需要关注的问题。"
-      ],
-      "diagnosis-list": [
-        "在地图上标记道路、排水、安全等现状问题。",
-        "结合照片和对象属性补充问题依据。",
-        "通过评论与回复整理小组问题清单。"
-      ],
-      "design-workspace": [
-        "直接使用原菜单中的建筑、道路和空间编辑工具。",
-        "通过平台原有视图开关在 2D 与 3D 间切换。",
-        "所有编辑保存在当前公共空间或小组共享空间中。"
-      ],
-      "review-plan": [
-        "检查规划要素的位置、属性和空间关系。",
-        "针对具体对象填写评论和修改意见。",
-        "完成组内复核后再记录本阶段完成。"
-      ],
-      "submit-result": [
-        "确认当前空间为准备提交的最终方案版本。",
-        "整理方案说明、主要调整内容和附件。",
-        "完成个人反思并等待教师检查成果。"
-      ]
-    };
-
     if (task.id === "join-group") {
       if (context?.group) {
         return `
@@ -151,16 +119,22 @@
       `;
     }
 
-    const items = guidance[task.id] || [];
+    const contextSections = [
+      { key: "outcomes", title: "阶段成果" },
+      { key: "resources", title: "相关资料" },
+      { key: "actions", title: "建议操作" }
+    ];
     return `
-      <ol class="course-task-checklist">
-        ${items.map((item, index) => `
-          <li>
-            <span>${index + 1}</span>
-            <p>${escapeHtml(item)}</p>
-          </li>
+      <div class="course-context-sections">
+        ${contextSections.map((section) => `
+          <section class="course-context-section" data-context-section="${section.key}">
+            <h3>${section.title}</h3>
+            <ul>
+              ${(task.context?.[section.key] || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+            </ul>
+          </section>
         `).join("")}
-      </ol>
+      </div>
     `;
   }
 
@@ -218,6 +192,12 @@
     let activeTaskId = "";
     let bound = false;
 
+    function notifyTaskChanged() {
+      const task = (course.tasks || []).find((item) => item.id === activeTaskId) || null;
+      const stage = (course.stages || []).find((item) => item.key === task?.stageKey) || null;
+      deps.onTaskChanged?.({ task, stage });
+    }
+
     function getUser() {
       return deps.getUser?.() || {};
     }
@@ -249,6 +229,7 @@
           activeTaskId
         });
       }
+      notifyTaskChanged();
     }
 
     async function refresh() {

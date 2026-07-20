@@ -21,8 +21,6 @@
       planMap.on("pointermove", (evt) => {
         if (evt.dragging) return;
 
-        const isPlanningMode = deps.getIsPlanningMode ? deps.getIsPlanningMode() : true;
-
         pendingHoverPixel = Array.isArray(evt.pixel) ? [...evt.pixel] : evt.pixel;
         if (hoverCheckRaf) return;
 
@@ -33,14 +31,6 @@
 
           const hovered = pickHoveredFeature(currentMap, pendingHoverPixel, deps.isNonInteractiveLayerKey);
           pendingHoverPixel = null;
-
-          // 共建模式下只允许社区任务标记的 hover 指针变化，其余禁用
-          if (!isPlanningMode) {
-            const targetEl = currentMap.getTargetElement();
-            const isCommunityTask = hovered && hovered.get("layerKey") === "communityTask";
-            if (targetEl) targetEl.style.cursor = isCommunityTask ? "pointer" : "";
-            return;
-          }
 
           const prevHover = deps.getHoverFeature();
           if (hovered !== prevHover) {

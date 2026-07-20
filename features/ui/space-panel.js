@@ -199,9 +199,7 @@
         `
         : "";
 
-      const isPlanningMode = deps.getIsPlanningMode();
-
-      // ===== 图层控制（规划/共建模式下均显示） =====
+      // ===== 图层控制（统一工作区中始终可见） =====
       const layersControlHtml = currentSpace.viewMode === "2d" ? `
         <div class="menu-tree-section is-expandable">
           <button class="menu-l1-header" type="button" data-space-options-toggle>
@@ -216,141 +214,112 @@
         </div>
       ` : `
         <div class="menu-tree-section">
+          <div class="menu-l1-header">
+            <span class="menu-l1-title">图层控制</span>
+          </div>
           <div class="menu-l1-body">
             <div class="menu-indent">
-              <div class="space-3d-hint">立体视图下不支持图层控制与空间工具</div>
+              <div class="space-3d-hint">当前为立体视图。图层仍属于同一空间，可切回平面视图调整显示组合。</div>
             </div>
           </div>
         </div>
-      `;
-
-      // ===== 共建模式内容 =====
-      const collabModeHtml = `
-        ${layersControlHtml}
-        <div class="menu-tree-section is-expandable">
-          <button class="menu-l1-header" type="button" data-community-toggle>
-            ${renderToggleTriangle(deps.getIsCommunityExpanded())}
-            <span class="menu-l1-title">社区共建<span class="toolbox-info-icon" title="可发布留言或选择任务类型并在地图上标记位置，参与村庄共建。">i</span></span>
-          </button>
-          <div class="menu-l1-body ${deps.getIsCommunityExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
-            <div class="menu-indent">
-              <div class="community-content is-compact">
-                <div id="communityBuildMount"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
       `;
 
       // ===== 构建完整层级菜单 =====
       const html = `
         <div class="menu-tree">
-          ${isPlanningMode ? `
-            <!-- 1. 空间管理 -->
-            <div class="menu-tree-section">
-              <div class="menu-l1-header">
-                <span class="menu-l1-title">空间管理</span>
-                <div class="menu-header-actions">
-                  <button class="space-icon-btn space-add-icon-btn" type="button" title="新建空间" data-add-space>+</button>
-                  <button class="space-icon-btn space-rename-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-rename-trigger="${currentSpace.id}" title="重命名空间" ${!canManageCurrentSpace ? "disabled" : ""}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                  </button>
-                  <button class="space-icon-btn space-delete-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-delete="${currentSpace.id}" title="删除空间" ${!canManageCurrentSpace ? "disabled" : ""}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div class="menu-l1-body">
-                <div class="menu-indent">
-                  <select class="space-select-dropdown" data-space-dropdown>
-                    ${dropdownOptionsHtml}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- 2. 视图模式 -->
-            <div class="menu-tree-section">
-              <div class="menu-l1-header">
-                <span class="menu-l1-title">视图模式</span>
-              </div>
-              <div class="menu-l1-body">
-                <div class="menu-indent">
-                  ${viewModeSwitchHtml}
-                </div>
-              </div>
-            </div>
-
-            ${layersControlHtml}
-
-            ${currentSpace.viewMode === "2d" ? `
-              <!-- 4. 空间工具（可折叠） -->
-              <div class="menu-tree-section is-expandable">
-                <button class="menu-l1-header" type="button" data-toolbox-toggle>
-                  ${renderToggleTriangle(deps.getIsToolboxExpanded())}
-                  <span class="menu-l1-title">空间工具<span class="toolbox-info-icon" title="操作提示：请先选择对象类型后，再选择操作工具进入编辑模式，完成后请点击保存编辑，否则编辑内容不会被保存。">i</span></span>
+          <!-- 1. 空间管理：空间选择位于地图顶部，这里只保留项目操作 -->
+          <div class="menu-tree-section">
+            <div class="menu-l1-header">
+              <span class="menu-l1-title">空间管理</span>
+              <div class="menu-header-actions">
+                <button class="space-icon-btn space-add-icon-btn" type="button" title="新建空间" data-add-space>+</button>
+                <button class="space-icon-btn space-rename-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-rename-trigger="${currentSpace.id}" title="重命名空间" ${!canManageCurrentSpace ? "disabled" : ""}>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
                 </button>
-                <div class="menu-l1-body ${deps.getIsToolboxExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
-                  <div class="menu-indent">
-                    ${
-                      canManageCurrentSpace
-                        ? `<div id="toolboxToolbarMount"></div>`
-                        : `<div class="space-permission-tip">该空间由 ${deps.escapeHtml(currentSpaceCreator || "其他账号")} 创建，你可查看图层与参与社区共建留言，但不能修改几何与属性。</div>`
-                    }
+                <button class="space-icon-btn space-delete-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-delete="${currentSpace.id}" title="删除空间" ${!canManageCurrentSpace ? "disabled" : ""}>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          ${layersControlHtml}
+
+          <!-- 2. 问题与留言：地图点标记与要素留言共用同一入口 -->
+          <div class="menu-tree-section is-expandable">
+            <button class="menu-l1-header" type="button" data-community-toggle>
+              ${renderToggleTriangle(deps.getIsCommunityExpanded())}
+              <span class="menu-l1-title">问题与留言<span class="toolbox-info-icon" title="可绘制问题点，也可选中建筑、道路等要素后发表留言。">i</span></span>
+            </button>
+            <div class="menu-l1-body ${deps.getIsCommunityExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
+              <div class="menu-indent">
+                <div class="community-content is-compact">
+                  <div id="communityBuildMount"></div>
+                  <div class="community-message-board" id="communityMessageBoard">
+                    <div class="community-message-board-header"><span>班级留言</span></div>
+                    <div class="community-message-list" id="communityMessageList"></div>
                   </div>
                 </div>
               </div>
-            ` : ""}
+            </div>
+          </div>
 
-            <!-- 6. 导出 -->
-            <div class="menu-tree-section">
-              <div class="menu-l1-header">
-                <span class="menu-l1-title">导出</span>
-              </div>
-              <div class="menu-l1-body">
-                <div class="menu-indent">
-                  <button id="exportToMcBtn" class="mc-export-btn toolbox-btn space-export-mc-btn" type="button">导出当前空间到MC</button>
-                </div>
+          <!-- 3. 空间工具：3D 下保持结构稳定，并说明编辑入口 -->
+          <div class="menu-tree-section is-expandable">
+            <button class="menu-l1-header" type="button" data-toolbox-toggle>
+              ${renderToggleTriangle(deps.getIsToolboxExpanded())}
+              <span class="menu-l1-title">空间工具<span class="toolbox-info-icon" title="先选择对象类型与操作工具，完成后保存编辑。">i</span></span>
+            </button>
+            <div class="menu-l1-body ${deps.getIsToolboxExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
+              <div class="menu-indent">
+                ${currentSpace.viewMode === "2d"
+                  ? canManageCurrentSpace
+                    ? `<div id="toolboxToolbarMount"></div>`
+                    : `<div class="space-permission-tip">该空间由 ${deps.escapeHtml(currentSpaceCreator || "其他账号")} 创建，你可查看图层与参与留言，但不能修改几何与属性。</div>`
+                  : `<div class="space-3d-hint">3D 与 2D 使用同一空间数据。轮廓与属性编辑请切回平面视图，3D 中保留观察与方案检查。</div>`
+                }
               </div>
             </div>
-          ` : collabModeHtml}
-        </div>
-        ${!isPlanningMode ? `
-          <div class="menu-tree-footer">
-            <div id="communityScoreBadge" class="community-score-badge">贡献值：--</div>
           </div>
-        ` : ""}
+
+          <!-- 4. 导出 -->
+          <div class="menu-tree-section">
+            <div class="menu-l1-header">
+              <span class="menu-l1-title">导出</span>
+            </div>
+            <div class="menu-l1-body">
+              <div class="menu-indent">
+                <button id="exportToMcBtn" class="mc-export-btn toolbox-btn space-export-mc-btn" type="button">导出当前空间到MC</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="menu-tree-footer">
+          <div id="communityScoreBadge" class="community-score-badge">贡献值：--</div>
+        </div>
       `;
 
       spaceListEl.innerHTML = html;
 
-      // 更新模式切换按钮状态
-      const modeSwitch = document.querySelector("[data-mode-switch]");
-      if (modeSwitch) {
-        modeSwitch.querySelectorAll("[data-mode]").forEach((btn) => {
-          btn.classList.toggle("active",
-            (deps.getIsPlanningMode() && btn.dataset.mode === "planning") ||
-            (!deps.getIsPlanningMode() && btn.dataset.mode === "collab")
-          );
-        });
+      // 稳定的地图顶部上下文控件不随任务阶段改变位置。
+      const headerSelectMount = document.getElementById("spaceHeaderSelect");
+      if (headerSelectMount) {
+        headerSelectMount.innerHTML = `
+          <select class="space-select-dropdown" data-space-dropdown aria-label="当前空间">
+            ${dropdownOptionsHtml}
+          </select>
+        `;
       }
 
-      // 清空 header 中的空间选择器（已移入菜单树）
-      const headerSelectMount = document.getElementById("spaceHeaderSelect");
-      if (headerSelectMount) headerSelectMount.innerHTML = "";
-
-      // 2D/3D 切换仅保留在左侧菜单中，清空浮动控件
-      const mapSwitchMount = document.getElementById("mapViewModeSwitch");
-      const modelSwitchMount = document.getElementById("modelViewModeSwitch");
-      if (mapSwitchMount) mapSwitchMount.innerHTML = "";
-      if (modelSwitchMount) modelSwitchMount.innerHTML = "";
+      const viewSwitchMount = document.getElementById("workspaceViewModeSwitch");
+      if (viewSwitchMount) viewSwitchMount.innerHTML = viewModeSwitchHtml;
 
       deps.bindSpaceListEvents();
       deps.ensureBuildingEditorToolbar();

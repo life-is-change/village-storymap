@@ -10,8 +10,7 @@
       const sourceCode = feature.get("sourceCode");
       const geomType = feature?.getGeometry?.()?.getType?.() || "";
       const isActive = deps.isActiveFeature(feature);
-      const isPlanningMode = deps.getIsPlanningMode ? deps.getIsPlanningMode() : true;
-      const isHovered = isPlanningMode ? deps.isHoveredFeature(feature) : false;
+      const isHovered = deps.isHoveredFeature(feature);
       const selectedLayers = deps.getSelectedLayersForCurrentSpace();
       const figureGroundMode = selectedLayers.includes("figureGround");
       const layerRenderZIndex = {
