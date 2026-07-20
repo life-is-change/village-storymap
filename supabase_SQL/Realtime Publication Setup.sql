@@ -13,7 +13,12 @@ declare
     'community_tasks',
     'object_attribute_edits',
     'user_sessions',
-    'auth_users'
+    'auth_users',
+    'feature_edit_locks',
+    'feature_change_batches',
+    'feature_versions',
+    'feature_snapshots',
+    'feature_snapshot_items'
   ];
 begin
   foreach tbl in array tables loop

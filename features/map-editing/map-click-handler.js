@@ -10,6 +10,18 @@
     return clicked;
   }
 
+  async function acquireSelectedFeatureLock(deps, feature, layerKey) {
+    const objectCode = deps.normalizeCode(feature?.get?.("sourceCode"));
+    const result = await deps.acquireFeatureEditLock(layerKey, objectCode);
+    if (result?.success) return true;
+    if (result?.reason === "locked") {
+      deps.showToast(`${result.editorName || "其他同学"}正在编辑该要素，请选择其他要素或稍后再试。`, "error");
+    } else {
+      deps.showToast("暂时无法取得该要素的编辑权，请检查数据库连接后重试。", "error");
+    }
+    return false;
+  }
+
   async function bindModifyInteraction(deps, clicked, editLayerKey) {
     const buildingEditState = deps.getBuildingEditState();
     deps.setActiveFeature(clicked);
@@ -21,7 +33,7 @@
 
     const OL = await deps.getOlReady();
     const { Modify, Snap, Collection } = OL;
-    deps.clearBuildingInteractions({ skipRestore: true });
+    deps.clearBuildingInteractions({ skipRestore: true, skipReleaseLock: true });
 
     buildingEditState.modify = new Modify({
       features: new Collection([clicked])
@@ -53,7 +65,7 @@
 
     const OL = await deps.getOlReady();
     const { Translate, Collection } = OL;
-    deps.clearBuildingInteractions({ skipRestore: true });
+    deps.clearBuildingInteractions({ skipRestore: true, skipReleaseLock: true });
 
     buildingEditState.translate = new Translate({
       features: new Collection([clicked])
@@ -90,11 +102,13 @@
       }
     );
     if (angleText == null) {
+      await deps.releaseFeatureEditLock(editLayerKey, code);
       return;
     }
     const angleDeg = Number(angleText);
     if (!Number.isFinite(angleDeg)) {
       deps.showToast("请输入有效数字", "error");
+      await deps.releaseFeatureEditLock(editLayerKey, code);
       return;
     }
     const geometry = clicked.getGeometry();
@@ -180,6 +194,7 @@
 
       if (buildingEditState.mode === "delete") {
         if (!clicked || clicked.get("layerKey") !== editLayerKey) return;
+        if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
         planVectorSource.removeFeature(clicked);
         buildingEditState.pendingDeletedFeatures.push(clicked);
         if (deps.getActiveFeature() === clicked) {
@@ -188,6 +203,7 @@
           deps.setActive2DSelectedCode(null);
         }
         planVectorLayer.changed();
+        deps.updateBuildingEditorToolbarState();
         return;
       }
 
@@ -196,6 +212,7 @@
           deps.showToast(`请选择一个${deps.getLayerLabel(editLayerKey)}要素`, "info");
           return;
         }
+        if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
         await bindModifyInteraction(deps, clicked, editLayerKey);
         return;
       }
@@ -205,6 +222,7 @@
           deps.showToast(`请选择一个${deps.getLayerLabel(editLayerKey)}要素`, "info");
           return;
         }
+        if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
         await bindTranslateInteraction(deps, clicked, editLayerKey);
         return;
       }
@@ -214,6 +232,7 @@
           deps.showToast(`请选择一个${deps.getLayerLabel(editLayerKey)}要素`, "info");
           return;
         }
+        if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
         await runRotateAction(deps, clicked, editLayerKey);
         return;
       }

@@ -52,6 +52,30 @@
         });
       }
 
+      const versionToggle = document.querySelector("[data-version-manager-toggle]");
+      if (versionToggle) {
+        versionToggle.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          const section = versionToggle.closest(".menu-tree-section");
+          const body = section?.querySelector("[data-collapsible-body]");
+          const triangle = versionToggle.querySelector(".toggle-triangle");
+          const next = !body?.classList.contains("is-expanded");
+          body?.classList.toggle("is-expanded", next);
+          triangle?.classList.toggle("expanded", next);
+          if (next) await deps.refreshVersionManagerPanel?.();
+        });
+      }
+
+      document.querySelectorAll("[data-version-action]").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          const action = button.dataset.versionAction;
+          if (action === "initial") await deps.toggleInitialBaseline?.("view");
+          if (action === "compare") await deps.toggleInitialBaseline?.("compare");
+          if (action === "freeze") await deps.freezeCurrentSnapshot?.();
+        });
+      });
+
       const viewModeButtons = document.querySelectorAll("[data-space-view]");
       viewModeButtons.forEach((button) => {
         button.addEventListener("click", async (event) => {

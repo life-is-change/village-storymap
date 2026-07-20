@@ -1203,22 +1203,32 @@ body.landing-only-mode .center-panel {
 }
 
 #toolboxToolbarMount #buildingEditorToolbar .toolbar-row.toolbar-row-save {
-  justify-content: center;
-  max-height: 0;
-  margin-top: -6px;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  transform: translateY(-4px);
-  transition: max-height 0.28s ease, margin-top 0.28s ease, opacity 0.22s ease, transform 0.22s ease;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  justify-content: stretch;
+  max-height: none;
+  margin-top: 0;
+  opacity: 1;
+  overflow: visible;
+  pointer-events: auto;
+  transform: none;
 }
 
 #toolboxToolbarMount #buildingEditorToolbar .toolbar-row.toolbar-row-save.is-visible {
-  max-height: 48px;
-  margin-top: 0;
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
+  max-height: none;
+}
+
+#toolboxToolbarMount .geometry-draft-summary {
+  min-width: 0;
+  color: #718096;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+#toolboxToolbarMount .geometry-draft-summary.has-draft {
+  color: #166534;
+  font-weight: 700;
 }
 
 #toolboxToolbarMount #buildingEditorToolbar #btnSaveBuildingGeom,
@@ -1227,6 +1237,79 @@ body.landing-only-mode .center-panel {
   border-color: rgba(31, 53, 82, 0.18);
   color: #355066;
   box-shadow: 0 2px 6px rgba(31, 53, 82, 0.08);
+}
+
+#toolboxToolbarMount #buildingEditorToolbar #btnSaveBuildingGeom:not(:disabled) {
+  background: #286f2b;
+  border-color: #286f2b;
+  color: #fff;
+}
+
+.version-manager-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.version-manager-actions button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid rgba(40, 111, 43, 0.22);
+  border-radius: 10px;
+  background: #fff;
+  color: #315f3c;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.version-manager-actions button.is-primary {
+  grid-column: 1 / -1;
+  background: #286f2b;
+  color: #fff;
+}
+
+.version-manager-status {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #718096;
+  font-size: 11px;
+}
+
+.version-manager-subtitle {
+  margin-top: 4px;
+  color: #214e32;
+  font-weight: 800;
+}
+
+.version-record-card,
+.version-history-row {
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 1px solid rgba(31, 53, 82, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.version-record-card strong,
+.version-history-row span {
+  overflow-wrap: anywhere;
+  color: #294b38;
+}
+
+.version-record-card span,
+.version-history-row small {
+  color: #849389;
+  font-size: 10px;
+}
+
+.version-manager-empty {
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: rgba(241, 245, 242, 0.9);
 }
 
 #toolboxToolbarMount #buildingEditorToolbar #btnSaveBuildingGeom:hover,

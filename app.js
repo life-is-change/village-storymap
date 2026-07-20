@@ -57,6 +57,8 @@ const buildingEditState = {
   pendingDeletedFeatures: [],
   pendingAddedFeatures: [],
   originalGeoms: new Map(),
+  activeFeatureLocks: new Map(),
+  lockHeartbeatTimer: null,
   isDrawingActive: false,
   editLayerKey: "",
   nextBuildingSerial: null,
@@ -163,6 +165,9 @@ let planLabelLayer = null;
 let planHighResLayer = null;
 let edgeLabelSource = null;
 let edgeLabelLayer = null;
+let initialBaselineSource = null;
+let initialBaselineLayer = null;
+let initialBaselineDisplayMode = "";
 let activeFeature = null;
 let hoverFeature = null;
 let olReady = null;
@@ -1497,7 +1502,8 @@ function isNonInteractiveLayerKey(layerKey) {
     layerKey === VILLAGE_FILL_LAYER_KEY ||
     layerKey === "contours" ||
     layerKey === "elevationBands" ||
-    layerKey === BUILDING_EDGE_LABEL_LAYER_KEY
+    layerKey === BUILDING_EDGE_LABEL_LAYER_KEY ||
+    layerKey === "initialBaseline"
   );
 }
 
@@ -2061,7 +2067,9 @@ function buildSpacePanelDeps() {
     ensureBuildingEditorToolbar,
     ensureCommunityBuildPanel,
     updateBuildingEditorToolbarState,
-    refreshCommunityScoreBadge
+    refreshCommunityScoreBadge,
+    canFreezeSnapshot: canFreezeCurrentSnapshot,
+    refreshVersionManagerPanel
   };
 }
 
@@ -2151,7 +2159,10 @@ function buildSpacePanelEventsDeps() {
     customConfirm,
     showToast,
     isBaseSpace,
-    deleteSpaceFromSupabase
+    deleteSpaceFromSupabase,
+    refreshVersionManagerPanel,
+    toggleInitialBaseline,
+    freezeCurrentSnapshot
   };
 }
 
@@ -2392,6 +2403,320 @@ function getGeometryEditorModule() {
   return window.GeometryEditorModule;
 }
 
+function getFeatureEditSessionModule() {
+  if (!window.FeatureEditSessionModule) {
+    throw new Error("feature-edit-session.js 未加载，请检查 index.html 脚本顺序。");
+  }
+  return window.FeatureEditSessionModule;
+}
+
+function buildFeatureEditSessionDeps() {
+  return {
+    getSupabaseClient: () => supabaseClient
+  };
+}
+
+function getCurrentUserRole() {
+  const user = window.VillageAuth?.getCurrentUser?.() || null;
+  if (isAdminIdentity(currentUserName)) return "admin";
+  return String(user?.role || "student").trim().toLowerCase();
+}
+
+async function acquireFeatureEditLock(layerKey, objectCode) {
+  if (!currentUserName) return { success: false, reason: "未登录" };
+  const module = getFeatureEditSessionModule();
+  const target = module.buildLockTarget(currentSpaceId || BASE_SPACE_ID, layerKey, objectCode);
+  if (!target) return { success: false, reason: "invalid_target" };
+  try {
+    const result = await module.acquireFeatureEditLock(buildFeatureEditSessionDeps(), target, currentUserName);
+    if (result?.success) {
+      const lockKey = buildDirtyFeatureKey(layerKey, objectCode);
+      buildingEditState.activeFeatureLocks.set(lockKey, {
+        ...target,
+        editorName: currentUserName,
+        lockToken: result.lockToken || null,
+        offline: !!result.offline
+      });
+      startFeatureLockHeartbeat();
+    }
+    return result;
+  } catch (error) {
+    console.error("取得要素编辑锁失败：", error);
+    return { success: false, reason: "database_error", error };
+  }
+}
+
+async function releaseFeatureEditLock(layerKey, objectCode) {
+  const lockKey = buildDirtyFeatureKey(layerKey, objectCode);
+  const lock = buildingEditState.activeFeatureLocks.get(lockKey);
+  if (!lock) return;
+  buildingEditState.activeFeatureLocks.delete(lockKey);
+  try {
+    await getFeatureEditSessionModule().releaseFeatureEditLock(buildFeatureEditSessionDeps(), lock);
+  } catch (error) {
+    console.warn("释放要素编辑锁失败，等待租约自动过期：", error);
+  }
+  stopFeatureLockHeartbeatIfIdle();
+}
+
+async function releaseAllFeatureEditLocks() {
+  const locks = [...buildingEditState.activeFeatureLocks.values()];
+  buildingEditState.activeFeatureLocks.clear();
+  stopFeatureLockHeartbeatIfIdle();
+  await Promise.allSettled(
+    locks.map((lock) => getFeatureEditSessionModule().releaseFeatureEditLock(buildFeatureEditSessionDeps(), lock))
+  );
+}
+
+function startFeatureLockHeartbeat() {
+  if (buildingEditState.lockHeartbeatTimer) return;
+  const delay = getFeatureEditSessionModule().LOCK_HEARTBEAT_MS;
+  buildingEditState.lockHeartbeatTimer = setInterval(async () => {
+    const module = getFeatureEditSessionModule();
+    for (const [key, lock] of buildingEditState.activeFeatureLocks.entries()) {
+      try {
+        const result = await module.heartbeatFeatureEditLock(buildFeatureEditSessionDeps(), lock);
+        if (!result?.success) {
+          buildingEditState.activeFeatureLocks.delete(key);
+          showToast(`${lock.editorName || "当前用户"}的要素编辑锁已失效，请重新选择该要素。`, "error");
+        }
+      } catch (error) {
+        console.warn("续期要素编辑锁失败：", error);
+      }
+    }
+    stopFeatureLockHeartbeatIfIdle();
+  }, delay);
+}
+
+function stopFeatureLockHeartbeatIfIdle() {
+  if (buildingEditState.activeFeatureLocks.size || !buildingEditState.lockHeartbeatTimer) return;
+  clearInterval(buildingEditState.lockHeartbeatTimer);
+  buildingEditState.lockHeartbeatTimer = null;
+}
+
+async function saveFeatureEditBatch(payload) {
+  return getFeatureEditSessionModule().saveFeatureEditBatch(buildFeatureEditSessionDeps(), payload);
+}
+
+function summarizeFeatureChanges(changes) {
+  return getFeatureEditSessionModule().summarizeChanges(changes);
+}
+
+async function requestFeatureSaveNote(summary) {
+  return customPrompt(
+    `本次将保存：${summary}\n可补充调研依据或修改原因，也可以直接确认。`,
+    "",
+    "保存编辑",
+    { required: false, maxLength: 200, placeholder: "补充说明（选填）" }
+  );
+}
+
+function canFreezeCurrentSnapshot() {
+  return getFeatureEditSessionModule().canFreezeSnapshot(getCurrentUserRole());
+}
+
+async function refreshVersionManagerPanel(options = {}) {
+  const statusEl = document.getElementById("versionManagerStatus");
+  if (!statusEl) return;
+  if (!supabaseClient) {
+    statusEl.textContent = "当前未连接 Supabase，无法读取版本记录。";
+    return;
+  }
+  if (!options.quiet) statusEl.textContent = "正在加载版本记录……";
+  try {
+    const module = getFeatureEditSessionModule();
+    const [snapshots, batches] = await Promise.all([
+      module.listSnapshots(buildFeatureEditSessionDeps(), BASE_SPACE_ID),
+      module.listRecentVersions(buildFeatureEditSessionDeps(), BASE_SPACE_ID, 8)
+    ]);
+    const snapshotHtml = snapshots.length
+      ? snapshots.map((item) => `
+          <div class="version-record-card">
+            <strong>${escapeHtml(item.version_name)}</strong>
+            <span>${escapeHtml(item.version_type === "initial" ? "永久只读基线" : "正式校核版本")} · ${escapeHtml(formatDateTime(item.created_at))}</span>
+          </div>
+        `).join("")
+      : '<div class="version-manager-empty">尚未建立 V0，请先执行版本与锁定数据库脚本。</div>';
+    const batchHtml = batches.length
+      ? batches.map((item) => `
+          <div class="version-history-row">
+            <span>${escapeHtml(item.summary)}</span>
+            <small>${escapeHtml(item.editor_name)} · ${escapeHtml(formatDateTime(item.created_at))}</small>
+          </div>
+        `).join("")
+      : '<div class="version-manager-empty">暂无已保存的校核修改</div>';
+    statusEl.innerHTML = `
+      <div class="version-manager-subtitle">正式版本</div>
+      ${snapshotHtml}
+      <div class="version-manager-subtitle">最近保存</div>
+      ${batchHtml}
+    `;
+  } catch (error) {
+    console.warn("读取版本记录失败：", error);
+    statusEl.textContent = "版本表尚未建立或读取失败，请执行 Supabase 版本与锁定脚本。";
+  }
+}
+
+function clearInitialBaselineOverlay() {
+  if (initialBaselineLayer && planMap) planMap.removeLayer(initialBaselineLayer);
+  initialBaselineLayer = null;
+  initialBaselineSource = null;
+  initialBaselineDisplayMode = "";
+  planVectorLayer?.setVisible(true);
+  planVectorLayer?.changed();
+}
+
+async function toggleInitialBaseline(mode = "compare") {
+  if (initialBaselineDisplayMode === mode) {
+    clearInitialBaselineOverlay();
+    showToast("已退出初始版本查看", "info");
+    return;
+  }
+  try {
+    await ensurePlanMap();
+    const module = getFeatureEditSessionModule();
+    const snapshots = await module.listSnapshots(buildFeatureEditSessionDeps(), BASE_SPACE_ID);
+    const initial = snapshots.find((item) => item.version_type === "initial");
+    if (!initial) {
+      showToast("尚未建立初始现状 V0，请先执行版本与锁定数据库脚本。", "error");
+      return;
+    }
+    const OL = await (olReady || window.__olReady || window.__loadOpenLayers?.());
+    if (!OL) throw new Error("OpenLayers 尚未加载");
+    const format = new OL.GeoJSON();
+    initialBaselineSource = new OL.VectorSource();
+    // 初始底稿来自仓库内教师提供的静态矢量；planning_features 只保存覆盖项，
+    // 不能单独用它还原完整 V0。这里始终加载原始可编辑图层，保证 V0 不受学生校核结果影响。
+    await Promise.all(EDITABLE_GEOMETRY_LAYERS.map((layerKey) => ensureLayerLoaded(layerKey)));
+    EDITABLE_GEOMETRY_LAYERS.forEach((layerKey) => {
+      const cached = layerDataCache[layerKey];
+      (cached?.features || []).forEach((rawFeature) => {
+        if (!isRenderableGeometry(rawFeature?.geometry)) return;
+        const feature = format.readFeature(rawFeature, {
+          dataProjection: "EPSG:4326",
+          featureProjection: "EPSG:4326"
+        });
+        feature.set("layerKey", "initialBaseline");
+        feature.set("sourceLayerKey", layerKey);
+        feature.set("sourceCode", getFeatureCode(rawFeature, layerKey));
+        initialBaselineSource.addFeature(feature);
+      });
+    });
+    const compare = mode === "compare";
+    initialBaselineLayer = new OL.VectorLayer({
+      source: initialBaselineSource,
+      style: new OL.Style({
+        stroke: new OL.Stroke({
+          color: compare ? "#7c3aed" : "#475569",
+          width: compare ? 3 : 2,
+          lineDash: compare ? [8, 6] : undefined
+        }),
+        fill: new OL.Fill({ color: compare ? "rgba(124, 58, 237, 0.08)" : "rgba(71, 85, 105, 0.18)" })
+      })
+    });
+    initialBaselineLayer.setZIndex(20);
+    if (planMap) planMap.addLayer(initialBaselineLayer);
+    planVectorLayer?.setVisible(compare);
+    initialBaselineDisplayMode = mode;
+    showToast(compare
+      ? "已叠加 V0 紫色虚线，可与当前校核成果对比；再次点击可退出。"
+      : "当前仅显示只读的初始现状 V0；再次点击可退出。", "success");
+  } catch (error) {
+    console.error("查看初始版本失败：", error);
+    showToast("初始版本加载失败，请确认数据库脚本已经执行。", "error");
+  }
+}
+
+async function freezeCurrentSnapshot() {
+  if (!canFreezeCurrentSnapshot()) {
+    showToast("仅管理员或教师可以冻结正式版本。", "error");
+    return;
+  }
+  const versionName = await customPrompt(
+    "例如：V1 第一次现场调研校核版",
+    "",
+    "冻结正式版本",
+    { maxLength: 40, emptyError: "请输入版本名称" }
+  );
+  if (versionName === null) return;
+  const description = await customPrompt(
+    "可填写本版本的课堂阶段、调研批次或用途。",
+    "",
+    "版本说明",
+    { required: false, maxLength: 200, placeholder: "版本说明（选填）" }
+  );
+  if (description === null) return;
+  try {
+    const items = await collectCompleteCurrentVersionItems();
+    await getFeatureEditSessionModule().freezeSnapshot(buildFeatureEditSessionDeps(), {
+      spaceId: BASE_SPACE_ID,
+      versionName,
+      description,
+      createdBy: currentUserName,
+      versionType: "published",
+      items
+    });
+    showToast(`已冻结正式版本“${versionName.trim()}”`, "success");
+    await refreshVersionManagerPanel();
+  } catch (error) {
+    console.error("冻结正式版本失败：", error);
+    showToast("冻结失败，请确认版本与锁定数据库脚本已经执行。", "error");
+  }
+}
+
+async function collectCompleteCurrentVersionItems() {
+  const rowsByLayer = {
+    building: listBuildingFeaturesFromDbCached,
+    road: listRoadFeaturesFromDbCached,
+    cropland: listCroplandFeaturesFromDbCached,
+    openSpace: listOpenSpaceFeaturesFromDbCached
+  };
+  const items = [];
+
+  for (const layerKey of EDITABLE_GEOMETRY_LAYERS) {
+    const cached = await ensureLayerLoaded(layerKey);
+    const merged = new Map();
+    (cached?.features || []).forEach((rawFeature) => {
+      if (!isRenderableGeometry(rawFeature?.geometry)) return;
+      const objectCode = normalizeCode(getFeatureCode(rawFeature, layerKey));
+      if (!objectCode) return;
+      const sourceProps = getFeatureProperties(rawFeature);
+      const rowProps = cached.rowIndex?.get(objectCode) || {};
+      merged.set(objectCode, {
+        layerKey,
+        objectCode,
+        objectName: getFirstMatchingField(
+          { ...sourceProps, ...rowProps },
+          layerConfigs[layerKey]?.nameFields || []
+        ) || objectCode,
+        geom: cloneJson(rawFeature.geometry),
+        props: cloneJson({ ...sourceProps, ...rowProps }),
+        isDeleted: false
+      });
+    });
+
+    const dbRows = await rowsByLayer[layerKey](BASE_SPACE_ID, { force: true });
+    dbRows.forEach((row) => {
+      const objectCode = normalizeCode(row.object_code);
+      if (!objectCode || !isRenderableGeometry(row.geom)) return;
+      merged.set(objectCode, {
+        layerKey,
+        objectCode,
+        objectName: row.object_name || objectCode,
+        geom: cloneJson(row.geom),
+        props: cloneJson(row.props || {}),
+        isDeleted: false
+      });
+    });
+
+    const deletedCodes = await listDeletedLayerFeatureCodesFromDb(BASE_SPACE_ID, layerKey);
+    (deletedCodes || []).forEach((code) => merged.delete(normalizeCode(code)));
+    items.push(...merged.values());
+  }
+
+  return items;
+}
+
 function buildGeometryEditorDeps() {
   return {
     ROAD_DEFAULT_WIDTH,
@@ -2426,8 +2751,7 @@ function buildGeometryEditorDeps() {
     getCurrent2DBuildingSpaceId,
     isBaseSpace,
     getCurrentUserName: () => currentUserName,
-    acquireCurrentSpaceEditLock,
-    releaseCurrentSpaceEditLock,
+    releaseAllFeatureEditLocks,
     listBuildingFeaturesFromDbCached,
     listRoadFeaturesFromDbCached,
     listCroplandFeaturesFromDbCached,
@@ -2436,6 +2760,9 @@ function buildGeometryEditorDeps() {
     olFeatureToDbGeometry,
     upsertLayerFeatureToDb,
     softDeleteLayerFeatureInDb,
+    saveFeatureEditBatch,
+    summarizeFeatureChanges,
+    requestFeatureSaveNote,
     refresh2DOverlay,
     sync2DSpaceStateTo3D,
     refreshBuildingEdgeLabels,
@@ -2500,6 +2827,8 @@ function buildMapClickHandlerDeps() {
     getCurrentUserName: () => currentUserName,
     getCurrentSpaceId: () => currentSpaceId,
     getCurrentGeometryEditLayer: () => currentGeometryEditLayer,
+    acquireFeatureEditLock,
+    releaseFeatureEditLock,
     is2DMeasureActive: () => measure2DState.active,
     getActiveFeature: () => activeFeature,
     setActiveFeature: doSetActiveFeature,
@@ -4131,7 +4460,13 @@ async function startDeleteBuildingMode(layerKey = "building") {
 
 async function saveDirtyBuildings(layerKey = "building") {
   const result = await getGeometryEditorModule().saveDirtyBuildings(buildGeometryEditorDeps(), layerKey);
-  await recordCourseActivity("feature_geometry_saved", { type: layerKey, id: currentSpaceId }, { layerKey });
+  if (result?.success) {
+    await recordCourseActivity(
+      "feature_geometry_saved",
+      { type: layerKey, id: currentSpaceId },
+      { layerKey, batchId: result.batchId || null }
+    );
+  }
   return result;
 }
 
@@ -6146,6 +6481,10 @@ function initRealtimeSubscriptions() {
       { event: "*", schema: "public", table: PLANNING_FEATURES_TABLE },
       (payload) => {
         console.log("[Realtime] planning_features changed:", payload.eventType);
+        if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
+          showToast("其他同学已保存图层修改；请先保存或放弃你的草稿，再刷新图层。", "info");
+          return;
+        }
         scheduleRealtimeRefresh(async () => {
           invalidateBuildingDbCache();
           invalidateRoadDbCache();
@@ -6573,6 +6912,16 @@ function bindMeasureButtons() {
   if (refreshBtn && !refreshBtn.dataset.bound) {
     refreshBtn.dataset.bound = "1";
     refreshBtn.addEventListener("click", async () => {
+      if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
+        const discard = await customConfirm("刷新会放弃当前未保存修改，是否继续？", {
+          title: "刷新图层",
+          okText: "放弃并刷新",
+          cancelText: "继续编辑",
+          isDanger: true
+        });
+        if (!discard) return;
+        clearBuildingInteractions();
+      }
       showToast("正在刷新...", "info");
 
       // 1. 清除现状空间静态数据缓存（GeoJSON/CSV）
@@ -6583,6 +6932,7 @@ function bindMeasureButtons() {
       invalidateRoadDbCache();
       invalidateCroplandDbCache();
       invalidateOpenSpaceDbCache();
+      invalidateWaterDbCache();
 
       // 3. 从 Supabase 同步空间列表（跨设备）
       await syncSpacesFromSupabase();
@@ -6599,6 +6949,7 @@ function bindMeasureButtons() {
       // 7. 刷新评分和留言板
       await refreshCommunityScoreBadge();
       await refreshCommunityMessageBoard();
+      await refreshVersionManagerPanel({ quiet: true });
 
       // 8. 重新渲染空间侧边栏
       renderSpaceList();

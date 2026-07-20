@@ -276,7 +276,27 @@
             </div>
           </div>
 
-          <!-- 4. 导出 -->
+          <!-- 4. 版本管理：V0 不进入普通空间列表，只在这里查看和对比 -->
+          <div class="menu-tree-section is-expandable version-manager-section">
+            <button class="menu-l1-header" type="button" data-version-manager-toggle>
+              ${renderToggleTriangle(false)}
+              <span class="menu-l1-title">版本管理<span class="toolbox-info-icon" title="查看初始现状、修改历史，并由管理员或教师冻结正式校核版本。">i</span></span>
+            </button>
+            <div class="menu-l1-body" data-collapsible-body>
+              <div class="menu-indent">
+                <div class="version-manager-actions">
+                  <button type="button" data-version-action="initial">查看初始版本</button>
+                  <button type="button" data-version-action="compare">版本对比</button>
+                  ${deps.canFreezeSnapshot?.()
+                    ? '<button type="button" class="is-primary" data-version-action="freeze">冻结正式版本</button>'
+                    : ''}
+                </div>
+                <div id="versionManagerStatus" class="version-manager-status">展开后加载版本记录</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 导出 -->
           <div class="menu-tree-section">
             <div class="menu-l1-header">
               <span class="menu-l1-title">导出</span>
@@ -332,6 +352,7 @@
       deps.ensureCommunityBuildPanel();
       deps.updateBuildingEditorToolbarState();
       deps.refreshCommunityScoreBadge?.();
+      deps.refreshVersionManagerPanel?.({ quiet: true });
     }
   };
 

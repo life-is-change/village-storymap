@@ -15,21 +15,6 @@
     return deps.getPlanVectorLayer();
   }
 
-  async function checkBaseSpaceEditLock(deps) {
-    const spaceId = deps.getCurrent2DBuildingSpaceId();
-    if (!deps.isBaseSpace(spaceId)) return true;
-    const lockResult = await deps.acquireCurrentSpaceEditLock();
-    if (!lockResult.success) {
-      if (lockResult.reason === "locked") {
-        deps.showToast(`当前${lockResult.editorName || "其他用户"}正在编辑，请稍后再试。`, "error");
-      } else {
-        deps.showToast("编辑锁检测失败，请稍后再试。", "error");
-      }
-      return false;
-    }
-    return true;
-  }
-
   function clearDrawSketchPreview(state, deps, options = {}) {
     const { restoreEdgeLabels = true } = options;
 
@@ -153,6 +138,7 @@
       const key = deps.buildDirtyFeatureKey(layerKey, feature?.get("sourceCode"));
       if (!key) return;
       state.dirtyCodes.add(key);
+      api.updateBuildingEditorToolbarState(deps);
     },
 
     clearBuildingInteractions(deps, options = {}) {
@@ -219,9 +205,8 @@
       api.updateBuildingEditorToolbarState(deps);
       layer?.changed();
 
-      // 仅在显式要求时释放现状空间编辑锁（避免切换编辑工具时误释放）
       if (!skipReleaseLock) {
-        deps.releaseCurrentSpaceEditLock?.();
+        deps.releaseAllFeatureEditLocks?.();
       }
     },
 
@@ -239,6 +224,7 @@
       const btnDelete = doc.getElementById("btnDeleteBuilding");
       const btnSave = doc.getElementById("btnSaveBuildingGeom");
       const btnStop = doc.getElementById("btnStopBuildingEdit");
+      const draftSummary = doc.getElementById("geometryDraftSummary");
       const saveRow = btnSave?.closest(".toolbar-row-save");
       const saveDivider = saveRow?.previousElementSibling?.classList.contains("toolbar-save-divider")
         ? saveRow.previousElementSibling
@@ -302,15 +288,18 @@
 
       const mode = state.mode;
       const isEditing = mode !== "idle";
-      saveRow?.classList.toggle("is-visible", isEditing);
-      saveRow?.setAttribute("aria-hidden", isEditing ? "false" : "true");
-      saveDivider?.classList.toggle("is-visible", isEditing);
-      if (!isEditing) {
-        if (btnSave) btnSave.disabled = true;
-        if (btnStop) btnStop.disabled = true;
-      } else if (btnStop) {
-        btnStop.disabled = false;
+      const pendingCount = state.dirtyCodes.size + (state.pendingDeletedFeatures || []).length;
+      saveRow?.classList.add("is-visible");
+      saveRow?.setAttribute("aria-hidden", "false");
+      saveDivider?.classList.add("is-visible");
+      if (draftSummary) {
+        draftSummary.textContent = pendingCount
+          ? `${pendingCount} 项未保存修改`
+          : "当前没有未保存修改";
+        draftSummary.classList.toggle("has-draft", pendingCount > 0);
       }
+      if (btnSave) btnSave.disabled = !editable || pendingCount === 0 || (state.mode === "draw" && state.isDrawingActive);
+      if (btnStop) btnStop.disabled = !isEditing && pendingCount === 0;
 
       if (mode === "draw") {
         btnAdd?.classList.add("active");
@@ -383,8 +372,9 @@
       </div>
       <div class="toolbar-divider toolbar-save-divider"></div>
       <div class="toolbar-row toolbar-row-center toolbar-row-save" aria-hidden="true">
+        <span id="geometryDraftSummary" class="geometry-draft-summary">当前没有未保存修改</span>
         <button type="button" id="btnSaveBuildingGeom">保存编辑</button>
-        <button type="button" id="btnStopBuildingEdit">退出编辑</button>
+        <button type="button" id="btnStopBuildingEdit">放弃修改</button>
       </div>
     `;
 
@@ -460,8 +450,6 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
-      if (!(await checkBaseSpaceEditLock(deps))) return;
-
       if (!deps.isEditableGeometryLayer(layerKey)) return;
       if (!deps.getSelectedLayersForCurrentSpace().includes(layerKey)) {
         deps.showToast(`请先在图层中开启“${deps.getLayerLabel(layerKey)}”`, "error");
@@ -563,8 +551,6 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
-      if (!(await checkBaseSpaceEditLock(deps))) return;
-
       await deps.ensurePlanMap();
       api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
@@ -581,8 +567,6 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
-      if (!(await checkBaseSpaceEditLock(deps))) return;
-
       await deps.ensurePlanMap();
       api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
@@ -599,8 +583,6 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
-      if (!(await checkBaseSpaceEditLock(deps))) return;
-
       if (layerKey === "road") {
         deps.showToast("道路中心线不支持旋转，请使用移动/编辑顶点。", "info");
         return;
@@ -622,8 +604,6 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
-      if (!(await checkBaseSpaceEditLock(deps))) return;
-
       await deps.ensurePlanMap();
       api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.pendingDeletedFeatures = [];
@@ -638,17 +618,15 @@
       const state = getState(deps);
       if (!deps.isEditableSpace()) {
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
-        return;
+        return { success: false, reason: "not_editable" };
       }
-      if (!deps.isEditableGeometryLayer(layerKey)) return;
+      if (!deps.isEditableGeometryLayer(layerKey)) return { success: false, reason: "invalid_layer" };
       const layerLabel = deps.getLayerLabel(layerKey);
 
       if (state.mode === "draw" && state.isDrawingActive) {
         deps.showToast(`请先完成当前${layerKey === "road" ? "道路" : layerLabel}的绘制`, "info");
-        return;
+        return { success: false, reason: "drawing_active" };
       }
-
-      api.clearBuildingInteractions(deps, { skipRestore: true, skipReleaseLock: true });
 
       const spaceId = deps.getCurrent2DBuildingSpaceId();
       const features = api.getFeaturesOnMapByLayer(deps, layerKey);
@@ -662,12 +640,14 @@
 
       if (!targetFeatures.length && !hasPendingDelete) {
         deps.showToast(`当前没有待保存的${layerKey === "road" ? "道路" : layerLabel}修改。`, "info");
-        return;
+        return { success: false, reason: "no_changes" };
       }
 
       try {
         const codeField = deps.getLayerCodeField(layerKey);
         const nameField = deps.getLayerNameField(layerKey);
+        const addedFeatures = new Set(state.pendingAddedFeatures || []);
+        const changes = [];
         for (const feature of targetFeatures) {
           const code = deps.normalizeCode(feature.get("sourceCode"));
           const baseRow = feature.get("baseRow") || {};
@@ -689,13 +669,23 @@
             props[codeField] = code;
             props[nameField] = props[nameField] || code;
           }
-          await deps.upsertLayerFeatureToDb({
-            spaceId,
+          const featureKey = deps.buildDirtyFeatureKey(layerKey, code);
+          const originalGeom = state.originalGeoms.get(featureKey);
+          let beforeGeom = null;
+          if (originalGeom && typeof feature.clone === "function") {
+            const originalFeature = feature.clone();
+            originalFeature.setGeometry(originalGeom.clone());
+            beforeGeom = deps.olFeatureToDbGeometry(originalFeature);
+          }
+          changes.push({
+            action: addedFeatures.has(feature) ? "add" : "update",
             layerKey,
             objectCode: code,
             objectName: props[nameField] || props.道路名称 || props.房屋名称 || code,
-            geom,
-            props
+            beforeGeom,
+            afterGeom: geom,
+            beforeProps: addedFeatures.has(feature) ? null : deps.cloneJson(baseRow || {}),
+            afterProps: props
           });
         }
 
@@ -703,8 +693,33 @@
           if (feature.get("layerKey") !== layerKey) continue;
           const code = deps.normalizeCode(feature.get("sourceCode"));
           if (code) {
-            await deps.softDeleteLayerFeatureInDb(spaceId, layerKey, code);
+            changes.push({
+              action: "delete",
+              layerKey,
+              objectCode: code,
+              objectName: feature.get("displayName") || code,
+              beforeGeom: deps.olFeatureToDbGeometry(feature),
+              afterGeom: null,
+              beforeProps: deps.cloneJson(feature.get("baseRow") || {}),
+              afterProps: null
+            });
           }
+        }
+
+        const summary = deps.summarizeFeatureChanges(changes);
+        const note = await deps.requestFeatureSaveNote(summary.text);
+        if (note === null) return { success: false, reason: "cancelled" };
+
+        api.clearBuildingInteractions(deps, { skipRestore: true, skipReleaseLock: true });
+        const saveResult = await deps.saveFeatureEditBatch({
+          spaceId,
+          editorName: deps.getCurrentUserName(),
+          summary: summary.text,
+          note,
+          changes
+        });
+        if (!saveResult?.success) {
+          throw new Error("数据库未确认本次保存");
         }
 
         state.dirtyCodes.clear();
@@ -722,13 +737,13 @@
           await village3D.reload();
         }
 
-        deps.showToast(`${layerLabel}保存成功`, "success");
-
-        // 保存成功后释放现状空间编辑锁
-        deps.releaseCurrentSpaceEditLock?.();
+        deps.showToast(`${summary.text}，已保存并同步`, "success");
+        await deps.releaseAllFeatureEditLocks?.();
+        return saveResult;
       } catch (error) {
         console.error(error);
         deps.showToast(`${layerLabel}保存失败，请查看控制台`, "error");
+        return { success: false, reason: "save_failed", error };
       }
     }
   };
