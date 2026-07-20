@@ -16,7 +16,7 @@ test("message board is rendered in project settings instead of the object panel"
   )?.[0] || "";
 
   assert.doesNotMatch(refreshFunction, /getElementById\("infoPanel"\)/);
-  assert.match(appSource, /data-community-action="report"/);
+  assert.match(appSource, /data-community-action="report-point"/);
 });
 
 test("map objects and problem points remain interactive in the unified workspace", () => {

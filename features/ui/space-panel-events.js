@@ -177,11 +177,13 @@
 
       const renameTriggerButtons = document.querySelectorAll("[data-space-rename-trigger]");
       renameTriggerButtons.forEach((button) => {
+        if (button.dataset.spaceActionBound === "rename") return;
+        button.dataset.spaceActionBound = "rename";
         button.addEventListener("click", async (event) => {
           event.stopPropagation();
           const spaceId = button.dataset.spaceRenameTrigger;
           const target = deps.getSpaceById(spaceId);
-          if (!target || target.readonly) return;
+          if (!target || deps.isBaseSpace(target.id)) return;
           if (!deps.canManageSpace(spaceId)) {
             deps.showToast("仅空间创建者可执行该操作。", "error");
             return;
@@ -223,6 +225,8 @@
 
       const deleteButtons = document.querySelectorAll("[data-space-delete]");
       deleteButtons.forEach((button) => {
+        if (button.dataset.spaceActionBound === "delete") return;
+        button.dataset.spaceActionBound = "delete";
         button.addEventListener("click", async (event) => {
           event.stopPropagation();
           const spaceId = button.dataset.spaceDelete;

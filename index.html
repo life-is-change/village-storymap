@@ -66,12 +66,6 @@
         <!-- 阶段情境栏：替代旧菜单，只显示当前阶段成果、资料与建议操作 -->
         <aside id="courseContextPanel" class="story-panel course-context-panel" aria-label="阶段情境">
           <div class="course-context-panel-header">
-            <button id="floatingHomeBtn" class="map-floating-home-btn" title="返回主页">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
-            </button>
             <div>
               <span>当前课程</span>
               <h2>米埗村规划实践</h2>
@@ -84,12 +78,29 @@
         <main class="center-panel">
           <!-- 稳定工作区上下文：课程阶段、空间与 2D/3D 均在这里切换 -->
           <div id="workspaceContextBar" class="workspace-context-bar" aria-label="当前工作区">
+            <button id="floatingHomeBtn" class="map-floating-home-btn" type="button" title="返回首页" aria-label="返回首页">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </button>
             <div class="workspace-context-identity">
               <span id="workspaceVillageLabel">米埗村</span>
               <strong id="workspaceStageLabel">课程实践</strong>
             </div>
             <div id="spaceHeaderSelect" class="workspace-space-select" aria-label="当前空间"></div>
+            <div id="workspaceSpaceActions" class="workspace-space-actions" aria-label="空间管理">
+              <button id="addSpaceTopBtn" class="workspace-icon-btn" type="button" data-add-space title="新增空间" aria-label="新增空间">＋</button>
+              <button id="renameCurrentSpaceBtn" class="workspace-icon-btn" type="button" data-space-rename-trigger="" title="重命名当前空间" aria-label="重命名当前空间">✎</button>
+              <button id="deleteCurrentSpaceBtn" class="workspace-icon-btn workspace-delete-space-btn" type="button" data-space-delete="" title="删除当前空间" aria-label="删除当前空间">⌫</button>
+            </div>
             <div id="workspaceViewModeSwitch" class="workspace-view-mode-switch" aria-label="视图切换"></div>
+            <button id="classDiscussionBtn" type="button" class="workspace-action-btn workspace-action-btn-secondary" title="打开班级讨论">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-6a7 7 0 0 1-1-4V8a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"></path>
+              </svg>
+              <span>班级讨论</span>
+            </button>
             <button id="projectSettingsBtn" type="button" class="workspace-settings-btn" aria-expanded="false" title="图层与项目设置">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -360,6 +371,7 @@
   <script defer src="features/data/data-service.js"></script>
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
   <script defer src="features/data/copy-space-seed.js"></script>
+  <script defer src="features/object-collaboration/object-comments.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
   <script defer src="features/map-editing/geometry-editor.js"></script>
   <script defer src="features/mc/mc-bridge.js"></script>

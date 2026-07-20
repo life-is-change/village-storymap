@@ -228,50 +228,9 @@
       // ===== 构建完整层级菜单 =====
       const html = `
         <div class="menu-tree">
-          <!-- 1. 空间管理：空间选择位于地图顶部，这里只保留项目操作 -->
-          <div class="menu-tree-section">
-            <div class="menu-l1-header">
-              <span class="menu-l1-title">空间管理</span>
-              <div class="menu-header-actions">
-                <button class="space-icon-btn space-add-icon-btn" type="button" title="新建空间" data-add-space>+</button>
-                <button class="space-icon-btn space-rename-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-rename-trigger="${currentSpace.id}" title="重命名空间" ${!canManageCurrentSpace ? "disabled" : ""}>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                </button>
-                <button class="space-icon-btn space-delete-icon-btn ${!canManageCurrentSpace ? "is-disabled" : ""}" type="button" data-space-delete="${currentSpace.id}" title="删除空间" ${!canManageCurrentSpace ? "disabled" : ""}>
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
           ${layersControlHtml}
 
-          <!-- 2. 问题与留言：地图点标记与要素留言共用同一入口 -->
-          <div class="menu-tree-section is-expandable">
-            <button class="menu-l1-header" type="button" data-community-toggle>
-              ${renderToggleTriangle(deps.getIsCommunityExpanded())}
-              <span class="menu-l1-title">问题与留言<span class="toolbox-info-icon" title="可绘制问题点，也可选中建筑、道路等要素后发表留言。">i</span></span>
-            </button>
-            <div class="menu-l1-body ${deps.getIsCommunityExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
-              <div class="menu-indent">
-                <div class="community-content is-compact">
-                  <div id="communityBuildMount"></div>
-                  <div class="community-message-board" id="communityMessageBoard">
-                    <div class="community-message-board-header"><span>班级留言</span></div>
-                    <div class="community-message-list" id="communityMessageList"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. 空间工具：3D 下保持结构稳定，并说明编辑入口 -->
+          <!-- 2. 空间工具：先完成图层与要素操作，再进入问题讨论 -->
           <div class="menu-tree-section is-expandable">
             <button class="menu-l1-header" type="button" data-toolbox-toggle>
               ${renderToggleTriangle(deps.getIsToolboxExpanded())}
@@ -285,6 +244,34 @@
                     : `<div class="space-permission-tip">该空间由 ${deps.escapeHtml(currentSpaceCreator || "其他账号")} 创建，你可查看图层与参与留言，但不能修改几何与属性。</div>`
                   : `<div class="space-3d-hint">3D 与 2D 使用同一空间数据。轮廓与属性编辑请切回平面视图，3D 中保留观察与方案检查。</div>`
                 }
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 问题与留言：问题点标记与班级讨论使用独立入口 -->
+          <div class="menu-tree-section is-expandable">
+            <button class="menu-l1-header" type="button" data-community-toggle>
+              ${renderToggleTriangle(deps.getIsCommunityExpanded())}
+              <span class="menu-l1-title">问题与留言<span class="toolbox-info-icon" title="标记地图问题点，或进入班级讨论查看和回复留言。">i</span></span>
+            </button>
+            <div class="menu-l1-body ${deps.getIsCommunityExpanded() ? 'is-expanded' : ''}" data-collapsible-body>
+              <div class="menu-indent">
+                <div class="community-content is-compact">
+                  <div id="communityBuildMount"></div>
+                  <div class="community-message-board" id="communityMessageBoard">
+                    <div class="community-message-board-header">
+                      <div><strong>班级讨论</strong><span>围绕调研发现交换意见</span></div>
+                    </div>
+                    <div class="community-message-composer" id="communityMessageComposer">
+                      <textarea id="communityMessageInput" rows="3" maxlength="500" placeholder="写下你的调研发现、意见或课堂讨论内容……"></textarea>
+                      <div class="community-message-composer-footer">
+                        <span>普通留言不需要选择地图位置</span>
+                        <button id="communityMessageSubmitBtn" type="button">发表留言</button>
+                      </div>
+                    </div>
+                    <div class="community-message-list" id="communityMessageList"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -317,6 +304,25 @@
           </select>
         `;
       }
+
+      const isSystemSpace = currentSpace.id === deps.BASE_SPACE_ID;
+      const topSpaceButtons = [
+        document.getElementById("renameCurrentSpaceBtn"),
+        document.getElementById("deleteCurrentSpaceBtn")
+      ];
+      topSpaceButtons.forEach((button) => {
+        if (!button) return;
+        const enabled = !isSystemSpace && canManageCurrentSpace;
+        button.disabled = !enabled;
+        button.classList.toggle("is-disabled", !enabled);
+        if (button.hasAttribute("data-space-rename-trigger")) {
+          button.dataset.spaceRenameTrigger = currentSpace.id;
+          button.title = isSystemSpace ? "系统空间不可重命名" : (enabled ? "重命名当前空间" : "仅空间创建者或管理员可重命名");
+        } else {
+          button.dataset.spaceDelete = currentSpace.id;
+          button.title = isSystemSpace ? "系统空间不可删除" : (enabled ? "删除当前空间" : "仅空间创建者或管理员可删除");
+        }
+      });
 
       const viewSwitchMount = document.getElementById("workspaceViewModeSwitch");
       if (viewSwitchMount) viewSwitchMount.innerHTML = viewModeSwitchHtml;

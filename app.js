@@ -12,6 +12,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 const PHOTO_BUCKET = "house-photos";
 const OBJECT_PHOTOS_TABLE = "object_photos";
 const OBJECT_EDITS_TABLE = "object_attribute_edits";
+const OBJECT_COMMENTS_TABLE = "object_comments";
 const COMMUNITY_TASKS_TABLE = "community_tasks";
 const POINTS_LEDGER_TABLE = "points_ledger";
 const USER_STATS_TABLE = "user_stats";
@@ -123,6 +124,7 @@ const courseWorkbenchContent = document.getElementById("courseWorkbenchContent")
 const courseTaskNav = document.getElementById("courseTaskNav");
 const workspaceVillageLabel = document.getElementById("workspaceVillageLabel");
 const workspaceStageLabel = document.getElementById("workspaceStageLabel");
+const classDiscussionBtn = document.getElementById("classDiscussionBtn");
 const projectSettingsBtn = document.getElementById("projectSettingsBtn");
 const projectSettingsDrawer = document.getElementById("projectSettingsDrawer");
 const projectSettingsCloseBtn = document.getElementById("projectSettingsCloseBtn");
@@ -1695,8 +1697,9 @@ function getSpaceCreatorName(spaceOrId) {
 function canManageSpace(spaceOrId, actorName = currentUserName) {
   const space = typeof spaceOrId === "string" ? getSpaceById(spaceOrId) : spaceOrId;
   if (!space) return false;
-  if (space.readonly) return false;
   const actor = normalizeIdentityName(actorName);
+  if (space.id !== BASE_SPACE_ID && isAdminIdentity(actor)) return true;
+  if (space.readonly) return false;
   if (space.courseGroupId && window.CourseWorkspaceAdapterModule) {
     return window.CourseWorkspaceAdapterModule.canActorAccessGroupSpace(
       space,
@@ -3319,12 +3322,12 @@ function syncCommunityTaskUiState() {
   }
 
   // 同步发布留言按钮状态（可能在 infoPanel 的留言板 header 中）
-  document.querySelectorAll("[data-community-action=\"report\"]").forEach((btn) => {
+  document.querySelectorAll("[data-community-action=\"report-point\"]").forEach((btn) => {
     btn.classList.toggle("is-active", communityTaskEditState.mode === "report");
   });
 }
 
-function startCommunityTaskReport() {
+function startCommunityTaskReport({ requireLocation = false } = {}) {
   if (!currentUserName) {
     showToast("请先登录后再发布留言", "error");
     communityTaskEditState.mode = "idle";
@@ -3332,6 +3335,7 @@ function startCommunityTaskReport() {
   }
 
   showCommunityTaskReportDialog({
+    requireLocation,
     onSubmit: async ({ category, description, photoFile }) => {
       if (category) {
         // 选择了类型，需要地图选点
@@ -3412,17 +3416,28 @@ async function submitCommunityMessage({ category, description, photoFile, lng, l
     await refreshCommunityScoreBadge();
     await refreshCommunityMessageBoard();
     showToast(taskMeta ? `【${taskMeta.label}】留言发布成功` : "留言发布成功", "success");
+    return true;
   } catch (error) {
     communityTaskEditState.mode = "idle";
     communityTaskEditState.pendingPayload = null;
     syncCommunityTaskUiState();
     showToast(error?.message || "发布失败，请查看控制台。", "error");
     console.error(error);
+    return false;
   }
 }
 
-function showCommunityTaskReportDialog({ onSubmit, onCancel }) {
+function focusCommunityMessageComposer() {
+  const board = document.getElementById("communityMessageBoard");
+  const input = document.getElementById("communityMessageInput");
+  board?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => input?.focus(), 120);
+}
+
+function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = false }) {
   const typeMeta = COMMUNITY_TASK_TYPE_META;
+  const typeEntries = Object.entries(typeMeta);
+  const initialCategory = requireLocation ? (typeEntries[0]?.[0] || "") : "";
   const typeColors = {
     garbage: "#c64040",
     road_damage: "#ef6c00",
@@ -3435,7 +3450,7 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel }) {
   overlay.className = "community-report-dialog-overlay";
   overlay.innerHTML = `
     <div class="community-report-dialog">
-      <h3 class="dialog-title">发布留言</h3>
+      <h3 class="dialog-title">${requireLocation ? "标记问题" : "发布留言"}</h3>
       <div class="dialog-body">
         <div class="dialog-field">
           <label class="dialog-label">留言内容<span id="reportDescError" class="dialog-field-error" style="display:none">请输入留言内容</span></label>
@@ -3444,14 +3459,16 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel }) {
         <div class="dialog-field">
           <label class="dialog-label">任务类型（可选，选择后需在地图上标记位置）</label>
           <div class="dialog-type-grid">
-            <label class="dialog-type-option is-selected" data-type="">
-              <input type="radio" name="reportType" value="" checked>
-              <span class="type-dot" style="background:#9e9e9e"></span>
-              <span class="type-name">普通留言</span>
-            </label>
-            ${Object.entries(typeMeta).map(([key, meta]) => `
-              <label class="dialog-type-option" data-type="${key}">
-                <input type="radio" name="reportType" value="${key}">
+            ${requireLocation ? "" : `
+              <label class="dialog-type-option is-selected" data-type="">
+                <input type="radio" name="reportType" value="" checked>
+                <span class="type-dot" style="background:#9e9e9e"></span>
+                <span class="type-name">普通留言</span>
+              </label>
+            `}
+            ${typeEntries.map(([key, meta], index) => `
+              <label class="dialog-type-option ${requireLocation && index === 0 ? "is-selected" : ""}" data-type="${key}">
+                <input type="radio" name="reportType" value="${key}" ${requireLocation && index === 0 ? "checked" : ""}>
                 <span class="type-dot" style="background:${typeColors[key] || '#999'}"></span>
                 <span class="type-name">${escapeHtml(meta.label)}</span>
               </label>
@@ -3469,7 +3486,7 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel }) {
       </div>
       <div class="dialog-footer">
         <button type="button" id="reportCancelBtn" class="dialog-btn dialog-btn-secondary">取消</button>
-        <button type="button" id="reportSubmitBtn" class="dialog-btn dialog-btn-primary">发布留言</button>
+        <button type="button" id="reportSubmitBtn" class="dialog-btn dialog-btn-primary">${requireLocation ? "下一步：地图选点" : "发布留言"}</button>
       </div>
     </div>
   `;
@@ -3477,7 +3494,7 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel }) {
   document.body.appendChild(overlay);
 
   let selectedPhotoFile = null;
-  let selectedCategory = "";
+  let selectedCategory = initialCategory;
 
   const typeOptions = overlay.querySelectorAll(".dialog-type-option");
   typeOptions.forEach((opt) => {
@@ -3567,9 +3584,9 @@ function ensureCommunityBuildPanel() {
   mount.innerHTML = `
     <div id="communityBuildPanel" class="community-build-panel">
       <div class="community-panel-actions">
-        <button type="button" class="community-report-btn" data-community-action="report">
+        <button type="button" class="community-report-btn" data-community-action="report-point">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-          <span>新增问题标记或留言</span>
+          <span>标记问题</span>
         </button>
       </div>
       <div class="community-type-section">
@@ -3585,18 +3602,40 @@ function ensureCommunityBuildPanel() {
     </div>
   `;
 
-  mount.querySelectorAll('[data-community-action="report"]').forEach((btn) => {
+  mount.querySelectorAll('[data-community-action="report-point"]').forEach((btn) => {
     btn.addEventListener("click", () => {
       if (communityTaskEditState.mode === "report") {
         communityTaskEditState.mode = "idle";
         communityTaskEditState.pendingPayload = null;
         showToast("已取消问题标记", "info");
       } else {
-        startCommunityTaskReport();
+        startCommunityTaskReport({ requireLocation: true });
       }
       syncCommunityTaskUiState();
     });
   });
+
+  const communityMessageSubmitBtn = document.getElementById("communityMessageSubmitBtn");
+  if (communityMessageSubmitBtn && !communityMessageSubmitBtn.dataset.bound) {
+    communityMessageSubmitBtn.dataset.bound = "1";
+    communityMessageSubmitBtn.addEventListener("click", async () => {
+      const input = document.getElementById("communityMessageInput");
+      const description = String(input?.value || "").trim();
+      if (!currentUserName) {
+        showToast("请先登录后再发表留言", "error");
+        return;
+      }
+      if (!description) {
+        showToast("请先填写留言内容", "error");
+        input?.focus();
+        return;
+      }
+      communityMessageSubmitBtn.disabled = true;
+      const published = await submitCommunityMessage({ category: null, description, photoFile: null, lng: null, lat: null });
+      communityMessageSubmitBtn.disabled = false;
+      if (published && input) input.value = "";
+    });
+  }
 
   mount.querySelectorAll("[data-community-task-type]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -3775,7 +3814,7 @@ async function refreshCommunityMessageBoard() {
           : "";
 
         const replySectionHtml = `
-          <div class="community-replies" id="msgReplies_${msg.id}">
+          <div class="community-replies ${replies.length ? "has-replies" : "is-empty"}" id="msgReplies_${msg.id}">
             ${currentUserName ? `
               <div class="community-reply-input-row" style="display:none;">
                 <textarea class="community-reply-input" id="replyInput_${msg.id}" rows="1" placeholder="写下追评..."></textarea>
@@ -3877,7 +3916,10 @@ async function refreshCommunityMessageBoard() {
         if (!el) return;
         const inputRow = el.querySelector(".community-reply-input-row");
         if (inputRow) {
-          inputRow.style.display = inputRow.style.display === "none" ? "" : "none";
+          const shouldOpen = !el.classList.contains("is-open");
+          el.classList.toggle("is-open", shouldOpen);
+          inputRow.style.display = shouldOpen ? "" : "none";
+          if (shouldOpen) inputRow.querySelector(".community-reply-input")?.focus();
         }
       });
     });
@@ -3922,6 +3964,8 @@ async function refreshCommunityMessageBoard() {
           if (replySection) {
             const inputRow = replySection.querySelector(".community-reply-input-row");
             if (inputRow) inputRow.style.display = "none";
+            replySection.classList.remove("is-open", "is-empty");
+            replySection.classList.add("has-replies");
           }
           // 局部更新 DOM
           const card = btn.closest(".community-message-card");
@@ -4794,6 +4838,15 @@ function setProjectSettingsOpen(open) {
 }
 
 function bindProjectSettingsDrawer() {
+  if (classDiscussionBtn && !classDiscussionBtn.dataset.bound) {
+    classDiscussionBtn.dataset.bound = "1";
+    classDiscussionBtn.addEventListener("click", () => {
+      isCommunityExpanded = true;
+      saveAppState();
+      setProjectSettingsOpen(true);
+      window.setTimeout(focusCommunityMessageComposer, 0);
+    });
+  }
   if (projectSettingsBtn && !projectSettingsBtn.dataset.bound) {
     projectSettingsBtn.dataset.bound = "1";
     projectSettingsBtn.addEventListener("click", () => {
@@ -5459,13 +5512,18 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const config = layerConfigs[layerKey];
   const baseObjectType = config?.objectType || "";
 
-  const showPhotoBlock = layerKey !== "road" && currentSpaceId === BASE_SPACE_ID;
+  const showPhotoBlock = layerKey !== "road";
   const editableByIdentity = canManageSpace(currentSpace);
   const allowLayerEdit = canEditLayer(layerKey, editableByIdentity);
   const allowPhotoUpload = showPhotoBlock && !!currentUserName;
 
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
+  const objectCommentDeps = {
+    getClient: getSupabaseClient,
+    commentsTable: OBJECT_COMMENTS_TABLE,
+    editsTable: OBJECT_EDITS_TABLE
+  };
 
   const editData = allowLayerEdit
     ? await fetchObjectEdits(sourceCode, editObjectType)
@@ -5532,6 +5590,15 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
         .map((item) => item.trim())
         .filter((item) => item !== "")
     : [];
+
+  let objectComments = [];
+  if (window.ObjectCommentsModule && sourceCode && editObjectType) {
+    try {
+      objectComments = await window.ObjectCommentsModule.list(objectCommentDeps, sourceCode, editObjectType);
+    } catch (error) {
+      console.warn("读取对象留言失败：", error);
+    }
+  }
 
   const mergedPhotos = [
     ...csvPhotoList.map((src) => ({ src, source: "csv" })),
@@ -5619,6 +5686,54 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       </div>
     `;
 
+  const objectCommentsHtml = objectComments.length
+    ? objectComments.map((comment) => {
+        const interaction = window.ObjectCommentsModule.normalizeInteractionData(comment.interaction);
+        const hasLiked = interaction.likes.includes(currentUserName);
+        const repliesHtml = interaction.replies.length
+          ? `<div class="object-comment-replies">${interaction.replies.map((reply) => `
+              <div class="community-reply-item">
+                <div class="community-reply-header">
+                  <span class="community-reply-author">${escapeHtml(reply.author || "未知")}</span>
+                  <span class="community-reply-time">${escapeHtml(formatDateTime(reply.created_at))}</span>
+                </div>
+                <div class="community-reply-content">${escapeHtml(reply.content || "")}</div>
+              </div>
+            `).join("")}</div>`
+          : "";
+        return `
+          <article class="community-message-card object-comment-card">
+            <div class="community-message-header">
+              <span class="community-message-author">${escapeHtml(comment.author_name || "未知")}</span>
+              <span class="community-message-time">${escapeHtml(formatDateTime(comment.created_at))}</span>
+            </div>
+            <div class="community-message-content">${escapeHtml(comment.content || "")}</div>
+            <div class="community-message-actions">
+              <button type="button" class="community-message-like-btn ${hasLiked ? "is-liked" : ""}" data-object-comment-like="${comment.id}">赞 ${interaction.likes.length}</button>
+              <button type="button" class="community-message-reply-btn" data-object-comment-reply="${comment.id}">回复 ${interaction.replies.length}</button>
+            </div>
+            ${repliesHtml}
+          </article>
+        `;
+      }).join("")
+    : `<div class="object-comment-empty">暂无针对该要素的留言。</div>`;
+
+  const objectDiscussionHtml = `
+    <div class="info-card object-discussion-card">
+      <div class="photo-header-row">
+        <h3 class="house-title">要素讨论</h3>
+        <span class="object-discussion-code">${escapeHtml(sourceCode || "")}</span>
+      </div>
+      ${currentUserName ? `
+        <form id="objectCommentForm" class="object-comment-form">
+          <textarea id="objectCommentInput" maxlength="200" rows="2" placeholder="围绕这个${escapeHtml(config?.label || "要素")}发表留言……"></textarea>
+          <button type="submit">发表</button>
+        </form>
+      ` : `<div class="object-comment-empty">登录后可留言、点赞和回复。</div>`}
+      <div class="object-comment-list">${objectCommentsHtml}</div>
+    </div>
+  `;
+
 
 
   infoPanel.classList.remove("empty");
@@ -5630,6 +5745,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     </div>
 
     ${uploadBlockHtml}
+    ${objectDiscussionHtml}
   `;
 
   bindInlineEdit(context);
@@ -5657,6 +5773,48 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       if (targetPhoto) {
         await handlePhotoDelete(targetPhoto, context);
       }
+    });
+  });
+
+  const objectCommentForm = document.getElementById("objectCommentForm");
+  objectCommentForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = document.getElementById("objectCommentInput");
+    const content = String(input?.value || "").trim();
+    if (!content) return;
+    try {
+      await window.ObjectCommentsModule.create(objectCommentDeps, {
+        objectCode: sourceCode,
+        objectType: editObjectType,
+        authorName: currentUserName,
+        content
+      });
+      await recordCourseActivity("object_comment_created", { type: editObjectType, id: sourceCode });
+      await showObjectInfo(baseRow, layerKey, sourceCode);
+      showToast("要素留言已发表", "success");
+    } catch (error) {
+      console.error(error);
+      showToast(error?.message || "要素留言发表失败", "error");
+    }
+  });
+
+  document.querySelectorAll("[data-object-comment-like]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!currentUserName) return showToast("请先登录", "error");
+      await window.ObjectCommentsModule.like(objectCommentDeps, button.dataset.objectCommentLike, currentUserName);
+      await recordCourseActivity("object_comment_liked", { type: editObjectType, id: sourceCode });
+      await showObjectInfo(baseRow, layerKey, sourceCode);
+    });
+  });
+
+  document.querySelectorAll("[data-object-comment-reply]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!currentUserName) return showToast("请先登录", "error");
+      const content = await customPrompt("请输入回复内容", "", "回复要素留言", { maxLength: 200 });
+      if (!content) return;
+      await window.ObjectCommentsModule.reply(objectCommentDeps, button.dataset.objectCommentReply, currentUserName, content);
+      await recordCourseActivity("object_comment_replied", { type: editObjectType, id: sourceCode });
+      await showObjectInfo(baseRow, layerKey, sourceCode);
     });
   });
 
