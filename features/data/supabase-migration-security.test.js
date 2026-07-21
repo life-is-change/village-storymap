@@ -8,12 +8,13 @@ const migrationPath = path.resolve(
   '../../supabase_SQL/Shared Current Survey Versioning and Feature Locks.sql'
 );
 
-test('shared survey migration exposes reads but not direct anonymous table writes', () => {
+test('shared survey migration exposes reads to signed-in users but not anonymous writes', () => {
   const sql = fs.readFileSync(migrationPath, 'utf8');
 
   assert.doesNotMatch(sql, /for\s+all\s+to\s+anon\s*,\s*authenticated/i);
   assert.match(sql, /revoke\s+all\s+on\s+table\s+public\.feature_edit_locks[\s\S]*?from\s+anon\s*,\s*authenticated/i);
-  assert.match(sql, /grant\s+select\s+on\s+table\s+public\.feature_edit_locks[\s\S]*?to\s+anon\s*,\s*authenticated/i);
+  assert.match(sql, /grant\s+select\s+on\s+table\s+public\.feature_edit_locks[\s\S]*?to\s+authenticated/i);
+  assert.doesNotMatch(sql, /grant\s+select\s+on\s+table\s+public\.feature_edit_locks[\s\S]*?to\s+anon\s*,/i);
 });
 
 test('administrative snapshot RPCs are unavailable to public and browser roles', () => {
@@ -24,9 +25,11 @@ test('administrative snapshot RPCs are unavailable to public and browser roles',
   assert.doesNotMatch(sql, /grant\s+execute\s+on\s+function\s+public\.freeze_feature_snapshot\([\s\S]*?to\s+anon\s*,\s*authenticated/i);
 });
 
-test('structured lock and save RPCs remain available to the browser client', () => {
+test('structured lock and save RPCs require an authenticated browser session', () => {
   const sql = fs.readFileSync(migrationPath, 'utf8');
 
-  assert.match(sql, /grant\s+execute\s+on\s+function\s+public\.acquire_feature_edit_lock\([\s\S]*?to\s+anon\s*,\s*authenticated/i);
-  assert.match(sql, /grant\s+execute\s+on\s+function\s+public\.save_feature_edit_batch\([\s\S]*?to\s+anon\s*,\s*authenticated/i);
+  assert.match(sql, /grant\s+execute\s+on\s+function\s+public\.acquire_feature_edit_lock\([\s\S]*?to\s+authenticated/i);
+  assert.match(sql, /grant\s+execute\s+on\s+function\s+public\.save_feature_edit_batch\([\s\S]*?to\s+authenticated/i);
+  assert.doesNotMatch(sql, /grant\s+execute\s+on\s+function\s+public\.acquire_feature_edit_lock\([\s\S]*?to\s+anon\s*,/i);
+  assert.doesNotMatch(sql, /grant\s+execute\s+on\s+function\s+public\.save_feature_edit_batch\([\s\S]*?to\s+anon\s*,/i);
 });

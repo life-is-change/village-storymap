@@ -83,7 +83,7 @@ begin
     'feature_snapshots', 'feature_snapshot_items'
   ] loop
     execute format('drop policy if exists %I on public.%I', table_name || '_read', table_name);
-    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', table_name || '_read', table_name);
+    execute format('create policy %I on public.%I for select to authenticated using (true)', table_name || '_read', table_name);
     execute format('drop policy if exists %I on public.%I', table_name || '_write', table_name);
   end loop;
 end $$;
@@ -95,11 +95,11 @@ revoke all on table public.feature_versions from anon, authenticated;
 revoke all on table public.feature_snapshots from anon, authenticated;
 revoke all on table public.feature_snapshot_items from anon, authenticated;
 
-grant select on table public.feature_edit_locks to anon, authenticated;
-grant select on table public.feature_change_batches to anon, authenticated;
-grant select on table public.feature_versions to anon, authenticated;
-grant select on table public.feature_snapshots to anon, authenticated;
-grant select on table public.feature_snapshot_items to anon, authenticated;
+grant select on table public.feature_edit_locks to authenticated;
+grant select on table public.feature_change_batches to authenticated;
+grant select on table public.feature_versions to authenticated;
+grant select on table public.feature_snapshots to authenticated;
+grant select on table public.feature_snapshot_items to authenticated;
 
 create or replace function public.acquire_feature_edit_lock(
   p_space_id text,
@@ -380,10 +380,10 @@ revoke all on function public.freeze_feature_snapshot(text,text,text,text,text,j
 revoke all on function public.ensure_initial_feature_baseline(text) from public, anon, authenticated;
 
 -- 前端仅能通过结构化 RPC 获取锁、续租、释放和保存，不能直接写历史表。
-grant execute on function public.acquire_feature_edit_lock(text,text,text,text,integer) to anon, authenticated;
-grant execute on function public.heartbeat_feature_edit_lock(text,text,text,text,uuid,integer) to anon, authenticated;
-grant execute on function public.release_feature_edit_lock(text,text,text,text,uuid) to anon, authenticated;
-grant execute on function public.save_feature_edit_batch(text,text,text,text,jsonb) to anon, authenticated;
+grant execute on function public.acquire_feature_edit_lock(text,text,text,text,integer) to authenticated;
+grant execute on function public.heartbeat_feature_edit_lock(text,text,text,text,uuid,integer) to authenticated;
+grant execute on function public.release_feature_edit_lock(text,text,text,text,uuid) to authenticated;
+grant execute on function public.save_feature_edit_batch(text,text,text,text,jsonb) to authenticated;
 
 -- 冻结版本和创建永久 V0 仅供可信后台调用；待接入 Supabase Auth 后再开放教师角色。
 grant execute on function public.freeze_feature_snapshot(text,text,text,text,text,jsonb) to service_role;

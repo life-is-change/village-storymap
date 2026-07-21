@@ -10,8 +10,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 })();
 
-  const AUTH_USERS_KEY = "village_planning_auth_users_v2";
-  const AUTH_SESSION_KEY = "village_planning_auth_session_v2";
   const SPACE_STORAGE_KEY = "village_planning_spaces_v2";
   const LEGACY_USERS_KEY = "village_planning_users_v1";
   const LEGACY_ACTIVE_KEY = "village_planning_active_user_v1";
@@ -25,10 +23,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const USER_STATS_TABLE = "user_stats";
   const COMMUNITY_TASK_PHOTO_OBJECT_TYPE = "community_task";
 
-  const supabaseClient =
+  const supabaseClient = window.VillageSupabaseClient || (
     ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
       ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-      : null;
+      : null
+  );
 
   let isDeletingUser = false;
   let remoteCleanupWarnings = [];
@@ -53,13 +52,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (supabaseClient) {
       try {
         const { data, error } = await supabaseClient
-          .from("auth_users")
-          .select("name, student_id, gender, class_name, grade, created_at")
+          .from("profiles")
+          .select("id, display_name, student_id, role, gender, class_name, grade, created_at")
           .order("created_at", { ascending: false });
         if (!error && Array.isArray(data)) {
           remoteUsers = data.map((row) => ({
-            name: row.name,
+            id: row.id,
+            name: row.display_name,
             studentId: row.student_id,
+            role: row.role || "student",
             gender: row.gender || "",
             className: row.class_name || "",
             grade: row.grade || "",
@@ -90,10 +91,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       }
     });
     return Array.from(mergedMap.values());
-  }
-
-  function writeAuthUsers(users) {
-    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(Array.isArray(users) ? users : []));
   }
 
   function readJsonArray(key) {
@@ -265,7 +262,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const grade = escapeHtml(u.grade || "—");
       const contribution = escapeHtml(formatContribution(statsMap[rawName]));
       const createdAt = formatDate(u.createdAt);
-      const actionHtml = window.AccessControlModule?.isAdminCredential(rawName, rawStudentId)
+      const actionHtml = window.AccessControlModule?.isAdminUser(u)
         ? `<span class="admin-action-muted">管理员账号</span>`
         : `<button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-user-name="${escapeHtml(rawName)}" data-delete-user-student-id="${escapeHtml(rawStudentId)}">删除</button>`;
 
@@ -443,13 +440,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function deleteUserAndData(userName, studentId) {
     const targetName = String(userName || "").trim();
     const targetStudentId = String(studentId || "").trim();
-    if (!targetName || window.AccessControlModule?.isAdminCredential(targetName, targetStudentId)) {
-      throw new Error("管理员账号不能删除。");
-    }
+    if (!targetName) throw new Error("缺少目标账号。");
 
     const users = await getAllUsers();
     const target = users.find((u) => String(u.name || "").trim() === targetName && String(u.studentId || "").trim() === targetStudentId);
     if (!target) throw new Error("未找到该账号，可能已被删除。");
+    if (window.AccessControlModule?.isAdminUser(target)) throw new Error("管理员账号不能删除。");
 
     const spaces = readJsonArray(SPACE_STORAGE_KEY);
     const removedSpaces = spaces.filter((space) => getSpaceCreator(space) === targetName);
@@ -458,7 +454,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const remoteSummary = await cleanupRemoteUserData(targetName, removedSpaceIds);
 
-    writeAuthUsers(users.filter((u) => String(u.name || "").trim() !== targetName));
     localStorage.setItem(SPACE_STORAGE_KEY, JSON.stringify(nextSpaces));
 
     const legacyUsers = readJsonArray(LEGACY_USERS_KEY).filter((name) => String(name || "").trim() !== targetName);
@@ -468,29 +463,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
       localStorage.removeItem(LEGACY_USERS_KEY);
     }
 
-    try {
-      const sessionRaw = localStorage.getItem(AUTH_SESSION_KEY);
-      const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-      if (session && String(session.name || "").trim() === targetName) {
-        localStorage.removeItem(AUTH_SESSION_KEY);
-      }
-    } catch (_) {
-      // ignore malformed session
-    }
-
     if (String(localStorage.getItem(LEGACY_ACTIVE_KEY) || "").trim() === targetName) {
       localStorage.removeItem(LEGACY_ACTIVE_KEY);
     }
 
-    // 从远端用户表和会话表中删除
-    if (supabaseClient) {
-      await runDeleteQuery("远端用户数据", () =>
-        supabaseClient.from("auth_users").delete().eq("name", targetName).eq("student_id", targetStudentId)
-      );
-      await runDeleteQuery("远端会话数据", () =>
-        supabaseClient.from("user_sessions").delete().eq("user_name", targetName)
-      );
-    }
+    if (!supabaseClient || !target.id) throw new Error("无法连接认证服务，账号未删除。");
+    const { error: deleteAuthError } = await supabaseClient.functions.invoke("admin-delete-user", {
+      body: { userId: target.id }
+    });
+    if (deleteAuthError) throw new Error(deleteAuthError.message || "认证账号删除失败");
 
     return {
       removedSpaceCount: removedSpaceIds.length,
@@ -503,7 +484,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (isDeletingUser) return;
     const userName = String(button.dataset.deleteUserName || "").trim();
     const studentId = String(button.dataset.deleteUserStudentId || "").trim();
-    if (!userName || window.AccessControlModule?.isAdminCredential(userName, studentId)) return;
+    if (!userName) return;
 
     const confirmed = await adminConfirm(
       `确认删除账号“${userName}”（学号：${studentId || "—"}）吗？该操作会删除此账号及其名下的规划空间、照片、任务和积分数据，删除后不可恢复。`,

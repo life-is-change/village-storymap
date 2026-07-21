@@ -1,599 +1,459 @@
 (function () {
-  const AUTH_USERS_KEY = "village_planning_auth_users_v2";
-  const AUTH_SESSION_KEY = "village_planning_auth_session_v2";
-
-  const LEGACY_USERS_KEY = "village_planning_users_v1";
-  const LEGACY_ACTIVE_KEY = "village_planning_active_user_v1";
-  const OLD_AUTH_USERS_KEY = "village_planning_auth_users_v1";
-  const OLD_AUTH_SESSION_KEY = "village_planning_auth_session_v1";
-
   const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
-// 默认开启 Supabase；如需临时切回纯本地模式，可将 village_enable_supabase 设为 "false"。
-const ENABLE_SUPABASE_SYNC = (() => {
-  try {
-    return localStorage.getItem("village_enable_supabase") !== "false";
-  } catch (_) {
-    return true;
-  }
-})();
+  const USER_CACHE_KEY = "village_supabase_auth_user_v1";
+  const MIGRATION_KEY = "village_supabase_auth_migrated_v1";
+  const LEGACY_KEYS = [
+    "village_planning_auth_users_v1",
+    "village_planning_auth_session_v1",
+    "village_planning_auth_users_v2",
+    "village_planning_auth_session_v2",
+    "village_planning_users_v1",
+    "village_planning_active_user_v1"
+  ];
+
+  const model = window.SupabaseAuthModel;
   const supabaseClient =
-    ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-      : null;
+    window.VillageSupabaseClient ||
+    (typeof supabase !== "undefined"
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: {
+            storageKey: "village-storymap-supabase-auth-v1",
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        })
+      : null);
 
+  if (supabaseClient) window.VillageSupabaseClient = supabaseClient;
+
+  let currentUser = loadCachedUser();
   let authModalOverlay = null;
-  let hasHandledInitialAuthRequest = false;
   let authMode = "login";
+  let hasHandledInitialAuthRequest = false;
+  let authOperationPending = false;
+  let authReadyResolve;
+  const authReady = new Promise((resolve) => {
+    authReadyResolve = resolve;
+  });
 
-  function clearLegacyIdentityData() {
+  function loadCachedUser() {
     try {
-      localStorage.removeItem(LEGACY_USERS_KEY);
-      localStorage.removeItem(LEGACY_ACTIVE_KEY);
-      localStorage.removeItem(OLD_AUTH_USERS_KEY);
-      localStorage.removeItem(OLD_AUTH_SESSION_KEY);
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  function loadAuthUsers() {
-    try {
-      const raw = localStorage.getItem(AUTH_USERS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (_) {
-      return [];
-    }
-  }
-
-  function saveAuthUsers(users) {
-    try {
-      localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
-    } catch (e) {
-      console.warn("保存用户数据失败:", e);
-    }
-  }
-
-  function loadAuthSession() {
-    try {
-      const raw = localStorage.getItem(AUTH_SESSION_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(localStorage.getItem(USER_CACHE_KEY) || "null");
+      return parsed && parsed.authUserId && parsed.studentId ? parsed : null;
     } catch (_) {
       return null;
     }
   }
 
-  function saveAuthSession(session) {
+  function cacheUser(user) {
     try {
-      if (!session) {
-        localStorage.removeItem(AUTH_SESSION_KEY);
-      } else {
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-      }
-    } catch (e) {
-      console.warn("保存会话失败:", e);
+      if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+      else localStorage.removeItem(USER_CACHE_KEY);
+    } catch (_) {
+      // Local storage is only a display cache; Supabase remains authoritative.
     }
   }
 
-  function syncLegacyActiveUser(name) {
+  function expireLegacyIdentityOnce() {
     try {
-      if (name) {
-        localStorage.setItem(LEGACY_ACTIVE_KEY, name);
-      } else {
-        localStorage.removeItem(LEGACY_ACTIVE_KEY);
-      }
+      if (localStorage.getItem(MIGRATION_KEY) === "done") return;
+      LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
+      localStorage.setItem(MIGRATION_KEY, "done");
     } catch (_) {
       // ignore
     }
   }
 
-  function generateSessionToken() {
-    return `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
-  }
-
-  async function upsertAuthUserToRemote(user) {
-    if (!supabaseClient) return;
-    try {
-      await supabaseClient.from("auth_users").upsert(
-        {
-          name: user.name,
-          student_id: user.studentId,
-          gender: user.gender || null,
-          class_name: user.className || null,
-          grade: user.grade || null,
-          created_at: user.createdAt || new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: "name,student_id" }
-      );
-    } catch (e) {
-      console.warn("同步用户到远端失败：", e);
-    }
-  }
-
-  async function upsertUserSessionToRemote(name, token) {
-    if (!supabaseClient || !name || !token) return;
-    try {
-      await supabaseClient.from("user_sessions").upsert(
-        {
-          user_name: name,
-          session_token: token,
-          created_at: new Date().toISOString(),
-          last_seen_at: new Date().toISOString()
-        },
-        { onConflict: "user_name" }
-      );
-    } catch (e) {
-      console.warn("同步会话到远端失败：", e);
-    }
-  }
-
-  async function removeUserSessionFromRemote(name) {
-    if (!supabaseClient || !name) return;
-    try {
-      await supabaseClient.from("user_sessions").delete().eq("user_name", name);
-    } catch (e) {
-      console.warn("删除远端会话失败：", e);
-    }
-  }
-
-  async function validateCurrentSession() {
-    const session = loadAuthSession();
-    if (!session || !session.name) return false;
-    // 兼容老用户：没有 token 的会话视为有效（避免强制登出老用户）
-    if (!session.token) return true;
-    if (!supabaseClient) return true;
-    try {
-      const { data, error } = await supabaseClient
-        .from("user_sessions")
-        .select("session_token")
-        .eq("user_name", session.name)
-        .maybeSingle();
-      if (error) return true;
-      if (!data) return false;
-      return data.session_token === session.token;
-    } catch (e) {
-      return true;
-    }
-  }
-
-  function forceLogoutWithMessage(message) {
-    saveAuthSession(null);
-    syncLegacyActiveUser("");
-    onAuthStateChanged();
-    updateAuthModalUI();
-    if (typeof window.showToast === "function") {
-      window.showToast(message, "error");
-    } else {
-      alert(message);
-    }
-  }
-
-  function initSessionRealtimeListener() {
-    if (!supabaseClient) return;
-    const session = loadAuthSession();
-    if (!session || !session.name) return;
-
-    supabaseClient
-      .channel("user-sessions-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_sessions",
-          filter: `user_name=eq.${session.name}`
-        },
-        (payload) => {
-          const newToken = payload.new?.session_token;
-          const currentSession = loadAuthSession();
-          // 老用户没有 token，不触发挤下线（避免误踢）
-          if (!currentSession || !currentSession.token) return;
-          if (newToken && newToken !== currentSession.token) {
-            forceLogoutWithMessage("您的账号已在其他地方登录，您已被退出。");
-          }
-        }
-      )
-      .subscribe();
-  }
-
-  function findUserByCredential(name, studentId) {
-    const users = loadAuthUsers();
-    const normalizedName = String(name || "").trim();
-    const normalizedId = String(studentId || "").trim();
-    return users.find(
-      (u) => String(u.name || "").trim() === normalizedName && String(u.studentId || "").trim() === normalizedId
-    ) || null;
-  }
-
   function getCurrentUser() {
-    const session = loadAuthSession();
-    if (!session || !session.name) return null;
-    return findUserByCredential(session.name, session.studentId);
-  }
-
-  function isLoggedIn() {
-    return !!getCurrentUser();
+    return currentUser;
   }
 
   function getCurrentDisplayName() {
-    const user = getCurrentUser();
-    return user ? user.name : "";
+    return currentUser?.name || "";
   }
 
-  function normalizeAuthInput(name, studentId) {
-    const trimmedName = String(name || "").trim();
-    const trimmedId = String(studentId || "").trim();
-
-    if (!trimmedName) return { success: false, message: "请输入姓名" };
-    if (!trimmedId) return { success: false, message: "请输入学号或管理员凭据" };
-    if (trimmedName.length > 20) return { success: false, message: "姓名不能超过20个字符" };
-    if (trimmedId.length > 20) return { success: false, message: "学号不能超过20个字符" };
-
-    return { success: true, name: trimmedName, studentId: trimmedId };
+  function isLoggedIn() {
+    return !!currentUser;
   }
 
-  function normalizeProfileDetails(details = {}) {
-    const pick = (...keys) => {
-      for (const key of keys) {
-        if (Object.prototype.hasOwnProperty.call(details, key)) {
-          return String(details[key] || "").trim();
+  function setCurrentUser(user, notify = true) {
+    currentUser = user || null;
+    cacheUser(currentUser);
+    if (notify) notifyAuthStateChanged();
+  }
+
+  function delay(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  async function loadProfile(authUser, retryCount = 3) {
+    if (!supabaseClient || !authUser?.id) return null;
+    let lastError = null;
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("id, student_id, display_name, role, gender, class_name, grade")
+        .eq("id", authUser.id)
+        .maybeSingle();
+      if (!error && data) return model.profileToLegacyUser(authUser, data);
+      lastError = error;
+      if (attempt < retryCount) await delay(160 * (attempt + 1));
+    }
+    if (lastError) console.warn("读取登录资料失败：", lastError.message || lastError);
+    return null;
+  }
+
+  function translateAuthError(error, fallback) {
+    const text = String(error?.message || "").toLowerCase();
+    if (text.includes("invalid login credentials")) return "学号或密码不正确";
+    if (text.includes("user already registered")) return "该学号已注册，请直接登录";
+    if (text.includes("email not confirmed")) return "账号尚未启用，请联系教师处理";
+    if (text.includes("password")) return "密码不符合要求，请至少使用 8 位字符";
+    if (text.includes("rate limit")) return "操作过于频繁，请稍后再试";
+    return fallback || error?.message || "认证服务暂时不可用";
+  }
+
+  function validateNameAndStudentId(name, studentId) {
+    try {
+      return {
+        success: true,
+        name: model.normalizeDisplayName(name),
+        studentId: model.normalizeStudentId(studentId)
+      };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  async function register(name, studentId, password, profileDetails = {}) {
+    if (!supabaseClient || !model) return { success: false, message: "认证服务未加载，请刷新页面" };
+    const identity = validateNameAndStudentId(name, studentId);
+    if (!identity.success) return identity;
+    const passwordResult = model.validatePassword(password);
+    if (!passwordResult.valid) return { success: false, message: passwordResult.message };
+
+    const email = model.buildSyntheticEmail(identity.studentId);
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: identity.name,
+          student_id: identity.studentId,
+          gender: String(profileDetails.gender || "").trim().slice(0, 12),
+          class_name: String(profileDetails.className || profileDetails.class_name || "").trim().slice(0, 30),
+          grade: String(profileDetails.grade || "").trim().slice(0, 20)
         }
       }
-      return "";
-    };
-
-    return {
-      gender: pick("gender", "sex").slice(0, 12),
-      className: pick("className", "class", "class_name").slice(0, 30),
-      grade: pick("grade", "year").slice(0, 20)
-    };
-  }
-
-  function mergeNonEmptyProfileDetails(target, details) {
-    let changed = false;
-    ["gender", "className", "grade"].forEach((key) => {
-      if (details[key] && target[key] !== details[key]) {
-        target[key] = details[key];
-        changed = true;
-      }
     });
-    return changed;
-  }
 
-  async function loginOrRegister(name, studentId, profileDetails = {}) {
-    const normalized = normalizeAuthInput(name, studentId);
-    if (!normalized.success) return normalized;
-
-    const trimmedName = normalized.name;
-    const trimmedId = normalized.studentId;
-    const details = normalizeProfileDetails(profileDetails);
-    const users = loadAuthUsers();
-    const existing = users.find((u) => u.name === trimmedName && u.studentId === trimmedId);
-
-    const sessionToken = generateSessionToken();
-
-    if (existing) {
-      const changed = mergeNonEmptyProfileDetails(existing, details);
-      if (changed) {
-        existing.updatedAt = new Date().toISOString();
-        saveAuthUsers(users);
-      }
-      saveAuthSession({ name: trimmedName, studentId: trimmedId, loggedInAt: new Date().toISOString(), token: sessionToken });
-      syncLegacyActiveUser(trimmedName);
-      await upsertAuthUserToRemote(existing);
-      await upsertUserSessionToRemote(trimmedName, sessionToken);
-      return { success: true, message: "登录成功", user: existing, isNew: false };
+    if (error) return { success: false, message: translateAuthError(error, "注册失败") };
+    if (!data?.session) {
+      return {
+        success: false,
+        message: "账号已创建，但 Supabase 仍要求邮箱确认。请让管理员在 Auth 设置中关闭 Confirm email 后再登录。"
+      };
     }
 
-    const sameName = users.find((u) => u.name === trimmedName);
-    if (sameName) {
-      return { success: false, message: "该姓名已存在，但学号不匹配，请检查输入。" };
+    const user = await loadProfile(data.user);
+    if (!user) return { success: false, message: "账号已创建，但用户资料尚未就绪，请稍后重新登录" };
+    setCurrentUser(user);
+    return { success: true, message: "注册并登录成功", user, isNew: true };
+  }
+
+  async function login(studentId, password) {
+    if (!supabaseClient || !model) return { success: false, message: "认证服务未加载，请刷新页面" };
+    let normalizedStudentId;
+    try {
+      normalizedStudentId = model.normalizeStudentId(studentId);
+    } catch (error) {
+      return { success: false, message: error.message };
     }
+    const passwordResult = model.validatePassword(password);
+    if (!passwordResult.valid) return { success: false, message: passwordResult.message };
 
-    const newUser = {
-      name: trimmedName,
-      studentId: trimmedId,
-      gender: details.gender,
-      className: details.className,
-      grade: details.grade,
-      createdAt: new Date().toISOString()
-    };
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: model.buildSyntheticEmail(normalizedStudentId),
+      password
+    });
+    if (error) return { success: false, message: translateAuthError(error, "登录失败") };
 
-    users.push(newUser);
-    saveAuthUsers(users);
-    saveAuthSession({ name: trimmedName, studentId: trimmedId, loggedInAt: new Date().toISOString(), token: sessionToken });
-    syncLegacyActiveUser(trimmedName);
-    await upsertAuthUserToRemote(newUser);
-    await upsertUserSessionToRemote(trimmedName, sessionToken);
-
-    return { success: true, message: "注册并登录成功", user: newUser, isNew: true };
+    const user = await loadProfile(data.user);
+    if (!user) {
+      await supabaseClient.auth.signOut();
+      return { success: false, message: "未找到该账号的用户资料，请联系管理员" };
+    }
+    setCurrentUser(user);
+    return { success: true, message: "登录成功", user, isNew: false };
   }
 
-  function registerOrLogin(name, studentId, profileDetails = {}) {
-    return loginOrRegister(name, studentId, profileDetails);
-  }
-
-  async function updateCurrentUserProfile(profileDetails = {}) {
-    const user = getCurrentUser();
-    if (!user) return { success: false, message: "请先登录" };
-
-    const users = loadAuthUsers();
-    const targetIndex = users.findIndex((u) => u.name === user.name && u.studentId === user.studentId);
-    if (targetIndex < 0) return { success: false, message: "未找到当前用户" };
-
-    const details = normalizeProfileDetails(profileDetails);
-    users[targetIndex] = {
-      ...users[targetIndex],
-      ...details,
-      updatedAt: new Date().toISOString()
-    };
-    saveAuthUsers(users);
-    await upsertAuthUserToRemote(users[targetIndex]);
-    onAuthStateChanged();
-    return { success: true, message: "资料已保存", user: users[targetIndex] };
-  }
-
-  function setAuthMode(mode = "login") {
-    authMode = mode === "register" ? "register" : "login";
+  function registerOrLogin(name, studentId, password, profileDetails = {}) {
+    return authMode === "register"
+      ? register(name, studentId, password, profileDetails)
+      : login(studentId, password);
   }
 
   async function logout() {
-    const session = loadAuthSession();
-    if (session && session.name) {
-      await removeUserSessionFromRemote(session.name);
-    }
-    saveAuthSession(null);
-    syncLegacyActiveUser("");
-    onAuthStateChanged();
+    if (supabaseClient) await supabaseClient.auth.signOut();
+    setCurrentUser(null);
     updateAuthModalUI();
+    return { success: true, message: "已退出登录" };
+  }
+
+  async function updateCurrentUserProfile(profileDetails = {}) {
+    if (!supabaseClient || !currentUser) return { success: false, message: "请先登录" };
+    const payload = {};
+    if (Object.prototype.hasOwnProperty.call(profileDetails, "name")) {
+      try {
+        payload.display_name = model.normalizeDisplayName(profileDetails.name);
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(profileDetails, "gender")) {
+      payload.gender = String(profileDetails.gender || "").trim().slice(0, 12);
+    }
+    if (Object.prototype.hasOwnProperty.call(profileDetails, "className")) {
+      payload.class_name = String(profileDetails.className || "").trim().slice(0, 30);
+    }
+    if (Object.prototype.hasOwnProperty.call(profileDetails, "grade")) {
+      payload.grade = String(profileDetails.grade || "").trim().slice(0, 20);
+    }
+    if (!Object.keys(payload).length) return { success: true, message: "资料无变化", user: currentUser };
+
+    const { error } = await supabaseClient.from("profiles").update(payload).eq("id", currentUser.authUserId);
+    if (error) return { success: false, message: "资料保存失败，请稍后重试" };
+    const { data } = await supabaseClient.auth.getUser();
+    const user = await loadProfile(data?.user);
+    if (user) setCurrentUser(user);
+    return { success: true, message: "资料已保存", user: user || currentUser };
   }
 
   async function deleteCurrentUser() {
-    const user = getCurrentUser();
-    if (!user) return { success: false, message: "请先登录" };
-
-    await removeUserSessionFromRemote(user.name);
-    const users = loadAuthUsers();
-    const filtered = users.filter((u) => !(u.name === user.name && u.studentId === user.studentId));
-    saveAuthUsers(filtered);
-    saveAuthSession(null);
-    syncLegacyActiveUser("");
-    onAuthStateChanged();
-    updateAuthModalUI();
-    return { success: true, message: "账号已注销" };
+    return { success: false, message: "为避免误删课程记录，请联系管理员注销账号" };
   }
 
-  function escapeHtml(text) {
-    return String(text || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+  function loadAuthUsers() {
+    return currentUser ? [currentUser] : [];
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode === "register" ? "register" : "login";
+    updateAuthModalUI();
   }
 
   function createAuthModal() {
     if (document.getElementById("authModalOverlay")) return;
-
     const overlay = document.createElement("div");
     overlay.id = "authModalOverlay";
     overlay.className = "auth-modal-overlay is-hidden";
-
     overlay.innerHTML = `
-      <div class="auth-modal" id="authModal">
+      <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
         <div class="auth-modal-header">
-          <h3 class="auth-modal-title" id="authModalTitle">登录/注册</h3>
+          <h3 class="auth-modal-title" id="authModalTitle">账号登录</h3>
           <button type="button" class="auth-modal-close" id="authModalClose" title="关闭">×</button>
         </div>
         <div class="auth-modal-body">
           <div id="authLoggedInPanel" style="display:none;">
             <div class="auth-user-card">
-              <div class="auth-user-avatar">
+              <div class="auth-user-avatar" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
                 </svg>
               </div>
-              <div class="auth-user-info">
-                <div class="auth-user-name" id="authCurrentName">--</div>
-                <div class="auth-user-id" id="authCurrentStudentId">--</div>
-              </div>
+              <div><div class="auth-user-name" id="authCurrentName">--</div><div class="auth-user-id" id="authCurrentStudentId">--</div></div>
             </div>
-            <div class="auth-actions-row" style="margin-top:16px;">
-              <button type="button" class="auth-btn auth-btn-secondary" id="authSwitchBtn" style="width:100%;">切换账号</button>
-            </div>
+            <div class="auth-actions-row"><button type="button" class="auth-btn auth-btn-secondary" id="authSwitchBtn">切换账号</button></div>
           </div>
-
           <div id="authLoggedOutPanel">
-            <div class="auth-form-group">
-              <label class="auth-form-label">姓名</label>
-              <input type="text" id="authName" class="auth-form-input" placeholder="请输入姓名" maxlength="20">
+            <div class="auth-tabs" role="tablist">
+              <button type="button" class="auth-tab" id="authLoginTab">登录</button>
+              <button type="button" class="auth-tab" id="authRegisterTab">注册</button>
             </div>
-            <div class="auth-form-group">
-              <label class="auth-form-label">学号 / 管理员凭据</label>
-              <input type="text" id="authStudentId" class="auth-form-input" placeholder="普通用户输入学号；管理员输入 332" maxlength="20">
-            </div>
-            <div class="auth-form-tip" id="authModeTip"></div>
-            <div class="auth-form-tip" id="authTip"></div>
-            <button type="button" class="auth-btn auth-btn-primary" id="authSubmitBtn" style="width:100%;">确认</button>
+            <form id="authForm">
+              <div class="auth-form-group" id="authNameGroup">
+                <label class="auth-form-label" for="authName">姓名</label>
+                <input type="text" id="authName" class="auth-form-input" placeholder="请输入真实姓名" maxlength="20" autocomplete="name">
+              </div>
+              <div class="auth-form-group">
+                <label class="auth-form-label" for="authStudentId">学号</label>
+                <input type="text" id="authStudentId" class="auth-form-input" placeholder="请输入学号" maxlength="32" autocomplete="username">
+              </div>
+              <div class="auth-form-group">
+                <label class="auth-form-label" for="authPassword">密码</label>
+                <input type="password" id="authPassword" class="auth-form-input" placeholder="至少 8 位" maxlength="72" autocomplete="current-password">
+              </div>
+              <div class="auth-form-group" id="authPasswordConfirmGroup">
+                <label class="auth-form-label" for="authPasswordConfirm">确认密码</label>
+                <input type="password" id="authPasswordConfirm" class="auth-form-input" placeholder="请再次输入密码" maxlength="72" autocomplete="new-password">
+              </div>
+              <div class="auth-form-tip" id="authModeTip"></div>
+              <div class="auth-form-tip" id="authTip" role="status"></div>
+              <button type="submit" class="auth-btn auth-btn-primary" id="authSubmitBtn" style="width:100%;">登录</button>
+            </form>
           </div>
         </div>
-      </div>
-    `;
-
+      </div>`;
     document.body.appendChild(overlay);
     authModalOverlay = overlay;
-
     bindAuthModalEvents();
   }
 
   function bindAuthModalEvents() {
     document.getElementById("authModalClose")?.addEventListener("click", closeAuthModal);
-
-    authModalOverlay?.addEventListener("click", (e) => {
-      if (e.target === authModalOverlay) closeAuthModal();
+    document.getElementById("authLoginTab")?.addEventListener("click", () => setAuthMode("login"));
+    document.getElementById("authRegisterTab")?.addEventListener("click", () => setAuthMode("register"));
+    document.getElementById("authSwitchBtn")?.addEventListener("click", async () => {
+      await logout();
+      setAuthMode("login");
     });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && authModalOverlay && !authModalOverlay.classList.contains("is-hidden")) {
-        closeAuthModal();
-      }
+    authModalOverlay?.addEventListener("click", (event) => {
+      if (event.target === authModalOverlay) closeAuthModal();
     });
-
-    document.getElementById("authSubmitBtn")?.addEventListener("click", async () => {
+    document.getElementById("authForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (authOperationPending) return;
       const name = document.getElementById("authName")?.value || "";
       const studentId = document.getElementById("authStudentId")?.value || "";
-      const tipEl = document.getElementById("authTip");
-      const result = await registerOrLogin(name, studentId);
-      if (!tipEl) return;
-
-      if (result.success) {
-        tipEl.textContent = result.message;
-        tipEl.className = "auth-form-tip is-success";
-        setTimeout(() => {
-          closeAuthModal();
-          onAuthStateChanged();
-        }, 400);
-      } else {
-        tipEl.textContent = result.message;
-        tipEl.className = "auth-form-tip is-error";
+      const password = document.getElementById("authPassword")?.value || "";
+      const passwordConfirm = document.getElementById("authPasswordConfirm")?.value || "";
+      const tip = document.getElementById("authTip");
+      const submit = document.getElementById("authSubmitBtn");
+      if (authMode === "register" && password !== passwordConfirm) {
+        if (tip) { tip.textContent = "两次输入的密码不一致"; tip.className = "auth-form-tip is-error"; }
+        return;
       }
-    });
-
-    document.getElementById("authSwitchBtn")?.addEventListener("click", () => {
-      setAuthMode("login");
-      logout();
-    });
-
-    document.getElementById("authStudentId")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        document.getElementById("authSubmitBtn")?.click();
+      authOperationPending = true;
+      if (submit) { submit.disabled = true; submit.textContent = "请稍候…"; }
+      const result = await registerOrLogin(name, studentId, password);
+      authOperationPending = false;
+      if (submit) submit.disabled = false;
+      if (tip) {
+        tip.textContent = result.message;
+        tip.className = `auth-form-tip ${result.success ? "is-success" : "is-error"}`;
       }
+      updateAuthModalUI(false);
+      if (result.success) setTimeout(closeAuthModal, 450);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && authModalOverlay?.classList.contains("is-visible")) closeAuthModal();
     });
   }
 
-  function updateAuthModalUI() {
-    const user = getCurrentUser();
+  function updateAuthModalUI(clearInputs = true) {
     const loggedInPanel = document.getElementById("authLoggedInPanel");
     const loggedOutPanel = document.getElementById("authLoggedOutPanel");
-    const titleEl = document.getElementById("authModalTitle");
-
-    if (!loggedInPanel || !loggedOutPanel || !titleEl) return;
-
-    if (user) {
+    if (!loggedInPanel || !loggedOutPanel) return;
+    const title = document.getElementById("authModalTitle");
+    if (currentUser) {
       loggedInPanel.style.display = "";
       loggedOutPanel.style.display = "none";
-      titleEl.textContent = "当前账号";
-      const currentName = document.getElementById("authCurrentName");
-      const currentStudentId = document.getElementById("authCurrentStudentId");
-      if (currentName) currentName.textContent = user.name;
-      if (currentStudentId) {
-        currentStudentId.textContent = window.AccessControlModule?.isAdminUser(user)
-          ? "管理员凭据：已验证"
-          : `学号：${user.studentId}`;
-      }
-    } else {
-      loggedInPanel.style.display = "none";
-      loggedOutPanel.style.display = "";
-      titleEl.textContent = "登录/注册";
-      const authName = document.getElementById("authName");
-      const authStudentId = document.getElementById("authStudentId");
-      const tipEl = document.getElementById("authTip");
-      const modeTipEl = document.getElementById("authModeTip");
-      if (authName) authName.value = "";
-      if (authStudentId) authStudentId.value = "";
-      if (modeTipEl) {
-        modeTipEl.textContent = "普通用户输入姓名和学号；管理员使用账号“管理员”和凭据“332”";
-        modeTipEl.className = "auth-form-tip";
-      }
-      const submitBtn = document.getElementById("authSubmitBtn");
-      if (submitBtn) submitBtn.textContent = "登录/注册";
-      if (tipEl) {
-        tipEl.textContent = "";
-        tipEl.className = "auth-form-tip";
-      }
+      if (title) title.textContent = "当前账号";
+      const name = document.getElementById("authCurrentName");
+      const id = document.getElementById("authCurrentStudentId");
+      if (name) name.textContent = currentUser.name;
+      if (id) id.textContent = `学号：${currentUser.studentId} · ${roleLabel(currentUser.role)}`;
+      return;
     }
+
+    loggedInPanel.style.display = "none";
+    loggedOutPanel.style.display = "";
+    const isRegister = authMode === "register";
+    if (title) title.textContent = isRegister ? "注册课程账号" : "账号登录";
+    document.getElementById("authNameGroup").style.display = isRegister ? "" : "none";
+    document.getElementById("authPasswordConfirmGroup").style.display = isRegister ? "" : "none";
+    document.getElementById("authLoginTab")?.classList.toggle("is-active", !isRegister);
+    document.getElementById("authRegisterTab")?.classList.toggle("is-active", isRegister);
+    const password = document.getElementById("authPassword");
+    if (password) password.autocomplete = isRegister ? "new-password" : "current-password";
+    const submit = document.getElementById("authSubmitBtn");
+    if (submit && !authOperationPending) submit.textContent = isRegister ? "注册并登录" : "登录";
+    const modeTip = document.getElementById("authModeTip");
+    if (modeTip) modeTip.textContent = isRegister ? "每位同学使用自己的姓名、学号和密码注册。" : "使用注册时的学号和密码登录。";
+    if (clearInputs) {
+      ["authName", "authStudentId", "authPassword", "authPasswordConfirm"].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = "";
+      });
+      const tip = document.getElementById("authTip");
+      if (tip) { tip.textContent = ""; tip.className = "auth-form-tip"; }
+    }
+  }
+
+  function roleLabel(role) {
+    if (role === "admin") return "管理员";
+    if (role === "teacher") return "教师";
+    return "学生";
   }
 
   function openAuthModal(mode = "login") {
-    setAuthMode(mode);
+    authMode = mode === "register" ? "register" : "login";
     createAuthModal();
     updateAuthModalUI();
-    if (authModalOverlay) {
-      authModalOverlay.classList.remove("is-hidden");
-      requestAnimationFrame(() => {
-        authModalOverlay.classList.add("is-visible");
-      });
-    }
+    authModalOverlay.classList.remove("is-hidden");
+    requestAnimationFrame(() => authModalOverlay.classList.add("is-visible"));
   }
 
   function closeAuthModal() {
-    if (authModalOverlay) {
-      authModalOverlay.classList.remove("is-visible");
-      setTimeout(() => {
-        authModalOverlay.classList.add("is-hidden");
-      }, 200);
-    }
-  }
-
-  function onAuthStateChanged() {
-    const user = getCurrentUser();
-    const displayName = user ? user.name : "";
-
-    if (typeof currentUserName !== "undefined") {
-      // eslint-disable-next-line no-global-assign
-      currentUserName = displayName;
-    }
-
-    if (typeof window.setCurrentUser === "function") {
-      window.setCurrentUser(displayName);
-    }
-
-    updateAuthFloatingButton();
-    broadcastAuthState();
-
-    window.dispatchEvent(
-      new CustomEvent("village-auth-change", {
-        detail: { user, displayName, isLoggedIn: !!user }
-      })
-    );
+    if (!authModalOverlay) return;
+    authModalOverlay.classList.remove("is-visible");
+    setTimeout(() => authModalOverlay?.classList.add("is-hidden"), 200);
   }
 
   function updateAuthFloatingButton() {
-    const btn = document.getElementById("authLoginBtn");
-    if (!btn) return;
-    btn.style.display = "none";
-    btn.innerHTML = "";
-    btn.title = "点击登录账号";
+    const button = document.getElementById("authLoginBtn");
+    if (!button) return;
+    button.style.display = "none";
+    button.innerHTML = "";
   }
 
   function broadcastAuthState() {
-    const user = getCurrentUser();
     const frame = document.getElementById("homeLandingFrame");
-    if (frame && frame.contentWindow) {
-      try {
-        frame.contentWindow.postMessage(
-          {
-            type: "village-auth-state",
-            payload: {
-              isLoggedIn: !!user,
-              name: user?.name || "",
-              studentId: user?.studentId || "",
-              gender: user?.gender || "",
-              className: user?.className || "",
-              grade: user?.grade || ""
-            }
-          },
-          "*"
-        );
-      } catch (_) {
-        // ignore
-      }
+    if (!frame?.contentWindow) return;
+    frame.contentWindow.postMessage(
+      {
+        type: "village-auth-state",
+        payload: {
+          isLoggedIn: !!currentUser,
+          name: currentUser?.name || "",
+          studentId: currentUser?.studentId || "",
+          role: currentUser?.role || "",
+          gender: currentUser?.gender || "",
+          className: currentUser?.className || "",
+          grade: currentUser?.grade || ""
+        }
+      },
+      "*"
+    );
+  }
+
+  function notifyAuthStateChanged() {
+    const displayName = currentUser?.name || "";
+    if (typeof currentUserName !== "undefined") currentUserName = displayName;
+    if (typeof window.setCurrentUser === "function") window.setCurrentUser(displayName);
+    updateAuthFloatingButton();
+    broadcastAuthState();
+    window.dispatchEvent(new CustomEvent("village-auth-change", {
+      detail: { user: currentUser, displayName, isLoggedIn: !!currentUser }
+    }));
+  }
+
+  function onAuthStateChanged() {
+    notifyAuthStateChanged();
+  }
+
+  async function refreshCurrentUser() {
+    if (!supabaseClient) return null;
+    const { data } = await supabaseClient.auth.getUser();
+    if (!data?.user) {
+      setCurrentUser(null);
+      return null;
     }
+    const user = await loadProfile(data.user);
+    setCurrentUser(user);
+    return user;
   }
 
   window.addEventListener("message", (event) => {
@@ -604,28 +464,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
         return;
       }
       openAuthModal(event.data?.mode === "register" ? "register" : "login");
-    }
-    if (event.data?.type === "village-auth-logout") {
+    } else if (event.data?.type === "village-auth-logout") {
       logout();
     }
   });
 
-  function ensureDefaultAdmin() {
-    const users = loadAuthUsers();
-    const hasAdmin = users.some((u) => u.name === "管理员" && u.studentId === "332");
-    if (!hasAdmin) {
-      const adminUser = {
-        name: "管理员",
-        studentId: "332",
-        createdAt: new Date().toISOString()
-      };
-      users.push(adminUser);
-      saveAuthUsers(users);
-      upsertAuthUserToRemote(adminUser).catch(() => {});
-    }
-  }
-
   window.VillageAuth = {
+    register,
+    login,
     registerOrLogin,
     getCurrentUser,
     getCurrentDisplayName,
@@ -638,56 +484,35 @@ const ENABLE_SUPABASE_SYNC = (() => {
     onAuthStateChanged,
     updateAuthFloatingButton,
     broadcastAuthState,
-    loadAuthUsers
+    loadAuthUsers,
+    refreshCurrentUser,
+    getSupabaseClient: () => supabaseClient,
+    ready: authReady
   };
 
-  clearLegacyIdentityData();
-  ensureDefaultAdmin();
+  expireLegacyIdentityOnce();
 
-  async function syncAllLocalUsersToRemote() {
-    const users = loadAuthUsers();
-    if (!supabaseClient || users.length === 0) return;
-    for (const user of users) {
-      await upsertAuthUserToRemote(user);
+  (async function initializeAuth() {
+    if (!supabaseClient || !model) {
+      setCurrentUser(null);
+      authReadyResolve(null);
+      return;
     }
-  }
-
-  (async function syncOnLoad() {
-    const session = loadAuthSession();
-    if (session) {
-      const valid = await validateCurrentSession();
-      if (!valid) {
-        saveAuthSession(null);
-        syncLegacyActiveUser("");
-        if (typeof window.showToast === "function") {
-          window.showToast("您的账号已在其他地方登录，您已被退出。", "error");
-        }
-      } else {
-        const user = findUserByCredential(session.name, session.studentId);
-        if (user) {
-          syncLegacyActiveUser(user.name);
-          setTimeout(onAuthStateChanged, 0);
-          // 兼容老用户：如果没有 token，生成一个并保存
-          if (!session.token) {
-            session.token = generateSessionToken();
-            saveAuthSession(session);
-          }
-          // 同步当前用户到远端
-          await upsertAuthUserToRemote(user);
-          // 把本地所有用户都批量同步到远端（解决其他电脑上的用户看不到的问题）
-          await syncAllLocalUsersToRemote();
-          // 同步会话并启动 Realtime 监听
-          await upsertUserSessionToRemote(session.name, session.token);
-          initSessionRealtimeListener();
-        } else {
-          saveAuthSession(null);
-          syncLegacyActiveUser("");
-        }
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session?.user) {
+        setCurrentUser(null);
+        return;
       }
+      const user = await loadProfile(session.user);
+      if (user) setCurrentUser(user);
+    });
+    const { data } = await supabaseClient.auth.getSession();
+    if (data?.session?.user) {
+      const user = await loadProfile(data.session.user);
+      setCurrentUser(user);
     } else {
-      // 即使没有登录，也尝试把本地用户列表同步到远端（后台管理需要看到全部）
-      await syncAllLocalUsersToRemote();
+      setCurrentUser(null);
     }
-    updateAuthFloatingButton();
+    authReadyResolve(currentUser);
   })();
 })();

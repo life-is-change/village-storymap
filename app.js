@@ -147,7 +147,7 @@ const BASEMAP_LABEL_VISIBLE_KEY = "village_planning_basemap_label_visible_v1";
 const COURSE_TASK_SIDEBAR_KEY = "village_course_task_sidebar_expanded_v1";
 let basemapLabelToggle = null;
 
-const supabaseClient =
+const supabaseClient = window.VillageSupabaseClient || (
   ENABLE_SUPABASE_SYNC &&
   typeof supabase !== "undefined" &&
   SUPABASE_URL &&
@@ -155,7 +155,8 @@ const supabaseClient =
   !SUPABASE_URL.includes("你的项目ref") &&
   !SUPABASE_PUBLISHABLE_KEY.includes("publishable key")
     ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-    : null;
+    : null
+);
 
 let planMap = null;
 let planVectorSource = null;

@@ -356,8 +356,9 @@
   </script>
 
   <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 启动；3D 脚本进入 3D 时再按需加载 -->
-  <script defer src="features/auth/access-control.js"></script>
-  <script defer src="auth-system.js"></script>
+  <script defer src="features/auth/supabase-auth-model.js?v=20260721-supabase-auth"></script>
+  <script defer src="features/auth/access-control.js?v=20260721-supabase-auth"></script>
+  <script defer src="auth-system.js?v=20260721-supabase-auth"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/map-style.js"></script>
   <script defer src="features/ui/space-panel.js"></script>
@@ -379,7 +380,7 @@
   <script defer src="features/map-editing/map-hover-handler.js"></script>
   <script defer src="features/map-editing/map-click-handler.js"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260607-delete-tombstone"></script>
-  <script defer src="app.js?v=20260607-delete-tombstone"></script>
+  <script defer src="app.js?v=20260721-supabase-auth"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

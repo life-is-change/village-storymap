@@ -1,18 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { isAdminUser, isAdminCredential } = require("./access-control.js");
+const { isAdminUser, isTeacherUser, isStaffUser } = require("./access-control.js");
 
-test("only exact 管理员 and 332 credential pair has administrator access", () => {
-  assert.equal(isAdminUser({ name: "管理员", studentId: "332" }), true);
-  assert.equal(isAdminUser({ name: "管理员", student_id: "332" }), true);
-  assert.equal(isAdminUser({ name: "管理员", studentId: "2026001" }), false);
-  assert.equal(isAdminUser({ name: "张三", studentId: "332" }), false);
-  assert.equal(isAdminUser({ name: "管理员" }), false);
+test("administrator access comes only from the trusted profile role", () => {
+  assert.equal(isAdminUser({ name: "管理员", studentId: "332", role: "admin" }), true);
+  assert.equal(isAdminUser({ name: "管理员", studentId: "332", role: "student" }), false);
+  assert.equal(isAdminUser({ name: "管理员", studentId: "332" }), false);
+  assert.equal(isAdminUser({ name: "张三", studentId: "2026001", role: "admin" }), true);
 });
 
-test("credential input is trimmed but not loosely matched", () => {
-  assert.equal(isAdminCredential(" 管理员 ", " 332 "), true);
-  assert.equal(isAdminCredential("管理员1", "332"), false);
-  assert.equal(isAdminCredential("管理员", "0332"), false);
+test("teacher and staff checks use normalized database roles", () => {
+  assert.equal(isTeacherUser({ role: "teacher" }), true);
+  assert.equal(isTeacherUser({ role: " TEACHER " }), true);
+  assert.equal(isStaffUser({ role: "teacher" }), true);
+  assert.equal(isStaffUser({ role: "admin" }), true);
+  assert.equal(isStaffUser({ role: "student" }), false);
 });

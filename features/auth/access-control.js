@@ -3,20 +3,26 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.AccessControlModule = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  const ADMIN_NAME = "管理员";
-  const ADMIN_CREDENTIAL = "332";
-
   function normalize(value) {
-    return String(value || "").trim();
-  }
-
-  function isAdminCredential(name, credential) {
-    return normalize(name) === ADMIN_NAME && normalize(credential) === ADMIN_CREDENTIAL;
+    return String(value || "").trim().toLowerCase();
   }
 
   function isAdminUser(user) {
-    return isAdminCredential(user?.name, user?.studentId ?? user?.student_id);
+    return normalize(user?.role) === "admin";
   }
 
-  return { ADMIN_NAME, ADMIN_CREDENTIAL, isAdminCredential, isAdminUser };
+  function isTeacherUser(user) {
+    return normalize(user?.role) === "teacher";
+  }
+
+  function isStaffUser(user) {
+    return isAdminUser(user) || isTeacherUser(user);
+  }
+
+  // 兼容旧调用：凭据只能验证身份，不能在浏览器内授予管理员角色。
+  function isAdminCredential() {
+    return false;
+  }
+
+  return { isAdminCredential, isAdminUser, isTeacherUser, isStaffUser };
 });
