@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools==70.3.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "village-processing"
+version = "0.1.0"
+requires-python = ">=3.10,<3.12"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["live_supabase: requires an explicitly configured live Supabase project"]

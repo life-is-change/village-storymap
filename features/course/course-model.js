@@ -15,6 +15,7 @@
     stages: Object.freeze([
       { key: "group_join", kind: "preparation", title: "加入小组", taskIds: ["join-group"] },
       { key: "learning", kind: "preparation", title: "学习准备", taskIds: ["learning-ready"] },
+      { key: "figure_ground", kind: "practice", title: "图底生产", taskIds: ["figure-ground-compose"] },
       { key: "survey", kind: "practice", title: "调研采集与现状校核", taskIds: ["survey-collect"] },
       { key: "diagnosis", kind: "practice", title: "现状诊断与课堂汇报", taskIds: ["diagnosis-list"] },
       { key: "design", kind: "practice", title: "方案设计与迭代", taskIds: ["design-workspace"] },
@@ -43,6 +44,18 @@
           outcomes: ["完成课程理论与村庄背景准备"],
           resources: ["教学目的", "理论学习", "村庄现状与问题"],
           actions: ["返回首页阅读", "确认学习准备状态"]
+        })
+      },
+      {
+        id: "figure-ground-compose",
+        stageKey: "figure_ground",
+        title: "个人图底生产与合成",
+        description: "独立绘制研究范围，运行建筑识别、道路水系提取与等高线生成，预览后形成个人图底。",
+        action: "open_geoprocessing",
+        context: Object.freeze({
+          outcomes: ["建筑、道路、水系和等高线个人图层", "完整图底生产过程记录"],
+          resources: ["高分辨率遥感影像", "OpenStreetMap 广东快照", "Copernicus DEM GLO-30"],
+          actions: ["绘制 AOI", "提交个人处理任务", "预览并核对五类成果"]
         })
       },
       {

@@ -205,6 +205,8 @@ let currentUserName = "";
 let courseService = null;
 let activityLogger = null;
 let courseWorkbench = null;
+let geoprocessingPanel = null;
+let geoprocessingAoiController = null;
 let isCreatingSpace = false;
 let currentGeometryEditLayer = "";
 let communityGameTablesReady = true;
@@ -1636,6 +1638,32 @@ async function ensureCourseWorkbenchInitialized() {
     logger: activityLogger,
     getUser: getCourseUser,
     showToast,
+    mountGeoprocessing: async (container) => {
+      geoprocessingPanel?.destroy?.();
+      geoprocessingPanel = null;
+      geoprocessingAoiController = null;
+      if (!container || !planMap || !supabaseClient) return;
+      if (!window.GeoprocessingClientModule || !window.GeoprocessingAoiModule || !window.GeoprocessingPanelModule) return;
+      const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient });
+      let availability = "offline";
+      try { availability = (await client.getAvailability())?.state || "offline"; } catch (_) { /* queue remains usable */ }
+      geoprocessingAoiController = window.GeoprocessingAoiModule.createAoiController({
+        map: planMap,
+        ol: window.__OL__,
+        villageBounds: [113.6578225, 23.6739555, 113.6695615, 23.6806181],
+        maxAreaSqKm: 2
+      });
+      geoprocessingPanel = window.GeoprocessingPanelModule.createGeoprocessingPanel({
+        container,
+        client,
+        aoiController: geoprocessingAoiController,
+        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+        villageId: "mibu",
+        availability,
+        onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success")
+      });
+      geoprocessingPanel.mount();
+    },
     onTaskSelected: () => setCourseTaskSidebarExpanded(true),
     onTaskChanged: (context) => {
       activeCourseTaskContext = context;

@@ -1,0 +1,10 @@
+villages:
+  mibu:
+    imagery: "建筑矢量/input_tif/米埗村（洛一洛二洛三）.tif"
+    dem: "等高线/广东省_哥白尼DEM.tif"
+    osm: "道路、水系/guangdong-260721.osm.pbf"
+    bounds: [113.6578225, 23.6739555, 113.6695615, 23.6806181]
+    model_config: "建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.py"
+    model_checkpoint: "建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.pth"
+    osm_snapshot: "2026-07-21"
+    dem_source: "Copernicus DEM GLO-30"

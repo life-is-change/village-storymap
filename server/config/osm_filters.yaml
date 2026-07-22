@@ -1,0 +1,18 @@
+roads:
+  - motorway
+  - trunk
+  - primary
+  - secondary
+  - tertiary
+  - residential
+  - unclassified
+  - service
+  - living_street
+  - track
+  - path
+  - footway
+  - cycleway
+waterways: [river, stream, canal, ditch, drain]
+water_areas:
+  natural: [water]
+  landuse: [reservoir, basin]

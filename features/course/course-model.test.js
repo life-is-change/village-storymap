@@ -10,10 +10,11 @@ const {
   canJoinGroup
 } = require("./course-model.js");
 
-test("default course has two preparation statuses and four practice stages", () => {
+test("default course includes individual figure-ground production before survey", () => {
   assert.deepEqual(DEFAULT_COURSE.stages.map((stage) => stage.key), [
     "group_join",
     "learning",
+    "figure_ground",
     "survey",
     "diagnosis",
     "design",
@@ -25,15 +26,17 @@ test("default course has two preparation statuses and four practice stages", () 
     "practice",
     "practice",
     "practice",
+    "practice",
     "practice"
   ]);
-  assert.equal(DEFAULT_COURSE.tasks.some((task) => task.id === "review-plan"), false);
+  const ids = DEFAULT_COURSE.tasks.map((task) => task.id);
+  assert.ok(ids.indexOf("figure-ground-compose") < ids.indexOf("survey-collect"));
 });
 
 test("ordered stages return a copy instead of mutating the course", () => {
   const ordered = getOrderedStages(DEFAULT_COURSE);
   ordered.shift();
-  assert.equal(DEFAULT_COURSE.stages.length, 6);
+  assert.equal(DEFAULT_COURSE.stages.length, 7);
 });
 
 test("next task is the first incomplete ordered task", () => {
@@ -41,7 +44,7 @@ test("next task is the first incomplete ordered task", () => {
     completedTaskIds: ["join-group", "learning-ready", "join-group"]
   });
   assert.deepEqual(state.completedTaskIds, ["join-group", "learning-ready"]);
-  assert.equal(getNextTask(DEFAULT_COURSE, state).id, "survey-collect");
+  assert.equal(getNextTask(DEFAULT_COURSE, state).id, "figure-ground-compose");
 });
 
 test("next task is null when every task is complete", () => {

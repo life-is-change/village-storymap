@@ -27,3 +27,12 @@ temp/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Geoprocessing server runtime and large local assets
+server/.env
+server/runtime/
+server/environment/*.explicit.txt
+*.pth
+*.pbf
+*.tif
+*.tif.ovr

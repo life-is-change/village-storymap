@@ -6619,3 +6619,18 @@ body.map-view-active .workspace-context-bar {
     width: auto;
   }
 }
+/* Individual figure-ground production */
+.geoprocessing-panel { display: grid; gap: 12px; }
+.geoprocessing-panel fieldset { display: grid; gap: 8px; border: 1px solid var(--border-color, #d7dde5); border-radius: 8px; padding: 10px; }
+.geoprocessing-panel form { display: grid; gap: 10px; }
+.geoprocessing-panel label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.geoprocessing-aoi-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.geoprocessing-panel button { min-height: 36px; border-radius: 7px; cursor: pointer; }
+.geoprocessing-availability { margin: 0; color: var(--text-secondary, #5f6b7a); }
+.geoprocessing-run { display: grid; gap: 8px; padding: 12px; border-radius: 8px; background: rgba(44, 111, 187, 0.08); }
+.geoprocessing-run progress { width: 100%; }
+.geoprocessing-message { min-height: 1.4em; margin: 0; color: var(--accent-color, #2563a6); }
+
+@media (max-width: 720px) {
+  .geoprocessing-panel label { align-items: flex-start; flex-direction: column; }
+}

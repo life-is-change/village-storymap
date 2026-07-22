@@ -91,9 +91,10 @@ test("task navigation is an icon rail with accessible stage names", () => {
 
   assert.match(html, /course-task-rail-item is-complete/);
   assert.match(html, /course-task-rail-item is-active/);
-  assert.match(html, /aria-label="3\. 调研采集与现状校核，进行中"/);
+  assert.match(html, /aria-label="3\. 图底生产，待完成"/);
+  assert.match(html, /aria-label="4\. 调研采集与现状校核，进行中"/);
   assert.match(html, /course-task-rail-icon/);
   assert.doesNotMatch(html, /course-task-nav-copy/);
   assert.equal((html.match(/data-stage-kind="preparation"/g) || []).length, 2);
-  assert.equal((html.match(/data-stage-kind="practice"/g) || []).length, 4);
+  assert.equal((html.match(/data-stage-kind="practice"/g) || []).length, 5);
 });

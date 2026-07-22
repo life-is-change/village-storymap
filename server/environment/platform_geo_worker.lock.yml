@@ -1,0 +1,19 @@
+name: platform_geo_worker
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pydantic[version='>=2.10,<3']
+  - pip
+  - gdal[version='>=3.10,<3.11']
+  - scipy[version='>=1.15,<1.16']
+  - pytest[version='>=8,<9']
+  - shapely[version='>=2.1,<2.2']
+  - numpy[version='>=1.26,<2']
+  - python-dotenv[version='>=1.0,<2']
+  - geopandas[version='>=1.0,<1.2']
+  - python=3.11
+  - rasterio[version='>=1.4,<1.5']
+  - pyproj[version='>=3.7,<3.8']
+  - pyyaml[version='>=6.0,<7']
+  - httpx[version='>=0.27,<0.29']

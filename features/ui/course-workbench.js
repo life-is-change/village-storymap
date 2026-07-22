@@ -38,6 +38,7 @@
     const paths = {
       group_join: '<circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M3.5 19c.6-3.2 2.5-5 5.5-5s4.9 1.8 5.5 5"></path><path d="M14.5 14.5c2.8-.3 4.8 1.2 5.5 4.5"></path>',
       learning: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z"></path><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"></path>',
+      figure_ground: '<path d="M4 5h16v14H4z"></path><path d="m4 15 5-5 4 4 3-3 4 4"></path><path d="M8 7h.01"></path>',
       survey: '<path d="M4 7h4l1.5-2h5L16 7h4v11H4z"></path><circle cx="12" cy="12.5" r="3"></circle>',
       diagnosis: '<path d="M12 3 3.5 19h17z"></path><path d="M12 9v4"></path><circle cx="12" cy="16.5" r=".7" fill="currentColor" stroke="none"></circle>',
       design: '<path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16z"></path><path d="m14.7 6.5 3 3"></path>',
@@ -75,6 +76,7 @@
 
   function getTaskActionState({ task, context }) {
     if (task?.id === "join-group") return { type: "join_group" };
+    if (task?.id === "figure-ground-compose") return { type: "geoprocessing", viewModes: ["2d"] };
     if (task?.id === "design-workspace") {
       return {
         type: "workspace",
@@ -117,6 +119,10 @@
           <button type="submit" class="course-btn course-btn-primary">加入小组</button>
         </form>
       `;
+    }
+
+    if (task.id === "figure-ground-compose") {
+      return `<div class="course-geoprocessing-slot" data-geoprocessing-panel-mount></div>`;
     }
 
     const contextSections = [
@@ -228,6 +234,11 @@
           nextTask,
           activeTaskId
         });
+        deps.mountGeoprocessing?.(
+          activeTask?.id === "figure-ground-compose"
+            ? container.querySelector("[data-geoprocessing-panel-mount]")
+            : null
+        );
       }
       notifyTaskChanged();
     }

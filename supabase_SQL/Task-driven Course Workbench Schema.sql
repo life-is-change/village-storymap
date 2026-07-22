@@ -99,6 +99,7 @@ values (
   '[
     {"key":"group_join","title":"加入小组","taskIds":["join-group"]},
     {"key":"learning","title":"学习准备","taskIds":["learning-ready"]},
+    {"key":"figure_ground","title":"图底生产","taskIds":["figure-ground-compose"]},
     {"key":"survey","title":"调研采集","taskIds":["survey-collect"]},
     {"key":"diagnosis","title":"现状诊断","taskIds":["diagnosis-list"]},
     {"key":"design","title":"方案设计","taskIds":["design-workspace"]},
@@ -108,6 +109,7 @@ values (
   '[
     {"id":"join-group","stageKey":"group_join","title":"加入课程小组","action":"join_group"},
     {"id":"learning-ready","stageKey":"learning","title":"确认完成学习准备","action":"confirm_learning"},
+    {"id":"figure-ground-compose","stageKey":"figure_ground","title":"个人图底生产与合成","action":"open_geoprocessing"},
     {"id":"survey-collect","stageKey":"survey","title":"整理调研照片与备注","action":"open_survey"},
     {"id":"diagnosis-list","stageKey":"diagnosis","title":"形成现状问题清单","action":"open_diagnosis"},
     {"id":"design-workspace","stageKey":"design","title":"编辑小组规划方案","action":"open_workspace"},
