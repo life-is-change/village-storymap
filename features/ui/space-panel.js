@@ -39,6 +39,7 @@
       }
 
       const currentSpaceId = deps.getCurrentSpaceId();
+      const isPersonalSpace = currentSpace.spaceType === "course_personal";
       const availableLayerKeys = deps.getAvailableLayerKeysForSpace(currentSpace);
       const layerConfigs = deps.getLayerConfigs();
       const currentSpaceCreator = deps.getSpaceCreatorName(currentSpace);
@@ -165,7 +166,25 @@
           <div class="other-layers-wrap ${isFigureGroundActive ? "collapsed" : ""}">
             ${otherLayerKeys
               .map(
-                (layerKey) => `
+                (layerKey) => layerKey === "contours" ? `
+                  <div class="menu-l2-row contour-layer-row">
+                    <button class="menu-l2-item half ${currentSpace.selectedLayers.includes(layerKey) ? "active" : ""}"
+                            data-space-layer="${currentSpace.id}::${layerKey}"
+                            data-layer="${layerKey}"
+                            type="button"
+                            ${isFigureGroundActive ? "disabled" : ""}>
+                      <span class="menu-item-icon">${api.getLayerIconSvg(layerKey)}</span>
+                      <span class="menu-item-label">${deps.escapeHtml(layerConfigs[layerKey].label)}</span>
+                    </button>
+                    <button class="menu-l2-item half contour-label-toggle ${currentSpace.contourLabelsVisible ? "active" : ""}"
+                            data-contour-label-toggle="${currentSpace.id}"
+                            type="button"
+                            title="显示或隐藏等高线高程数值"
+                            ${!currentSpace.selectedLayers.includes("contours") || isFigureGroundActive ? "disabled" : ""}>
+                      <span class="menu-item-label">数值</span>
+                    </button>
+                  </div>
+                ` : `
                   <button class="menu-l2-item ${currentSpace.selectedLayers.includes(layerKey) ? "active" : ""}"
                           data-space-layer="${currentSpace.id}::${layerKey}"
                           data-layer="${layerKey}"
@@ -284,13 +303,19 @@
             </button>
             <div class="menu-l1-body" data-collapsible-body>
               <div class="menu-indent">
-                <div class="version-manager-actions">
-                  <button type="button" data-version-action="initial">查看初始版本</button>
-                  <button type="button" data-version-action="compare">版本对比</button>
-                  ${deps.canFreezeSnapshot?.()
-                    ? '<button type="button" class="is-primary" data-version-action="freeze">冻结正式版本</button>'
-                    : ''}
-                </div>
+                ${isPersonalSpace ? `
+                  <div class="version-manager-actions personal-version-help">
+                    <span>切换当前版本、叠加旧版本或删除不再需要的旧版本。</span>
+                  </div>
+                ` : `
+                  <div class="version-manager-actions">
+                    <button type="button" data-version-action="initial">查看初始版本</button>
+                    <button type="button" data-version-action="compare">版本对比</button>
+                    ${deps.canFreezeSnapshot?.()
+                      ? '<button type="button" class="is-primary" data-version-action="freeze">冻结正式版本</button>'
+                      : ''}
+                  </div>
+                `}
                 <div id="versionManagerStatus" class="version-manager-status">展开后加载版本记录</div>
               </div>
             </div>

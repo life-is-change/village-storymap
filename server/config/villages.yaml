@@ -1,5 +1,6 @@
 villages:
   mibu:
+    display_name: "米埗村"
     imagery: "建筑矢量/input_tif/米埗村（洛一洛二洛三）.tif"
     dem: "等高线/广东省_哥白尼DEM.tif"
     osm: "道路、水系/guangdong-260721.osm.pbf"

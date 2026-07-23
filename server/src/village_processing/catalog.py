@@ -19,6 +19,7 @@ def resolve_under_root(root: Path, relative: str) -> Path:
 @dataclass(frozen=True)
 class VillageDataset:
     village_id: str
+    display_name: str
     imagery: Path
     dem: Path
     osm: Path
@@ -62,6 +63,7 @@ def load_catalog(path: Path, data_root: Path) -> DatasetCatalog:
             raise ValueError("INVALID_DATASET_BOUNDS")
         items[str(village_id)] = VillageDataset(
             village_id=str(village_id),
+            display_name=str(raw.get("display_name", village_id)),
             bounds=bounds,
             osm_snapshot=str(raw.get("osm_snapshot", "unknown")),
             dem_source=str(raw.get("dem_source", "unknown")),

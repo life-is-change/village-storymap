@@ -1,8 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const { DEFAULT_COURSE } = require("../course/course-model.js");
 const {
+  createCourseWorkbench,
   renderDashboard,
   renderTaskNavigation,
   getTaskActionState
@@ -97,4 +100,99 @@ test("task navigation is an icon rail with accessible stage names", () => {
   assert.doesNotMatch(html, /course-task-nav-copy/);
   assert.equal((html.match(/data-stage-kind="preparation"/g) || []).length, 2);
   assert.equal((html.match(/data-stage-kind="practice"/g) || []).length, 5);
+});
+
+test("workbench mounts geoprocessing only for the active figure-ground task", async () => {
+  const panelMount = { kind: "geoprocessing-panel" };
+  const container = {
+    innerHTML: "",
+    addEventListener() {},
+    removeEventListener() {},
+    querySelector(selector) {
+      return selector === "[data-geoprocessing-panel-mount]" ? panelMount : null;
+    }
+  };
+  const mounted = [];
+  const workbench = createCourseWorkbench({
+    course: DEFAULT_COURSE,
+    container,
+    service: {
+      async loadContext() {
+        return { group: null, progress: { completedTaskIds: [] } };
+      }
+    },
+    getUser: () => student,
+    mountGeoprocessing: (target) => mounted.push(target)
+  });
+
+  await workbench.init();
+  assert.equal(mounted.at(-1), null);
+
+  await workbench.showTask("figure-ground-compose");
+  assert.equal(mounted.at(-1), panelMount);
+});
+
+test("geoprocessing workbench scripts share a cache-busting release version", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
+  const version = "20260723-contour-ui";
+
+  for (const script of [
+    "geoprocessing-client.js",
+    "geoprocessing-aoi.js",
+    "geoprocessing-result-layers.js",
+    "geoprocessing-panel.js",
+    "course-workbench.js"
+  ]) {
+    assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${version}`));
+  }
+});
+
+test("map application wires completed artifacts into a temporary preview layer", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  assert.match(app, /GeoprocessingResultLayersModule\.createResultLayerPreview/);
+  assert.match(app, /onPreview:\s*async\s*\(artifacts\)/);
+  assert.match(app, /createArtifactUrl\(artifact\.storage_path\)/);
+  assert.match(app, /geoprocessingResultPreview\.syncVisibleLayers\(getSelectedLayersForCurrentSpace\(\)\)/);
+  assert.match(app, /onImported:[\s\S]*?geoprocessingResultPreview\.clear\(\)/);
+});
+
+test("course entry ensures one personal figure-ground space without mirroring it to legacy planning spaces", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
+  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260723-contour-ui/);
+  assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
+  assert.match(app, /personalSpaceClient\.ensure\(/);
+  assert.match(app, /s\.spaceType !== "course_personal"/);
+});
+
+test("personal spaces render only current imported versions instead of teacher static vectors", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const overlay = fs.readFileSync(path.join(__dirname, "../map-editing/overlay-renderer.js"), "utf8");
+  assert.match(app, /async function listCurrentPersonalLayerFeatures/);
+  assert.match(overlay, /deps\.isCurrentSpacePersonal\(\)/);
+  assert.match(overlay, /deps\.listCurrentPersonalLayerFeatures\(currentSpaceId, layerKey\)/);
+  assert.match(overlay, /buildRawFeatureFromPersonalRow/);
+  assert.match(app, /space\?\.spaceType === "course_personal"[\s\S]+\["figureGround", "building", "road", "water", "contours"\]/);
+});
+
+test("manual edits in a personal space stay in the active personal layer version", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  assert.match(app, /resolveCurrentPersonalVersionId/);
+  assert.match(app, /personalSpaceClient\.upsertFeature/);
+  assert.match(app, /personalSpaceClient\.softDeleteFeature/);
+});
+
+test("personal contours expose delete-only editing and an opt-in value label toggle", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const panel = fs.readFileSync(path.join(__dirname, "space-panel.js"), "utf8");
+  const events = fs.readFileSync(path.join(__dirname, "space-panel-events.js"), "utf8");
+  const editor = fs.readFileSync(path.join(__dirname, "../map-editing/geometry-editor.js"), "utf8");
+  const style = fs.readFileSync(path.join(__dirname, "map-style.js"), "utf8");
+  assert.match(app, /EDITABLE_GEOMETRY_LAYERS\s*=\s*\["building",\s*"road",\s*"water",\s*"contours"\]/);
+  assert.match(panel, /data-contour-label-toggle/);
+  assert.match(panel, />数值</);
+  assert.match(events, /contourLabelsVisible/);
+  assert.match(editor, /btnTargetContours/);
+  assert.match(editor, /isContourMode/);
+  assert.match(style, /getContourLabelsVisible\(\)/);
 });

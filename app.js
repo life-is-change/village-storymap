@@ -24,12 +24,11 @@ const BUILDING_EDGE_LABEL_LAYER_KEY = "__buildingEdgeLabel";
 const PLANNING_FEATURES_TABLE = "planning_features";
 const PLANNING_SPACES_TABLE = "planning_spaces";
 const ROAD_DEFAULT_WIDTH = 4;
-const EDITABLE_GEOMETRY_LAYERS = ["building", "road", "cropland", "openSpace"];
+const EDITABLE_GEOMETRY_LAYERS = ["building", "road", "water", "contours"];
 const LAYER_CODE_PREFIX = {
   building: "H",
   road: "R",
-  cropland: "F",
-  openSpace: "S"
+  water: "W"
 };
 const LAYER_CODE_FIELD = {
   building: "房屋编码",
@@ -37,12 +36,16 @@ const LAYER_CODE_FIELD = {
   cropland: "农田编码",
   openSpace: "公共空间编码"
 };
+LAYER_CODE_FIELD.water = "水系编码";
+
 const LAYER_NAME_FIELD = {
   building: "房屋名称",
   road: "道路名称",
   cropland: "农田名称",
   openSpace: "公共空间名称"
 };
+
+LAYER_NAME_FIELD.water = "水系名称";
 
 const buildingEditState = {
   mode: "idle",
@@ -108,7 +111,7 @@ const SPACE_STORAGE_KEY = "village_planning_spaces_v2"; // 升级版本号以兼
 const USER_STORAGE_KEY = "village_planning_users_v1";
 const ACTIVE_USER_STORAGE_KEY = "village_planning_active_user_v1";
 const APP_STATE_KEY = "village_planning_app_state_v1";
-const DEFAULT_SELECTED_LAYER_KEYS = ["building", "road", "cropland", "openSpace", "water"];
+const DEFAULT_SELECTED_LAYER_KEYS = ["building", "road", "water"];
 
 const mainLayout = document.getElementById("mainLayout");
 const map2dEl = document.getElementById("map2d");
@@ -207,6 +210,10 @@ let activityLogger = null;
 let courseWorkbench = null;
 let geoprocessingPanel = null;
 let geoprocessingAoiController = null;
+let geoprocessingResultPreview = null;
+let villagePreviewController = null;
+let personalSpaceClient = null;
+let personalVersionCompareController = null;
 let isCreatingSpace = false;
 let currentGeometryEditLayer = "";
 let communityGameTablesReady = true;
@@ -476,6 +483,7 @@ function getDefaultSpaces() {
       editEnabled: true,
       expanded: true,
       selectedLayers: [...DEFAULT_SELECTED_LAYER_KEYS],
+      contourLabelsVisible: false,
       basemapVisible: false,
       viewMode: "2d"
     }
@@ -580,6 +588,7 @@ function loadSpacesFromStorage() {
       selectedLayers: Array.isArray(s.selectedLayers)
         ? s.selectedLayers
         : (s.id === BASE_SPACE_ID ? [...DEFAULT_SELECTED_LAYER_KEYS] : ["building"]),
+      contourLabelsVisible: s.contourLabelsVisible === true,
       basemapVisible: !!s.basemapVisible,
       viewMode: s.viewMode || "2d",
       courseId: String(s?.courseId || ""),
@@ -645,7 +654,9 @@ async function saveSpacesToSupabase() {
   if (!supabaseClient) return;
 
   // 只保存规划空间（排除现状空间）
-  const planningSpaces = spaces.filter((s) => s.id !== BASE_SPACE_ID);
+  const planningSpaces = spaces.filter((s) => (
+    s.id !== BASE_SPACE_ID && s.spaceType !== "course_personal"
+  ));
   if (planningSpaces.length === 0) return;
 
   try {
@@ -1551,8 +1562,6 @@ async function initializeCourseGroupSpaceData(spaceId) {
   const results = await Promise.allSettled([
     seedBuildingsForCopySpace(spaceId),
     seedRoadsForCopySpace(spaceId),
-    seedCroplandsForCopySpace(spaceId),
-    seedOpenSpacesForCopySpace(spaceId),
     seedWaterForCopySpace(spaceId)
   ]);
   const rejected = results.filter((result) => result.status === "rejected");
@@ -1601,7 +1610,8 @@ async function ensureCourseWorkbenchInitialized() {
     !window.CourseServiceModule ||
     !window.ActivityLoggerModule ||
     !window.CourseWorkbenchModule ||
-    !window.CourseWorkspaceAdapterModule
+    !window.CourseWorkspaceAdapterModule ||
+    !window.PersonalSpaceClientModule
   ) {
     throw new Error("课程工作台模块未完整加载。");
   }
@@ -1630,6 +1640,42 @@ async function ensureCourseWorkbenchInitialized() {
       };
     }
   });
+  let coursePersonalSpace = null;
+  if (supabaseClient) {
+    personalSpaceClient = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
+    try {
+      const user = getCourseUser();
+      coursePersonalSpace = await personalSpaceClient.ensure({
+        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+        villageId: "mibu",
+        title: `${user.name || "学生"} · 个人图底空间`
+      });
+      const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
+      const workspaceSpace = {
+        id: String(coursePersonalSpace.id),
+        title: coursePersonalSpace.title || `${user.name || "学生"} · 个人图底空间`,
+        creatorName: user.name || "",
+        createdAt: coursePersonalSpace.created_at || new Date().toISOString(),
+        readonly: false,
+        editEnabled: true,
+        expanded: true,
+        selectedLayers: [],
+        contourLabelsVisible: existingPersonalWorkspace?.contourLabelsVisible === true,
+        basemapVisible: true,
+        viewMode: "2d",
+        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+        villageId: "mibu",
+        spaceType: "course_personal"
+      };
+      const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
+      if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
+      else spaces.push(workspaceSpace);
+      saveSpacesToStorage();
+      renderSpaceList();
+    } catch (error) {
+      console.warn("个人图底空间暂时无法初始化：", error);
+    }
+  }
   courseWorkbench = window.CourseWorkbenchModule.createCourseWorkbench({
     container: courseWorkbenchContent,
     navContainer: courseTaskNav,
@@ -1640,10 +1686,17 @@ async function ensureCourseWorkbenchInitialized() {
     showToast,
     mountGeoprocessing: async (container) => {
       geoprocessingPanel?.destroy?.();
+      geoprocessingAoiController?.destroy?.();
+      geoprocessingResultPreview?.destroy?.();
+      villagePreviewController?.destroy?.();
       geoprocessingPanel = null;
       geoprocessingAoiController = null;
+      geoprocessingResultPreview = null;
+      villagePreviewController = null;
       if (!container || !planMap || !supabaseClient) return;
-      if (!window.GeoprocessingClientModule || !window.GeoprocessingAoiModule || !window.GeoprocessingPanelModule) return;
+      if (!window.GeoprocessingClientModule || !window.GeoprocessingAoiModule
+          || !window.VillagePreviewModule
+          || !window.GeoprocessingResultLayersModule || !window.GeoprocessingPanelModule) return;
       const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient });
       let availability = "offline";
       try { availability = (await client.getAvailability())?.state || "offline"; } catch (_) { /* queue remains usable */ }
@@ -1653,6 +1706,22 @@ async function ensureCourseWorkbenchInitialized() {
         villageBounds: [113.6578225, 23.6739555, 113.6695615, 23.6806181],
         maxAreaSqKm: 2
       });
+      villagePreviewController = window.VillagePreviewModule.createVillagePreviewController({
+        map: planMap,
+        ol: window.__OL__
+      });
+      geoprocessingResultPreview = window.GeoprocessingResultLayersModule.createResultLayerPreview({
+        map: planMap,
+        ol: window.__OL__,
+        fetchJson: async (artifact) => {
+          const signed = await client.createArtifactUrl(artifact.storage_path);
+          const url = signed?.signedUrl || signed?.signedURL;
+          if (!url) throw new Error("ARTIFACT_SIGNED_URL_REQUIRED");
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`ARTIFACT_DOWNLOAD_${response.status}`);
+          return response.json();
+        }
+      });
       geoprocessingPanel = window.GeoprocessingPanelModule.createGeoprocessingPanel({
         container,
         client,
@@ -1660,7 +1729,31 @@ async function ensureCourseWorkbenchInitialized() {
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
         villageId: "mibu",
         availability,
-        onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success")
+        onStartAoi: async () => {
+          const entry = await villagePreviewController.show("mibu");
+          geoprocessingAoiController.setVillageBounds(entry.bounds);
+        },
+        onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success"),
+        onPreview: async (artifacts) => {
+          await geoprocessingResultPreview.show(artifacts);
+          geoprocessingResultPreview.syncVisibleLayers(getSelectedLayersForCurrentSpace());
+          showToast("成果已临时加载到地图", "success");
+        },
+        onImported: async () => {
+          geoprocessingResultPreview.clear();
+          if (coursePersonalSpace && personalSpaceClient) {
+            const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
+            const personalWorkspace = getSpaceById(String(coursePersonalSpace.id));
+            if (personalWorkspace) {
+              personalWorkspace.selectedLayers = (selections || []).map((item) => item.layer_key);
+              setCurrentSpaceIdAndRemember(personalWorkspace.id);
+              saveSpacesToStorage();
+              renderSpaceList();
+              await handleSpaceSelect(personalWorkspace.id);
+            }
+          }
+          showToast("成果已保存到个人空间", "success");
+        }
       });
       geoprocessingPanel.mount();
     },
@@ -1775,12 +1868,17 @@ function setSpaceSelectedLayers(spaceId, nextLayers) {
   const target = getSpaceById(spaceId);
   if (!target) return;
   target.selectedLayers = [...nextLayers];
+  if (String(spaceId) === String(getCurrentSpaceId()) && geoprocessingResultPreview?.hasPreview?.()) {
+    geoprocessingResultPreview.syncVisibleLayers(nextLayers);
+  }
   saveSpacesToStorage();
 }
 
 function getSelectedLayersForCurrentSpace() {
   const space = getCurrentSpace();
-  return Array.isArray(space?.selectedLayers) ? space.selectedLayers : [];
+  if (!Array.isArray(space?.selectedLayers)) return [];
+  const available = new Set(getAvailableLayerKeysForSpace(space));
+  return space.selectedLayers.filter((layerKey) => available.has(layerKey));
 }
 
 function isBaseSpace(spaceId) {
@@ -1789,7 +1887,10 @@ function isBaseSpace(spaceId) {
 
 function getAvailableLayerKeysForSpace(space) {
   if (!space) return [];
-  return ["figureGround", "building", "road", "cropland", "openSpace", "water"];
+  if (space?.spaceType === "course_personal") {
+    return ["figureGround", "building", "road", "water", "contours"];
+  }
+  return ["figureGround", "building", "road", "water"];
 }
 
 function syncBasemapUIBySpace(spaceId) {
@@ -1889,8 +1990,6 @@ async function createCopySpace() {
           console.warn("复制空间道路初始化失败（已跳过，不影响空间创建）：", roadError);
           showToast("道路初始化失败，已跳过；可继续编辑建筑。", "info");
         }
-        try { await seedCroplandsForCopySpace(targetSpaceId); } catch (e) { console.warn("农田初始化失败（已跳过）：", e); }
-        try { await seedOpenSpacesForCopySpace(targetSpaceId); } catch (e) { console.warn("公共空间初始化失败（已跳过）：", e); }
         try { await seedWaterForCopySpace(targetSpaceId); } catch (e) { console.warn("水体初始化失败（已跳过）：", e); }
 
         if (currentSpaceId === targetSpaceId) {
@@ -2055,6 +2154,7 @@ function buildMapStyleDeps() {
     isActiveFeature: (feature) => activeFeature === feature,
     isHoveredFeature: (feature) => hoverFeature === feature,
     getSelectedLayersForCurrentSpace,
+    getContourLabelsVisible: () => getCurrentSpace()?.contourLabelsVisible === true,
     getRoadDisplayStrokeWidth,
     getSmoothedRoadLineGeometry,
     getIsPlanningMode: () => isPlanningMode
@@ -2183,6 +2283,7 @@ function buildSpacePanelEventsDeps() {
     ensureSelectedLayersLoaded,
     syncBasemapUIBySpace,
     refresh2DOverlay,
+    getPlanVectorLayer: () => planVectorLayer,
     showPlan2DOverview,
     customPrompt,
     customConfirm,
@@ -2441,7 +2542,9 @@ function getFeatureEditSessionModule() {
 
 function buildFeatureEditSessionDeps() {
   return {
-    getSupabaseClient: () => supabaseClient
+    getSupabaseClient: () => (
+      getCurrentSpace()?.spaceType === "course_personal" ? null : supabaseClient
+    )
   };
 }
 
@@ -2524,6 +2627,11 @@ function stopFeatureLockHeartbeatIfIdle() {
 }
 
 async function saveFeatureEditBatch(payload) {
+  if (getSpaceById(payload?.spaceId)?.spaceType === "course_personal") {
+    if (!personalSpaceClient) throw new Error("PERSONAL_SPACE_CLIENT_REQUIRED");
+    await personalSpaceClient.saveEdits(payload.spaceId, payload.changes || []);
+    return { success: true };
+  }
   return getFeatureEditSessionModule().saveFeatureEditBatch(buildFeatureEditSessionDeps(), payload);
 }
 
@@ -2547,6 +2655,26 @@ function canFreezeCurrentSnapshot() {
 async function refreshVersionManagerPanel(options = {}) {
   const statusEl = document.getElementById("versionManagerStatus");
   if (!statusEl) return;
+  const currentSpace = getCurrentSpace();
+  if (currentSpace?.spaceType === "course_personal") {
+    if (!supabaseClient || !personalSpaceClient || !window.PersonalLayerVersionsModule) {
+      statusEl.textContent = "个人图层版本服务尚未初始化。";
+      return;
+    }
+    if (!options.quiet) statusEl.textContent = "正在加载个人图层版本……";
+    try {
+      const [versions, selections] = await Promise.all([
+        personalSpaceClient.listVersions(currentSpace.id),
+        personalSpaceClient.listSelections(currentSpace.id)
+      ]);
+      statusEl.innerHTML = window.PersonalLayerVersionsModule.renderPersonalVersionManager({ versions, selections });
+      bindPersonalVersionManagerEvents(statusEl, currentSpace.id);
+    } catch (error) {
+      console.warn("读取个人图层版本失败：", error);
+      statusEl.textContent = "个人图层版本读取失败，请确认已执行个人图底空间 SQL。";
+    }
+    return;
+  }
   if (!supabaseClient) {
     statusEl.textContent = "当前未连接 Supabase，无法读取版本记录。";
     return;
@@ -2584,6 +2712,70 @@ async function refreshVersionManagerPanel(options = {}) {
     console.warn("读取版本记录失败：", error);
     statusEl.textContent = "版本表尚未建立或读取失败，请执行 Supabase 版本与锁定脚本。";
   }
+}
+
+async function ensurePersonalVersionCompareController() {
+  if (personalVersionCompareController) return personalVersionCompareController;
+  await ensurePlanMap();
+  personalVersionCompareController = window.PersonalLayerVersionsModule.createPersonalVersionCompare({
+    map: planMap,
+    ol: window.__OL__
+  });
+  return personalVersionCompareController;
+}
+
+function bindPersonalVersionManagerEvents(container, spaceId) {
+  container.querySelectorAll("[data-personal-version-select]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const layerKey = select.dataset.personalVersionSelect;
+      try {
+        await personalSpaceClient.setCurrentVersion(spaceId, layerKey, select.value);
+        personalVersionCompareController?.clear?.();
+        await refresh2DOverlay();
+        await refreshVersionManagerPanel();
+        showToast(`${getLayerLabel(layerKey)}已切换到所选版本。`, "success");
+      } catch (error) {
+        console.warn("切换个人图层版本失败：", error);
+        showToast("版本切换失败，请稍后重试。", "error");
+        await refreshVersionManagerPanel();
+      }
+    });
+  });
+  container.querySelectorAll("[data-personal-version-compare]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const rows = await personalSpaceClient.listFeatures(button.dataset.personalVersionCompare);
+        const controller = await ensurePersonalVersionCompareController();
+        controller.show(rows);
+        showToast(`${getLayerLabel(button.dataset.layerKey)}旧版本已半透明叠加，可与当前版本对比。`, "info");
+      } catch (error) {
+        console.warn("加载对比版本失败：", error);
+        showToast("对比版本加载失败，请稍后重试。", "error");
+      }
+    });
+  });
+  container.querySelectorAll("[data-personal-version-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const confirmed = await customConfirm("确认删除这个旧版本吗？当前版本不会被删除。", {
+        title: "删除旧版本",
+        isDanger: true
+      });
+      if (!confirmed) return;
+      try {
+        await personalSpaceClient.deleteVersion(button.dataset.personalVersionDelete);
+        personalVersionCompareController?.clear?.();
+        await refreshVersionManagerPanel();
+        showToast("旧版本已删除。", "success");
+      } catch (error) {
+        console.warn("删除个人图层版本失败：", error);
+        showToast("删除失败；当前版本或已提交版本不能删除。", "error");
+      }
+    });
+  });
+  container.querySelector("[data-personal-version-compare-clear]")?.addEventListener("click", () => {
+    personalVersionCompareController?.clear?.();
+    showToast("已结束版本对比。", "info");
+  });
 }
 
 function clearInitialBaselineOverlay() {
@@ -2948,6 +3140,14 @@ function buildOverlayRendererDeps() {
     getPlanVectorLayer: () => planVectorLayer,
     setActiveFeature: doSetActiveFeature,
     getSelectedLayersForCurrentSpace,
+    isCurrentSpacePersonal: () => getCurrentSpace()?.spaceType === "course_personal",
+    getPersonalFigureGroundLayerKeys: () => (
+      window.PersonalLayerVersionsModule.resolveFigureGroundLayerKeys()
+    ),
+    listCurrentPersonalLayerFeatures,
+    buildRawFeatureFromPersonalRow: (row) => (
+      window.PersonalLayerVersionsModule.buildRawFeatureFromPersonalRow(row)
+    ),
     shouldShowVillageFillForCurrentSpace,
     buildVillageFillRawFeature,
     listBuildingFeaturesFromDbCached,
@@ -2977,6 +3177,14 @@ function buildOverlayRendererDeps() {
     refreshCommunityTasksOnMap,
     syncBasemapUIBySpace
   };
+}
+
+async function listCurrentPersonalLayerFeatures(spaceId, layerKey) {
+  if (!personalSpaceClient) return [];
+  const selections = await personalSpaceClient.listSelections(spaceId);
+  const selected = (selections || []).find((item) => item.layer_key === layerKey);
+  if (!selected?.current_version_id) return [];
+  return personalSpaceClient.listFeatures(selected.current_version_id);
 }
 
 function syncSidebarExpansionUI() {
@@ -3518,6 +3726,19 @@ async function upsertLayerFeatureToDb({
   geom,
   props = {}
 }) {
+  if (getSpaceById(spaceId)?.spaceType === "course_personal") {
+    const versionId = await resolveCurrentPersonalVersionId(spaceId, layerKey);
+    if (!versionId) throw new Error("PERSONAL_LAYER_VERSION_REQUIRED");
+    return personalSpaceClient.upsertFeature({
+      spaceId,
+      versionId,
+      layerKey,
+      objectCode,
+      objectName,
+      geom,
+      props
+    });
+  }
   return getFeatureDbModule().upsertLayerFeatureToDb(buildFeatureDbDeps(), {
     spaceId,
     layerKey,
@@ -3537,7 +3758,18 @@ async function softDeleteRoadFeatureInDb(spaceId, objectCode) {
 }
 
 async function softDeleteLayerFeatureInDb(spaceId, layerKey, objectCode) {
+  if (getSpaceById(spaceId)?.spaceType === "course_personal") {
+    const versionId = await resolveCurrentPersonalVersionId(spaceId, layerKey);
+    if (!versionId) throw new Error("PERSONAL_LAYER_VERSION_REQUIRED");
+    return personalSpaceClient.softDeleteFeature(versionId, objectCode);
+  }
   return getFeatureDbModule().softDeleteLayerFeatureInDb(buildFeatureDbDeps(), spaceId, layerKey, objectCode);
+}
+
+async function resolveCurrentPersonalVersionId(spaceId, layerKey) {
+  if (!personalSpaceClient) return null;
+  const selections = await personalSpaceClient.listSelections(spaceId);
+  return (selections || []).find((item) => item.layer_key === layerKey)?.current_version_id || null;
 }
 
 async function listDeletedLayerFeatureCodesFromDb(spaceId, layerKey) {
@@ -6448,8 +6680,6 @@ async function init() {
       try {
         await seedBuildingsForCopySpace(BASE_SPACE_ID);
         await seedRoadsForCopySpace(BASE_SPACE_ID);
-        await seedCroplandsForCopySpace(BASE_SPACE_ID);
-        await seedOpenSpacesForCopySpace(BASE_SPACE_ID);
         await seedWaterForCopySpace(BASE_SPACE_ID);
       } catch (seedError) {
         console.warn("现状空间数据初始化到云端失败（不影响正常使用）：", seedError);

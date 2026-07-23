@@ -220,6 +220,7 @@
         }),
         text:
           layerKey === "contours" &&
+          deps.getContourLabelsVisible() &&
           contourLabel &&
           typeof Text === "function" &&
           Number.isFinite(resolution) &&

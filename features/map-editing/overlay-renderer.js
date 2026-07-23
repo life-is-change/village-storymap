@@ -22,7 +22,9 @@
 
       const selectedLayers = deps.getSelectedLayersForCurrentSpace();
       const effectiveLayerKeys = selectedLayers.includes("figureGround")
-        ? ["elevationBands", "contours", "water", "road", "building"]
+        ? (deps.isCurrentSpacePersonal()
+          ? deps.getPersonalFigureGroundLayerKeys()
+          : ["elevationBands", "contours", "water", "road", "building"])
         : [...selectedLayers];
 
       const format = new GeoJSON();
@@ -94,6 +96,26 @@
 
       for (const layerKey of effectiveLayerKeys) {
         try {
+          if (deps.isCurrentSpacePersonal()) {
+            const rows = await deps.listCurrentPersonalLayerFeatures(currentSpaceId, layerKey);
+            (Array.isArray(rows) ? rows : []).forEach((row) => {
+              const rawFeature = deps.buildRawFeatureFromPersonalRow(row);
+              if (!deps.isRenderableGeometry(rawFeature?.geometry)) return;
+              const olFeature = format.readFeature(rawFeature, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:4326"
+              });
+              olFeature.set("layerKey", layerKey);
+              olFeature.set("sourceCode", row.object_code);
+              olFeature.set("displayName", row.object_name || row.object_code || deps.getLayerLabel(layerKey));
+              olFeature.set("rawFeature", rawFeature);
+              olFeature.set("baseRow", row.props || {});
+              olFeature.set("personalLayerVersionId", row.layer_version_id);
+              nextVectorSource.addFeature(olFeature);
+            });
+            continue;
+          }
+
           if (layerKey === "building") {
             const dbRows = await deps.listBuildingFeaturesFromDbCached(currentSpaceId);
             const deletedCodeSet = new Set();

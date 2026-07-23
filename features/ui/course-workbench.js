@@ -235,7 +235,7 @@
           activeTaskId
         });
         deps.mountGeoprocessing?.(
-          activeTask?.id === "figure-ground-compose"
+          activeTaskId === "figure-ground-compose"
             ? container.querySelector("[data-geoprocessing-panel-mount]")
             : null
         );

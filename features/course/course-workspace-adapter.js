@@ -18,7 +18,7 @@
       expanded: true,
       selectedLayers: Array.isArray(baseSpace.selectedLayers)
         ? [...baseSpace.selectedLayers]
-        : ["building", "road", "cropland", "openSpace", "water"],
+        : ["building", "road", "water"],
       basemapVisible: Boolean(baseSpace.basemapVisible),
       viewMode: "2d",
       courseId: group.courseId || "",

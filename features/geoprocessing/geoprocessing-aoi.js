@@ -43,9 +43,10 @@
     const Draw = ol.Draw || ol.interaction?.Draw;
     const GeoJSON = ol.GeoJSON || ol.format?.GeoJSON;
     const source = new VectorSource();
-    const layer = new VectorLayer({ source });
+    const layer = new VectorLayer({ source, zIndex: 1000 });
     map.addLayer(layer);
     let draw = null;
+    let activeVillageBounds = Array.isArray(villageBounds) ? [...villageBounds] : null;
     function clearInteraction() {
       if (draw) map.removeInteraction(draw);
       draw = null;
@@ -56,6 +57,11 @@
         source.clear();
         draw = new Draw({ source, type: "Polygon" });
         draw.on("drawstart", () => source.clear());
+        draw.on("drawend", () => {
+          const completedDraw = draw;
+          draw = null;
+          map.removeInteraction(completedDraw);
+        });
         map.addInteraction(draw);
       },
       clear() {
@@ -70,7 +76,14 @@
         });
       },
       validate() {
-        return validateAoi(this.getGeoJSON(), villageBounds, maxAreaSqKm);
+        if (!activeVillageBounds) return { ok: false, code: "AOI_BOUNDS_REQUIRED" };
+        return validateAoi(this.getGeoJSON(), activeVillageBounds, maxAreaSqKm);
+      },
+      setVillageBounds(bounds) {
+        if (!Array.isArray(bounds) || bounds.length !== 4 || bounds.some((value) => !Number.isFinite(Number(value)))) {
+          throw new Error("AOI_BOUNDS_INVALID");
+        }
+        activeVillageBounds = bounds.map(Number);
       },
       destroy() {
         this.clear();

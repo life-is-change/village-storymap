@@ -8,7 +8,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260723-contour-ui" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -360,30 +360,34 @@
   <script defer src="features/auth/access-control.js?v=20260721-supabase-auth"></script>
   <script defer src="auth-system.js?v=20260721-supabase-auth"></script>
   <script defer src="community-tasks.js"></script>
-  <script defer src="features/ui/map-style.js"></script>
-  <script defer src="features/ui/space-panel.js"></script>
-  <script defer src="features/ui/space-panel-events.js"></script>
+  <script defer src="features/ui/map-style.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/space-panel.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/space-panel-events.js?v=20260723-contour-ui"></script>
   <script defer src="features/ui/view-switcher.js"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
   <script defer src="features/course/course-workspace-adapter.js"></script>
-  <script defer src="features/geoprocessing/geoprocessing-client.js"></script>
-  <script defer src="features/geoprocessing/geoprocessing-aoi.js"></script>
-  <script defer src="features/geoprocessing/geoprocessing-panel.js"></script>
-  <script defer src="features/ui/course-workbench.js"></script>
+  <script defer src="features/data/personal-space-client.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/personal-layer-versions.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/village-preview.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/course-workbench.js?v=20260723-contour-ui"></script>
   <script defer src="features/data/data-service.js"></script>
   <script defer src="features/data/feature-edit-session.js"></script>
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
   <script defer src="features/data/copy-space-seed.js"></script>
   <script defer src="features/object-collaboration/object-comments.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
-  <script defer src="features/map-editing/geometry-editor.js"></script>
+  <script defer src="features/map-editing/geometry-editor.js?v=20260723-contour-ui"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js"></script>
   <script defer src="features/map-editing/map-click-handler.js"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260607-delete-tombstone"></script>
-  <script defer src="app.js?v=20260721-supabase-auth"></script>
+  <script defer src="app.js?v=20260723-contour-ui"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

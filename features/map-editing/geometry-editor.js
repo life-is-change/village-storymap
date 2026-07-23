@@ -121,6 +121,8 @@
         dbRows = await deps.listCroplandFeaturesFromDbCached(spaceId, { force: true });
       } else if (layerKey === "openSpace") {
         dbRows = await deps.listOpenSpaceFeaturesFromDbCached(spaceId, { force: true });
+      } else if (layerKey === "water") {
+        dbRows = await deps.listWaterFeaturesFromDbCached(spaceId, { force: true });
       }
 
       dbRows.forEach((row) => updateMaxFromCode(row.object_code));
@@ -215,8 +217,8 @@
       const state = getState(deps);
       const btnTargetBuilding = doc.getElementById("btnTargetBuilding");
       const btnTargetRoad = doc.getElementById("btnTargetRoad");
-      const btnTargetCropland = doc.getElementById("btnTargetCropland");
-      const btnTargetOpenSpace = doc.getElementById("btnTargetOpenSpace");
+      const btnTargetWater = doc.getElementById("btnTargetWater");
+      const btnTargetContours = doc.getElementById("btnTargetContours");
       const btnAdd = doc.getElementById("btnAddBuilding");
       const btnModify = doc.getElementById("btnModifyBuilding");
       const btnMove = doc.getElementById("btnMoveBuilding");
@@ -234,7 +236,7 @@
         ? actionGroup.previousElementSibling
         : null;
 
-      const allButtons = [btnTargetBuilding, btnTargetRoad, btnTargetCropland, btnTargetOpenSpace, btnAdd, btnModify, btnMove, btnRotate, btnDelete, btnSave, btnStop];
+      const allButtons = [btnTargetBuilding, btnTargetRoad, btnTargetWater, btnTargetContours, btnAdd, btnModify, btnMove, btnRotate, btnDelete, btnSave, btnStop];
       allButtons.forEach((btn) => btn?.classList.remove("active"));
 
       const editable = deps.canEditCurrentSpace();
@@ -247,6 +249,7 @@
       }
       const hasSelectedEditLayer = deps.isEditableGeometryLayer(layerKey);
       const isRoadMode = layerKey === "road";
+      const isContourMode = layerKey === "contours";
       const previousAddText = btnAdd?.textContent || "";
       const previousDeleteText = btnDelete?.textContent || "";
       actionGroup?.classList.toggle("is-visible", hasSelectedEditLayer);
@@ -256,8 +259,8 @@
       const targetButtons = [
         { key: "building", btn: btnTargetBuilding },
         { key: "road", btn: btnTargetRoad },
-        { key: "cropland", btn: btnTargetCropland },
-        { key: "openSpace", btn: btnTargetOpenSpace }
+        { key: "water", btn: btnTargetWater },
+        { key: "contours", btn: btnTargetContours }
       ];
 
       targetButtons.forEach(({ key, btn }) => {
@@ -275,8 +278,12 @@
         if (btn && hasSelectedEditLayer) btn.disabled = !editable;
       });
       if (btnRotate) {
-        if (hasSelectedEditLayer) btnRotate.disabled = !editable || isRoadMode;
+        if (hasSelectedEditLayer) btnRotate.disabled = !editable || isRoadMode || isContourMode;
       }
+
+      [btnAdd, btnModify, btnMove, btnRotate].forEach((btn) => {
+        if (btn) btn.hidden = isContourMode;
+      });
 
       if (btnAdd) btnAdd.textContent = isRoadMode ? "新增中心线" : "新增";
       if (btnDelete) btnDelete.textContent = isRoadMode ? "删除中心线" : "删除";
@@ -354,8 +361,8 @@
           <div class="toolbar-row toolbar-row-center">
             <button type="button" id="btnTargetBuilding">建筑</button>
             <button type="button" id="btnTargetRoad">道路</button>
-            <button type="button" id="btnTargetCropland">农田</button>
-            <button type="button" id="btnTargetOpenSpace">公共空间</button>
+            <button type="button" id="btnTargetWater">水系</button>
+            <button type="button" id="btnTargetContours">等高线</button>
           </div>
         </div>
       </div>
@@ -398,11 +405,11 @@
         doc.getElementById("btnTargetRoad")?.addEventListener("click", () => {
           api.setGeometryEditLayer(deps, "road");
         });
-        doc.getElementById("btnTargetCropland")?.addEventListener("click", () => {
-          api.setGeometryEditLayer(deps, "cropland");
+        doc.getElementById("btnTargetWater")?.addEventListener("click", () => {
+          api.setGeometryEditLayer(deps, "water");
         });
-        doc.getElementById("btnTargetOpenSpace")?.addEventListener("click", () => {
-          api.setGeometryEditLayer(deps, "openSpace");
+        doc.getElementById("btnTargetContours")?.addEventListener("click", () => {
+          api.setGeometryEditLayer(deps, "contours");
         });
 
         doc.getElementById("btnAddBuilding")?.addEventListener("click", () => {
@@ -451,6 +458,10 @@
         return;
       }
       if (!deps.isEditableGeometryLayer(layerKey)) return;
+      if (layerKey === "contours") {
+        deps.showToast("等高线当前仅支持删除。", "info");
+        return;
+      }
       if (!deps.getSelectedLayersForCurrentSpace().includes(layerKey)) {
         deps.showToast(`请先在图层中开启“${deps.getLayerLabel(layerKey)}”`, "error");
         return;
@@ -551,6 +562,10 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
+      if (layerKey === "contours") {
+        deps.showToast("等高线当前仅支持删除。", "info");
+        return;
+      }
       await deps.ensurePlanMap();
       api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
@@ -567,6 +582,10 @@
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
         return;
       }
+      if (layerKey === "contours") {
+        deps.showToast("等高线当前仅支持删除。", "info");
+        return;
+      }
       await deps.ensurePlanMap();
       api.clearBuildingInteractions(deps, { skipReleaseLock: true });
       state.originalGeoms.clear();
@@ -581,6 +600,10 @@
       const state = getState(deps);
       if (!deps.isEditableSpace()) {
         deps.showToast("当前空间不可编辑，请确认登录状态及空间权限。", "error");
+        return;
+      }
+      if (layerKey === "contours") {
+        deps.showToast("等高线当前仅支持删除。", "info");
         return;
       }
       if (layerKey === "road") {

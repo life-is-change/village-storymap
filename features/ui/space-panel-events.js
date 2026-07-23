@@ -105,6 +105,20 @@
         });
       });
 
+      const contourLabelButtons = document.querySelectorAll("[data-contour-label-toggle]");
+      contourLabelButtons.forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (button.disabled) return;
+          const target = deps.getSpaceById(button.dataset.contourLabelToggle || "");
+          if (!target || !(target.selectedLayers || []).includes("contours")) return;
+          target.contourLabelsVisible = target.contourLabelsVisible !== true;
+          deps.saveSpacesToStorage();
+          deps.getPlanVectorLayer?.()?.changed?.();
+          deps.renderSpaceList();
+        });
+      });
+
       const layerButtons = document.querySelectorAll("[data-space-layer]");
       layerButtons.forEach((button) => {
         button.addEventListener("click", async (event) => {

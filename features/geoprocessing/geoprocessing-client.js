@@ -16,8 +16,15 @@
     };
   }
 
-  function createGeoprocessingClient({ supabaseClient }) {
+  function createGeoprocessingClient({ supabaseClient, fetchImpl = globalThis.fetch }) {
     if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
+    const artifactLayerMap = Object.freeze({
+      buildings: "building",
+      roads: "road",
+      waterways: "water",
+      water_areas: "water",
+      contours: "contours"
+    });
     return {
       async getVillage(villageId) {
         return assertNoError(await supabaseClient.from("geoprocessing_villages")
@@ -68,9 +75,41 @@
         return assertNoError(await supabaseClient.from("geoprocessing_artifacts")
           .select("*").eq("run_id", runId).order("artifact_type"));
       },
+      async isRunImported(runId) {
+        const rows = assertNoError(await supabaseClient.from("personal_result_bundles")
+          .select("id").eq("source_run_id", String(runId)).limit(1));
+        return Array.isArray(rows) && rows.length > 0;
+      },
       async createArtifactUrl(path) {
         return assertNoError(await supabaseClient.storage.from("geoprocessing-results")
           .createSignedUrl(path, 300));
+      },
+      async importRun(runId, providedArtifacts = null) {
+        if (typeof fetchImpl !== "function") throw new Error("FETCH_REQUIRED");
+        const artifacts = Array.isArray(providedArtifacts)
+          ? providedArtifacts
+          : await this.listArtifacts(runId);
+        const layers = {};
+        for (const artifact of artifacts) {
+          const layerKey = artifactLayerMap[artifact?.artifact_type];
+          if (!layerKey) continue;
+          const signed = await this.createArtifactUrl(artifact.storage_path);
+          const url = signed?.signedUrl || signed?.signedURL;
+          if (!url) throw new Error("ARTIFACT_SIGNED_URL_REQUIRED");
+          const response = await fetchImpl(url);
+          if (!response?.ok) throw new Error(`ARTIFACT_DOWNLOAD_${response?.status || "FAILED"}`);
+          const geojson = await response.json();
+          if (geojson?.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
+            throw new Error("INVALID_ARTIFACT_GEOJSON");
+          }
+          if (!layers[layerKey]) layers[layerKey] = { type: "FeatureCollection", features: [] };
+          layers[layerKey].features.push(...geojson.features);
+        }
+        if (!Object.keys(layers).length) throw new Error("NO_IMPORTABLE_ARTIFACTS");
+        return assertNoError(await supabaseClient.rpc("import_geoprocessing_result", {
+          p_run_id: String(runId),
+          p_layers: layers
+        }));
       }
     };
   }

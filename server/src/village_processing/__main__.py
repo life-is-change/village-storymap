@@ -12,6 +12,7 @@ from .processors.osm import extract_osm_layers
 from .processors.contours import generate_contours
 from .contracts import ProcessingRequest
 from .pipeline import NativeProcessors, resolve_run_request, run_pipeline
+from .preview import generate_preview
 
 
 def _geometry_from_file(path: Path) -> dict:
@@ -45,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run")
     run.add_argument("--request", type=Path, required=True)
     run.add_argument("--catalog", type=Path, default=Path("server/config/villages.yaml"))
+    preview = subparsers.add_parser("preview")
+    preview.add_argument("--catalog", type=Path, default=Path("server/config/villages.yaml"))
+    preview.add_argument("--village", required=True)
+    preview.add_argument("--assets-root", type=Path, default=Path("assets"))
+    preview.add_argument("--max-edge", type=int, default=2000)
     health = subparsers.add_parser("health")
     health.add_argument("--local", action="store_true")
     subparsers.add_parser("worker")
@@ -104,6 +110,16 @@ def main(argv=None) -> int:
             "osm": str(item.osm),
             "bounds": item.bounds,
         }, ensure_ascii=False))
+        return 0
+    if args.command == "preview":
+        entry = generate_preview(
+            item.imagery,
+            args.assets_root,
+            item.village_id,
+            item.display_name,
+            args.max_edge,
+        )
+        print(json.dumps({"preview_ok": True, **entry}, ensure_ascii=False))
         return 0
     if args.command == "crop-imagery":
         crop_imagery(item.imagery, _geometry_from_file(args.aoi), args.output)
