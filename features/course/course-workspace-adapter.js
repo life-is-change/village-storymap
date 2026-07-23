@@ -33,8 +33,50 @@
     return Boolean(courseContext?.group?.id && courseContext.group.id === space.courseGroupId);
   }
 
+  function resolveAccountIdentity(user = {}) {
+    return String(user.authUserId || user.id || user.studentId || user.student_id || "anonymous").trim() || "anonymous";
+  }
+
+  function buildAccountStorageKey(baseKey, user = {}) {
+    return `${String(baseKey)}:${resolveAccountIdentity(user)}`;
+  }
+
+  function buildPersonalPlanningSpace({
+    personalSpace,
+    user = {},
+    existingSpace = null,
+    selections = [],
+    courseId,
+    villageId
+  }) {
+    const selectedFromServer = (Array.isArray(selections) ? selections : [])
+      .map((item) => String(item?.layer_key || ""))
+      .filter((key) => ["building", "road", "water", "contours"].includes(key));
+    const selectedLayers = selectedFromServer.length
+      ? selectedFromServer
+      : Array.from(existingSpace?.selectedLayers || []);
+    return {
+      id: String(personalSpace.id),
+      title: personalSpace.title || `${user.name || "学生"} · 个人图底空间`,
+      creatorName: user.name || "",
+      createdAt: personalSpace.created_at || new Date().toISOString(),
+      readonly: false,
+      editEnabled: true,
+      expanded: true,
+      selectedLayers,
+      contourLabelsVisible: existingSpace?.contourLabelsVisible === true,
+      basemapVisible: true,
+      viewMode: "2d",
+      courseId,
+      villageId,
+      spaceType: "course_personal"
+    };
+  }
+
   return {
     buildGroupPlanningSpace,
-    canActorAccessGroupSpace
+    canActorAccessGroupSpace,
+    buildAccountStorageKey,
+    buildPersonalPlanningSpace
   };
 });

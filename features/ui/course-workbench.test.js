@@ -159,10 +159,18 @@ test("map application wires completed artifacts into a temporary preview layer",
 test("course entry ensures one personal figure-ground space without mirroring it to legacy planning spaces", () => {
   const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260723-contour-ui/);
+  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260723-performance-panel/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
   assert.match(app, /personalSpaceClient\.ensure\(/);
   assert.match(app, /s\.spaceType !== "course_personal"/);
+});
+
+test("workspace initialization waits for auth and reloads account-scoped state after identity changes", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  assert.match(app, /await window\.VillageAuth\?\.ready/);
+  assert.match(app, /buildAccountStorageKey/);
+  assert.match(app, /reloadWorkspaceForAuthenticatedAccount/);
+  assert.match(app, /personalSpaceClient\.listSelections\(coursePersonalSpace\.id\)/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {
@@ -195,4 +203,16 @@ test("personal contours expose delete-only editing and an opt-in value label tog
   assert.match(editor, /btnTargetContours/);
   assert.match(editor, /isContourMode/);
   assert.match(style, /getContourLabelsVisible\(\)/);
+});
+
+test("object selection renders feedback before optional remote details finish", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "..", "app.js"), "utf8");
+  assert.match(app, /renderObjectInfoLoadingState\(/);
+  assert.match(app, /Promise\.allSettled\(/);
+});
+
+test("personal overlay keeps object identity in the right-panel base row", () => {
+  const overlay = fs.readFileSync(path.join(__dirname, "..", "map-editing", "overlay-renderer.js"), "utf8");
+  assert.match(overlay, /object_code:\s*row\.object_code/);
+  assert.match(overlay, /object_name:\s*row\.object_name/);
 });

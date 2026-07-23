@@ -1,6 +1,10 @@
 import asyncio
 import contextlib
+import logging
 from typing import Callable
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CancelRequested(Exception):
@@ -74,10 +78,21 @@ class Worker:
     async def run_forever(self) -> None:
         delay = 2.0
         while True:
-            processed = await self.run_once()
+            processed = await self.run_cycle()
             if processed:
                 delay = 2.0
                 continue
-            await asyncio.to_thread(self.gateway.heartbeat, self.worker_id, "available", "0.1.0")
             await asyncio.sleep(delay)
             delay = min(delay * 1.5, 15.0)
+
+    async def run_cycle(self) -> bool:
+        try:
+            processed = await self.run_once()
+            if not processed:
+                await asyncio.to_thread(
+                    self.gateway.heartbeat, self.worker_id, "available", "0.1.0"
+                )
+            return processed
+        except Exception:
+            LOGGER.exception("Worker queue cycle failed; retrying without exiting")
+            return False

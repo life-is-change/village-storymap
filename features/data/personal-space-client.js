@@ -10,6 +10,32 @@
 
   function createPersonalSpaceClient({ supabaseClient }) {
     if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
+    const selectionCache = new Map();
+    const featureCache = new Map();
+    const versionCache = new Map();
+
+    function cached(cache, key, loader) {
+      if (cache.has(key)) return cache.get(key);
+      const pending = Promise.resolve().then(loader).catch((error) => {
+        cache.delete(key);
+        throw error;
+      });
+      cache.set(key, pending);
+      return pending;
+    }
+
+    function invalidateCache({ spaceId = null, versionId = null } = {}) {
+      if (spaceId == null && versionId == null) {
+        selectionCache.clear();
+        featureCache.clear();
+        versionCache.clear();
+        return;
+      }
+      if (spaceId != null) selectionCache.delete(String(spaceId));
+      if (spaceId != null) versionCache.delete(String(spaceId));
+      if (versionId != null) featureCache.delete(String(versionId));
+    }
+
     return {
       async ensure({ courseId, villageId, title }) {
         return assertNoError(await supabaseClient.rpc("ensure_course_personal_space", {
@@ -19,23 +45,32 @@
         }));
       },
       async listVersions(spaceId) {
-        return assertNoError(await supabaseClient.from("personal_layer_versions")
-          .select("*").eq("space_id", String(spaceId))
-          .order("created_at", { ascending: false }));
+        const key = String(spaceId);
+        return cached(versionCache, key, async () => assertNoError(
+          await supabaseClient.from("personal_layer_versions")
+            .select("*").eq("space_id", key)
+            .order("created_at", { ascending: false })
+        ));
       },
       async listSelections(spaceId) {
-        return assertNoError(await supabaseClient.from("personal_layer_selections")
-          .select("*").eq("space_id", String(spaceId))
-          .order("layer_key", { ascending: true }));
+        const key = String(spaceId);
+        return cached(selectionCache, key, async () => assertNoError(
+          await supabaseClient.from("personal_layer_selections")
+            .select("*").eq("space_id", key)
+            .order("layer_key", { ascending: true })
+        ));
       },
       async listFeatures(versionId) {
-        return assertNoError(await supabaseClient.from("personal_layer_features")
-          .select("*").eq("layer_version_id", String(versionId))
-          .eq("is_deleted", false).order("object_code", { ascending: true }));
+        const key = String(versionId);
+        return cached(featureCache, key, async () => assertNoError(
+          await supabaseClient.from("personal_layer_features")
+            .select("*").eq("layer_version_id", key)
+            .eq("is_deleted", false).order("object_code", { ascending: true })
+        ));
       },
       async upsertFeature({ spaceId, versionId, layerKey, objectCode, objectName, geom, props = {} }) {
         if (String(layerKey) === "contours") throw new Error("CONTOURS_READ_ONLY");
-        return assertNoError(await supabaseClient.from("personal_layer_features").upsert({
+        const result = assertNoError(await supabaseClient.from("personal_layer_features").upsert({
           space_id: String(spaceId),
           layer_version_id: String(versionId),
           layer_key: String(layerKey),
@@ -46,31 +81,42 @@
           is_deleted: false,
           updated_at: new Date().toISOString()
         }, { onConflict: "layer_version_id,object_code" }));
+        invalidateCache({ versionId });
+        return result;
       },
       async softDeleteFeature(versionId, objectCode) {
-        return assertNoError(await supabaseClient.from("personal_layer_features")
+        const result = assertNoError(await supabaseClient.from("personal_layer_features")
           .update({ is_deleted: true, updated_at: new Date().toISOString() })
           .eq("layer_version_id", String(versionId))
           .eq("object_code", String(objectCode)));
+        invalidateCache({ versionId });
+        return result;
       },
       async setCurrentVersion(spaceId, layerKey, versionId) {
-        return assertNoError(await supabaseClient.rpc("set_personal_layer_version", {
+        const result = assertNoError(await supabaseClient.rpc("set_personal_layer_version", {
           p_space_id: String(spaceId),
           p_layer_key: String(layerKey),
           p_version_id: String(versionId)
         }));
+        invalidateCache({ spaceId });
+        return result;
       },
       async deleteVersion(versionId) {
-        return assertNoError(await supabaseClient.rpc("delete_personal_layer_version", {
+        const result = assertNoError(await supabaseClient.rpc("delete_personal_layer_version", {
           p_version_id: String(versionId)
         }));
+        invalidateCache();
+        return result;
       },
       async saveEdits(spaceId, changes) {
-        return assertNoError(await supabaseClient.rpc("save_personal_feature_edit_batch", {
+        const result = assertNoError(await supabaseClient.rpc("save_personal_feature_edit_batch", {
           p_space_id: String(spaceId),
           p_changes: Array.isArray(changes) ? changes : []
         }));
-      }
+        invalidateCache();
+        return result;
+      },
+      invalidateCache
     };
   }
 

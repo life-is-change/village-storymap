@@ -111,3 +111,40 @@ def test_legacy_pipeline_converts_mask_to_wgs84_geojson(tmp_path: Path, monkeypa
     payload = json.loads(output.read_text("utf-8"))
     assert len(payload["features"]) == 1
     assert payload["features"][0]["geometry"]["type"] == "Polygon"
+
+
+def test_legacy_pipeline_preserves_l_shaped_building_footprint(tmp_path: Path, monkeypatch):
+    source = tmp_path / "input-l.tif"
+    output = tmp_path / "output-l.geojson"
+    image = np.zeros((3, 256, 256), dtype=np.uint8)
+    with rasterio.open(
+        source,
+        "w",
+        driver="GTiff",
+        width=256,
+        height=256,
+        count=3,
+        dtype="uint8",
+        crs="EPSG:4326",
+        transform=from_bounds(113.0, 23.0, 113.01, 23.01, 256, 256),
+    ) as dataset:
+        dataset.write(image)
+
+    instance = np.zeros((256, 256), dtype=bool)
+    instance[105:165, 105:130] = True
+    instance[140:165, 105:175] = True
+    detection = ([np.array([[105, 105, 175, 165, 0.9]], dtype=np.float32)], [[instance]])
+    monkeypatch.setattr(legacy_pipeline, "inference_detector", lambda model, images: [detection])
+
+    legacy_pipeline.process_tif(
+        model=object(),
+        tif_path=source,
+        output_geojson=output,
+        tile_size=256,
+        overlap=64,
+        batch_size=1,
+    )
+
+    payload = json.loads(output.read_text("utf-8"))
+    ring = payload["features"][0]["geometry"]["coordinates"][0]
+    assert len(ring) - 1 >= 6, "L-shaped roofs must not be expanded to one bounding rectangle"

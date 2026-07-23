@@ -16,6 +16,9 @@ EDGE_IGNORE = 96
 MIN_INSTANCE_PIXELS = 150
 MAX_ASPECT_RATIO = 8.0
 MIN_RECT_FILL_RATIO = 0.45
+RECTANGLE_REGULARIZE_FILL_RATIO = 0.82
+COMPLEX_SIMPLIFY_RATIO = 0.008
+DEDUP_MIN_OVERLAP = 0.75
 
 
 def _read_three_band_uint8(dataset) -> np.ndarray:
@@ -79,22 +82,41 @@ def _is_in_center(mask: np.ndarray) -> bool:
     )
 
 
-def _rectangle_from_mask(mask: np.ndarray, x_offset: int, y_offset: int, affine):
+def _regularized_polygon_from_mask(mask: np.ndarray, x_offset: int, y_offset: int, affine):
     contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     if not contours:
         return None
     contour = max(contours, key=cv2.contourArea)
-    rectangle = cv2.boxPoints(cv2.minAreaRect(contour))
+    rect = cv2.minAreaRect(contour)
+    width, height = rect[1]
+    contour_area = cv2.contourArea(contour)
+    rect_fill_ratio = contour_area / max(width * height, 1e-6)
+    if rect_fill_ratio >= RECTANGLE_REGULARIZE_FILL_RATIO:
+        ring_points = cv2.boxPoints(rect)
+        regularization = "rectangle"
+    else:
+        perimeter = cv2.arcLength(contour, True)
+        epsilon = max(1.0, COMPLEX_SIMPLIFY_RATIO * perimeter)
+        approximation = cv2.approxPolyDP(contour, epsilon, True)
+        if len(approximation) < 4:
+            approximation = contour
+        ring_points = approximation.reshape(-1, 2).astype(np.float32)
+        regularization = "simplified_mask"
     pixel_coordinates = []
     coordinates = []
-    for column, row in rectangle:
+    for column, row in ring_points:
         pixel_coordinates.append((float(column + x_offset), float(row + y_offset)))
         x, y = affine * (float(column + x_offset), float(row + y_offset))
         coordinates.append((x, y))
     coordinates.append(coordinates[0])
-    columns = [point[0] for point in pixel_coordinates]
-    rows = [point[1] for point in pixel_coordinates]
-    return coordinates, (min(columns), min(rows), max(columns), max(rows))
+    contour_x, contour_y, contour_width, contour_height = cv2.boundingRect(contour)
+    pixel_bbox = (
+        float(contour_x + x_offset),
+        float(contour_y + y_offset),
+        float(contour_x + contour_width + x_offset),
+        float(contour_y + contour_height + y_offset),
+    )
+    return coordinates, pixel_bbox, regularization, float(rect_fill_ratio)
 
 
 def _bbox_overlap_ratio(first, second) -> float:
@@ -111,7 +133,10 @@ def _bbox_overlap_ratio(first, second) -> float:
 def _deduplicate(records: list[dict]) -> list[dict]:
     kept: list[dict] = []
     for record in sorted(records, key=lambda item: item["score"], reverse=True):
-        if any(_bbox_overlap_ratio(record["pixel_bbox"], item["pixel_bbox"]) >= 0.5 for item in kept):
+        if any(
+            _bbox_overlap_ratio(record["pixel_bbox"], item["pixel_bbox"]) >= DEDUP_MIN_OVERLAP
+            for item in kept
+        ):
             continue
         kept.append(record)
     return kept
@@ -149,13 +174,15 @@ def process_tif(
                     mask = np.asarray(masks[int(index)], dtype=bool)
                     if not _is_in_center(mask) or not _valid_mask(mask):
                         continue
-                    rectangle = _rectangle_from_mask(mask, x, y, dataset.transform)
-                    if rectangle is not None:
-                        coordinates, pixel_bbox = rectangle
+                    polygon = _regularized_polygon_from_mask(mask, x, y, dataset.transform)
+                    if polygon is not None:
+                        coordinates, pixel_bbox, regularization, rect_fill_ratio = polygon
                         records.append({
                             "coordinates": coordinates,
                             "pixel_bbox": pixel_bbox,
                             "score": float(boxes[int(index), -1]),
+                            "regularization": regularization,
+                            "rect_fill_ratio": rect_fill_ratio,
                         })
         output_geojson = Path(output_geojson)
         output_geojson.parent.mkdir(parents=True, exist_ok=True)
@@ -167,7 +194,11 @@ def process_tif(
             ring = [[longitude, latitude] for longitude, latitude in zip(longitudes, latitudes)]
             features.append({
                 "type": "Feature",
-                "properties": {"score": record["score"]},
+                "properties": {
+                    "score": record["score"],
+                    "regularization": record["regularization"],
+                    "rect_fill_ratio": record["rect_fill_ratio"],
+                },
                 "geometry": {"type": "Polygon", "coordinates": [ring]},
             })
         payload = {"type": "FeatureCollection", "features": features}

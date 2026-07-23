@@ -27,3 +27,14 @@ def test_worker_scripts_are_hidden_and_stop_is_path_guarded():
     assert "platform_building_worker" in stop
     assert "platform_geo_worker" in stop
     assert ".Path" in stop
+
+
+def test_worker_startup_persists_stdout_stderr_and_checks_worker_survival():
+    root = Path(__file__).resolve().parents[2]
+    start = (root / "server/scripts/start_platform_worker.ps1").read_text("utf-8")
+
+    assert "RedirectStandardOutput" in start
+    assert "RedirectStandardError" in start
+    assert "worker.stdout.log" in start
+    assert "worker.stderr.log" in start
+    assert "Wait-ForWorkerProcess" in start

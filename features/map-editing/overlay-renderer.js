@@ -28,6 +28,14 @@
         : [...selectedLayers];
 
       const format = new GeoJSON();
+      let personalRowsByLayer = null;
+      if (deps.isCurrentSpacePersonal()) {
+        const entries = await Promise.all(effectiveLayerKeys.map(async (layerKey) => [
+          layerKey,
+          await deps.listCurrentPersonalLayerFeatures(currentSpaceId, layerKey)
+        ]));
+        personalRowsByLayer = new Map(entries);
+      }
 
       if (deps.shouldShowVillageFillForCurrentSpace()) {
         const fillRawFeature = deps.buildVillageFillRawFeature();
@@ -97,7 +105,7 @@
       for (const layerKey of effectiveLayerKeys) {
         try {
           if (deps.isCurrentSpacePersonal()) {
-            const rows = await deps.listCurrentPersonalLayerFeatures(currentSpaceId, layerKey);
+            const rows = personalRowsByLayer?.get(layerKey) || [];
             (Array.isArray(rows) ? rows : []).forEach((row) => {
               const rawFeature = deps.buildRawFeatureFromPersonalRow(row);
               if (!deps.isRenderableGeometry(rawFeature?.geometry)) return;
@@ -109,7 +117,12 @@
               olFeature.set("sourceCode", row.object_code);
               olFeature.set("displayName", row.object_name || row.object_code || deps.getLayerLabel(layerKey));
               olFeature.set("rawFeature", rawFeature);
-              olFeature.set("baseRow", row.props || {});
+              olFeature.set("baseRow", {
+                ...(row.props || {}),
+                object_code: row.object_code,
+                object_name: row.object_name,
+                layer_key: row.layer_key
+              });
               olFeature.set("personalLayerVersionId", row.layer_version_id);
               nextVectorSource.addFeature(olFeature);
             });

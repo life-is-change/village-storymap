@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -84,6 +85,10 @@ def main(argv=None) -> int:
         ))
         pipeline_runner = lambda queued: run_pipeline(
             queued.processing_request(work_root), catalog, processors
+        )
+        logging.basicConfig(
+            level=os.environ.get("PLATFORM_LOG_LEVEL", "INFO"),
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
         )
         worker = Worker(gateway, pipeline_runner, os.environ.get("WORKER_ID", "win11-pilot"))
         asyncio.run(worker.run_forever())

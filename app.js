@@ -107,10 +107,10 @@ const EDITABLE_FIELDS_BY_LAYER = {
 };
 
 const BASE_SPACE_ID = "current";
-const SPACE_STORAGE_KEY = "village_planning_spaces_v2"; // 升级版本号以兼容新字段
+const SPACE_STORAGE_KEY = "village_planning_spaces_v3";
 const USER_STORAGE_KEY = "village_planning_users_v1";
 const ACTIVE_USER_STORAGE_KEY = "village_planning_active_user_v1";
-const APP_STATE_KEY = "village_planning_app_state_v1";
+const APP_STATE_KEY = "village_planning_app_state_v2";
 const DEFAULT_SELECTED_LAYER_KEYS = ["building", "road", "water"];
 
 const mainLayout = document.getElementById("mainLayout");
@@ -205,6 +205,7 @@ let lastPlanningSpaceId = BASE_SPACE_ID;
 let lastCollabSpaceId = BASE_SPACE_ID;
 let userProfiles = [];
 let currentUserName = "";
+let activeWorkspaceAccountKey = "";
 let courseService = null;
 let activityLogger = null;
 let courseWorkbench = null;
@@ -213,6 +214,7 @@ let geoprocessingAoiController = null;
 let geoprocessingResultPreview = null;
 let villagePreviewController = null;
 let personalSpaceClient = null;
+let objectInfoRequestSerial = 0;
 let personalVersionCompareController = null;
 let isCreatingSpace = false;
 let currentGeometryEditLayer = "";
@@ -546,7 +548,7 @@ function ensureUniqueSpaceTitles(spaceList) {
 
 function loadSpacesFromStorage() {
   try {
-    const raw = localStorage.getItem(SPACE_STORAGE_KEY);
+    const raw = localStorage.getItem(getAccountStorageKey(SPACE_STORAGE_KEY));
     if (!raw) return getDefaultSpaces();
 
     const parsed = JSON.parse(raw);
@@ -604,14 +606,14 @@ function loadSpacesFromStorage() {
   }
 }
 
-function saveSpacesToStorage() {
+function saveSpacesToStorage({ syncRemote = true } = {}) {
   try {
-    localStorage.setItem(SPACE_STORAGE_KEY, JSON.stringify(spaces));
+    localStorage.setItem(getAccountStorageKey(SPACE_STORAGE_KEY), JSON.stringify(spaces));
   } catch (error) {
     console.warn("保存空间配置失败：", error);
   }
   // 异步同步到 Supabase（不阻塞）
-  saveSpacesToSupabase();
+  if (syncRemote) saveSpacesToSupabase();
 }
 
 async function loadSpacesFromSupabase() {
@@ -719,7 +721,7 @@ async function syncSpacesFromSupabase() {
 
   spaces = ensureUniqueSpaceTitles(merged);
   try {
-    localStorage.setItem(SPACE_STORAGE_KEY, JSON.stringify(spaces));
+    localStorage.setItem(getAccountStorageKey(SPACE_STORAGE_KEY), JSON.stringify(spaces));
   } catch (e) {}
 
   renderSpaceList();
@@ -733,7 +735,7 @@ async function syncSpacesFromSupabase() {
 
   function saveAppState() {
   try {
-    localStorage.setItem(APP_STATE_KEY, JSON.stringify({
+    localStorage.setItem(getAccountStorageKey(APP_STATE_KEY), JSON.stringify({
       isPlanningMode,
       currentSpaceId,
       lastPlanningSpaceId,
@@ -752,7 +754,7 @@ async function syncSpacesFromSupabase() {
 
 function loadAppState() {
   try {
-    const raw = localStorage.getItem(APP_STATE_KEY);
+    const raw = localStorage.getItem(getAccountStorageKey(APP_STATE_KEY));
     if (!raw) return false;
     const state = JSON.parse(raw);
     if (typeof state.isPlanningMode === "boolean") isPlanningMode = state.isPlanningMode;
@@ -1537,6 +1539,11 @@ function getCourseUser() {
   };
 }
 
+function getAccountStorageKey(baseKey) {
+  const authUser = window.VillageAuth?.getCurrentUser?.() || {};
+  return window.CourseWorkspaceAdapterModule.buildAccountStorageKey(baseKey, authUser);
+}
+
 function ensureCourseGroupSpace(group) {
   if (!group?.id || !group?.spaceId) return { space: null, created: false };
   const existing = getSpaceById(group.spaceId);
@@ -1651,22 +1658,15 @@ async function ensureCourseWorkbenchInitialized() {
         title: `${user.name || "学生"} · 个人图底空间`
       });
       const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
-      const workspaceSpace = {
-        id: String(coursePersonalSpace.id),
-        title: coursePersonalSpace.title || `${user.name || "学生"} · 个人图底空间`,
-        creatorName: user.name || "",
-        createdAt: coursePersonalSpace.created_at || new Date().toISOString(),
-        readonly: false,
-        editEnabled: true,
-        expanded: true,
-        selectedLayers: [],
-        contourLabelsVisible: existingPersonalWorkspace?.contourLabelsVisible === true,
-        basemapVisible: true,
-        viewMode: "2d",
+      const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
+      const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
+        personalSpace: coursePersonalSpace,
+        user,
+        existingSpace: existingPersonalWorkspace,
+        selections,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        villageId: "mibu",
-        spaceType: "course_personal"
-      };
+        villageId: "mibu"
+      });
       const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
       if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
       else spaces.push(workspaceSpace);
@@ -1742,6 +1742,7 @@ async function ensureCourseWorkbenchInitialized() {
         onImported: async () => {
           geoprocessingResultPreview.clear();
           if (coursePersonalSpace && personalSpaceClient) {
+            personalSpaceClient.invalidateCache({ spaceId: coursePersonalSpace.id });
             const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
             const personalWorkspace = getSpaceById(String(coursePersonalSpace.id));
             if (personalWorkspace) {
@@ -1828,6 +1829,9 @@ function canManageSpace(spaceOrId, actorName = currentUserName) {
   const actor = normalizeIdentityName(actorName);
   if (space.id !== BASE_SPACE_ID && isAdminIdentity(actor)) return true;
   if (space.readonly) return false;
+  // Personal spaces are already owner-scoped by Supabase RLS. Display-name
+  // differences must not disable the owner's attribute editing controls.
+  if (space.spaceType === "course_personal") return !!actor;
   if (space.courseGroupId && window.CourseWorkspaceAdapterModule) {
     return window.CourseWorkspaceAdapterModule.canActorAccessGroupSpace(
       space,
@@ -1871,7 +1875,7 @@ function setSpaceSelectedLayers(spaceId, nextLayers) {
   if (String(spaceId) === String(getCurrentSpaceId()) && geoprocessingResultPreview?.hasPreview?.()) {
     geoprocessingResultPreview.syncVisibleLayers(nextLayers);
   }
-  saveSpacesToStorage();
+  saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
 }
 
 function getSelectedLayersForCurrentSpace() {
@@ -4999,6 +5003,10 @@ async function ensureLayerLoaded(layerKey) {
 }
 
 async function ensureSelectedLayersLoaded() {
+  // Personal workspaces render their current version rows from Supabase. The
+  // static teacher GeoJSON files are unrelated and can be several MB, so do
+  // not download them merely because a personal layer button was toggled.
+  if (getCurrentSpace()?.spaceType === "course_personal") return;
   const selectedLayers = getSelectedLayersForCurrentSpace();
 
   const effective = selectedLayers.includes("figureGround")
@@ -5584,6 +5592,7 @@ function showPlan2DOverview() {
   const selectedLayers = getSelectedLayersForCurrentSpace();
 
   if (!currentSelectedObject) {
+    objectInfoRequestSerial += 1;
     infoPanel.classList.remove("empty");
 
     if (!selectedLayers.length) {
@@ -6103,7 +6112,18 @@ function bindInlineEdit(context) {
   });
 }
 
+function renderObjectInfoLoadingState(layerKey, sourceCode, config = layerConfigs[layerKey]) {
+  infoPanel.classList.remove("empty");
+  infoPanel.innerHTML = `
+    <div class="info-card object-info-loading" aria-live="polite">
+      <h3 class="house-title">${escapeHtml(config?.label || "对象")}信息</h3>
+      <div class="house-row">正在读取 ${escapeHtml(sourceCode || "该要素")} 的属性、照片与讨论…</div>
+    </div>
+  `;
+}
+
 async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
+  const requestSerial = ++objectInfoRequestSerial;
   const currentSpace = getCurrentSpace();
   const config = layerConfigs[layerKey];
   const baseObjectType = config?.objectType || "";
@@ -6121,9 +6141,44 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     editsTable: OBJECT_EDITS_TABLE
   };
 
-  const editData = allowLayerEdit
-    ? await fetchObjectEdits(sourceCode, editObjectType)
-    : null;
+  renderObjectInfoLoadingState(layerKey, sourceCode, config);
+
+  const editPromise = allowLayerEdit
+    ? fetchObjectEdits(sourceCode, editObjectType)
+    : Promise.resolve(null);
+  const photosPromise = (async () => {
+    if (!showPhotoBlock || !sourceCode || !photoObjectType) return [];
+    const legacyPhotoType = currentSpaceId === BASE_SPACE_ID ? "" : `${baseObjectType}__${currentSpaceId}`;
+    const [primaryPhotos, legacyPhotos] = await Promise.all([
+      fetchObjectPhotos(sourceCode, photoObjectType),
+      legacyPhotoType ? fetchObjectPhotos(sourceCode, legacyPhotoType) : Promise.resolve([])
+    ]);
+    const mergedPhotos = [...(primaryPhotos || [])];
+    const idSet = new Set(mergedPhotos.map((item) => Number(item.id)));
+    (legacyPhotos || []).forEach((item) => {
+      const id = Number(item.id);
+      if (!idSet.has(id)) {
+        mergedPhotos.push(item);
+        idSet.add(id);
+      }
+    });
+    return mergedPhotos;
+  })();
+  const commentsPromise = window.ObjectCommentsModule && sourceCode && editObjectType
+    ? window.ObjectCommentsModule.list(objectCommentDeps, sourceCode, editObjectType)
+    : Promise.resolve([]);
+
+  const [editResult, photosResult, commentsResult] = await Promise.allSettled([
+    editPromise,
+    photosPromise,
+    commentsPromise
+  ]);
+  if (requestSerial !== objectInfoRequestSerial) return;
+  if (editResult.status === "rejected") console.warn("读取对象编辑失败：", editResult.reason);
+  if (photosResult.status === "rejected") console.warn("读取对象照片失败：", photosResult.reason);
+  if (commentsResult.status === "rejected") console.warn("读取对象留言失败：", commentsResult.reason);
+
+  const editData = editResult.status === "fulfilled" ? editResult.value : null;
 
   let mergedRow = mergeObjectRow(baseRow, editData);
 
@@ -6163,22 +6218,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     console.warn("showObjectInfo refreshBuildingEdgeLabels failed:", error);
   }
 
-  let dbPhotos = [];
-  if (showPhotoBlock && sourceCode && photoObjectType) {
-    dbPhotos = await fetchObjectPhotos(sourceCode, photoObjectType);
-    const legacyPhotoType = currentSpaceId === BASE_SPACE_ID ? "" : `${baseObjectType}__${currentSpaceId}`;
-    if (legacyPhotoType) {
-      const legacyPhotos = await fetchObjectPhotos(sourceCode, legacyPhotoType);
-      const idSet = new Set(dbPhotos.map((item) => Number(item.id)));
-      legacyPhotos.forEach((item) => {
-        const id = Number(item.id);
-        if (!idSet.has(id)) {
-          dbPhotos.push(item);
-          idSet.add(id);
-        }
-      });
-    }
-  }
+  const dbPhotos = photosResult.status === "fulfilled" ? photosResult.value : [];
 
   const csvPhotoList = showPhotoBlock
     ? getRowPhotoValue(baseRow, layerKey)
@@ -6187,14 +6227,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
         .filter((item) => item !== "")
     : [];
 
-  let objectComments = [];
-  if (window.ObjectCommentsModule && sourceCode && editObjectType) {
-    try {
-      objectComments = await window.ObjectCommentsModule.list(objectCommentDeps, sourceCode, editObjectType);
-    } catch (error) {
-      console.warn("读取对象留言失败：", error);
-    }
-  }
+  const objectComments = commentsResult.status === "fulfilled" ? commentsResult.value : [];
 
   const mergedPhotos = [
     ...csvPhotoList.map((src) => ({ src, source: "csv" })),
@@ -6575,6 +6608,55 @@ function bindAddSpaceButton() {
   });
 }
 
+function resetWorkspaceStateDefaults() {
+  currentSpaceId = BASE_SPACE_ID;
+  lastPlanningSpaceId = BASE_SPACE_ID;
+  lastCollabSpaceId = BASE_SPACE_ID;
+  isPlanningMode = false;
+  isSpaceOptionsExpanded = true;
+  isToolboxExpanded = false;
+  isCommunityExpanded = true;
+  isCommunityCompact = true;
+  isTeachingExpanded = false;
+  currentGeometryEditLayer = "";
+  currentSelectedObject = null;
+}
+
+async function reloadWorkspaceForAuthenticatedAccount() {
+  geoprocessingPanel?.destroy?.();
+  geoprocessingAoiController?.destroy?.();
+  geoprocessingResultPreview?.destroy?.();
+  villagePreviewController?.destroy?.();
+  personalVersionCompareController?.destroy?.();
+  courseWorkbench?.destroy?.();
+  geoprocessingPanel = null;
+  geoprocessingAoiController = null;
+  geoprocessingResultPreview = null;
+  villagePreviewController = null;
+  personalVersionCompareController = null;
+  courseWorkbench = null;
+  courseService = null;
+  activityLogger = null;
+  personalSpaceClient = null;
+
+  resetWorkspaceStateDefaults();
+  spaces = loadSpacesFromStorage();
+  await syncSpacesFromSupabase();
+  loadAppState();
+  currentSpaceId = getValidSpaceId(currentSpaceId, BASE_SPACE_ID);
+  lastPlanningSpaceId = getValidSpaceId(lastPlanningSpaceId, BASE_SPACE_ID);
+  lastCollabSpaceId = getValidSpaceId(lastCollabSpaceId, BASE_SPACE_ID);
+  sync2DSpaceStateTo3D();
+  renderSpaceList();
+
+  if (window.VillageAuth?.getCurrentUser?.()) {
+    await ensureCourseWorkbenchInitialized();
+  }
+  if (plan2dView?.classList.contains("active") && planMap) {
+    await refresh2DOverlay();
+  }
+}
+
 async function init() {
   if (!hasRequiredNewLayout()) {
     console.error("index.html 结构不匹配，请同步替换新版 index.html / style.css / app.js。");
@@ -6590,6 +6672,8 @@ async function init() {
   }
 
   try {
+    await window.VillageAuth?.ready;
+
     // 清空旧账号信息（与新系统保持一致）
     try {
       localStorage.removeItem(USER_STORAGE_KEY);
@@ -6607,6 +6691,7 @@ async function init() {
         userProfiles = [currentUserName];
       }
     }
+    activeWorkspaceAccountKey = getAccountStorageKey("workspace-account");
 
     spaces = loadSpacesFromStorage();
     console.log("Initialized spaces:", spaces);
@@ -6662,6 +6747,12 @@ async function init() {
         setCurrentUser(displayName);
       }
       renderHomepageIdentityUi();
+      const nextAccountKey = getAccountStorageKey("workspace-account");
+      if (nextAccountKey !== activeWorkspaceAccountKey) {
+        activeWorkspaceAccountKey = nextAccountKey;
+        await reloadWorkspaceForAuthenticatedAccount();
+        return;
+      }
       if (courseWorkbench) {
         await courseWorkbench.refresh();
       }

@@ -66,3 +66,27 @@ def test_worker_renews_lease_during_long_pipeline():
 
     asyncio.run(worker.run_once())
     assert gateway.renew_count >= 1
+
+
+def test_worker_cycle_survives_a_transient_queue_error_and_can_poll_again():
+    class FlakyGateway(FakeGateway):
+        def __init__(self):
+            super().__init__()
+            self.claim_count = 0
+
+        def claim(self, worker_id):
+            self.claim_count += 1
+            if self.claim_count == 1:
+                raise RuntimeError("temporary network failure")
+            return None
+
+        def heartbeat(self, worker_id, state, version):
+            self.events.append("heartbeat")
+
+    gateway = FlakyGateway()
+    worker = Worker(gateway, lambda run: Manifest(), worker_id="win11-pilot")
+
+    assert asyncio.run(worker.run_cycle()) is False
+    assert asyncio.run(worker.run_cycle()) is False
+    assert gateway.claim_count == 2
+    assert gateway.events == ["heartbeat"]

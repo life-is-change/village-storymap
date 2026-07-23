@@ -82,3 +82,41 @@ test("manual edits are saved by one owner-checked transactional RPC", async () =
     p_changes: changes
   }]);
 });
+
+test("repeated personal layer reads reuse selections and feature responses", async () => {
+  const fake = fakeSupabase();
+  const originalFrom = fake.from;
+  fake.from = (table) => {
+    const builder = originalFrom(table);
+    const query = fake.queries.at(-1);
+    builder.order = function (key, options) {
+      query.order = [key, options];
+      const data = table === "personal_layer_selections"
+        ? [{ layer_key: "building", current_version_id: "version-1" }]
+        : [{ layer_version_id: "version-1", object_code: "B001" }];
+      return Promise.resolve({ data, error: null });
+    };
+    return builder;
+  };
+
+  const client = createPersonalSpaceClient({ supabaseClient: fake });
+  await client.listSelections("space-1");
+  await client.listSelections("space-1");
+  await client.listVersions("space-1");
+  await client.listVersions("space-1");
+  await client.listFeatures("version-1");
+  await client.listFeatures("version-1");
+
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_selections").length, 1);
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_versions").length, 1);
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_features").length, 1);
+});
+
+test("personal cache can be invalidated after importing a new result", async () => {
+  const fake = fakeSupabase();
+  const client = createPersonalSpaceClient({ supabaseClient: fake });
+  await client.listSelections("space-1");
+  client.invalidateCache({ spaceId: "space-1" });
+  await client.listSelections("space-1");
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_selections").length, 2);
+});
