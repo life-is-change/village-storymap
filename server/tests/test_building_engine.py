@@ -223,3 +223,28 @@ def test_legacy_pipeline_preserves_l_shaped_building_footprint(tmp_path: Path, m
     payload = json.loads(output.read_text("utf-8"))
     ring = payload["features"][0]["geometry"]["coordinates"][0]
     assert len(ring) - 1 >= 6, "L-shaped roofs must not be expanded to one bounding rectangle"
+
+
+def test_legacy_regularizer_outputs_rectangles_and_bounded_orthogonal_complexes():
+    noisy_rectangle = np.array(
+        [
+            [[0, 0]], [[20, 0]], [[40, 1]], [[60, 0]], [[60, 20]],
+            [[59, 40]], [[40, 40]], [[20, 39]], [[0, 40]], [[0, 20]],
+        ],
+        dtype=np.float32,
+    )
+    l_shape = np.array(
+        [
+            [[0, 0]], [[60, 0]], [[60, 20]], [[25, 20]],
+            [[25, 60]], [[0, 60]],
+        ],
+        dtype=np.float32,
+    )
+
+    rectangle_points, rectangle_method, _ = legacy_pipeline._regularize_contour(noisy_rectangle)
+    l_points, l_method, _ = legacy_pipeline._regularize_contour(l_shape)
+
+    assert rectangle_method == "rectangle"
+    assert len(rectangle_points) == 4
+    assert l_method == "orthogonal_complex"
+    assert len(l_points) == 6
