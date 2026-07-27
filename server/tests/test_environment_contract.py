@@ -1,5 +1,8 @@
 from pathlib import Path
 import subprocess
+import sys
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,6 +32,7 @@ def test_large_runtime_assets_are_ignored():
         assert pattern in ignore
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="PowerShell parser contract is Windows-only")
 def test_environment_powershell_scripts_parse_cleanly():
     scripts = ROOT / "server/scripts"
 

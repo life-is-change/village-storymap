@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from threading import Event, Lock, Thread
 
 import numpy as np
 import pytest
@@ -76,6 +77,80 @@ def test_service_manifest_must_be_under_work_root(tmp_path: Path):
     assert resolve_manifest_path(work_root, manifest) == manifest.resolve()
     with pytest.raises(ValueError, match="MANIFEST_PATH_ESCAPE"):
         resolve_manifest_path(work_root, tmp_path / "outside.json")
+
+
+def test_ready_loads_the_engine_and_reports_device(monkeypatch):
+    from types import SimpleNamespace
+    from village_processing.building import service
+
+    monkeypatch.setattr(service, "_get_engine", lambda: SimpleNamespace(device="cuda:0"))
+
+    assert service.ready() == {
+        "ok": True,
+        "model_loaded": True,
+        "device": "cuda:0",
+    }
+
+
+def test_ready_returns_stable_503_without_local_path(monkeypatch):
+    from fastapi import HTTPException
+    from village_processing.building import service
+
+    def fail():
+        raise RuntimeError("cannot load /data/private/model.pth")
+
+    monkeypatch.setattr(service, "_get_engine", fail)
+    with pytest.raises(HTTPException) as captured:
+        service.ready()
+
+    assert captured.value.status_code == 503
+    assert captured.value.detail == "MODEL_NOT_READY"
+    assert "/data/" not in str(captured.value.detail)
+
+
+def test_engine_initialization_is_serialized(monkeypatch):
+    from village_processing.building import service
+
+    initialization_started = Event()
+    second_initialization_started = Event()
+    allow_initialization_to_finish = Event()
+    calls_lock = Lock()
+    calls = 0
+
+    class FakeEngine:
+        device = "cuda:0"
+
+        def __init__(self, *_args, **_kwargs):
+            nonlocal calls
+            with calls_lock:
+                calls += 1
+                if calls == 1:
+                    initialization_started.set()
+                else:
+                    second_initialization_started.set()
+            assert allow_initialization_to_finish.wait(timeout=2)
+
+    monkeypatch.setenv("PLATFORM_MODEL_CONFIG", "/data/model.py")
+    monkeypatch.setenv("PLATFORM_MODEL_CHECKPOINT", "/data/model.pth")
+    monkeypatch.setattr(service, "BuildingEngine", FakeEngine)
+    monkeypatch.setattr(service, "_engine", None)
+
+    results = []
+    first = Thread(target=lambda: results.append(service._get_engine()))
+    second = Thread(target=lambda: results.append(service._get_engine()))
+    first.start()
+    assert initialization_started.wait(timeout=1)
+    second.start()
+
+    initialized_twice = second_initialization_started.wait(timeout=0.25)
+    allow_initialization_to_finish.set()
+    first.join(timeout=2)
+    second.join(timeout=2)
+
+    assert not initialized_twice
+    assert calls == 1
+    assert len(results) == 2
+    assert results[0] is results[1]
 
 
 def test_legacy_pipeline_converts_mask_to_wgs84_geojson(tmp_path: Path, monkeypatch):

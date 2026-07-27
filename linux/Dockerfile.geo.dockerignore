@@ -1,0 +1,17 @@
+.git
+**/.git
+**/.env
+**/.env.*
+!linux/.env.example
+server/runtime
+**/__pycache__
+**/.pytest_cache
+*.pth
+*.pbf
+*.tif
+*.tif.ovr
+node_modules
+assets
+data
+homepage
+rural_house_generator

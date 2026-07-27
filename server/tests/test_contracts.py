@@ -50,3 +50,19 @@ def test_processing_request_accepts_supported_values(tmp_path: Path):
 def test_processing_request_rejects_unsafe_values(tmp_path: Path, overrides, code):
     with pytest.raises(ValueError, match=code):
         ProcessingRequest.from_json(write_request(tmp_path / "request.json", **overrides))
+
+
+def test_building_service_url_defaults_to_windows_loopback(monkeypatch):
+    import village_processing.__main__ as cli
+
+    monkeypatch.delenv("BUILDING_SERVICE_URL", raising=False)
+
+    assert cli._building_service_url() == "http://127.0.0.1:8021"
+
+
+def test_building_service_url_uses_container_service_name(monkeypatch):
+    import village_processing.__main__ as cli
+
+    monkeypatch.setenv("BUILDING_SERVICE_URL", "http://building:8021")
+
+    assert cli._building_service_url() == "http://building:8021"

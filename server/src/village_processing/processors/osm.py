@@ -1,6 +1,8 @@
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -18,6 +20,7 @@ WATERWAY_VALUES = frozenset({"river", "stream", "canal", "ditch", "drain"})
 WATER_NATURAL_VALUES = frozenset({"water"})
 WATER_LANDUSE_VALUES = frozenset({"reservoir", "basin"})
 ATTRIBUTION = "© OpenStreetMap contributors"
+WINDOWS_OGR2OGR = Path(r"E:\anaconda3\envs\platform_geo_worker\Library\bin\ogr2ogr.exe")
 
 
 def classify_line(tags: dict) -> str | None:
@@ -66,6 +69,20 @@ def _where(field: str, values: frozenset[str]) -> str:
     return f'"{field}" IN ({quoted})'
 
 
+def resolve_ogr2ogr(override: Path | None = None) -> Path:
+    if override is not None:
+        executable = Path(override)
+    elif configured := os.environ.get("PLATFORM_OGR2OGR"):
+        executable = Path(configured)
+    elif discovered := shutil.which("ogr2ogr"):
+        executable = Path(discovered)
+    else:
+        executable = WINDOWS_OGR2OGR
+    if not executable.is_file():
+        raise FileNotFoundError(f"OGR2OGR_NOT_FOUND: {executable}")
+    return executable
+
+
 def _extract_layer(ogr2ogr: Path, pbf: Path, gpkg: Path, source_layer: str, target_layer: str, bounds, where: str):
     command = [
         str(ogr2ogr), "-f", "GPKG", str(gpkg), str(pbf), source_layer,
@@ -88,9 +105,7 @@ def extract_osm_layers(
     bounds = geometry.bounds
     aoi_frame = gpd.GeoDataFrame(geometry=[geometry], crs=4326)
     output_dir = Path(output_dir)
-    executable = ogr2ogr or Path(r"E:\anaconda3\envs\platform_geo_worker\Library\bin\ogr2ogr.exe")
-    if not executable.is_file():
-        raise FileNotFoundError(f"OGR2OGR_NOT_FOUND: {executable}")
+    executable = resolve_ogr2ogr(ogr2ogr)
 
     specifications = [
         ("roads", "lines", _where("highway", ROAD_VALUES)),

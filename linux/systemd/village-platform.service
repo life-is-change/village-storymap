@@ -1,0 +1,17 @@
+[Unit]
+Description=Village geoprocessing worker containers
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/village-storymap/linux
+ExecStart=/usr/bin/docker compose --env-file /etc/village-platform/worker.env up -d --remove-orphans
+ExecStop=/usr/bin/docker compose --env-file /etc/village-platform/worker.env stop
+TimeoutStartSec=0
+TimeoutStopSec=900
+
+[Install]
+WantedBy=multi-user.target
