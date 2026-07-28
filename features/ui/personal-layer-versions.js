@@ -19,6 +19,12 @@
     return [...LAYER_KEYS];
   }
 
+  function shouldRefreshLiveFigureGround(space = {}) {
+    return space?.spaceType === "course_personal" &&
+      Array.isArray(space?.selectedLayers) &&
+      space.selectedLayers.includes("figureGround");
+  }
+
   function canEditPersonalLayer(layerKey, action = "") {
     if (String(layerKey) === "contours") return String(action) === "delete";
     return ["building", "road", "water"].includes(String(layerKey));
@@ -119,6 +125,7 @@
     LAYER_KEYS,
     resolveCurrentVersions,
     resolveFigureGroundLayerKeys,
+    shouldRefreshLiveFigureGround,
     canEditPersonalLayer,
     groupVersionsByLayer,
     buildRawFeatureFromPersonalRow,

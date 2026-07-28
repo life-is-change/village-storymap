@@ -168,7 +168,7 @@
           if (!deps.getPlan2dViewEl().classList.contains("active")) {
             await deps.switchTo2DView();
           } else {
-            deps.refresh2DOverlay();
+            await deps.refresh2DOverlay();
             deps.showPlan2DOverview();
           }
         });
@@ -304,7 +304,7 @@
 
           if (deps.getCurrentSpace().viewMode === "2d") {
             await deps.ensureSelectedLayersLoaded();
-            deps.refresh2DOverlay();
+            await deps.refresh2DOverlay();
             deps.showPlan2DOverview();
           }
         });

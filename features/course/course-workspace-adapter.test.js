@@ -5,7 +5,9 @@ const {
   buildGroupPlanningSpace,
   canActorAccessGroupSpace,
   buildAccountStorageKey,
-  buildPersonalPlanningSpace
+  buildPersonalPlanningSpace,
+  filterRemotePlanningSpaces,
+  mergeWorkspaceSpaces
 } = require("./course-workspace-adapter.js");
 
 test("group workspace keeps course ownership while reusing map defaults", () => {
@@ -62,4 +64,36 @@ test("personal workspace restores all selected imported layers including contour
   assert.deepEqual(space.selectedLayers, ["building", "road", "water", "contours"]);
   assert.equal(space.contourLabelsVisible, true);
   assert.equal(space.spaceType, "course_personal");
+});
+
+test("students never receive unrelated remote planning spaces", () => {
+  const remote = [
+    { id: "legacy-other", creatorName: "别人", spaceType: "" },
+    { id: "group-other", courseGroupId: "g-other", spaceType: "course_group" },
+    { id: "group-mine", courseGroupId: "g-mine", spaceType: "course_group" }
+  ];
+  assert.deepEqual(filterRemotePlanningSpaces(remote, {
+    actorName: "学生甲",
+    isAdmin: false,
+    activeGroupId: "g-mine"
+  }).map((space) => space.id), ["group-mine"]);
+  assert.deepEqual(filterRemotePlanningSpaces(remote, {
+    actorName: "新同学",
+    isAdmin: false,
+    activeGroupId: ""
+  }), []);
+});
+
+test("successful empty remote sync clears legacy cache but preserves personal space", () => {
+  const base = { id: "current", title: "现状空间" };
+  const personal = { id: "personal-1", spaceType: "course_personal" };
+  const stale = { id: "old-space", creatorName: "别人", spaceType: "" };
+  assert.deepEqual(mergeWorkspaceSpaces({
+    localSpaces: [base, personal, stale],
+    remoteSpaces: [],
+    baseSpaceId: "current",
+    isAdmin: false,
+    actorName: "学生甲",
+    activeGroupId: ""
+  }), [base, personal]);
 });

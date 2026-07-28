@@ -177,6 +177,7 @@ let hoverFeature = null;
 let olReady = null;
 let resizeObserver = null;
 let resizeOverlayRaf = 0;
+let overlayRefreshController = null;
 
 const layerDataCache = {};
 const buildingDbRowsCache = new Map();
@@ -629,7 +630,7 @@ async function loadSpacesFromSupabase() {
       return null;
     }
 
-    if (!Array.isArray(data) || data.length === 0) return null;
+    if (!Array.isArray(data)) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -712,12 +713,20 @@ async function syncSpacesFromSupabase() {
 
   // 以服务器数据为准：保留本地现状空间 + 远程规划空间
   // 不再保留本地独有的规划空间，确保删除操作能跨设备同步
-  const baseSpace = spaces.find((s) => s.id === BASE_SPACE_ID);
-
-  const merged = [
-    baseSpace || getDefaultSpaces()[0],
-    ...remoteSpaces
-  ];
+  const authUser = window.VillageAuth?.getCurrentUser?.() || {};
+  const activeGroupId = courseWorkbench?.getContext?.()?.group?.id || "";
+  const isStaff = Boolean(window.AccessControlModule?.isStaffUser?.(authUser));
+  const merged = window.CourseWorkspaceAdapterModule.mergeWorkspaceSpaces({
+    localSpaces: spaces,
+    remoteSpaces,
+    baseSpaceId: BASE_SPACE_ID,
+    actorName: getCourseUser().name,
+    isStaff,
+    activeGroupId
+  });
+  if (!merged.some((space) => space.id === BASE_SPACE_ID)) {
+    merged.unshift(getDefaultSpaces()[0]);
+  }
 
   spaces = ensureUniqueSpaceTitles(merged);
   try {
@@ -1670,7 +1679,7 @@ async function ensureCourseWorkbenchInitialized() {
       const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
       if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
       else spaces.push(workspaceSpace);
-      saveSpacesToStorage();
+      saveSpacesToStorage({ syncRemote: false });
       renderSpaceList();
     } catch (error) {
       console.warn("个人图底空间暂时无法初始化：", error);
@@ -1765,6 +1774,7 @@ async function ensureCourseWorkbenchInitialized() {
     }
   });
   await courseWorkbench.init();
+  await syncSpacesFromSupabase();
   return courseWorkbench;
 }
 
@@ -5194,7 +5204,13 @@ async function ensurePlanMap() {
 }
 
 async function refresh2DOverlay() {
-  return getOverlayRendererModule().refresh2DOverlay(buildOverlayRendererDeps());
+  if (!overlayRefreshController) {
+    const renderer = getOverlayRendererModule();
+    overlayRefreshController = renderer.createLatestOverlayRefreshController({
+      render: (request) => renderer.refresh2DOverlay(buildOverlayRendererDeps(), request)
+    });
+  }
+  return overlayRefreshController.request();
 }
 
 function getCommunityTaskPosition(taskRow) {
@@ -7273,6 +7289,20 @@ function bindMeasureButtons() {
         clearBuildingInteractions();
       }
       showToast("正在刷新...", "info");
+
+      const currentSpace = getCurrentSpace();
+      if (currentSpace?.spaceType === "course_personal") {
+        if (!personalSpaceClient) {
+          showToast("个人图层服务尚未初始化。", "error");
+          return;
+        }
+        await personalSpaceClient.refreshCurrentLayers(currentSpace.id);
+        await refresh2DOverlay();
+        await refreshVersionManagerPanel({ quiet: true });
+        renderSpaceList();
+        showToast("个人图层已刷新到最新。", "success");
+        return;
+      }
 
       // 1. 清除现状空间静态数据缓存（GeoJSON/CSV）
       Object.keys(layerDataCache).forEach((key) => delete layerDataCache[key]);

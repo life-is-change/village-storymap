@@ -41,6 +41,40 @@
     return `${String(baseKey)}:${resolveAccountIdentity(user)}`;
   }
 
+  function filterRemotePlanningSpaces(remoteSpaces = [], options = {}) {
+    const canViewAll = options.isAdmin === true || options.isStaff === true;
+    const activeGroupId = String(options.activeGroupId || "").trim();
+    return (Array.isArray(remoteSpaces) ? remoteSpaces : []).filter((space) => {
+      if (!space || space.spaceType === "course_personal") return false;
+      if (canViewAll) return true;
+      return Boolean(
+        activeGroupId &&
+        space.spaceType === "course_group" &&
+        String(space.courseGroupId || "") === activeGroupId
+      );
+    });
+  }
+
+  function mergeWorkspaceSpaces({
+    localSpaces = [],
+    remoteSpaces = [],
+    baseSpaceId = "current",
+    ...visibility
+  } = {}) {
+    const local = Array.isArray(localSpaces) ? localSpaces : [];
+    const base = local.find((space) => String(space?.id) === String(baseSpaceId)) || null;
+    const personal = local.filter((space) => space?.spaceType === "course_personal");
+    const visibleRemote = filterRemotePlanningSpaces(remoteSpaces, visibility);
+    const merged = [base, ...personal, ...visibleRemote].filter(Boolean);
+    const seen = new Set();
+    return merged.filter((space) => {
+      const id = String(space?.id || "");
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   function buildPersonalPlanningSpace({
     personalSpace,
     user = {},
@@ -77,6 +111,8 @@
     buildGroupPlanningSpace,
     canActorAccessGroupSpace,
     buildAccountStorageKey,
-    buildPersonalPlanningSpace
+    buildPersonalPlanningSpace,
+    filterRemotePlanningSpaces,
+    mergeWorkspaceSpaces
   };
 });

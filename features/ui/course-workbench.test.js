@@ -159,7 +159,7 @@ test("map application wires completed artifacts into a temporary preview layer",
 test("course entry ensures one personal figure-ground space without mirroring it to legacy planning spaces", () => {
   const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260723-performance-panel/);
+  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260727-personal-space-live/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
   assert.match(app, /personalSpaceClient\.ensure\(/);
   assert.match(app, /s\.spaceType !== "course_personal"/);
@@ -171,6 +171,32 @@ test("workspace initialization waits for auth and reloads account-scoped state a
   assert.match(app, /buildAccountStorageKey/);
   assert.match(app, /reloadWorkspaceForAuthenticatedAccount/);
   assert.match(app, /personalSpaceClient\.listSelections\(coursePersonalSpace\.id\)/);
+});
+
+test("remote space sync treats an empty server result as authoritative and preserves personal workspaces", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
+  assert.match(app, /if\s*\(!Array\.isArray\(data\)\)\s*return null;[\s\S]*?return data\.map/);
+  assert.match(app, /mergeWorkspaceSpaces\(/);
+  assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
+  assert.match(html, /course-workspace-adapter\.js\?v=20260727-personal-space-live/);
+  assert.match(html, /app\.js\?v=20260727-personal-space-live/);
+});
+
+test("personal space reliability scripts share a cache-busting release version", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
+  const version = "20260727-personal-space-live";
+
+  for (const script of [
+    "space-panel-events.js",
+    "course-workspace-adapter.js",
+    "personal-space-client.js",
+    "personal-layer-versions.js",
+    "overlay-renderer.js",
+    "app.js"
+  ]) {
+    assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${version}`));
+  }
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {
@@ -215,4 +241,14 @@ test("personal overlay keeps object identity in the right-panel base row", () =>
   const overlay = fs.readFileSync(path.join(__dirname, "..", "map-editing", "overlay-renderer.js"), "utf8");
   assert.match(overlay, /object_code:\s*row\.object_code/);
   assert.match(overlay, /object_name:\s*row\.object_name/);
+});
+
+test("personal map refresh invalidates only the active personal layer cache", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const refreshHandler = app.match(/const refreshBtn = document\.getElementById\("btnRefreshCommunityTask"\);([\s\S]*?)\n  const btn3d/)?.[1] || "";
+  assert.match(refreshHandler, /spaceType === "course_personal"/);
+  assert.match(refreshHandler, /personalSpaceClient\.refreshCurrentLayers\(currentSpace\.id\)/);
+  const personalBranch = refreshHandler.match(/spaceType === "course_personal"([\s\S]*?)return;/)?.[1] || "";
+  assert.doesNotMatch(personalBranch, /syncSpacesFromSupabase/);
+  assert.doesNotMatch(personalBranch, /refreshCommunityTasksOnMap/);
 });

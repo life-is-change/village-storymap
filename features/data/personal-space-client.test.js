@@ -120,3 +120,28 @@ test("personal cache can be invalidated after importing a new result", async () 
   await client.listSelections("space-1");
   assert.equal(fake.queries.filter((query) => query.table === "personal_layer_selections").length, 2);
 });
+
+test("manual refresh reloads only the current personal space selections and versions", async () => {
+  const fake = fakeSupabase();
+  const originalFrom = fake.from;
+  fake.from = (table) => {
+    const builder = originalFrom(table);
+    const query = fake.queries.at(-1);
+    builder.order = function (key, options) {
+      query.order = [key, options];
+      const data = table === "personal_layer_selections"
+        ? [{ layer_key: "building", current_version_id: "version-1" }]
+        : [{ layer_version_id: "version-1", object_code: "B001" }];
+      return Promise.resolve({ data, error: null });
+    };
+    return builder;
+  };
+
+  const client = createPersonalSpaceClient({ supabaseClient: fake });
+  await client.listSelections("space-1");
+  await client.listFeatures("version-1");
+  await client.refreshCurrentLayers("space-1");
+
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_selections").length, 2);
+  assert.equal(fake.queries.filter((query) => query.table === "personal_layer_features").length, 2);
+});

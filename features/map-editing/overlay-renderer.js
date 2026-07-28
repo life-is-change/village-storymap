@@ -1,6 +1,74 @@
-(function () {
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  if (root) root.OverlayRendererModule = api;
+})(typeof window !== "undefined" ? window : globalThis, function () {
+  function createLatestOverlayRefreshController({ render } = {}) {
+    if (typeof render !== "function") throw new Error("OVERLAY_RENDER_REQUIRED");
+
+    let latestRequestId = 0;
+    let completedRequestId = 0;
+    let running = false;
+    let scheduled = false;
+    let idlePromise = null;
+    let resolveIdle = null;
+
+    function ensureIdlePromise() {
+      if (!idlePromise) {
+        idlePromise = new Promise((resolve) => {
+          resolveIdle = resolve;
+        });
+      }
+      return idlePromise;
+    }
+
+    function completeIfIdle() {
+      if (running || scheduled || completedRequestId < latestRequestId || !resolveIdle) return;
+      const resolve = resolveIdle;
+      resolveIdle = null;
+      idlePromise = null;
+      resolve();
+    }
+
+    async function drain() {
+      scheduled = false;
+      if (running) return;
+      running = true;
+      try {
+        while (completedRequestId < latestRequestId) {
+          const id = latestRequestId;
+          await render({ id, isCurrent: () => id === latestRequestId });
+          completedRequestId = id;
+        }
+      } finally {
+        running = false;
+        if (completedRequestId < latestRequestId) schedule();
+        else completeIfIdle();
+      }
+    }
+
+    function schedule() {
+      if (scheduled || running) return;
+      scheduled = true;
+      queueMicrotask(drain);
+    }
+
+    return {
+      request() {
+        latestRequestId += 1;
+        const pending = ensureIdlePromise();
+        schedule();
+        return pending;
+      },
+      invalidate() {
+        latestRequestId += 1;
+      }
+    };
+  }
+
   const api = {
-    async refresh2DOverlay(deps) {
+    createLatestOverlayRefreshController,
+    async refresh2DOverlay(deps, refreshRequest = null) {
       const plan2dView = deps.getPlan2DView();
       if (!plan2dView?.classList.contains("active")) return;
 
@@ -18,6 +86,12 @@
       // 双缓冲渲染：先在新的 VectorSource 中构建完整图层，再一次性替换。
       // 这样切换图层/刷新云端数据时不会先清空旧画面，避免“建筑层卡一会才出现”的闪烁感。
       const nextVectorSource = new VectorSource();
+      // 问题点由独立的按需刷新流程维护。普通图层开关不访问远端，但也不能在
+      // 双缓冲替换 source 时把已经加载的问题点丢掉。
+      currentVectorSource
+        .getFeatures()
+        .filter((feature) => feature.get("layerKey") === "communityTask")
+        .forEach((feature) => nextVectorSource.addFeature(feature));
       deps.setActiveFeature(null);
 
       const selectedLayers = deps.getSelectedLayersForCurrentSpace();
@@ -414,6 +488,10 @@
         }
       }
 
+      if (refreshRequest && !refreshRequest.isCurrent()) {
+        return { stale: true };
+      }
+
       if (typeof deps.setPlanVectorSource === "function" && typeof planVectorLayer.setSource === "function") {
         deps.setPlanVectorSource(nextVectorSource);
         planVectorLayer.setSource(nextVectorSource);
@@ -422,16 +500,11 @@
         currentVectorSource.addFeatures(nextVectorSource.getFeatures());
       }
 
-      try {
-        await deps.refreshCommunityTasksOnMap(format);
-      } catch (taskLayerError) {
-        console.warn("问题标记图层刷新失败（不影响基础图层）：", taskLayerError);
-      }
-
       planVectorLayer.changed();
       deps.syncBasemapUIBySpace(currentSpaceId);
+      return { stale: false };
     }
   };
 
-  window.OverlayRendererModule = api;
-})();
+  return api;
+});

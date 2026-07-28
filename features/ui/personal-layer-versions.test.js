@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   resolveCurrentVersions,
   resolveFigureGroundLayerKeys,
+  shouldRefreshLiveFigureGround,
   canEditPersonalLayer,
   groupVersionsByLayer,
   buildRawFeatureFromPersonalRow,
@@ -40,6 +41,21 @@ test("figure-ground is a dynamic four-layer composition", () => {
   assert.equal(canEditPersonalLayer("contours"), false);
   assert.equal(canEditPersonalLayer("contours", "delete"), true);
   assert.equal(canEditPersonalLayer("contours", "update"), false);
+});
+
+test("live figure-ground refreshes only for an active personal composition", () => {
+  assert.equal(shouldRefreshLiveFigureGround({
+    spaceType: "course_personal",
+    selectedLayers: ["figureGround"]
+  }), true);
+  assert.equal(shouldRefreshLiveFigureGround({
+    spaceType: "course_personal",
+    selectedLayers: ["building"]
+  }), false);
+  assert.equal(shouldRefreshLiveFigureGround({
+    spaceType: "course_group",
+    selectedLayers: ["figureGround"]
+  }), false);
 });
 
 test("versions are ordered newest first inside each layer", () => {

@@ -68,6 +68,19 @@
             .eq("is_deleted", false).order("object_code", { ascending: true })
         ));
       },
+      async refreshCurrentLayers(spaceId) {
+        const key = String(spaceId);
+        const previousSelections = await this.listSelections(key);
+        (Array.isArray(previousSelections) ? previousSelections : []).forEach((selection) => {
+          if (selection?.current_version_id) featureCache.delete(String(selection.current_version_id));
+        });
+        selectionCache.delete(key);
+        versionCache.delete(key);
+        const freshSelections = await this.listSelections(key);
+        return Promise.all((Array.isArray(freshSelections) ? freshSelections : [])
+          .filter((selection) => selection?.current_version_id)
+          .map((selection) => this.listFeatures(selection.current_version_id)));
+      },
       async upsertFeature({ spaceId, versionId, layerKey, objectCode, objectName, geom, props = {} }) {
         if (String(layerKey) === "contours") throw new Error("CONTOURS_READ_ONLY");
         const result = assertNoError(await supabaseClient.from("personal_layer_features").upsert({
