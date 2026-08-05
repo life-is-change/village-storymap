@@ -449,14 +449,21 @@ async function tryResolveBasemapGeorefFromWorldFile(imageUrl) {
 
 async function resolveBasemapGeoref() {
   if (!basemapGeorefResolvePromise) {
-    basemapGeorefResolvePromise = (async () => {
-      const resolved = await tryResolveBasemapGeorefFromWorldFile(BASEMAP_GEOREF.imageUrl);
-      activeBasemapGeoref = resolved || { ...BASEMAP_GEOREF };
+    basemapGeorefResolvePromise = Promise.resolve().then(() => {
+      activeBasemapGeoref = { ...BASEMAP_GEOREF };
       window.__BASEMAP_GEOREF = { ...activeBasemapGeoref };
       return activeBasemapGeoref;
-    })();
+    });
   }
   return basemapGeorefResolvePromise;
+}
+
+function setPlanMapLoadingState(isLoading, message = "正在加载 2D 地图…") {
+  const loading = document.getElementById("map2dLoading");
+  if (!loading) return;
+  loading.hidden = !isLoading;
+  const label = loading.querySelector("strong");
+  if (label) label.textContent = message;
 }
 
 function loadBasemapLabelVisible() {
@@ -1882,7 +1889,7 @@ function setSpaceSelectedLayers(spaceId, nextLayers) {
   const target = getSpaceById(spaceId);
   if (!target) return;
   target.selectedLayers = [...nextLayers];
-  if (String(spaceId) === String(getCurrentSpaceId()) && geoprocessingResultPreview?.hasPreview?.()) {
+  if (String(spaceId) === String(currentSpaceId) && geoprocessingResultPreview?.hasPreview?.()) {
     geoprocessingResultPreview.syncVisibleLayers(nextLayers);
   }
   saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
@@ -2007,7 +2014,7 @@ async function createCopySpace() {
         try { await seedWaterForCopySpace(targetSpaceId); } catch (e) { console.warn("水体初始化失败（已跳过）：", e); }
 
         if (currentSpaceId === targetSpaceId) {
-          await refresh2DOverlay();
+          await refresh2DOverlay({ forceFullRebuild: true });
         }
 
         if (
@@ -2379,7 +2386,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/first-person/first-person-controller.js?v=20260512", "first-person-controller-script");
     await loadScriptOnce("features/drone/drone-controller.js?v=20260512", "drone-controller-script");
-    await loadScriptOnce("app-3d.js?v=20260607-delete-tombstone", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20260804-photo-mode-fix", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -2422,6 +2429,7 @@ function buildViewSwitcherDeps() {
     setActiveStoryItem,
     switchMainView,
     update2DStatusText,
+    setPlanMapLoadingState,
     ensurePlanMap,
     getInfoPanel: () => infoPanel,
     ensureSelectedLayersLoaded,
@@ -2745,7 +2753,7 @@ function bindPersonalVersionManagerEvents(container, spaceId) {
       try {
         await personalSpaceClient.setCurrentVersion(spaceId, layerKey, select.value);
         personalVersionCompareController?.clear?.();
-        await refresh2DOverlay();
+        await refresh2DOverlay({ forceFullRebuild: true });
         await refreshVersionManagerPanel();
         showToast(`${getLayerLabel(layerKey)}已切换到所选版本。`, "success");
       } catch (error) {
@@ -5203,14 +5211,18 @@ async function ensurePlanMap() {
   return planMap;
 }
 
-async function refresh2DOverlay() {
+async function refresh2DOverlay(options = {}) {
   if (!overlayRefreshController) {
     const renderer = getOverlayRendererModule();
     overlayRefreshController = renderer.createLatestOverlayRefreshController({
-      render: (request) => renderer.refresh2DOverlay(buildOverlayRendererDeps(), request)
+      render: (request) => renderer.refresh2DOverlay(
+        buildOverlayRendererDeps(),
+        request,
+        request.payload || {}
+      )
     });
   }
-  return overlayRefreshController.request();
+  return overlayRefreshController.request(options);
 }
 
 function getCommunityTaskPosition(taskRow) {
@@ -6600,7 +6612,7 @@ function bindBasemapToggle() {
       }
       await ensurePlanMap();
       syncBasemapUIBySpace(currentSpaceId);
-      await refresh2DOverlay();
+      await refresh2DOverlay({ forceFullRebuild: true });
       renderSpaceList();
       return;
     }
@@ -6669,7 +6681,7 @@ async function reloadWorkspaceForAuthenticatedAccount() {
     await ensureCourseWorkbenchInitialized();
   }
   if (plan2dView?.classList.contains("active") && planMap) {
-    await refresh2DOverlay();
+    await refresh2DOverlay({ forceFullRebuild: true });
   }
 }
 
@@ -6860,7 +6872,7 @@ function initRealtimeSubscriptions() {
 
           // 刷新 2D 地图
           if (plan2dView?.classList.contains("active")) {
-            await refresh2DOverlay();
+            await refresh2DOverlay({ forceFullRebuild: true });
           }
           // 刷新 3D 视图
           if (
@@ -7297,7 +7309,7 @@ function bindMeasureButtons() {
           return;
         }
         await personalSpaceClient.refreshCurrentLayers(currentSpace.id);
-        await refresh2DOverlay();
+        await refresh2DOverlay({ forceFullRebuild: true });
         await refreshVersionManagerPanel({ quiet: true });
         renderSpaceList();
         showToast("个人图层已刷新到最新。", "success");
@@ -7321,7 +7333,7 @@ function bindMeasureButtons() {
       invalidateCommunityTaskCache(currentSpaceId);
 
       // 5. 重新渲染地图（重新加载所有空间数据）
-      await refresh2DOverlay();
+      await refresh2DOverlay({ forceFullRebuild: true });
 
       // 6. 刷新社区任务标记
       await refreshCommunityTasksOnMapAsync();

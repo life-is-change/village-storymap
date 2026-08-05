@@ -3369,9 +3369,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const linkedSpaceId = getLinked2DSpaceIdFor3D();
 
     const generatorUrl = new URL("rural_house_generator/index.html", window.location.href);
+    generatorUrl.searchParams.set("mode", "photo");
     if (sourceCode) generatorUrl.searchParams.set("targetCode", sourceCode);
     if (linkedSpaceId) generatorUrl.searchParams.set("targetSpace", linkedSpaceId);
     if (sourceName) generatorUrl.searchParams.set("targetName", sourceName);
+    const footprintHeadingDeg = estimateEntityFootprintHeadingDeg(entity);
+    const footprint = getEntityFootprintSizeMeters(entity, footprintHeadingDeg);
+    if (footprint) {
+      generatorUrl.searchParams.set("targetLength", footprint.sizeX.toFixed(3));
+      generatorUrl.searchParams.set("targetDepth", footprint.sizeY.toFixed(3));
+    }
 
     const opened = window.open(generatorUrl.toString(), "_blank");
     if (!opened && statusEl) {

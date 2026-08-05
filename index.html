@@ -8,8 +8,8 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260723-contour-ui" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.8.0/ol.css" />
+  <link rel="stylesheet" href="style.css?v=20260804-2d-cold-start" />
+  <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Cesium 3D 运行时改为进入 3D 视图时按需加载，避免首页被 3D 引擎拖慢。 -->
@@ -160,6 +160,10 @@
             <div class="map-frame">
               <!-- OpenLayers 会挂载到这个容器里，图层、要素和交互都由 JS 初始化 -->
               <div id="map2d" class="map2d-container"></div>
+              <div id="map2dLoading" class="map2d-loading" role="status" aria-live="polite" hidden>
+                <span class="map2d-loading-spinner" aria-hidden="true"></span>
+                <strong>正在加载 2D 地图…</strong>
+              </div>
               <!-- 测量结果显示区：测距时由 app.js 更新文本 -->
               <div id="measure2dReadout" class="map-measure-readout"></div>
             </div>
@@ -261,95 +265,43 @@
     window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmYzZjYzZmMC1kNmVhLTRhMDctYTYxMS1mYzk4YmRiMGY4MjUiLCJpZCI6NDA4MjkyLCJpYXQiOjE3NzczNjUzOTl9.dlgwi60bAUwfDj0ImiYAve0bJnQ8NWIsFWQ-DPi53HM";
   </script>
 
-  <!-- OpenLayers 动态导入：进入 2D 地图时才加载 OL 类，避免首页首屏被地图模块拖慢 -->
-  <script type="module">
+  <!-- OpenLayers 固定为项目本地 10.8.0 浏览器构建，避免首次进入 2D 时并发请求 23 个远程模块。 -->
+  <script src="assets/vendor/openlayers-10.8.0/ol.js"></script>
+  <script>
     window.__loadOpenLayers = function loadOpenLayers() {
       if (window.__olReady) return window.__olReady;
 
-      window.__olReady = (async () => {
-        const [
-          MapMod,
-          ViewMod,
-          FeatureMod,
-          GeoJSONMod,
-          TileLayerMod,
-          ImageLayerMod,
-          VectorLayerMod,
-          OSMMod,
-          XYZMod,
-          ImageStaticMod,
-          VectorSourceMod,
-          DrawMod,
-          PointGeomMod,
-          StyleMod,
-          FillMod,
-          StrokeMod,
-          TextStyleMod,
-          CircleStyleMod,
-          ModifyMod,
-          TranslateMod,
-          SnapMod,
-          CollectionMod,
-          projMod,
-        ] = await Promise.all([
-          import("https://esm.sh/ol@10.8.0/Map"),
-          import("https://esm.sh/ol@10.8.0/View"),
-          import("https://esm.sh/ol@10.8.0/Feature"),
-          import("https://esm.sh/ol@10.8.0/format/GeoJSON"),
-          import("https://esm.sh/ol@10.8.0/layer/Tile"),
-          import("https://esm.sh/ol@10.8.0/layer/Image"),
-          import("https://esm.sh/ol@10.8.0/layer/Vector"),
-          import("https://esm.sh/ol@10.8.0/source/OSM"),
-          import("https://esm.sh/ol@10.8.0/source/XYZ"),
-          import("https://esm.sh/ol@10.8.0/source/ImageStatic"),
-          import("https://esm.sh/ol@10.8.0/source/Vector"),
-          import("https://esm.sh/ol@10.8.0/interaction/Draw"),
-          import("https://esm.sh/ol@10.8.0/geom/Point"),
-          import("https://esm.sh/ol@10.8.0/style/Style"),
-          import("https://esm.sh/ol@10.8.0/style/Fill"),
-          import("https://esm.sh/ol@10.8.0/style/Stroke"),
-          import("https://esm.sh/ol@10.8.0/style/Text"),
-          import("https://esm.sh/ol@10.8.0/style/Circle"),
-          import("https://esm.sh/ol@10.8.0/interaction/Modify"),
-          import("https://esm.sh/ol@10.8.0/interaction/Translate"),
-          import("https://esm.sh/ol@10.8.0/interaction/Snap"),
-          import("https://esm.sh/ol@10.8.0/Collection"),
-          import("https://esm.sh/ol@10.8.0/proj")
-        ]);
-
-        // 使用经纬度坐标，便于直接读取项目中的 GeoJSON/影像坐标。
-        projMod.useGeographic();
-
-        // 暴露给非 module 脚本：后续 app.js 可以从 window.__OL__ 里取 Map、Layer、Style 等类。
+      window.__olReady = Promise.resolve().then(() => {
+        if (!window.ol) throw new Error("本地 OpenLayers 10.8.0 加载失败");
+        window.ol.proj.useGeographic();
         window.__OL__ = {
-          Map: MapMod.default,
-          View: ViewMod.default,
-          Feature: FeatureMod.default,
-          GeoJSON: GeoJSONMod.default,
-          TileLayer: TileLayerMod.default,
-          ImageLayer: ImageLayerMod.default,
-          VectorLayer: VectorLayerMod.default,
-          OSM: OSMMod.default,
-          XYZ: XYZMod.default,
-          ImageStatic: ImageStaticMod.default,
-          VectorSource: VectorSourceMod.default,
-          Draw: DrawMod.default,
-          Point: PointGeomMod.default,
-          Style: StyleMod.default,
-          Fill: FillMod.default,
-          Stroke: StrokeMod.default,
-          Text: TextStyleMod.default,
-          Modify: ModifyMod.default,
-          Translate: TranslateMod.default,
-          Snap: SnapMod.default,
-          Collection: CollectionMod.default,
-          CircleStyle: CircleStyleMod.default,
-          fromLonLat: projMod.fromLonLat,
-          transformExtent: projMod.transformExtent
+          Map: window.ol.Map,
+          View: window.ol.View,
+          Feature: window.ol.Feature,
+          GeoJSON: window.ol.format.GeoJSON,
+          TileLayer: window.ol.layer.Tile,
+          ImageLayer: window.ol.layer.Image,
+          VectorLayer: window.ol.layer.Vector,
+          OSM: window.ol.source.OSM,
+          XYZ: window.ol.source.XYZ,
+          ImageStatic: window.ol.source.ImageStatic,
+          VectorSource: window.ol.source.Vector,
+          Draw: window.ol.interaction.Draw,
+          Point: window.ol.geom.Point,
+          Style: window.ol.style.Style,
+          Fill: window.ol.style.Fill,
+          Stroke: window.ol.style.Stroke,
+          Text: window.ol.style.Text,
+          Modify: window.ol.interaction.Modify,
+          Translate: window.ol.interaction.Translate,
+          Snap: window.ol.interaction.Snap,
+          Collection: window.ol.Collection,
+          CircleStyle: window.ol.style.Circle,
+          fromLonLat: window.ol.proj.fromLonLat,
+          transformExtent: window.ol.proj.transformExtent
         };
-
         return window.__OL__;
-      })();
+      });
 
       return window.__olReady;
     };
@@ -362,14 +314,14 @@
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/map-style.js?v=20260723-contour-ui"></script>
   <script defer src="features/ui/space-panel.js?v=20260723-contour-ui"></script>
-  <script defer src="features/ui/space-panel-events.js?v=20260727-personal-space-live"></script>
-  <script defer src="features/ui/view-switcher.js"></script>
+  <script defer src="features/ui/space-panel-events.js?v=20260805-backup"></script>
+  <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
-  <script defer src="features/course/course-workspace-adapter.js?v=20260727-personal-space-live"></script>
-  <script defer src="features/data/personal-space-client.js?v=20260727-personal-space-live"></script>
-  <script defer src="features/ui/personal-layer-versions.js?v=20260727-personal-space-live"></script>
+  <script defer src="features/course/course-workspace-adapter.js?v=20260805-backup"></script>
+  <script defer src="features/data/personal-space-client.js?v=20260805-backup"></script>
+  <script defer src="features/ui/personal-layer-versions.js?v=20260805-backup"></script>
   <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260723-contour-ui"></script>
   <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260723-contour-ui"></script>
   <script defer src="features/geoprocessing/village-preview.js?v=20260723-contour-ui"></script>
@@ -386,8 +338,8 @@
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js"></script>
   <script defer src="features/map-editing/map-click-handler.js"></script>
-  <script defer src="features/map-editing/overlay-renderer.js?v=20260727-personal-space-live"></script>
-  <script defer src="app.js?v=20260727-personal-space-live"></script>
+  <script defer src="features/map-editing/overlay-renderer.js?v=20260805-backup"></script>
+  <script defer src="app.js?v=20260805-backup"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

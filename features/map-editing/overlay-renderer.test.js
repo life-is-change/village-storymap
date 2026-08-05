@@ -1,7 +1,35 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createLatestOverlayRefreshController } = require("./overlay-renderer.js");
+const {
+  createLatestOverlayRefreshController,
+  planIncrementalLayerUpdate
+} = require("./overlay-renderer.js");
+
+function feature(layerKey) {
+  return { get(name) { return name === "layerKey" ? layerKey : undefined; } };
+}
+
+test("reuses unchanged layer features and builds only a newly enabled layer", () => {
+  const building = feature("building");
+  const road = feature("road");
+  const result = planIncrementalLayerUpdate(
+    [building, road],
+    ["building", "water"]
+  );
+  assert.deepEqual(result.reusedFeatures, [building]);
+  assert.deepEqual(result.layerKeysToBuild, ["water"]);
+});
+
+test("force refresh rebuilds every selected layer", () => {
+  const result = planIncrementalLayerUpdate(
+    [feature("building"), feature("road")],
+    ["building", "road"],
+    { forceFullRebuild: true }
+  );
+  assert.deepEqual(result.reusedFeatures, []);
+  assert.deepEqual(result.layerKeysToBuild, ["building", "road"]);
+});
 
 test("coalesces synchronous layer toggles into the newest overlay request", async () => {
   const rendered = [];
@@ -53,5 +81,18 @@ test("ordinary overlay rendering never refreshes community tasks", () => {
 test("application routes UI overlay requests through the latest-wins controller", () => {
   const app = require("node:fs").readFileSync(__dirname + "/../../app.js", "utf8");
   assert.match(app, /createLatestOverlayRefreshController/);
-  assert.match(app, /overlayRefreshController\.request\(\)/);
+  assert.match(app, /overlayRefreshController\.request\(options\)/);
+});
+
+test("layer selection compares with the actual current space variable", () => {
+  const app = require("node:fs").readFileSync(__dirname + "/../../app.js", "utf8");
+  const body = app.match(/function setSpaceSelectedLayers\([^)]*\) \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(body, /String\(currentSpaceId\)/);
+  assert.doesNotMatch(body, /getCurrentSpaceId\(/);
+});
+
+test("layer toggles do not preload every selected static layer", () => {
+  const source = require("node:fs").readFileSync(__dirname + "/../ui/space-panel-events.js", "utf8");
+  const handler = source.match(/document\.querySelectorAll\("\[data-space-layer\]"\)([\s\S]*?)const devInfoIcons/)?.[1] || "";
+  assert.doesNotMatch(handler, /ensureSelectedLayersLoaded/);
 });

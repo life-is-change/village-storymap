@@ -28,6 +28,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Local facade generator runtime
+rural_house_generator/runtime_storage/
+rural_house_generator/backend/.env
+rural_house_generator/backend/.env.*
+
 # Geoprocessing server runtime and large local assets
 server/.env
 server/runtime/

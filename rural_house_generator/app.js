@@ -1,15 +1,38 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const PhotoWorkflow = window.PhotoWorkflow;
 
 const els = {
   presetList: document.getElementById('presetList'),
   presetCount: document.getElementById('presetCount'),
   searchInput: document.getElementById('searchInput'),
+  presetModeBtn: document.getElementById('presetModeBtn'),
+  photoModeBtn: document.getElementById('photoModeBtn'),
+  presetSection: document.getElementById('presetSection'),
+  photoSection: document.getElementById('photoSection'),
+  photoInput: document.getElementById('photoInput'),
+  photoPreview: document.getElementById('photoPreview'),
+  photoPreviewEmpty: document.getElementById('photoPreviewEmpty'),
+  roofCropShade: document.getElementById('roofCropShade'),
+  roofCropHandle: document.getElementById('roofCropHandle'),
+  roofTypeInput: document.getElementById('roofTypeInput'),
+  photoGenerateBtn: document.getElementById('photoGenerateBtn'),
+  photoSteps: document.getElementById('photoSteps'),
+  photoFallbackActions: document.getElementById('photoFallbackActions'),
+  useOriginalBtn: document.getElementById('useOriginalBtn'),
+  retryPhotoBtn: document.getElementById('retryPhotoBtn'),
+  correctionPrompt: document.getElementById('correctionPrompt'),
+  copyPromptBtn: document.getElementById('copyPromptBtn'),
+  configHint: document.getElementById('configHint'),
   lengthInput: document.getElementById('lengthInput'),
   widthInput: document.getElementById('widthInput'),
   floorsInput: document.getElementById('floorsInput'),
   floorHeightInput: document.getElementById('floorHeightInput'),
+  photoHeightSummary: document.getElementById('photoHeightSummary'),
+  presetOnlyFields: document.querySelectorAll('[data-preset-only]'),
   generateBtn: document.getElementById('generateBtn'),
   downloadBtn: document.getElementById('downloadBtn'),
   sendBtn: document.getElementById('sendBtn'),
@@ -31,17 +54,32 @@ const state = {
   currentGroup: null,
   currentBlob: null,
   currentUrl: null,
+  currentModelInfo: null,
+  mode: 'preset',
+  apiBase: 'http://127.0.0.1:8011',
+  photoFile: null,
+  photoUrl: null,
+  rectifiedUrl: null,
+  photoJobId: '',
+  photoImage: null,
+  cropTop: 0.12,
+  draggingCropTop: false,
+  photoWorkflowState: 'idle',
   targetCode: '',
   targetSpace: 'current',
-  targetName: ''
+  targetName: '',
+  targetDimensions: null
 };
 
 init();
 
 async function init() {
+  if (!PhotoWorkflow) throw new Error('photo-workflow.js 加载失败');
   parseTargetParams();
   initThree();
   bindEvents();
+  els.correctionPrompt.value = PhotoWorkflow.CORRECTION_PROMPT;
+  setMode(PhotoWorkflow.resolveInitialMode(new URLSearchParams(window.location.search)));
   await loadMeta();
 }
 
@@ -50,13 +88,258 @@ function parseTargetParams() {
   state.targetCode = String(params.get('targetCode') || '').trim();
   state.targetSpace = String(params.get('targetSpace') || 'current').trim() || 'current';
   state.targetName = String(params.get('targetName') || '').trim();
+  state.targetDimensions = PhotoWorkflow.readTargetDimensions(params);
+  state.apiBase = String(params.get('apiBase') || state.apiBase).replace(/\/$/, '');
 }
 
 function bindEvents() {
   els.searchInput.addEventListener('input', renderPresetList);
-  els.generateBtn.addEventListener('click', generateModel);
+  els.presetModeBtn.addEventListener('click', () => setMode('preset'));
+  els.photoModeBtn.addEventListener('click', () => setMode('photo'));
+  els.photoInput.addEventListener('change', handlePhotoFiles);
+  els.copyPromptBtn.addEventListener('click', copyCorrectionPrompt);
+  els.roofCropHandle.addEventListener('pointerdown', startRoofCropDrag);
+  els.roofCropHandle.addEventListener('pointermove', moveRoofCropDrag);
+  els.roofCropHandle.addEventListener('pointerup', stopRoofCropDrag);
+  els.roofCropHandle.addEventListener('pointercancel', stopRoofCropDrag);
+  els.roofCropHandle.addEventListener('keydown', adjustRoofCropWithKeyboard);
+  els.photoGenerateBtn.addEventListener('click', generatePhotoModel);
+  els.useOriginalBtn.addEventListener('click', useOriginalPhoto);
+  els.retryPhotoBtn.addEventListener('click', () => {
+    els.photoInput.value = '';
+    els.photoInput.click();
+  });
+  els.generateBtn.addEventListener('click', () => {
+    if (state.mode === 'photo') generatePhotoModel();
+    else generateModel();
+  });
   els.downloadBtn.addEventListener('click', downloadGlb);
   els.sendBtn.addEventListener('click', replaceOriginalBuilding);
+}
+
+function setMode(mode) {
+  state.mode = mode === 'photo' ? 'photo' : 'preset';
+  const isPhoto = state.mode === 'photo';
+  els.presetModeBtn.classList.toggle('active', !isPhoto);
+  els.photoModeBtn.classList.toggle('active', isPhoto);
+  els.presetSection.hidden = isPhoto;
+  els.photoSection.hidden = !isPhoto;
+  els.presetOnlyFields.forEach((field) => { field.hidden = isPhoto; });
+  els.photoHeightSummary.hidden = !isPhoto;
+  els.generateBtn.textContent = isPhoto ? '生成正立面贴图建筑' : '生成 3D 建筑';
+  els.configHint.innerHTML = isPhoto
+    ? '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面宽高比自动计算。'
+    : '默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。';
+  if (isPhoto) {
+    els.activeLabel.textContent = state.photoFile
+      ? `建筑实拍图：${state.photoFile.name}`
+      : '建筑实拍图：未选择';
+    setProgress(0, '等待建筑实拍图');
+    setStatus('上传实拍图后，系统会先自动处理成正立面；完成后再显示屋顶裁剪线。');
+    if (!state.photoJobId) {
+      els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
+    }
+  } else {
+    els.activeLabel.textContent = `当前：${state.selected?.id || '-'}`;
+    setProgress(state.presets.length ? 20 : 0, state.presets.length ? '预设已就绪' : '等待加载预设');
+    setStatus('预设模式保持原有四立面生成流程。');
+  }
+}
+
+async function copyCorrectionPrompt() {
+  try {
+    await navigator.clipboard.writeText(PhotoWorkflow.CORRECTION_PROMPT);
+    setStatus('提示词已复制。打开豆包并与实拍图一起发送即可。');
+  } catch (error) {
+    console.error(error);
+    els.correctionPrompt.focus();
+    els.correctionPrompt.select();
+    setStatus('浏览器未允许自动复制，提示词已选中，请按 Ctrl+C 手动复制。', true);
+  }
+}
+
+function handlePhotoFiles(event) {
+  const result = PhotoWorkflow.validateStandardFacadeFiles(event.target.files);
+  if (!result.ok) {
+    setStatus(result.message, true);
+    event.target.value = '';
+    return;
+  }
+  setPhotoFile(result.file);
+}
+
+async function setPhotoFile(file) {
+  if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
+  if (state.rectifiedUrl) URL.revokeObjectURL(state.rectifiedUrl);
+  state.photoFile = file;
+  state.photoUrl = URL.createObjectURL(file);
+  state.rectifiedUrl = null;
+  state.photoJobId = '';
+  state.cropTop = 0.12;
+  state.photoWorkflowState = 'idle';
+  els.photoFallbackActions.hidden = true;
+  els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
+  setPhotoStep('upload');
+  try {
+    state.photoImage = await loadImage(state.photoUrl);
+    els.photoPreview.src = state.photoUrl;
+    els.photoPreview.hidden = false;
+    els.photoPreviewEmpty.hidden = true;
+    els.roofCropShade.hidden = true;
+    els.roofCropHandle.hidden = true;
+    els.photoGenerateBtn.disabled = true;
+    updateCropOverlay();
+    els.activeLabel.textContent = `建筑实拍图：${file.name}`;
+    setStatus('原始照片已就绪，正在预处理成规范正立面；完成后才会显示屋顶裁剪线。');
+    await rectifyUploadedPhoto();
+  } catch (error) {
+    console.error(error);
+    state.photoFile = null;
+    state.photoImage = null;
+    els.photoPreview.hidden = true;
+    els.photoPreviewEmpty.hidden = false;
+    els.roofCropShade.hidden = true;
+    els.roofCropHandle.hidden = true;
+    els.photoGenerateBtn.disabled = true;
+    setStatus(`标准正立面图读取失败：${error.message}`, true);
+  }
+}
+
+function readPhotoBuildingConfig() {
+  return PhotoWorkflow.buildPhotoUploadConfig({
+    length: Number(els.lengthInput.value),
+    width: Number(els.widthInput.value),
+    roofType: els.roofTypeInput.value
+  });
+}
+
+async function rectifyUploadedPhoto() {
+  if (!state.photoFile) return;
+  try {
+    await apiRequest('/health');
+    const fields = PhotoWorkflow.buildBuildingFields(readPhotoBuildingConfig());
+    const formData = new FormData();
+    Object.entries(fields).forEach(([key, value]) => formData.append(key, value));
+    formData.append('photos', state.photoFile, state.photoFile.name);
+
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'upload');
+    setPhotoStep('upload');
+    setProgress(12, '上传建筑实拍图...');
+    const created = await apiRequest('/api/jobs', { method: 'POST', body: formData });
+    state.photoJobId = created.id;
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'uploaded');
+    setPhotoStep('identify');
+    setProgress(34, 'DINO＋SAM2.1 识别建筑和杂物，LaMa 清理后进行 H0 网格正立面化...');
+    const rectified = await apiRequest(PhotoWorkflow.buildRectifyPath(created.id), { method: 'POST' });
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'rectified');
+    await applyRectifiedJob(rectified, false);
+  } catch (error) {
+    console.error(error);
+    try {
+      state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'failed');
+    } catch (_) {
+      state.photoWorkflowState = 'error';
+    }
+    els.roofCropShade.hidden = true;
+    els.roofCropHandle.hidden = true;
+    els.photoGenerateBtn.disabled = true;
+    els.photoFallbackActions.hidden = false;
+    setPhotoStep('rectify', true);
+    setProgress(34, '自动正立面校正未完成');
+    setStatus(`正立面预处理未完成：${PhotoWorkflow.friendlyServiceError(error)}`, true);
+  }
+}
+
+async function applyRectifiedJob(rectified, originalFallback) {
+    const previewName = String(rectified.artifacts?.rectified_preview || '').split('/').pop();
+    if (!previewName) throw new Error('正立面预处理未返回预览图');
+    const response = await fetch(`${state.apiBase}/api/jobs/${rectified.id}/artifacts/${previewName}`, { cache: 'no-store' });
+    if (!response.ok) throw await responseError(response);
+    const blob = await response.blob();
+    state.rectifiedUrl = URL.createObjectURL(blob);
+    state.photoImage = await loadImage(state.rectifiedUrl);
+    els.photoPreview.src = state.rectifiedUrl;
+    els.activeLabel.textContent = originalFallback
+      ? `原图继续：${state.photoFile.name}`
+      : `标准正立面：${state.photoFile.name}`;
+    els.roofCropShade.hidden = false;
+    els.roofCropHandle.hidden = false;
+    els.photoGenerateBtn.disabled = false;
+    els.photoFallbackActions.hidden = true;
+    updateCropOverlay();
+    setPhotoStep('crop');
+    setProgress(48, '规范正立面已就绪');
+    setStatus(originalFallback
+      ? '已按你的选择保留原图。现在请把青色分界线拖到屋顶下沿，再生成模型。'
+      : '正立面预处理完成。现在请把青色分界线拖到屋顶下沿，再生成模型。');
+}
+
+async function useOriginalPhoto() {
+  if (!state.photoJobId || state.photoWorkflowState !== 'error') return;
+  els.useOriginalBtn.disabled = true;
+  els.retryPhotoBtn.disabled = true;
+  try {
+    setProgress(38, '正在保留原图…');
+    const result = await apiRequest(
+      PhotoWorkflow.buildOriginalFallbackPath(state.photoJobId),
+      { method: 'POST' }
+    );
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'use_original');
+    await applyRectifiedJob(result, true);
+  } catch (error) {
+    setStatus(`使用原图继续失败：${PhotoWorkflow.friendlyServiceError(error)}`, true);
+  } finally {
+    els.useOriginalBtn.disabled = false;
+    els.retryPhotoBtn.disabled = false;
+  }
+}
+
+function setPhotoStep(activeStep, isError = false) {
+  const order = ['upload', 'identify', 'rectify', 'crop', 'generate'];
+  const activeIndex = order.indexOf(activeStep);
+  els.photoSteps?.querySelectorAll('[data-step]').forEach((item) => {
+    const index = order.indexOf(item.dataset.step);
+    item.classList.toggle('is-done', activeIndex >= 0 && index < activeIndex);
+    item.classList.toggle('is-active', !isError && index === activeIndex);
+    item.classList.toggle('is-error', isError && index === activeIndex);
+  });
+}
+
+function updateCropOverlay() {
+  els.photoPreview.parentElement.style.setProperty('--crop-top', `${state.cropTop * 100}%`);
+}
+
+function startRoofCropDrag(event) {
+  if (!state.photoImage) return;
+  state.draggingCropTop = true;
+  els.roofCropHandle.setPointerCapture(event.pointerId);
+  moveRoofCropDrag(event);
+}
+
+function moveRoofCropDrag(event) {
+  if (!state.draggingCropTop) return;
+  const bounds = els.photoPreview.getBoundingClientRect();
+  state.cropTop = PhotoWorkflow.clampCropTop((event.clientY - bounds.top) / bounds.height);
+  updateCropOverlay();
+}
+
+function stopRoofCropDrag(event) {
+  if (!state.draggingCropTop) return;
+  state.draggingCropTop = false;
+  if (els.roofCropHandle.hasPointerCapture(event.pointerId)) {
+    els.roofCropHandle.releasePointerCapture(event.pointerId);
+  }
+  setStatus(`屋顶分界线已设置在图片高度的 ${Math.round(state.cropTop * 100)}%，线以上不会进入墙身贴图。`);
+}
+
+function adjustRoofCropWithKeyboard(event) {
+  if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  state.cropTop = PhotoWorkflow.clampCropTop(
+    state.cropTop + (event.key === 'ArrowDown' ? 0.01 : -0.01)
+  );
+  updateCropOverlay();
+  setStatus(`屋顶分界线位于图片高度的 ${Math.round(state.cropTop * 100)}%，线以上不会进入墙身贴图。`);
 }
 
 async function loadMeta() {
@@ -70,10 +353,21 @@ async function loadMeta() {
     if (!state.presets.length) throw new Error('normalization_meta.json 中没有 presets。');
 
     state.selected = state.presets[0];
-    applyPresetToInputs(state.selected);
     renderPresetList();
-    setProgress(20, `已载入 ${state.presets.length} 个建筑预设`);
-    setStatus('已载入预设。点击左侧样式后，基础参数会自动同步。');
+    if (PhotoWorkflow.shouldApplyPresetAfterLoad(state.mode, Boolean(state.photoFile))) {
+      applyPresetToInputs(state.selected);
+      setProgress(20, `已载入 ${state.presets.length} 个建筑预设`);
+      setStatus('已载入预设。点击左侧样式后，基础参数会自动同步。');
+    } else if (!state.photoFile) {
+      if (state.targetDimensions) {
+        els.lengthInput.value = formatInputDimension(state.targetDimensions.length);
+        els.widthInput.value = formatInputDimension(state.targetDimensions.depth);
+      } else {
+        applyPresetDimensionsToInputs(state.selected);
+      }
+      setProgress(0, '等待建筑实拍图');
+      setStatus('上传实拍图后，系统会先自动处理成正立面；完成后再显示屋顶裁剪线。');
+    }
   } catch (err) {
     console.error(err);
     setProgress(0, '加载失败');
@@ -123,11 +417,15 @@ function selectPreset(preset) {
 }
 
 function applyPresetToInputs(preset) {
+  applyPresetDimensionsToInputs(preset);
+  els.activeLabel.textContent = `当前：${preset.id}`;
+}
+
+function applyPresetDimensionsToInputs(preset) {
   els.lengthInput.value = formatInputDimension(preset.dimensions?.length ?? 10);
   els.widthInput.value = formatInputDimension(preset.dimensions?.width ?? 7);
   els.floorsInput.value = preset.floors ?? 2;
   els.floorHeightInput.value = formatInputDimension(preset.dimensions?.floorHeight ?? 3);
-  els.activeLabel.textContent = `当前：${preset.id}`;
 }
 
 async function generateModel() {
@@ -157,6 +455,18 @@ async function generateModel() {
     const { blob, url } = await exportGlb(group);
     state.currentBlob = blob;
     state.currentUrl = url;
+    const roofHeight = Math.max(
+      0.45,
+      Number(preset?.roof?.height || 0) || config.bodyHeight * Number(preset?.roof?.heightRatioToBody || 0.24)
+    );
+    state.currentModelInfo = {
+      id: preset.id,
+      metrics: {
+        totalHeight: config.bodyHeight + roofHeight,
+        length: config.length,
+        width: config.width
+      }
+    };
     els.downloadBtn.disabled = false;
     els.sendBtn.disabled = false;
     els.downloadLink.innerHTML = `<a href="${url}" download="${preset.id}.glb">下载 ${preset.id}.glb</a>`;
@@ -169,6 +479,102 @@ async function generateModel() {
   } finally {
     els.generateBtn.disabled = false;
   }
+}
+
+async function generatePhotoModel() {
+  if (!state.photoJobId || state.photoWorkflowState !== 'rectified') {
+    setStatus('请先等待原始照片完成正立面预处理。', true);
+    return;
+  }
+
+  try {
+    setPhotoStep('generate');
+    els.generateBtn.disabled = true;
+    els.photoGenerateBtn.disabled = true;
+    els.downloadBtn.disabled = true;
+    els.sendBtn.disabled = true;
+    clearCurrentUrl();
+
+    await apiRequest('/health');
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'prepare');
+    setProgress(58, '按正立面结果切除屋顶...');
+    const prepared = await apiRequest(
+      PhotoWorkflow.buildDirectPreparePath(state.photoJobId, state.cropTop),
+      { method: 'POST' }
+    );
+    els.photoHeightSummary.querySelector('strong').textContent = PhotoWorkflow.photoHeightSummary(prepared.building);
+
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'prepared');
+    setProgress(70, 'Blender 正在生成贴图建筑...');
+    const generated = await apiRequest(`/api/jobs/${prepared.id}/generate`, { method: 'POST' });
+
+    const artifactUrl = `${state.apiBase}/api/jobs/${generated.id}/artifacts/building.glb`;
+    const artifactResponse = await fetch(artifactUrl, { cache: 'no-store' });
+    if (!artifactResponse.ok) throw await responseError(artifactResponse);
+    const blob = await artifactResponse.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const group = await parseGlb(arrayBuffer);
+    replaceModel(group);
+    frameModel(group);
+
+    state.currentBlob = blob;
+    state.currentUrl = URL.createObjectURL(blob);
+    state.currentModelInfo = {
+      id: `photo-${generated.id}`,
+      metrics: PhotoWorkflow.photoModelMetrics(generated.building)
+    };
+    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'generated');
+    els.downloadBtn.disabled = false;
+    els.sendBtn.disabled = false;
+    const link = document.createElement('a');
+    link.href = state.currentUrl;
+    link.download = `${state.currentModelInfo.id}.glb`;
+    link.textContent = '下载标准正立面贴图建筑 GLB';
+    els.downloadLink.replaceChildren(link);
+    setProgress(100, '标准正立面贴图建筑生成完成');
+    setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
+  } catch (error) {
+    console.error(error);
+    if (state.photoWorkflowState !== 'error') {
+      try {
+        state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'failed');
+      } catch (_) {
+        state.photoWorkflowState = 'error';
+      }
+    }
+    setProgress(0, '生成失败');
+    setStatus(`标准正立面贴图生成失败：${PhotoWorkflow.friendlyServiceError(error)}`, true);
+  } finally {
+    els.generateBtn.disabled = false;
+    els.photoGenerateBtn.disabled = state.photoWorkflowState !== 'rectified';
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  let response;
+  try {
+    response = await fetch(`${state.apiBase}${path}`, { cache: 'no-store', ...options });
+  } catch (error) {
+    throw new Error(PhotoWorkflow.friendlyServiceError(error));
+  }
+  if (!response.ok) throw await responseError(response);
+  return response.json();
+}
+
+async function responseError(response) {
+  let detail = '';
+  try {
+    const payload = await response.json();
+    detail = typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail);
+  } catch (_) {}
+  return new Error(detail || `本地处理服务返回 ${response.status}`);
+}
+
+function parseGlb(arrayBuffer) {
+  const loader = new GLTFLoader();
+  return new Promise((resolve, reject) => {
+    loader.parse(arrayBuffer, '', (gltf) => resolve(gltf.scene), reject);
+  });
 }
 
 function buildGenerateCompleteMessage(presetId) {
@@ -602,15 +1008,15 @@ function exportGlb(group) {
 }
 
 function downloadGlb() {
-  if (!state.currentUrl || !state.selected) return;
+  if (!state.currentUrl || !state.currentModelInfo) return;
   const link = document.createElement('a');
   link.href = state.currentUrl;
-  link.download = `${state.selected.id}.glb`;
+  link.download = `${state.currentModelInfo.id}.glb`;
   link.click();
 }
 
 async function replaceOriginalBuilding() {
-  if (!state.currentBlob || !state.selected) {
+  if (!state.currentBlob || !state.currentModelInfo) {
     setStatus('请先生成 GLB 模型，再替换原建筑。', true);
     return;
   }
@@ -629,32 +1035,18 @@ async function replaceOriginalBuilding() {
     els.sendBtn.disabled = true;
     setStatus('正在把生成模型发送回主平台...');
 
-    const config = readConfig(state.selected);
-    const roofHeight = Math.max(
-      0.45,
-      Number(state.selected?.roof?.height || 0) || config.bodyHeight * Number(state.selected?.roof?.heightRatioToBody || 0.24)
-    );
     const glbBuffer = await state.currentBlob.arrayBuffer();
 
+    const message = PhotoWorkflow.buildModelReadyMessage({
+      targetCode: state.targetCode,
+      targetName: state.targetName,
+      targetSpace: state.targetSpace,
+      modelId: state.currentModelInfo.id,
+      glbBuffer,
+      metrics: state.currentModelInfo.metrics
+    });
     window.opener.postMessage(
-      {
-        type: 'village-house-generator:model-ready',
-        payload: {
-          sourceCode: state.targetCode,
-          sourceName: state.targetName,
-          spaceId: state.targetSpace,
-          presetId: state.selected.id,
-          glbBuffer,
-          modelScale: 10,
-          modelHeading: 0,
-          modelHeightOffset: 0,
-          modelMetrics: {
-            totalHeight: config.bodyHeight + roofHeight,
-            length: config.length,
-            width: config.width
-          }
-        }
-      },
+      message,
       window.location.origin,
       [glbBuffer]
     );
@@ -685,6 +1077,7 @@ function clearCurrentUrl() {
   if (state.currentUrl) URL.revokeObjectURL(state.currentUrl);
   state.currentUrl = null;
   state.currentBlob = null;
+  state.currentModelInfo = null;
   els.downloadLink.innerHTML = '';
 }
 

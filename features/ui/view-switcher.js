@@ -31,6 +31,7 @@
     async switchTo2DView(deps) {
       deps.setActiveStoryItem("planningSpace");
       deps.switchMainView("plan2d");
+      deps.setPlanMapLoadingState?.(true, "正在加载 2D 地图…");
       deps.syncBasemapUIBySpace(deps.getCurrentSpaceId());
       deps.update2DStatusText();
       const detailSubtitle = deps.getDetailSubtitle();
@@ -38,7 +39,12 @@
         detailSubtitle.textContent = "选择地图对象，查看属性、照片与相关讨论";
       }
 
-      const map = await deps.ensurePlanMap();
+      let map;
+      try {
+        map = await deps.ensurePlanMap();
+      } finally {
+        deps.setPlanMapLoadingState?.(false);
+      }
       if (map && !window.__hasInitialZoomed) {
         const view = map.getView();
         const georef = deps.getActiveBasemapGeoref() || deps.BASEMAP_GEOREF;
@@ -80,7 +86,6 @@
         }
       }
 
-      await deps.ensureSelectedLayersLoaded();
       await deps.refresh2DOverlay();
       deps.ensureBuildingEditorToolbar();
       await deps.refreshCommunityScoreBadge();

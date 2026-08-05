@@ -3,6 +3,33 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.OverlayRendererModule = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
+  function planIncrementalLayerUpdate(
+    currentFeatures,
+    effectiveLayerKeys,
+    { forceFullRebuild = false } = {}
+  ) {
+    const selected = new Set(effectiveLayerKeys || []);
+    const reusedFeatures = [];
+    const reusedLayerKeys = new Set();
+    if (!forceFullRebuild) {
+      (currentFeatures || []).forEach((feature) => {
+        const layerKey = feature?.get?.("layerKey");
+        if (layerKey === "communityTask") {
+          reusedFeatures.push(feature);
+          return;
+        }
+        if (selected.has(layerKey)) {
+          reusedFeatures.push(feature);
+          reusedLayerKeys.add(layerKey);
+        }
+      });
+    }
+    return {
+      reusedFeatures,
+      layerKeysToBuild: (effectiveLayerKeys || []).filter((key) => !reusedLayerKeys.has(key))
+    };
+  }
+
   function createLatestOverlayRefreshController({ render } = {}) {
     if (typeof render !== "function") throw new Error("OVERLAY_RENDER_REQUIRED");
 
@@ -12,6 +39,7 @@
     let scheduled = false;
     let idlePromise = null;
     let resolveIdle = null;
+    let latestPayload = {};
 
     function ensureIdlePromise() {
       if (!idlePromise) {
@@ -37,7 +65,8 @@
       try {
         while (completedRequestId < latestRequestId) {
           const id = latestRequestId;
-          await render({ id, isCurrent: () => id === latestRequestId });
+          const payload = latestPayload;
+          await render({ id, payload, isCurrent: () => id === latestRequestId });
           completedRequestId = id;
         }
       } finally {
@@ -54,8 +83,9 @@
     }
 
     return {
-      request() {
+      request(payload = {}) {
         latestRequestId += 1;
+        latestPayload = payload;
         const pending = ensureIdlePromise();
         schedule();
         return pending;
@@ -66,13 +96,20 @@
     };
   }
 
+  let lastRenderedSpaceId = null;
+
   const api = {
     createLatestOverlayRefreshController,
-    async refresh2DOverlay(deps, refreshRequest = null) {
+    planIncrementalLayerUpdate,
+    async refresh2DOverlay(deps, refreshRequest = null, options = {}) {
       const plan2dView = deps.getPlan2DView();
       if (!plan2dView?.classList.contains("active")) return;
 
       const currentSpaceId = deps.getCurrentSpaceId();
+      const refreshOptions = {
+        ...options,
+        forceFullRebuild: options.forceFullRebuild === true || lastRenderedSpaceId !== currentSpaceId
+      };
       deps.setActive2DSpaceId(currentSpaceId);
 
       await deps.ensurePlanMap();
@@ -88,10 +125,6 @@
       const nextVectorSource = new VectorSource();
       // 问题点由独立的按需刷新流程维护。普通图层开关不访问远端，但也不能在
       // 双缓冲替换 source 时把已经加载的问题点丢掉。
-      currentVectorSource
-        .getFeatures()
-        .filter((feature) => feature.get("layerKey") === "communityTask")
-        .forEach((feature) => nextVectorSource.addFeature(feature));
       deps.setActiveFeature(null);
 
       const selectedLayers = deps.getSelectedLayersForCurrentSpace();
@@ -101,10 +134,18 @@
           : ["elevationBands", "contours", "water", "road", "building"])
         : [...selectedLayers];
 
+      const incrementalPlan = planIncrementalLayerUpdate(
+        currentVectorSource.getFeatures(),
+        effectiveLayerKeys,
+        refreshOptions
+      );
+      incrementalPlan.reusedFeatures.forEach((feature) => nextVectorSource.addFeature(feature));
+      const layerKeysToBuild = incrementalPlan.layerKeysToBuild;
+
       const format = new GeoJSON();
       let personalRowsByLayer = null;
       if (deps.isCurrentSpacePersonal()) {
-        const entries = await Promise.all(effectiveLayerKeys.map(async (layerKey) => [
+        const entries = await Promise.all(layerKeysToBuild.map(async (layerKey) => [
           layerKey,
           await deps.listCurrentPersonalLayerFeatures(currentSpaceId, layerKey)
         ]));
@@ -176,7 +217,7 @@
         });
       };
 
-      for (const layerKey of effectiveLayerKeys) {
+      for (const layerKey of layerKeysToBuild) {
         try {
           if (deps.isCurrentSpacePersonal()) {
             const rows = personalRowsByLayer?.get(layerKey) || [];
@@ -501,6 +542,7 @@
       }
 
       planVectorLayer.changed();
+      lastRenderedSpaceId = currentSpaceId;
       deps.syncBasemapUIBySpace(currentSpaceId);
       return { stale: false };
     }

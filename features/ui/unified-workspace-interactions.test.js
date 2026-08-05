@@ -27,7 +27,7 @@ test("map objects and problem points remain interactive in the unified workspace
 
 test("problem points are loaded alongside ordinary map layers", () => {
   assert.doesNotMatch(overlaySource, /if \(!deps\.getIsPlanningMode\(\)\)/);
-  assert.match(overlaySource, /get\("layerKey"\) === "communityTask"/);
+  assert.match(overlaySource, /get\?\.\("layerKey"\)[\s\S]*?layerKey === "communityTask"/);
   assert.match(overlaySource, /nextVectorSource\.addFeature\(feature\)/);
   assert.doesNotMatch(overlaySource, /refreshCommunityTasksOnMap/);
 });

@@ -1,0 +1,12 @@
+# Base runtime for Linux inference. GeoCalib and DeepLSD are installed from the
+# exact source commits recorded by the real-matrix runner.
+torch==2.5.1
+torchvision==0.20.1
+numpy==1.26.4
+scipy==1.15.2
+opencv-python-headless==4.10.0.84
+pillow==12.2.0
+scikit-image==0.24.0
+omegaconf==2.3.0
+kornia==0.8.1
+matplotlib==3.10.3

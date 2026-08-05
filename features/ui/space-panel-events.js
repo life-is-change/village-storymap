@@ -161,7 +161,6 @@
           deps.setCurrentInfoMode("readonly");
           deps.sync2DSpaceStateTo3D();
 
-          await deps.ensureSelectedLayersLoaded();
           deps.renderSpaceList();
           deps.syncBasemapUIBySpace(spaceId);
 
