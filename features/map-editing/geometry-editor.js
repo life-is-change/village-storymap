@@ -700,7 +700,7 @@
             originalFeature.setGeometry(originalGeom.clone());
             beforeGeom = deps.olFeatureToDbGeometry(originalFeature);
           }
-          changes.push({
+          changes.push(window.PersonalEditVersionModule.withFeatureVersion({
             action: addedFeatures.has(feature) ? "add" : "update",
             layerKey,
             objectCode: code,
@@ -709,14 +709,14 @@
             afterGeom: geom,
             beforeProps: addedFeatures.has(feature) ? null : deps.cloneJson(baseRow || {}),
             afterProps: props
-          });
+          }, feature));
         }
 
         for (const feature of (state.pendingDeletedFeatures || [])) {
           if (feature.get("layerKey") !== layerKey) continue;
           const code = deps.normalizeCode(feature.get("sourceCode"));
           if (code) {
-            changes.push({
+            changes.push(window.PersonalEditVersionModule.withFeatureVersion({
               action: "delete",
               layerKey,
               objectCode: code,
@@ -725,7 +725,7 @@
               afterGeom: null,
               beforeProps: deps.cloneJson(feature.get("baseRow") || {}),
               afterProps: null
-            });
+            }, feature));
           }
         }
 

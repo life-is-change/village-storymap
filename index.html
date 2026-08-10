@@ -312,16 +312,19 @@
   <script defer src="features/auth/access-control.js?v=20260721-supabase-auth"></script>
   <script defer src="auth-system.js?v=20260721-supabase-auth"></script>
   <script defer src="community-tasks.js"></script>
-  <script defer src="features/ui/map-style.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
+  <script defer src="features/ui/map-style.js?v=20260810-contour-fix"></script>
   <script defer src="features/ui/space-panel.js?v=20260723-contour-ui"></script>
-  <script defer src="features/ui/space-panel-events.js?v=20260805-backup"></script>
+  <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
-  <script defer src="features/course/course-workspace-adapter.js?v=20260805-backup"></script>
-  <script defer src="features/data/personal-space-client.js?v=20260805-backup"></script>
-  <script defer src="features/ui/personal-layer-versions.js?v=20260805-backup"></script>
+  <script defer src="features/course/course-workspace-adapter.js?v=20260810-platform-fix"></script>
+  <script defer src="features/data/personal-edit-version.js?v=20260810-version-guard"></script>
+  <script defer src="features/data/effective-building-features.js?v=20260810-space-alignment"></script>
+  <script defer src="features/data/personal-space-client.js?v=20260810-platform-fix"></script>
+  <script defer src="features/ui/personal-layer-versions.js?v=20260810-platform-fix"></script>
   <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260723-contour-ui"></script>
   <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260723-contour-ui"></script>
   <script defer src="features/geoprocessing/village-preview.js?v=20260723-contour-ui"></script>
@@ -333,13 +336,15 @@
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
   <script defer src="features/data/copy-space-seed.js"></script>
   <script defer src="features/object-collaboration/object-comments.js"></script>
+  <script defer src="features/object-collaboration/object-info-deps.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
   <script defer src="features/map-editing/geometry-editor.js?v=20260723-contour-ui"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js"></script>
-  <script defer src="features/map-editing/map-click-handler.js"></script>
-  <script defer src="features/map-editing/overlay-renderer.js?v=20260805-backup"></script>
-  <script defer src="app.js?v=20260805-backup"></script>
+  <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
+  <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
+  <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
+  <script defer src="app.js?v=20260810-platform-fix"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

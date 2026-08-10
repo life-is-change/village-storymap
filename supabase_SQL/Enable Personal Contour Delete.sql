@@ -14,6 +14,7 @@ declare
   v_action text;
   v_object_code text;
   v_version_id uuid;
+  v_expected_version_id uuid;
   v_saved integer := 0;
 begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
@@ -28,6 +29,7 @@ begin
     v_action := v_change->>'action';
     v_layer_key := v_change->>'layerKey';
     v_object_code := nullif(trim(v_change->>'objectCode'), '');
+    v_expected_version_id := nullif(v_change->>'layerVersionId', '')::uuid;
 
     if v_action not in ('add','update','delete')
        or v_layer_key not in ('building','road','water','contours')
@@ -42,6 +44,10 @@ begin
       and v.space_id=p_space_id and v.layer_key=v_layer_key
       and (v.editable or (v_layer_key='contours' and v_action='delete'));
     if v_version_id is null then raise exception 'EDITABLE_CURRENT_VERSION_REQUIRED'; end if;
+    if v_action='delete' and v_expected_version_id is null
+    then raise exception 'PERSONAL_LAYER_VERSION_REQUIRED'; end if;
+    if v_expected_version_id is not null and v_expected_version_id <> v_version_id
+    then raise exception 'PERSONAL_LAYER_VERSION_STALE'; end if;
 
     if v_action='delete' then
       update public.personal_layer_features

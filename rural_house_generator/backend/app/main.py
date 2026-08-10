@@ -5,6 +5,7 @@ import os
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import cv2
@@ -34,7 +35,15 @@ from .facade.auto_rectify import (
 )
 from .facade.full_pipeline import FullLocalFacadeRectifier
 from .job_store import DiskJobStore, JobNotFoundError
-from .schemas import BuildingSpec, JobRecord, PhotoRecord, PrepareRequest
+from .schemas import (
+    BuildingSpec,
+    JobRecord,
+    PhotoRecord,
+    PrepareRequest,
+    RoofAnalysis,
+)
+from .roof_analysis import analyze_roof, fallback_roof_analysis
+from .roof_profile import resolve_roof_profile
 
 
 def _safe_stem(filename: str | None) -> str:
@@ -89,6 +98,8 @@ def create_app(
         wall_height: float = Form(...),
         roof_height: float = Form(...),
         roof_type: str = Form("gable"),
+        roof_material: str = Form("gray_tile"),
+        roof_pitch: str = Form("standard"),
     ) -> JobRecord:
         building = BuildingSpec(
             width=building_width,
@@ -96,6 +107,8 @@ def create_app(
             wall_height=wall_height,
             roof_height=roof_height,
             roof_type=roof_type,
+            roof_material=roof_material,
+            roof_pitch=roof_pitch,
         )
         if not photos:
             raise HTTPException(status_code=422, detail="At least one photo is required")
@@ -208,6 +221,7 @@ def create_app(
             json.dumps(result.diagnostics, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         record["status"] = "rectified"
+        record["roof_analysis"] = None
         record["updated_at"] = datetime.now(UTC).isoformat()
         for downstream in ("rectified_facade", "building_glb", "model_manifest"):
             record["artifacts"].pop(downstream, None)
@@ -226,6 +240,87 @@ def create_app(
             path = artifact_dir / name
             if path.is_file():
                 record["artifacts"][Path(name).stem] = f"artifacts/{name}"
+        record["error"] = None
+        store.write(job_id, record)
+        return JobRecord.model_validate(record)
+
+    @application.post(
+        "/api/jobs/{job_id}/analyze-roof", response_model=JobRecord
+    )
+    def analyze_roof_job(
+        job_id: str,
+        roof_top_norm: float = Form(..., ge=0, le=0.65),
+        revision: int = Form(..., ge=0),
+        roof_type_override: Literal["hip", "gable", "flat"] | None = Form(
+            default=None
+        ),
+        roof_material_override: Literal[
+            "gray_tile", "asphalt_shingle", "terracotta_tile"
+        ]
+        | None = Form(default=None),
+        roof_pitch_override: Literal["low", "standard", "high"] | None = Form(
+            default=None
+        ),
+    ) -> JobRecord:
+        try:
+            record = store.get(job_id)
+        except JobNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Job not found") from exc
+
+        if record["status"] != "rectified":
+            raise HTTPException(
+                status_code=409,
+                detail="Job must be rectified before roof analysis",
+            )
+        current = record.get("roof_analysis")
+        if current is not None and revision <= int(current.get("revision", -1)):
+            return JobRecord.model_validate(record)
+
+        relative_source = record["artifacts"].get("rectified_source")
+        if not relative_source:
+            raise HTTPException(
+                status_code=409,
+                detail="Job must be rectified before roof analysis",
+            )
+        image = read_image(store.job_dir(job_id) / relative_source)
+        if image is None:
+            raise HTTPException(status_code=422, detail="Rectified image cannot be decoded")
+
+        building_mask = None
+        relative_mask = record["artifacts"].get("building_mask_rectified")
+        if relative_mask:
+            mask_path = store.job_dir(job_id) / relative_mask
+            if mask_path.is_file():
+                building_mask = cv2.imdecode(
+                    np.fromfile(mask_path, np.uint8), cv2.IMREAD_GRAYSCALE
+                )
+        try:
+            resolved = analyze_roof(image, roof_top_norm, building_mask)
+        except Exception:
+            resolved = fallback_roof_analysis(roof_top_norm)
+
+        overrides = {
+            "type": roof_type_override,
+            "material": roof_material_override,
+            "pitch": roof_pitch_override,
+        }
+        for key, override in overrides.items():
+            previous = current.get(key) if current else None
+            if override is not None:
+                resolved[key] = {
+                    "value": override,
+                    "confidence": 1.0,
+                    "source": "manual",
+                }
+            elif previous and previous.get("source") == "manual":
+                resolved[key] = previous
+        resolved["revision"] = revision
+        analysis = RoofAnalysis.model_validate(resolved).model_dump(mode="json")
+        record["roof_analysis"] = analysis
+        record["building"]["roof_type"] = analysis["type"]["value"]
+        record["building"]["roof_material"] = analysis["material"]["value"]
+        record["building"]["roof_pitch"] = analysis["pitch"]["value"]
+        record["updated_at"] = datetime.now(UTC).isoformat()
         record["error"] = None
         store.write(job_id, record)
         return JobRecord.model_validate(record)
@@ -279,14 +374,18 @@ def create_app(
             min(100.0, front_length * facade_body.shape[0] / facade_body.shape[1]),
             3,
         )
-        roof_type = str(record["building"]["roof_type"])
-        roof_height = (
-            max(0.2, wall_height * 0.04)
-            if roof_type == "flat"
-            else wall_height * 0.18
+        roof = resolve_roof_profile(
+            width=float(record["building"]["width"]),
+            depth=float(record["building"]["depth"]),
+            wall_height=wall_height,
+            roof_type=str(record["building"]["roof_type"]),
+            roof_pitch=str(record["building"].get("roof_pitch", "standard")),
+            roof_material=str(
+                record["building"].get("roof_material", "gray_tile")
+            ),
         )
         record["building"]["wall_height"] = wall_height
-        record["building"]["roof_height"] = round(min(50.0, roof_height), 3)
+        record["building"]["roof_height"] = round(float(roof["height"]), 3)
         record["status"] = "prepared"
         record["updated_at"] = datetime.now(UTC).isoformat()
         record["artifacts"]["rectified_facade"] = "artifacts/facade_texture.png"
@@ -366,6 +465,7 @@ def create_app(
                 job_dir=store.job_dir(job_id),
                 building=record["building"],
                 texture_path=texture_path,
+                roof_analysis=record.get("roof_analysis"),
             )
         except (BlenderUnavailableError, MissingTextureError) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc

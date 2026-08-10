@@ -19,6 +19,13 @@ const els = {
   roofCropShade: document.getElementById('roofCropShade'),
   roofCropHandle: document.getElementById('roofCropHandle'),
   roofTypeInput: document.getElementById('roofTypeInput'),
+  roofMaterialInput: document.getElementById('roofMaterialInput'),
+  roofPitchInput: document.getElementById('roofPitchInput'),
+  roofAnalysisSummary: document.getElementById('roofAnalysisSummary'),
+  roofAdvanced: document.getElementById('roofAdvanced'),
+  photoServiceState: document.getElementById('photoServiceState'),
+  photoServiceMessage: document.getElementById('photoServiceMessage'),
+  recoverPhotoBtn: document.getElementById('recoverPhotoBtn'),
   photoGenerateBtn: document.getElementById('photoGenerateBtn'),
   photoSteps: document.getElementById('photoSteps'),
   photoFallbackActions: document.getElementById('photoFallbackActions'),
@@ -65,6 +72,16 @@ const state = {
   cropTop: 0.12,
   draggingCropTop: false,
   photoWorkflowState: 'idle',
+  photoServiceStatus: 'checking',
+  photoServiceTimer: null,
+  photoServicePendingPhoto: false,
+  photoRecoveryPromise: null,
+  roofAnalysis: null,
+  roofAnalysisStatus: 'idle',
+  roofAnalysisRevision: 0,
+  roofOverrides: {},
+  roofAnalysisTimer: null,
+  roofAnalysisAbortController: null,
   targetCode: '',
   targetSpace: 'current',
   targetName: '',
@@ -103,11 +120,19 @@ function bindEvents() {
   els.roofCropHandle.addEventListener('pointerup', stopRoofCropDrag);
   els.roofCropHandle.addEventListener('pointercancel', stopRoofCropDrag);
   els.roofCropHandle.addEventListener('keydown', adjustRoofCropWithKeyboard);
+  els.roofTypeInput.addEventListener('change', () => setRoofOverride('roofType', els.roofTypeInput.value));
+  els.roofMaterialInput.addEventListener('change', () => setRoofOverride('roofMaterial', els.roofMaterialInput.value));
+  els.roofPitchInput.addEventListener('change', () => setRoofOverride('roofPitch', els.roofPitchInput.value));
   els.photoGenerateBtn.addEventListener('click', generatePhotoModel);
   els.useOriginalBtn.addEventListener('click', useOriginalPhoto);
   els.retryPhotoBtn.addEventListener('click', () => {
     els.photoInput.value = '';
     els.photoInput.click();
+  });
+  els.recoverPhotoBtn.addEventListener('click', recoverCurrentPhoto);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || state.mode !== 'photo') clearPhotoServiceTimer();
+    else checkPhotoService();
   });
   els.generateBtn.addEventListener('click', () => {
     if (state.mode === 'photo') generatePhotoModel();
@@ -131,6 +156,7 @@ function setMode(mode) {
     ? '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面宽高比自动计算。'
     : '默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。';
   if (isPhoto) {
+    checkPhotoService();
     els.activeLabel.textContent = state.photoFile
       ? `建筑实拍图：${state.photoFile.name}`
       : '建筑实拍图：未选择';
@@ -140,6 +166,7 @@ function setMode(mode) {
       els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
     }
   } else {
+    clearPhotoServiceTimer();
     els.activeLabel.textContent = `当前：${state.selected?.id || '-'}`;
     setProgress(state.presets.length ? 20 : 0, state.presets.length ? '预设已就绪' : '等待加载预设');
     setStatus('预设模式保持原有四立面生成流程。');
@@ -177,6 +204,7 @@ async function setPhotoFile(file) {
   state.photoJobId = '';
   state.cropTop = 0.12;
   state.photoWorkflowState = 'idle';
+  resetRoofAnalysis();
   els.photoFallbackActions.hidden = true;
   els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
   setPhotoStep('upload');
@@ -206,17 +234,217 @@ async function setPhotoFile(file) {
 }
 
 function readPhotoBuildingConfig() {
+  const resolved = state.roofAnalysis
+    ? PhotoWorkflow.roofAnalysisChoices(state.roofAnalysis)
+    : {
+        roofType: els.roofTypeInput.value,
+        roofMaterial: els.roofMaterialInput.value,
+        roofPitch: els.roofPitchInput.value
+      };
   return PhotoWorkflow.buildPhotoUploadConfig({
     length: Number(els.lengthInput.value),
     width: Number(els.widthInput.value),
-    roofType: els.roofTypeInput.value
+    ...resolved
   });
+}
+
+function clearRoofAnalysisTimer() {
+  if (state.roofAnalysisTimer !== null) {
+    window.clearTimeout(state.roofAnalysisTimer);
+    state.roofAnalysisTimer = null;
+  }
+}
+
+function resetRoofAnalysis() {
+  clearRoofAnalysisTimer();
+  state.roofAnalysisAbortController?.abort();
+  state.roofAnalysisAbortController = null;
+  const cleared = PhotoWorkflow.clearRoofOverrides();
+  state.roofAnalysis = cleared.analysis;
+  state.roofOverrides = cleared.overrides;
+  state.roofAnalysisStatus = cleared.status;
+  state.roofAnalysisRevision = cleared.revision;
+  els.roofAdvanced.open = false;
+  els.roofTypeInput.value = 'hip';
+  els.roofMaterialInput.value = 'gray_tile';
+  els.roofPitchInput.value = 'standard';
+  renderRoofAnalysis();
+}
+
+function renderRoofAnalysis() {
+  const presentations = {
+    idle: ['idle', '拖动屋顶线后自动匹配屋顶'],
+    pending: ['pending', '正在匹配屋顶…'],
+    error: ['error', '屋顶匹配暂时不可用，请检查本地服务。']
+  };
+  if (state.roofAnalysis) {
+    const fallback = ['type', 'material', 'pitch']
+      .some((key) => state.roofAnalysis[key]?.source === 'fallback');
+    els.roofAnalysisSummary.dataset.tone = fallback ? 'fallback' : 'ready';
+    els.roofAnalysisSummary.textContent = PhotoWorkflow.roofAnalysisSummary(state.roofAnalysis);
+  } else {
+    const [tone, message] = presentations[state.roofAnalysisStatus] || presentations.idle;
+    els.roofAnalysisSummary.dataset.tone = tone;
+    els.roofAnalysisSummary.textContent = message;
+  }
+  const analysisReady = ['ready', 'fallback'].includes(state.roofAnalysisStatus);
+  els.photoGenerateBtn.disabled = state.photoWorkflowState !== 'rectified' || !analysisReady;
+}
+
+function syncRoofInputs() {
+  if (!state.roofAnalysis) return;
+  const choices = PhotoWorkflow.roofAnalysisChoices(state.roofAnalysis);
+  els.roofTypeInput.value = choices.roofType;
+  els.roofMaterialInput.value = choices.roofMaterial;
+  els.roofPitchInput.value = choices.roofPitch;
+}
+
+function setRoofOverride(field, value) {
+  state.roofOverrides = { ...state.roofOverrides, [field]: value };
+  scheduleRoofAnalysis(0);
+}
+
+function scheduleRoofAnalysis(delay = 350) {
+  if (!state.photoJobId || state.photoWorkflowState !== 'rectified') return;
+  clearRoofAnalysisTimer();
+  state.roofAnalysisAbortController?.abort();
+  state.roofAnalysisAbortController = null;
+  const next = PhotoWorkflow.nextRoofAnalysisState({
+    cropTop: state.cropTop,
+    revision: state.roofAnalysisRevision,
+    status: state.roofAnalysisStatus,
+    analysis: state.roofAnalysis,
+    overrides: state.roofOverrides
+  }, { cropTop: state.cropTop });
+  state.roofAnalysis = next.analysis;
+  state.roofAnalysisStatus = next.status;
+  state.roofAnalysisRevision = next.revision;
+  renderRoofAnalysis();
+  const revision = state.roofAnalysisRevision;
+  state.roofAnalysisTimer = window.setTimeout(
+    () => requestRoofAnalysis(revision),
+    delay
+  );
+}
+
+async function requestRoofAnalysis(revision) {
+  state.roofAnalysisTimer = null;
+  const controller = new AbortController();
+  state.roofAnalysisAbortController = controller;
+  try {
+    const formData = PhotoWorkflow.buildRoofAnalysisForm({
+      cropTop: state.cropTop,
+      revision,
+      overrides: state.roofOverrides
+    });
+    const job = await apiRequest(
+      PhotoWorkflow.buildRoofAnalysisPath(state.photoJobId),
+      { method: 'POST', body: formData, signal: controller.signal }
+    );
+    if (revision !== state.roofAnalysisRevision) return;
+    state.roofAnalysis = PhotoWorkflow.normalizeRoofAnalysis(job.roof_analysis);
+    state.roofAnalysisStatus = ['type', 'material', 'pitch']
+      .some((key) => state.roofAnalysis[key].source === 'fallback')
+      ? 'fallback'
+      : 'ready';
+    syncRoofInputs();
+  } catch (error) {
+    if (error?.name === 'AbortError' || revision !== state.roofAnalysisRevision) return;
+    console.error(error);
+    state.roofAnalysis = null;
+    state.roofAnalysisStatus = 'error';
+  } finally {
+    if (state.roofAnalysisAbortController === controller) {
+      state.roofAnalysisAbortController = null;
+    }
+    renderRoofAnalysis();
+  }
+}
+
+function clearPhotoServiceTimer() {
+  if (state.photoServiceTimer !== null) {
+    window.clearTimeout(state.photoServiceTimer);
+    state.photoServiceTimer = null;
+  }
+}
+
+function schedulePhotoServiceCheck() {
+  clearPhotoServiceTimer();
+  if (state.mode !== 'photo' || document.hidden) return;
+  state.photoServiceTimer = window.setTimeout(checkPhotoService, 3000);
+}
+
+function renderPhotoServiceState() {
+  const presentation = PhotoWorkflow.serviceStatusPresentation(state.photoServiceStatus);
+  els.photoServiceState.dataset.tone = presentation.tone;
+  els.photoServiceMessage.textContent = presentation.message;
+  els.recoverPhotoBtn.hidden = !presentation.canRecover;
+}
+
+async function checkPhotoService() {
+  clearPhotoServiceTimer();
+  if (state.mode !== 'photo' || document.hidden) return;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`${state.apiBase}/health`, {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`health ${response.status}`);
+    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
+      state.photoServiceStatus,
+      'success',
+      state.photoServicePendingPhoto && Boolean(state.photoFile)
+    );
+  } catch (_) {
+    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
+      state.photoServiceStatus,
+      'failure',
+      state.photoServicePendingPhoto && Boolean(state.photoFile)
+    );
+    schedulePhotoServiceCheck();
+  } finally {
+    window.clearTimeout(timeout);
+    renderPhotoServiceState();
+  }
+}
+
+async function recoverCurrentPhoto() {
+  if (state.photoRecoveryPromise) return state.photoRecoveryPromise;
+  if (!state.photoFile) {
+    els.photoInput.value = '';
+    els.photoInput.click();
+    return;
+  }
+  state.photoRecoveryPromise = (async () => {
+    els.recoverPhotoBtn.disabled = true;
+    state.photoJobId = '';
+    state.photoWorkflowState = 'idle';
+    state.photoServicePendingPhoto = false;
+    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
+      state.photoServiceStatus,
+      'retry',
+      true
+    );
+    renderPhotoServiceState();
+    await rectifyUploadedPhoto();
+  })();
+  try {
+    await state.photoRecoveryPromise;
+  } finally {
+    state.photoRecoveryPromise = null;
+    els.recoverPhotoBtn.disabled = false;
+  }
 }
 
 async function rectifyUploadedPhoto() {
   if (!state.photoFile) return;
   try {
     await apiRequest('/health');
+    state.photoServicePendingPhoto = false;
+    state.photoServiceStatus = 'online';
+    renderPhotoServiceState();
     const fields = PhotoWorkflow.buildBuildingFields(readPhotoBuildingConfig());
     const formData = new FormData();
     Object.entries(fields).forEach(([key, value]) => formData.append(key, value));
@@ -243,7 +471,18 @@ async function rectifyUploadedPhoto() {
     els.roofCropShade.hidden = true;
     els.roofCropHandle.hidden = true;
     els.photoGenerateBtn.disabled = true;
-    els.photoFallbackActions.hidden = false;
+    const serviceOffline = PhotoWorkflow.isLocalServiceNetworkError(error);
+    els.photoFallbackActions.hidden = serviceOffline;
+    if (serviceOffline) {
+      state.photoServicePendingPhoto = Boolean(state.photoFile);
+      state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
+        state.photoServiceStatus,
+        'failure',
+        state.photoServicePendingPhoto
+      );
+      renderPhotoServiceState();
+      schedulePhotoServiceCheck();
+    }
     setPhotoStep('rectify', true);
     setProgress(34, '自动正立面校正未完成');
     setStatus(`正立面预处理未完成：${PhotoWorkflow.friendlyServiceError(error)}`, true);
@@ -264,7 +503,7 @@ async function applyRectifiedJob(rectified, originalFallback) {
       : `标准正立面：${state.photoFile.name}`;
     els.roofCropShade.hidden = false;
     els.roofCropHandle.hidden = false;
-    els.photoGenerateBtn.disabled = false;
+    els.photoGenerateBtn.disabled = true;
     els.photoFallbackActions.hidden = true;
     updateCropOverlay();
     setPhotoStep('crop');
@@ -272,6 +511,7 @@ async function applyRectifiedJob(rectified, originalFallback) {
     setStatus(originalFallback
       ? '已按你的选择保留原图。现在请把青色分界线拖到屋顶下沿，再生成模型。'
       : '正立面预处理完成。现在请把青色分界线拖到屋顶下沿，再生成模型。');
+    scheduleRoofAnalysis(0);
 }
 
 async function useOriginalPhoto() {
@@ -312,6 +552,7 @@ function updateCropOverlay() {
 function startRoofCropDrag(event) {
   if (!state.photoImage) return;
   state.draggingCropTop = true;
+  els.photoGenerateBtn.disabled = true;
   els.roofCropHandle.setPointerCapture(event.pointerId);
   moveRoofCropDrag(event);
 }
@@ -330,6 +571,7 @@ function stopRoofCropDrag(event) {
     els.roofCropHandle.releasePointerCapture(event.pointerId);
   }
   setStatus(`屋顶分界线已设置在图片高度的 ${Math.round(state.cropTop * 100)}%，线以上不会进入墙身贴图。`);
+  scheduleRoofAnalysis();
 }
 
 function adjustRoofCropWithKeyboard(event) {
@@ -340,6 +582,7 @@ function adjustRoofCropWithKeyboard(event) {
   );
   updateCropOverlay();
   setStatus(`屋顶分界线位于图片高度的 ${Math.round(state.cropTop * 100)}%，线以上不会进入墙身贴图。`);
+  scheduleRoofAnalysis();
 }
 
 async function loadMeta() {
@@ -486,6 +729,10 @@ async function generatePhotoModel() {
     setStatus('请先等待原始照片完成正立面预处理。', true);
     return;
   }
+  if (!['ready', 'fallback'].includes(state.roofAnalysisStatus)) {
+    setStatus('请等待系统完成屋顶自动匹配。', true);
+    return;
+  }
 
   try {
     setPhotoStep('generate');
@@ -546,7 +793,7 @@ async function generatePhotoModel() {
     setStatus(`标准正立面贴图生成失败：${PhotoWorkflow.friendlyServiceError(error)}`, true);
   } finally {
     els.generateBtn.disabled = false;
-    els.photoGenerateBtn.disabled = state.photoWorkflowState !== 'rectified';
+    renderRoofAnalysis();
   }
 }
 
@@ -555,7 +802,10 @@ async function apiRequest(path, options = {}) {
   try {
     response = await fetch(`${state.apiBase}${path}`, { cache: 'no-store', ...options });
   } catch (error) {
-    throw new Error(PhotoWorkflow.friendlyServiceError(error));
+    if (error?.name === 'AbortError') throw error;
+    const serviceError = new Error(PhotoWorkflow.friendlyServiceError(error));
+    serviceError.code = 'LOCAL_SERVICE_UNREACHABLE';
+    throw serviceError;
   }
   if (!response.ok) throw await responseError(response);
   return response.json();

@@ -31,6 +31,25 @@ def test_create_job_persists_uploaded_photos_and_metadata(
     on_disk = json.loads((job_dir / "job.json").read_text(encoding="utf-8"))
     assert on_disk["building"]["width"] == 8.0
     assert on_disk["building"]["roof_type"] == "gable"
+    assert on_disk["building"]["roof_material"] == "asphalt_shingle"
+    assert on_disk["building"]["roof_pitch"] == "low"
+
+
+def test_create_job_defaults_roof_appearance_for_old_callers(client, valid_job_form):
+    legacy_form = {
+        key: value
+        for key, value in valid_job_form.items()
+        if key not in {"roof_material", "roof_pitch"}
+    }
+    response = client.post(
+        "/api/jobs",
+        data=legacy_form,
+        files=[("photos", ("front.jpg", b"photo", "image/jpeg"))],
+    )
+
+    assert response.status_code == 201
+    assert response.json()["building"]["roof_material"] == "gray_tile"
+    assert response.json()["building"]["roof_pitch"] == "standard"
 
 
 def test_disk_store_reads_job_after_new_instance(client, runtime_root, valid_job_form):

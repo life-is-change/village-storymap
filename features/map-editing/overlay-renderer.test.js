@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   createLatestOverlayRefreshController,
+  ensureStaticLayersLoaded,
   planIncrementalLayerUpdate
 } = require("./overlay-renderer.js");
 
@@ -95,4 +96,24 @@ test("layer toggles do not preload every selected static layer", () => {
   const source = require("node:fs").readFileSync(__dirname + "/../ui/space-panel-events.js", "utf8");
   const handler = source.match(/document\.querySelectorAll\("\[data-space-layer\]"\)([\s\S]*?)const devInfoIcons/)?.[1] || "";
   assert.doesNotMatch(handler, /ensureSelectedLayersLoaded/);
+});
+
+test("cold overlay loads only the static layers it is about to build", async () => {
+  const loaded = [];
+  await ensureStaticLayersLoaded({
+    layerKeys: ["elevationBands", "contours", "building"],
+    isPersonalSpace: false,
+    ensureLayerLoaded: async (layerKey) => loaded.push(layerKey)
+  });
+  assert.deepEqual(loaded, ["elevationBands", "contours", "building"]);
+});
+
+test("personal overlay reads versioned rows without loading static fallbacks", async () => {
+  const loaded = [];
+  await ensureStaticLayersLoaded({
+    layerKeys: ["contours", "building"],
+    isPersonalSpace: true,
+    ensureLayerLoaded: async (layerKey) => loaded.push(layerKey)
+  });
+  assert.deepEqual(loaded, []);
 });

@@ -55,8 +55,15 @@ def test_generated_job_and_glb_survive_application_restart(
     assert downloaded.status_code == 200
     assert downloaded.content[:4] == b"glTF"
     assert manifest.status_code == 200
-    assert set(manifest.json()["object_names"]) == {
+    names = set(manifest.json()["object_names"])
+    assert {
         "Building body",
         "Photo facade",
-        "Hipped roof",
-    }
+        "Roof surface",
+        "Roof soffit",
+        "Roof ridge caps",
+    } <= names
+    assert len(
+        [name for name in names if name.startswith("Roof hip ridge caps")]
+    ) == 4
+    assert not any(name.startswith("Roof downspout") for name in names)

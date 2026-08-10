@@ -1,15 +1,4 @@
 ﻿(function () {
-  function pickInteractiveFeatureAtPixel(planMap, pixel, isNonInteractiveLayerKey) {
-    let clicked = null;
-    planMap.forEachFeatureAtPixel(pixel, (feature) => {
-      const layerKey = feature?.get?.("layerKey");
-      if (isNonInteractiveLayerKey(layerKey)) return false;
-      clicked = feature;
-      return true;
-    });
-    return clicked;
-  }
-
   async function acquireSelectedFeatureLock(deps, feature, layerKey) {
     const objectCode = deps.normalizeCode(feature?.get?.("sourceCode"));
     const result = await deps.acquireFeatureEditLock(layerKey, objectCode);
@@ -172,7 +161,14 @@
       const planVectorSource = deps.getPlanVectorSource();
       const buildingEditState = deps.getBuildingEditState();
       const communityTaskEditState = deps.getCommunityTaskEditState();
-      const clicked = pickInteractiveFeatureAtPixel(planMap, evt.pixel, deps.isNonInteractiveLayerKey);
+      const editLayerKey = buildingEditState.editLayerKey || deps.getCurrentGeometryEditLayer() || "building";
+      const deleteLayerKey = buildingEditState.mode === "delete" ? editLayerKey : "";
+      const clicked = window.MapHitPolicyModule.pickFeatureAtPixel(
+        planMap,
+        evt.pixel,
+        deps.isNonInteractiveLayerKey,
+        deleteLayerKey
+      );
 
       if (communityTaskEditState.mode === "report") {
         const handled = await handleCommunityTaskReport(deps, evt);
@@ -189,8 +185,6 @@
         }
         return;
       }
-
-      const editLayerKey = buildingEditState.editLayerKey || deps.getCurrentGeometryEditLayer() || "building";
 
       if (buildingEditState.mode === "delete") {
         if (!clicked || clicked.get("layerKey") !== editLayerKey) return;

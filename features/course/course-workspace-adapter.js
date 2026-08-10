@@ -98,7 +98,7 @@
       editEnabled: true,
       expanded: true,
       selectedLayers,
-      contourLabelsVisible: existingSpace?.contourLabelsVisible === true,
+      contourLabelsVisible: existingSpace?.contourLabelsVisible !== false,
       basemapVisible: true,
       viewMode: "2d",
       courseId,

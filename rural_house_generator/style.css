@@ -145,6 +145,16 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .photo-height-summary strong{font-size:12px;color:var(--brand-dark);text-align:right}
 
 .photo-card{padding:16px;display:flex;flex-direction:column;gap:12px}
+.photo-service-state{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 10px;padding:10px 12px;border:1px solid #cbd9e4;border-radius:12px;background:#f5f8fb}
+.photo-service-state p{margin:0;font-size:12px;line-height:1.45;color:#50657f}
+.photo-service-state button{grid-column:1/-1;min-height:36px}
+.photo-service-dot{width:10px;height:10px;border-radius:50%;background:#8da0b2;box-shadow:0 0 0 4px rgba(141,160,178,.14)}
+.photo-service-state[data-tone="online"]{border-color:#a9d9cf;background:#f1faf8}
+.photo-service-state[data-tone="online"] .photo-service-dot{background:#129480;box-shadow:0 0 0 4px rgba(18,148,128,.14)}
+.photo-service-state[data-tone="offline"]{border-color:#efb7ad;background:#fff5f2}
+.photo-service-state[data-tone="offline"] .photo-service-dot{background:#d64532;box-shadow:0 0 0 4px rgba(214,69,50,.12)}
+.photo-service-state[data-tone="recovered"]{border-color:#75c9bb;background:#eaf9f6}
+.photo-service-state[data-tone="recovered"] .photo-service-dot{background:#0f8b7f;box-shadow:0 0 0 4px rgba(15,139,127,.16)}
 .external-correction{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:#f4f7fa}
 .external-correction p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
 .external-correction textarea{width:100%;resize:none;padding:10px 11px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font:12px/1.55 inherit}
@@ -167,6 +177,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .crop-hint{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
 .roof-type-field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:700}
 .roof-type-field select{min-width:150px;height:38px;padding:0 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
+.roof-options{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#f8fafc}
+.roof-analysis-summary{padding:11px 12px;border:1px solid #b7d9d4;border-radius:12px;background:#f2faf8;color:#176e64;font-size:12px;font-weight:700;line-height:1.5}
+.roof-analysis-summary[data-tone="pending"]{border-color:#cad8e4;background:#f5f8fb;color:#587089}
+.roof-analysis-summary[data-tone="fallback"]{border-color:#e8c98e;background:#fff9ed;color:#8a6220}
+.roof-analysis-summary[data-tone="error"]{border-color:#efb7ad;background:#fff5f2;color:#a33a2f}
+.roof-advanced{border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
+.roof-advanced summary{padding:10px 12px;cursor:pointer;color:#50657f;font-size:12px;font-weight:700;list-style-position:inside}
+.roof-advanced[open] summary{border-bottom:1px solid var(--border);background:#f7fafc}
+.roof-advanced .roof-options{border:0;border-radius:0;background:#fff}
 .photo-generate{width:100%;min-height:44px}
 
 .hint{

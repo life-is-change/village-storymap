@@ -40,6 +40,8 @@ def valid_job_form() -> dict[str, str]:
         "wall_height": "6.0",
         "roof_height": "2.0",
         "roof_type": "gable",
+        "roof_material": "asphalt_shingle",
+        "roof_pitch": "low",
     }
 
 

@@ -9,19 +9,156 @@ const {
   buildRectifyPath,
   buildOriginalFallbackPath,
   buildPhotoUploadConfig,
+  buildRoofAnalysisForm,
+  buildRoofAnalysisPath,
   buildModelReadyMessage,
   clampPoint,
   clampCropTop,
   pixelsToNormalized,
   photoHeightSummary,
   photoModelMetrics,
+  clearRoofOverrides,
+  isLocalServiceNetworkError,
+  nextRoofAnalysisState,
+  normalizeRoofAnalysis,
   readTargetDimensions,
   resolveInitialMode,
+  serviceStatusPresentation,
+  roofAnalysisChoices,
+  roofAnalysisSummary,
   shouldApplyPresetAfterLoad,
   transitionJobState,
+  transitionServiceState,
   friendlyServiceError,
   validateStandardFacadeFiles
 } = require('../photo-workflow.js');
+
+test('automatic roof summary keeps the normal workflow to one compact line', () => {
+  const analysis = {
+    type: { value: 'hip', confidence: 0.88, source: 'automatic' },
+    material: { value: 'gray_tile', confidence: 0.91, source: 'automatic' },
+    pitch: { value: 'high', confidence: 0.76, source: 'automatic' },
+    warnings: []
+  };
+
+  assert.equal(
+    roofAnalysisSummary(analysis),
+    '已自动匹配：岭南灰瓦 · 四坡屋顶 · 高坡'
+  );
+  assert.deepEqual(roofAnalysisChoices(analysis), {
+    roofType: 'hip',
+    roofMaterial: 'gray_tile',
+    roofPitch: 'high'
+  });
+});
+
+test('fallback roof summary explains that safe defaults were used', () => {
+  assert.equal(
+    roofAnalysisSummary({
+      type: { value: 'hip', confidence: 0, source: 'fallback' },
+      material: { value: 'gray_tile', confidence: 0, source: 'fallback' },
+      pitch: { value: 'standard', confidence: 0, source: 'fallback' },
+      warnings: ['roof_region_unclear']
+    }),
+    '屋顶信息不够清晰，已使用稳妥默认样式：岭南灰瓦 · 四坡屋顶 · 标准坡'
+  );
+});
+
+test('roof analysis form serializes crop revision and only manual overrides', () => {
+  const form = buildRoofAnalysisForm({
+    cropTop: 0.27,
+    revision: 8,
+    overrides: { roofPitch: 'high', roofMaterial: 'terracotta_tile' }
+  });
+
+  assert.equal(buildRoofAnalysisPath('job 1'), '/api/jobs/job%201/analyze-roof');
+  assert.deepEqual(Object.fromEntries(form.entries()), {
+    roof_top_norm: '0.27',
+    revision: '8',
+    roof_material_override: 'terracotta_tile',
+    roof_pitch_override: 'high'
+  });
+});
+
+test('moving the crop line preserves manual fields but invalidates automatic analysis', () => {
+  const next = nextRoofAnalysisState({
+    cropTop: 0.19,
+    revision: 2,
+    status: 'ready',
+    analysis: { type: { value: 'gable' } },
+    overrides: { roofPitch: 'high' }
+  }, { cropTop: 0.27 });
+
+  assert.deepEqual(next.overrides, { roofPitch: 'high' });
+  assert.equal(next.analysis, null);
+  assert.equal(next.status, 'pending');
+  assert.equal(next.cropTop, 0.27);
+  assert.equal(next.revision, 3);
+});
+
+test('new upload clears all manual roof choices and normalizes API decisions', () => {
+  assert.deepEqual(clearRoofOverrides(), {
+    analysis: null,
+    overrides: {},
+    status: 'idle',
+    revision: 0
+  });
+  assert.deepEqual(normalizeRoofAnalysis({
+    type: { value: 'unknown', confidence: 5, source: 'automatic' },
+    material: { value: 'terracotta_tile', confidence: 0.82, source: 'manual' },
+    pitch: { value: 'low', confidence: -1, source: 'fallback' },
+    crop_top: 0.25,
+    revision: 4,
+    warnings: []
+  }), {
+    type: { value: 'hip', confidence: 1, source: 'fallback' },
+    material: { value: 'terracotta_tile', confidence: 0.82, source: 'manual' },
+    pitch: { value: 'low', confidence: 0, source: 'fallback' },
+    cropTop: 0.25,
+    revision: 4,
+    warnings: []
+  });
+});
+
+test('service recovery state only offers retry after an offline photo failure', () => {
+  assert.equal(transitionServiceState('checking', 'failure', false), 'offline');
+  assert.equal(transitionServiceState('offline', 'success', false), 'online');
+  assert.equal(transitionServiceState('offline', 'success', true), 'recovered');
+  assert.equal(transitionServiceState('recovered', 'retry', true), 'checking');
+  assert.equal(transitionServiceState('online', 'failure', true), 'offline');
+  assert.throws(
+    () => transitionServiceState('online', 'unknown', false),
+    /Invalid service state transition/
+  );
+});
+
+test('only tagged fetch failures are treated as local service outages', () => {
+  const networkError = new Error('本地处理服务未启动或不可访问');
+  networkError.code = 'LOCAL_SERVICE_UNREACHABLE';
+  assert.equal(isLocalServiceNetworkError(networkError), true);
+  assert.equal(
+    isLocalServiceNetworkError(new Error('Could not find both sides of the target facade')),
+    false
+  );
+});
+
+test('service status presentation exposes recovery only after service returns', () => {
+  assert.deepEqual(serviceStatusPresentation('checking'), {
+    tone: 'checking',
+    message: '正在检测本地生成服务…',
+    canRecover: false
+  });
+  assert.deepEqual(serviceStatusPresentation('offline'), {
+    tone: 'offline',
+    message: '本地服务未启动，请运行 start_facade_generator.bat。',
+    canRecover: false
+  });
+  assert.deepEqual(serviceStatusPresentation('recovered'), {
+    tone: 'recovered',
+    message: '服务已恢复，可以重新处理当前照片。',
+    canRecover: true
+  });
+});
 
 test('reads the selected white-model footprint from launch parameters', () => {
   assert.deepEqual(
@@ -40,9 +177,27 @@ test('photo upload does not depend on hidden floor inputs before facade height i
       floors: 1,
       floorHeight: 3,
       roofHeight: 0.54,
-      roofType: 'hip'
+      roofType: 'hip',
+      roofMaterial: 'gray_tile',
+      roofPitch: 'standard'
     }
   );
+});
+
+test('photo upload normalizes supported roof appearance choices', () => {
+  const config = buildPhotoUploadConfig({
+    length: 16.7,
+    width: 11,
+    roofType: 'hip',
+    roofMaterial: 'asphalt_shingle',
+    roofPitch: 'low'
+  });
+  assert.equal(config.roofMaterial, 'asphalt_shingle');
+  assert.equal(config.roofPitch, 'low');
+
+  const fallback = buildPhotoUploadConfig({ length: 10, width: 6, roofType: 'gable' });
+  assert.equal(fallback.roofMaterial, 'gray_tile');
+  assert.equal(fallback.roofPitch, 'standard');
 });
 
 test('platform-launched generator opens directly in photo mode', () => {
@@ -170,7 +325,9 @@ test('buildBuildingFields maps front width, depth and total wall height', () => 
       building_depth: '6.2',
       wall_height: '6.2',
       roof_height: '1.6',
-      roof_type: 'gable'
+      roof_type: 'gable',
+      roof_material: 'gray_tile',
+      roof_pitch: 'standard'
     }
   );
 });
@@ -186,6 +343,30 @@ test('buildBuildingFields preserves the selected hipped roof', () => {
       roofType: 'hip'
     }).roof_type,
     'hip'
+  );
+});
+
+test('buildBuildingFields includes the normalized roof appearance contract', () => {
+  assert.deepEqual(
+    buildBuildingFields({
+      length: 16.7,
+      width: 11,
+      floors: 1,
+      floorHeight: 3,
+      roofHeight: 0.54,
+      roofType: 'hip',
+      roofMaterial: 'asphalt_shingle',
+      roofPitch: 'low'
+    }),
+    {
+      building_width: '16.7',
+      building_depth: '11',
+      wall_height: '3',
+      roof_height: '0.54',
+      roof_type: 'hip',
+      roof_material: 'asphalt_shingle',
+      roof_pitch: 'low'
+    }
   );
 });
 

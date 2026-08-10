@@ -76,6 +76,13 @@
             <h2>建筑实拍图</h2>
             <span>先正立面化，再裁屋顶并生成模型</span>
           </div>
+          <div id="photoServiceState" class="photo-service-state" data-tone="checking">
+            <span class="photo-service-dot" aria-hidden="true"></span>
+            <p id="photoServiceMessage">正在检测本地生成服务…</p>
+            <button id="recoverPhotoBtn" type="button" class="secondary" hidden>
+              重新处理当前照片
+            </button>
+          </div>
           <div class="external-correction">
             <p>系统会先在本地自动处理；豆包仅作为效果不理想时的备用入口。</p>
             <textarea id="correctionPrompt" rows="4" readonly></textarea>
@@ -112,14 +119,38 @@
               <button id="retryPhotoBtn" type="button" class="secondary">重新选择照片</button>
             </div>
           </div>
-          <label class="roof-type-field">
-            <span>生成屋顶</span>
-            <select id="roofTypeInput">
-              <option value="hip" selected>四坡屋顶</option>
-              <option value="gable">双坡屋顶</option>
-              <option value="flat">平屋顶</option>
-            </select>
-          </label>
+          <div id="roofAnalysisSummary" class="roof-analysis-summary" data-tone="idle" aria-live="polite">
+            拖动屋顶线后自动匹配屋顶
+          </div>
+          <details id="roofAdvanced" class="roof-advanced">
+            <summary>高级设置</summary>
+            <div class="roof-options">
+              <label class="roof-type-field">
+                <span>生成屋顶</span>
+                <select id="roofTypeInput">
+                  <option value="hip" selected>四坡屋顶</option>
+                  <option value="gable">双坡屋顶</option>
+                  <option value="flat">平屋顶</option>
+                </select>
+              </label>
+              <label class="roof-type-field">
+                <span>屋顶材质</span>
+                <select id="roofMaterialInput">
+                  <option value="gray_tile" selected>岭南灰瓦</option>
+                  <option value="asphalt_shingle">沥青瓦</option>
+                  <option value="terracotta_tile">陶瓦</option>
+                </select>
+              </label>
+              <label class="roof-type-field">
+                <span>屋顶坡度</span>
+                <select id="roofPitchInput">
+                  <option value="low">低坡</option>
+                  <option value="standard" selected>标准坡</option>
+                  <option value="high">高坡</option>
+                </select>
+              </label>
+            </div>
+          </details>
           <button id="photoGenerateBtn" class="primary photo-generate" type="button" disabled>
             按当前主体范围生成模型
           </button>

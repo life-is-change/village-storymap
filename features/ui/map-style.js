@@ -112,15 +112,7 @@
         });
       }
 
-      const contourValueRaw =
-        feature.get("ELEV") ??
-        feature.get("elev") ??
-        feature.get("ELEVATION") ??
-        feature.get("elevation") ??
-        feature.get("VALUE") ??
-        feature.get("value") ??
-        feature.get("CONTOUR") ??
-        feature.get("contour");
+      const contourValueRaw = window.ContourUtilsModule.resolveContourValue(feature);
       const contourValueNum = Number(contourValueRaw);
       const contourLabel = Number.isFinite(contourValueNum)
         ? String(Math.round(contourValueNum * 10) / 10)
@@ -220,7 +212,7 @@
         }),
         text:
           layerKey === "contours" &&
-          deps.getContourLabelsVisible() &&
+          (figureGroundMode || deps.getContourLabelsVisible()) &&
           contourLabel &&
           typeof Text === "function" &&
           Number.isFinite(resolution) &&

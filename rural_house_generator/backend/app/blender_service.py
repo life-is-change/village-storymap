@@ -46,7 +46,11 @@ class BlenderService:
         self.timeout_seconds = timeout_seconds
 
     def generate(
-        self, job_dir: Path, building: dict[str, Any], texture_path: Path
+        self,
+        job_dir: Path,
+        building: dict[str, Any],
+        texture_path: Path,
+        roof_analysis: dict[str, Any] | None = None,
     ) -> Path:
         if not self.executable.is_file():
             raise BlenderUnavailableError(
@@ -69,6 +73,7 @@ class BlenderService:
             json.dumps(
                 {
                     "building": building,
+                    "roof_analysis": roof_analysis,
                     "texture_path": str(texture_path.resolve()),
                     "output_path": str(output_path),
                 },

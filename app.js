@@ -1911,7 +1911,7 @@ function getAvailableLayerKeysForSpace(space) {
   if (space?.spaceType === "course_personal") {
     return ["figureGround", "building", "road", "water", "contours"];
   }
-  return ["figureGround", "building", "road", "water"];
+  return ["figureGround", "building", "road", "water", "contours"];
 }
 
 function syncBasemapUIBySpace(spaceId) {
@@ -2386,7 +2386,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/first-person/first-person-controller.js?v=20260512", "first-person-controller-script");
     await loadScriptOnce("features/drone/drone-controller.js?v=20260512", "drone-controller-script");
-    await loadScriptOnce("app-3d.js?v=20260804-photo-mode-fix", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20260810-platform-fix", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -2751,9 +2751,21 @@ function bindPersonalVersionManagerEvents(container, spaceId) {
     select.addEventListener("change", async () => {
       const layerKey = select.dataset.personalVersionSelect;
       try {
+        clearBuildingInteractions();
         await personalSpaceClient.setCurrentVersion(spaceId, layerKey, select.value);
+        if (layerKey === "building") {
+          window.__buildingGeometryRevision = Number(window.__buildingGeometryRevision || 0) + 1;
+        }
         personalVersionCompareController?.clear?.();
         await refresh2DOverlay({ forceFullRebuild: true });
+        if (
+          layerKey === "building" &&
+          model3dView?.classList.contains("active") &&
+          window.Village3D &&
+          typeof window.Village3D.reload === "function"
+        ) {
+          await window.Village3D.reload();
+        }
         await refreshVersionManagerPanel();
         showToast(`${getLayerLabel(layerKey)}已切换到所选版本。`, "success");
       } catch (error) {
@@ -3194,6 +3206,7 @@ function buildOverlayRendererDeps() {
     getLayerNameField,
     buildRoadBaseRow,
     getLayerDataCache: () => layerDataCache,
+    ensureLayerLoaded,
     getLayerConfigs: () => layerConfigs,
     getIsPlanningMode: () => isPlanningMode,
     refreshCommunityTasksOnMap,
@@ -6163,11 +6176,11 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
 
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
-  const objectCommentDeps = {
-    getClient: getSupabaseClient,
+  const objectCommentDeps = window.ObjectInfoDepsModule.createObjectCommentDeps({
+    getClient: () => supabaseClient,
     commentsTable: OBJECT_COMMENTS_TABLE,
     editsTable: OBJECT_EDITS_TABLE
-  };
+  });
 
   renderObjectInfoLoadingState(layerKey, sourceCode, config);
 

@@ -122,8 +122,15 @@
         return result;
       },
       async saveEdits(spaceId, changes) {
+        const normalizedSpaceId = String(spaceId);
+        selectionCache.delete(normalizedSpaceId);
+        const freshSelections = await this.listSelections(normalizedSpaceId);
+        const versionApi = typeof module === "object" && module.exports
+          ? require("./personal-edit-version.js")
+          : globalThis.PersonalEditVersionModule;
+        versionApi.assertChangesMatchSelections(changes, freshSelections);
         const result = assertNoError(await supabaseClient.rpc("save_personal_feature_edit_batch", {
-          p_space_id: String(spaceId),
+          p_space_id: normalizedSpaceId,
           p_changes: Array.isArray(changes) ? changes : []
         }));
         invalidateCache();

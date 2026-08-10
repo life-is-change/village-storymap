@@ -11,6 +11,10 @@ class BuildingSpec(BaseModel):
     wall_height: float = Field(gt=0, le=100)
     roof_height: float = Field(ge=0, le=50)
     roof_type: Literal["hip", "gable", "flat"] = "hip"
+    roof_material: Literal[
+        "gray_tile", "asphalt_shingle", "terracotta_tile"
+    ] = "gray_tile"
+    roof_pitch: Literal["low", "standard", "high"] = "standard"
 
 
 class PhotoRecord(BaseModel):
@@ -30,6 +34,34 @@ class PrepareRequest(BaseModel):
     corners: list[NormalizedPoint] = Field(min_length=4, max_length=4)
 
 
+class RoofTypeDecision(BaseModel):
+    value: Literal["hip", "gable", "flat"]
+    confidence: float = Field(ge=0, le=1)
+    source: Literal["automatic", "fallback", "manual"]
+
+
+class RoofMaterialDecision(BaseModel):
+    value: Literal["gray_tile", "asphalt_shingle", "terracotta_tile"]
+    confidence: float = Field(ge=0, le=1)
+    source: Literal["automatic", "fallback", "manual"]
+
+
+class RoofPitchDecision(BaseModel):
+    value: Literal["low", "standard", "high"]
+    confidence: float = Field(ge=0, le=1)
+    source: Literal["automatic", "fallback", "manual"]
+
+
+class RoofAnalysis(BaseModel):
+    type: RoofTypeDecision
+    material: RoofMaterialDecision
+    pitch: RoofPitchDecision
+    crop_top: float = Field(ge=0, le=0.65)
+    revision: int = Field(ge=0)
+    warnings: list[str] = Field(default_factory=list)
+    detected_features: list[str] = Field(default_factory=list)
+
+
 class JobRecord(BaseModel):
     id: str
     status: Literal["uploaded", "rectified", "prepared", "generated", "failed"]
@@ -38,4 +70,5 @@ class JobRecord(BaseModel):
     building: BuildingSpec
     photos: list[PhotoRecord]
     artifacts: dict[str, str] = Field(default_factory=dict)
+    roof_analysis: RoofAnalysis | None = None
     error: str | None = None

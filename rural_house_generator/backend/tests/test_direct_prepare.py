@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+import pytest
+
+from rural_house_generator.backend.app.roof_profile import resolve_roof_profile
 
 
 def valid_png_bytes() -> bytes:
@@ -120,7 +123,14 @@ def test_prepare_direct_derives_photo_height_from_front_length_and_texture_ratio
     image = np.full((40, 80, 3), 180, dtype=np.uint8)
     encoded, buffer = cv2.imencode(".png", image)
     assert encoded
-    form = {**valid_job_form, "building_width": "10", "roof_type": "hip"}
+    form = {
+        **valid_job_form,
+        "building_width": "10",
+        "building_depth": "6",
+        "roof_type": "hip",
+        "roof_material": "asphalt_shingle",
+        "roof_pitch": "low",
+    }
     created = client.post(
         "/api/jobs",
         data=form,
@@ -133,4 +143,11 @@ def test_prepare_direct_derives_photo_height_from_front_length_and_texture_ratio
 
     assert prepared.status_code == 200
     assert prepared.json()["building"]["wall_height"] == 5.0
-    assert prepared.json()["building"]["roof_height"] == 0.9
+    expected = resolve_roof_profile(
+        10.0, 6.0, 5.0, "hip", "low", "asphalt_shingle"
+    )
+    assert prepared.json()["building"]["roof_height"] == pytest.approx(
+        expected["height"], abs=0.001
+    )
+    assert prepared.json()["building"]["roof_material"] == "asphalt_shingle"
+    assert prepared.json()["building"]["roof_pitch"] == "low"

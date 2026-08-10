@@ -159,7 +159,7 @@ test("map application wires completed artifacts into a temporary preview layer",
 test("course entry ensures one personal figure-ground space without mirroring it to legacy planning spaces", () => {
   const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260805-backup/);
+  assert.match(html, /features\/data\/personal-space-client\.js\?v=20260810-platform-fix/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
   assert.match(app, /personalSpaceClient\.ensure\(/);
   assert.match(app, /s\.spaceType !== "course_personal"/);
@@ -179,13 +179,13 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /if\s*\(!Array\.isArray\(data\)\)\s*return null;[\s\S]*?return data\.map/);
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
-  assert.match(html, /course-workspace-adapter\.js\?v=20260805-backup/);
-  assert.match(html, /app\.js\?v=20260805-backup/);
+  assert.match(html, /course-workspace-adapter\.js\?v=20260810-platform-fix/);
+  assert.match(html, /app\.js\?v=20260810-platform-fix/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  const version = "20260805-backup";
+  const version = "20260810-platform-fix";
 
   for (const script of [
     "space-panel-events.js",

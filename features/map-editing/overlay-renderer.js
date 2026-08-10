@@ -96,10 +96,16 @@
     };
   }
 
+  async function ensureStaticLayersLoaded({ layerKeys, isPersonalSpace, ensureLayerLoaded } = {}) {
+    if (isPersonalSpace || typeof ensureLayerLoaded !== "function") return;
+    await Promise.all((layerKeys || []).map((layerKey) => ensureLayerLoaded(layerKey)));
+  }
+
   let lastRenderedSpaceId = null;
 
   const api = {
     createLatestOverlayRefreshController,
+    ensureStaticLayersLoaded,
     planIncrementalLayerUpdate,
     async refresh2DOverlay(deps, refreshRequest = null, options = {}) {
       const plan2dView = deps.getPlan2DView();
@@ -141,6 +147,12 @@
       );
       incrementalPlan.reusedFeatures.forEach((feature) => nextVectorSource.addFeature(feature));
       const layerKeysToBuild = incrementalPlan.layerKeysToBuild;
+
+      await ensureStaticLayersLoaded({
+        layerKeys: layerKeysToBuild,
+        isPersonalSpace: deps.isCurrentSpacePersonal(),
+        ensureLayerLoaded: deps.ensureLayerLoaded
+      });
 
       const format = new GeoJSON();
       let personalRowsByLayer = null;

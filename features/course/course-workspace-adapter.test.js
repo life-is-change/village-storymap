@@ -66,6 +66,16 @@ test("personal workspace restores all selected imported layers including contour
   assert.equal(space.spaceType, "course_personal");
 });
 
+test("new personal workspace shows contour values by default", () => {
+  const space = buildPersonalPlanningSpace({
+    personalSpace: { id: "personal-2" },
+    selections: [{ layer_key: "contours" }],
+    courseId: "course-1",
+    villageId: "mibu"
+  });
+  assert.equal(space.contourLabelsVisible, true);
+});
+
 test("students never receive unrelated remote planning spaces", () => {
   const remote = [
     { id: "legacy-other", creatorName: "别人", spaceType: "" },

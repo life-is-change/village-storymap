@@ -83,6 +83,34 @@ test("manual edits are saved by one owner-checked transactional RPC", async () =
   }]);
 });
 
+test("manual edits re-read selections and block a stale layer version", async () => {
+  const fake = fakeSupabase();
+  const originalFrom = fake.from;
+  fake.from = (table) => {
+    const builder = originalFrom(table);
+    const query = fake.queries.at(-1);
+    builder.order = function (key, options) {
+      query.order = [key, options];
+      return Promise.resolve({
+        data: table === "personal_layer_selections"
+          ? [{ layer_key: "building", current_version_id: "version-2" }]
+          : [],
+        error: null
+      });
+    };
+    return builder;
+  };
+  const client = createPersonalSpaceClient({ supabaseClient: fake });
+
+  await assert.rejects(
+    client.saveEdits("space-1", [{
+      action: "delete", layerKey: "building", objectCode: "H001", layerVersionId: "version-1"
+    }]),
+    /PERSONAL_LAYER_VERSION_STALE/
+  );
+  assert.equal(fake.calls.length, 0);
+});
+
 test("repeated personal layer reads reuse selections and feature responses", async () => {
   const fake = fakeSupabase();
   const originalFrom = fake.from;

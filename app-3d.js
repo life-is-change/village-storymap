@@ -85,6 +85,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let viewer = null;
   let initialized = false;
   let buildingsDataSource = null;
+  let loadedBuildingsSpaceId = null;
+  let loadedBuildingRevision = -1;
   let roadsDataSource = null;
   let roadEntitiesForWidthSync = [];
   let clickHandler = null;
@@ -349,7 +351,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       .select("*")
       .eq("space_id", linkedSpaceId)
       .eq("layer_key", "building")
-      .or("is_deleted.is.null,is_deleted.eq.false")
       .order("object_code", { ascending: true });
 
     if (error) {
@@ -357,6 +358,35 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return [];
     }
 
+    return data || [];
+  }
+
+  function getLinked2DSpaceFor3D() {
+    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const spaces = typeof window.__get2DSpaces === "function" ? window.__get2DSpaces() : [];
+    return spaces.find((space) => String(space?.id) === String(linkedSpaceId)) || { id: linkedSpaceId };
+  }
+
+  async function list3DPersonalBuildings(spaceId) {
+    if (!supabaseClient) return [];
+    const { data: selections, error: selectionError } = await supabaseClient
+      .from("personal_layer_selections")
+      .select("current_version_id")
+      .eq("space_id", spaceId)
+      .eq("layer_key", "building")
+      .limit(1);
+    if (selectionError) throw selectionError;
+    const versionId = selections?.[0]?.current_version_id;
+    if (!versionId) return [];
+    const { data, error } = await supabaseClient
+      .from("personal_layer_features")
+      .select("*")
+      .eq("space_id", spaceId)
+      .eq("layer_version_id", versionId)
+      .eq("layer_key", "building")
+      .eq("is_deleted", false)
+      .order("object_code", { ascending: true });
+    if (error) throw error;
     return data || [];
   }
 
@@ -2023,7 +2053,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   function getEntityAutoHeading(entity) {
     const props = entityPropertiesToPlainObject(entity);
-    return toFiniteNumber(props.cesium, 0);
+    const storedHeading = Number(props.cesium);
+    return Number.isFinite(storedHeading) ? storedHeading : estimateEntityFootprintHeadingDeg(entity);
   }
 
   function mergeRow(baseRow, editData) {
@@ -2925,7 +2956,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
           const hasGeneratedMetrics =
             Number.isFinite(modelState.modelExpectedLength) &&
             Number.isFinite(modelState.modelExpectedWidth);
-          const fitScale = hasGeneratedMetrics ? { x: 1, y: 1 } : getAutoFitScaleXY(entity, primitive);
+          const fitScale = hasGeneratedMetrics
+            ? window.EffectiveBuildingFeaturesModule.getFootprintScaleFromExpected(
+                getEntityFootprintSizeMeters(entity, buildingHeadingDeg),
+                modelState.modelExpectedLength,
+                modelState.modelExpectedWidth
+              )
+            : getAutoFitScaleXY(entity, primitive);
           adjustedMatrix = applyLocalScaleToMatrix(adjustedMatrix, fitScale.x, fitScale.y, 1);
           primitive.modelMatrix = adjustedMatrix;
 
@@ -3229,7 +3266,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return roadsLoadTask;
   }
 
-  async function loadBuildings() {
+  async function loadBuildingsNow() {
     if (!viewer) {
       await initViewer();
     }
@@ -3247,30 +3284,40 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     entityMap.clear();
+    terrainHeightCache.clear();
 
     await loadCSVRows();
 
     let featureCollection = null;
 
     const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const linkedSpace = getLinked2DSpaceFor3D();
     const isBaseLinkedSpace = linkedSpaceId === "current";
+    const geojsonText = await loadText(GEOJSON_URL);
+    const baseCollection = JSON.parse(geojsonText);
+    const resolver = window.EffectiveBuildingFeaturesModule;
+    if (!resolver) throw new Error("EFFECTIVE_BUILDING_FEATURES_MODULE_REQUIRED");
 
-    if (isBaseLinkedSpace) {
-      // 现状空间直接读取本地 GeoJSON
-      const geojsonText = await loadText(GEOJSON_URL);
-      featureCollection = JSON.parse(geojsonText);
+    if (linkedSpace?.spaceType === "course_personal") {
+      const personalRows = await list3DPersonalBuildings(linkedSpaceId);
+      featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
+        baseFeatures: baseCollection.features,
+        personalRows,
+        isPersonalSpace: true,
+        getBaseCode: (feature) => getRoadCodeFromFeatureLike(feature)
+      });
+    } else if (isBaseLinkedSpace) {
+      featureCollection = baseCollection;
     } else {
       const dbRows = await list3DBuildingsFromDb();
-      const hasAnyDbRows = await hasAny3DBuildingRowsForSpace(linkedSpaceId);
-
-      if (hasAnyDbRows) {
-        featureCollection = makeDbBuildingFeatureCollection(dbRows);
-      } else if (dbRows.length) {
-        featureCollection = makeDbBuildingFeatureCollection(dbRows);
-      } else {
-        const geojsonText = await loadText(GEOJSON_URL);
-        featureCollection = JSON.parse(geojsonText);
-      }
+      featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
+        baseFeatures: baseCollection.features,
+        dbRows,
+        getBaseCode: (feature) => {
+          const props = feature?.properties || {};
+          return CODE_FIELDS.map((field) => props[field]).find((value) => value != null) || "";
+        }
+      });
     }
 
     buildingsDataSource = await Cesium.GeoJsonDataSource.load(featureCollection, {
@@ -3297,6 +3344,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     await applyTerrainHeights(entities);
     await applyCurrent3DSpaceToScene();
+    loadedBuildingsSpaceId = linkedSpaceId;
+    loadedBuildingRevision = Number(window.__buildingGeometryRevision || 0);
     loadRoadsInBackground("after-load-buildings");
 
     if (entities.length) {
@@ -3308,6 +3357,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     viewer.scene.requestRender();
   }
+
+  const loadBuildings = window.EffectiveBuildingFeaturesModule.createSerialTaskRunner(loadBuildingsNow);
 
   async function showEntityInfo(entity) {
     const infoPanel = getInfoPanel();
@@ -4412,7 +4463,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
     await initViewer();
     bindHouseGeneratorMessageBridge();
 
-    if (!buildingsDataSource) {
+    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const currentRevision = Number(window.__buildingGeometryRevision || 0);
+    if (window.EffectiveBuildingFeaturesModule.shouldReloadBuildingSpace(
+      loadedBuildingsSpaceId,
+      linkedSpaceId,
+      !!buildingsDataSource
+    ) || loadedBuildingRevision !== currentRevision) {
       await loadBuildings();
     } else {
       await applyCurrent3DSpaceToScene();
@@ -4629,6 +4686,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     initialized = false;
     buildingsDataSource = null;
+    loadedBuildingsSpaceId = null;
+    loadedBuildingRevision = -1;
     roadsDataSource = null;
     roadEntitiesForWidthSync = [];
     clearActiveEntity();
