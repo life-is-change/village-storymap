@@ -162,6 +162,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .external-correction-actions a,.external-correction-actions button{display:grid;place-items:center;min-height:38px;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700}
 .external-correction-actions a{background:var(--brand);color:#fff}
 
+.existing-photo-materials{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid #b8ddd8;border-radius:14px;background:#f3faf8}
+.existing-photo-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.existing-photo-heading strong{color:var(--brand-dark)}
+.existing-photo-heading span{font-size:12px;color:var(--muted);text-align:right}
+.existing-photo-heading span[data-tone="error"]{color:#b42318}
+.existing-photo-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.existing-photo-card{min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff}
+.existing-photo-card img{display:block;width:100%;height:104px;object-fit:cover;background:#edf2f5}
+.existing-photo-card footer{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px}
+.existing-photo-card small{min-width:0;overflow:hidden;color:var(--muted);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.existing-photo-card button{height:32px;padding:0 10px;border-radius:9px;color:var(--brand-dark);font-size:12px;font-weight:700}
+.existing-photo-card button.is-loading{cursor:wait}
+
 .upload-box{display:flex;flex-direction:column;gap:3px;padding:14px;border:1px dashed #91bdb8;border-radius:14px;background:#f5fbfa;cursor:pointer}
 .upload-box strong{color:var(--brand-dark)}
 .upload-box span{font-size:12px;color:var(--muted)}

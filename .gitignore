@@ -41,3 +41,7 @@ server/environment/*.explicit.txt
 *.pbf
 *.tif
 *.tif.ovr
+
+# Local DJI Terra photogrammetry source/tiles
+terra_b3dms.zip
+terra_b3dms/

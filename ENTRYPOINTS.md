@@ -19,7 +19,7 @@ Do not break these flows:
 2. `app.js` bridges homepage login/register buttons to the root identity modal.
 3. Homepage buttons labeled `进入互动平台` / `立即进入平台` jump from the embedded homepage into platform views.
 4. 2D OpenLayers is lazy-loaded only when users enter the 2D planning view.
-5. 3D Cesium, first-person and drone scripts are lazy-loaded only when users enter the 3D model view.
+5. 3D Cesium and its feature scripts are lazy-loaded only when users enter the 3D model view.
 6. `app-3d.js` opens `/rural_house_generator/index.html` as a standalone generator tool.
 7. 2D and 3D mode switching stays controlled by the root app shell.
 

@@ -14,10 +14,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 })();
   const OBJECT_EDITS_TABLE = "object_attribute_edits";
+  const OBJECT_PHOTOS_TABLE = "object_photos";
   const PLANNING_FEATURES_TABLE = "planning_features";
-  const MODEL_ASSET_BUCKET = "house-photos";
-  const MODEL_ASSET_PREFIX = "generated-house-models";
-
   const MODEL_BASE_SPACE_ID = "current_3d";
   const MODEL_BASE_OBJECT_TYPE = "building_3d";
 
@@ -43,15 +41,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   const MODEL_SCALE_BASE = 0.1;
   const HOUSE_GENERATOR_MESSAGE_TYPE = "village-house-generator:model-ready";
+  const HOUSE_GENERATOR_PHOTO_REQUEST_TYPE = "village-house-generator:request-photo-materials";
+  const HOUSE_GENERATOR_PHOTO_RESPONSE_TYPE = "village-house-generator:photo-materials";
   const HOUSE_GENERATOR_DEFAULT_SCALE = 10;
-
-  const MODEL_PRESETS = [
-    { id: "house_type_a", name: "传统祠堂-01", url: "assets/models/house_type_a.glb", scale: 120, heading: 0, heightOffset: 6.0, offsetX: 0.0, offsetY: 0.0 },
-    { id: "house_type_b", name: "一层现代住宅-01", url: "assets/models/house_type_b.glb", scale: 1, heading: 0, heightOffset: 0.0, offsetX: 0.0, offsetY: 0.0 },
-    { id: "house_type_c", name: "二层现代住宅-01", url: "assets/models/house_type_c.glb", scale: 1, heading: 0, heightOffset: 0.0, offsetX: 0.0, offsetY: 0.0 },
-    { id: "house_type_d", name: "三层现代住宅-01", url: "assets/models/house_type_d.glb", scale: 1, heading: 0, heightOffset: 0.0, offsetX: 0.0, offsetY: 0.0 },
-    { id: "house_type_e", name: "四层现代住宅-01", url: "assets/models/house_type_e.glb", scale: 1, heading: 0, heightOffset: 0.0, offsetX: 0.0, offsetY: 0.0 }
-  ];
 
   const BASE_COLOR = Cesium.Color.WHITE.withAlpha(0.92);
   const OUTLINE_COLOR = Cesium.Color.fromCssColorString("#c5ccd3");
@@ -70,17 +62,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
   const ENABLE_ION_WORLD_IMAGERY = false;
   const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
-  const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转；点击人形按钮可进入过肩视角漫游。";
+  const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
 
-  const supabaseClient =
-    ENABLE_SUPABASE_SYNC &&
-    typeof supabase !== "undefined" &&
-    SUPABASE_URL &&
-    SUPABASE_PUBLISHABLE_KEY &&
-    !SUPABASE_URL.includes("你的项目ref") &&
-    !SUPABASE_PUBLISHABLE_KEY.includes("publishable key")
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-      : null;
+  const supabaseClient = window.VillageSupabaseClient || null;
 
   let viewer = null;
   let initialized = false;
@@ -106,6 +90,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let activeEntity = null;
   let houseGeneratorMessageBound = false;
   let houseGeneratorMessageHandler = null;
+  let groupModelLibrary = null;
+  let currentLibraryAssets = [];
+  let currentLibraryBinding = null;
 
   let showReplacementBase = false;
   let showReplacementAnchor = false;
@@ -117,8 +104,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let measurePointEntities = [];
   let measureLineEntity = null;
   let measureLabelEntity = null;
-  let firstPersonController = null;
-  let droneController = null;
+  let realityInsetController = null;
+  let realitySelectionSyncing = false;
 
   const FALLBACK_BASEMAP_GEOREF = {
     imageUrl: "assets/orthophoto.webp",
@@ -264,6 +251,41 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   function getLinked2DSpaceIdFor3D() {
     return window.__active2DSpaceId || "current";
+  }
+
+  function getLinked2DSpaceFor3D() {
+    const spaceId = getLinked2DSpaceIdFor3D();
+    const spaces = typeof window.__get2DSpaces === "function" ? window.__get2DSpaces() : [];
+    return spaces.find((space) => String(space?.id) === String(spaceId)) || { id: spaceId };
+  }
+
+  function getGroupModelLibrary() {
+    if (groupModelLibrary) return groupModelLibrary;
+    if (!window.GroupModelLibraryModule) throw new Error("小组模型库模块未加载。");
+    groupModelLibrary = window.GroupModelLibraryModule.createGroupModelLibrary({
+      client: supabaseClient,
+      bucket: "group-models"
+    });
+    return groupModelLibrary;
+  }
+
+  function getCurrentModelLibraryScope() {
+    return window.GroupModelLibraryModule.resolveLibraryScope({
+      space: getLinked2DSpaceFor3D(),
+      user: window.VillageAuth?.getCurrentUser?.() || null
+    });
+  }
+
+  async function refreshCurrentModelLibrary(objectCode) {
+    const library = getGroupModelLibrary();
+    const scope = getCurrentModelLibraryScope();
+    const [assets, binding] = await Promise.all([
+      library.listAssets(scope),
+      objectCode ? library.getBinding(scope.spaceId, objectCode) : Promise.resolve(null)
+    ]);
+    currentLibraryAssets = assets;
+    currentLibraryBinding = binding;
+    return { library, scope, assets, binding };
   }
 
   function makeDbBuildingFeatureCollection(rows) {
@@ -588,10 +610,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const next = force === null ? !measureModeActive : !!force;
     const btn = byId("measure3dBtn");
 
-    if (next && firstPersonController?.isActive?.()) {
-      toggleFirstPersonMode(false);
-    }
-
     if (!next) {
       measureModeActive = false;
       measurePoints = [];
@@ -638,262 +656,97 @@ const ENABLE_SUPABASE_SYNC = (() => {
     hintEl.textContent = String(message || "").trim() || DEFAULT_3D_HINT_TEXT;
   }
 
-  function getFirstPersonButton() {
-    return byId("firstPerson3dBtn");
-  }
+  async function selectMainBuildingFromReality(sourceCode) {
+    if (realitySelectionSyncing) return false;
+    const entity = entityMap.get(normalizeCode(sourceCode));
+    if (!entity?.polygon) return false;
 
-  function getDroneButton() {
-    return byId("drone3dBtn");
-  }
-
-  function isFirstPersonEligibleSpace() {
-    return getLinked2DSpaceIdFor3D() === "current";
-  }
-
-  function resolveFirstPersonSpawnCartographic() {
-    const centerOfActive = activeEntity ? getEntityCenterCartographic(activeEntity) : null;
-    if (centerOfActive) return centerOfActive;
-
-    const firstEntity =
-      buildingsDataSource?.entities?.values?.find?.((entity) => entity?.polygon) || null;
-    const centerOfFirstBuilding = firstEntity ? getEntityCenterCartographic(firstEntity) : null;
-    if (centerOfFirstBuilding) return centerOfFirstBuilding;
-
-    const spawnGeoref = getBasemapGeoref();
-    const centerLon = (spawnGeoref.minX + spawnGeoref.maxX) / 2;
-    const centerLat = (spawnGeoref.minY + spawnGeoref.maxY) / 2;
-    return Cesium.Cartographic.fromDegrees(centerLon, centerLat, 0);
-  }
-
-  function syncFirstPersonUi(status = null) {
-    const btn = getFirstPersonButton();
-    const active =
-      status && typeof status.active === "boolean"
-        ? status.active
-        : !!firstPersonController?.isActive?.();
-    const eligible =
-      status && typeof status.eligible === "boolean"
-        ? status.eligible
-        : isFirstPersonEligibleSpace();
-    const pointerLocked = !!(status && status.pointerLocked);
-    const available =
-      !!firstPersonController ||
-      !!(window.VillageFirstPersonModule && typeof window.VillageFirstPersonModule.createController === "function");
-
-    if (btn) {
-      btn.classList.toggle("is-active", !!active);
-      btn.disabled = !eligible || !available;
-      btn.title = !available
-        ? "过肩视角模块未加载"
-        : !eligible
-        ? "仅“现状空间”支持过肩视角漫游"
-        : active
-          ? "退出过肩视角漫游"
-          : "过肩视角漫游（W/A/S/D + 鼠标）";
-    }
-
-    if (!eligible) {
-      set3DHintText("当前为规划空间，过肩视角仅在现状空间可用。");
-    } else if (active && pointerLocked) {
-      set3DHintText("过肩视角中：W/A/S/D 移动，鼠标控制视角，Shift 加速，Esc 释放鼠标。");
-    } else if (active) {
-      set3DHintText("过肩视角已开启：点击 3D 画面锁定鼠标，W/A/S/D 移动，Esc 释放鼠标。");
-    } else if (!active) {
-      set3DHintText(DEFAULT_3D_HINT_TEXT);
-    }
-  }
-
-  function ensureFirstPersonController() {
-    if (firstPersonController || !viewer) return firstPersonController;
-
-    const moduleApi = window.VillageFirstPersonModule;
-    if (!moduleApi || typeof moduleApi.createController !== "function") {
-      return null;
-    }
-
+    realitySelectionSyncing = true;
     try {
-      firstPersonController = moduleApi.createController({
-        viewer,
-        getSpawnCartographic: resolveFirstPersonSpawnCartographic,
-        canActivate: isFirstPersonEligibleSpace,
-        is3DViewActive,
-        onStatusChange: (status) => {
-          syncFirstPersonUi(status);
-        }
-      });
-    } catch (error) {
-      console.warn("初始化第一人称漫游模块失败：", error);
-      firstPersonController = null;
-      return null;
+      setActiveEntity(entity);
+      await showEntityInfo(entity);
+      viewer?.scene.requestRender();
+      return true;
+    } finally {
+      realitySelectionSyncing = false;
     }
-
-    return firstPersonController;
   }
 
-  function syncFirstPersonSpaceState(options = {}) {
-    if (!firstPersonController || typeof firstPersonController.syncSpace !== "function") {
-      syncFirstPersonUi();
-      return null;
-    }
-    const status = firstPersonController.syncSpace({ reposition: !!options.reposition });
-    syncFirstPersonUi(status);
-    return status;
-  }
+  function ensureRealityInsetController() {
+    if (realityInsetController) return realityInsetController;
+    const moduleApi = window.VillageRealityInsetModule;
+    if (!moduleApi || typeof moduleApi.createController !== "function") return null;
 
-  function toggleFirstPersonMode(force = null) {
-    const controller = ensureFirstPersonController();
-    if (!controller) return false;
-
-    const current = !!controller.isActive?.();
-    const next = force === null ? !current : !!force;
-    let status = null;
-
-    if (next) {
-      if (measureModeActive) {
-        toggleMeasureMode(false);
+    const panel = byId("reality3dPanel");
+    realityInsetController = moduleApi.createController({
+      Cesium,
+      config: window.VILLAGE_REALITY_MODEL,
+      panel,
+      host: panel?.parentElement || byId("model3dView"),
+      container: byId("reality3dContainer"),
+      statusEl: byId("reality3dStatus"),
+      titleEl: byId("reality3dTitle"),
+      titlebar: byId("reality3dTitlebar"),
+      toggleButton: byId("reality3dToggleBtn"),
+      expandButton: byId("reality3dExpandBtn"),
+      resizeHandle: byId("reality3dResizeHandle"),
+      fullscreenButton: byId("reality3dFullscreenBtn"),
+      resetButton: byId("reality3dResetBtn"),
+      terrainButton: byId("reality3dTerrainBtn"),
+      closeButton: byId("reality3dCloseBtn"),
+      retryButton: byId("reality3dRetryBtn"),
+      onBuildingSelected: (sourceCode) => {
+        void selectMainBuildingFromReality(sourceCode);
       }
-      status = controller.activate();
-    } else {
-      status = controller.deactivate();
-    }
-
-    syncFirstPersonUi(status);
-    viewer?.scene.requestRender();
-    return !!controller.isActive?.();
-  }
-
-  function bindFirstPersonButton() {
-    const btn = getFirstPersonButton();
-    if (!btn || btn.dataset.bound === "1") return;
-    btn.dataset.bound = "1";
-    btn.addEventListener("click", () => {
-      toggleFirstPersonMode();
     });
+    return realityInsetController;
   }
 
-  // ==================== 无人机模式 ====================
-
-  function syncDroneUi(status) {
-    const btn = getDroneButton();
-    const active = status && typeof status.active === "boolean"
-      ? status.active
-      : !!droneController?.isActive?.();
-    const eligible = status && typeof status.eligible === "boolean"
-      ? status.eligible
-      : isFirstPersonEligibleSpace();
-    const pointerLocked = !!(status && status.pointerLocked);
-    const cameraMode = status && status.cameraMode === "first" ? "first" : "third";
-    const cameraModeLabel = cameraMode === "first" ? "第一人称" : "第三人称";
-    const available = !!droneController ||
-      !!(window.VillageDroneModule && typeof window.VillageDroneModule.createController === "function");
-
-    if (btn) {
-      btn.classList.toggle("is-active", !!active);
-      btn.disabled = !eligible || !available;
-      btn.title = !available
-        ? "无人机模块未加载"
-        : !eligible
-        ? "仅\"现状空间\"支持无人机模式"
-        : active
-          ? "退出无人机模式"
-          : "无人机飞行模式（W/A/S/D + Space/Ctrl + 鼠标，V 切换视角）";
-    }
-
-    if (!eligible) {
-      set3DHintText("当前为规划空间，无人机模式仅在现状空间可用。");
-    } else if (active && pointerLocked) {
-      set3DHintText(`无人机模式（${cameraModeLabel}）：W/A/S/D 水平移动，Space 上升，Ctrl 下降，鼠标控制视角，Shift 加速，V 切换视角；第三人称下滚轮可缩放镜头距离，Esc 释放鼠标。`);
-    } else if (active) {
-      set3DHintText(`无人机模式已开启（当前：${cameraModeLabel}）：点击 3D 画面锁定鼠标，按 V 切换第一/第三人称；第三人称下可用滚轮缩放镜头。`);
-    }
-  }
-
-  function ensureDroneController() {
-    if (droneController || !viewer) return droneController;
-
-    const moduleApi = window.VillageDroneModule;
-    if (!moduleApi || typeof moduleApi.createController !== "function") {
-      return null;
-    }
-
-    try {
-      droneController = moduleApi.createController({
-        viewer: viewer,
-        getSpawnCartographic: resolveFirstPersonSpawnCartographic,
-        canActivate: isFirstPersonEligibleSpace,
-        is3DViewActive: is3DViewActive,
-        // Stable DJI drone model without animation.
-        droneModelUri: "features/DJIA.glb",
-        modelScale: 0.015,
-        modelMinPixelSize: 360,
-        modelAnimationName: null,
-        useModelPrimitive: false,
-        useProceduralRotors: true,
-        showModelInFirstPerson: true,
-        cameraBackMeters: 8.0,
-        thirdPersonMinBackMeters: 4.0,
-        thirdPersonMaxBackMeters: 20.0,
-        thirdPersonZoomStepMeters: 0.35,
-        cameraHeightMeters: 2.2,
-        cameraSideMeters: 0.0,
-        lookAheadMeters: 1.2,
-        lookHeightMeters: 1.2,
-        onStatusChange: function(status) {
-          syncDroneUi(status);
-        }
+  function buildRealityProxyRecords() {
+    const now = Cesium.JulianDate.now();
+    const records = [];
+    entityMap.forEach((entity, code) => {
+      if (!entity?.polygon?.hierarchy) return;
+      const hierarchy = entity.polygon.hierarchy.getValue(now);
+      const positions = (hierarchy?.positions || []).map((position) =>
+        Cesium.Cartesian3.clone(position)
+      );
+      if (positions.length < 3) return;
+      const center = getEntityCenterCartographic(entity);
+      if (!center) return;
+      const footprint = getEntityFootprintSizeMeters(
+        entity,
+        estimateEntityFootprintHeadingDeg(entity)
+      );
+      const horizontalRadius = footprint
+        ? Math.hypot(footprint.sizeX, footprint.sizeY) / 2
+        : 6;
+      records.push({
+        code,
+        name: getEntityDisplayName(entity, code),
+        positions,
+        longitude: center.longitude,
+        latitude: center.latitude,
+        horizontalRadius: Number.isFinite(horizontalRadius)
+          ? Math.max(1, horizontalRadius)
+          : 6,
+        baseHeight: Number.isFinite(entity.__terrainHeight) ? entity.__terrainHeight : 0,
+        height: Number.isFinite(entity.__buildingHeight) ? entity.__buildingHeight : DEFAULT_HEIGHT
       });
-    } catch (error) {
-      console.warn("初始化无人机模块失败：", error);
-      droneController = null;
-      return null;
-    }
-
-    return droneController;
-  }
-
-  function syncDroneSpaceState(options) {
-    options = options || {};
-    if (!droneController || typeof droneController.syncSpace !== "function") {
-      syncDroneUi();
-      return null;
-    }
-    const status = droneController.syncSpace({ reposition: !!options.reposition });
-    syncDroneUi(status);
-    return status;
-  }
-
-  function toggleDroneMode(force = null) {
-    const controller = ensureDroneController();
-    if (!controller) return false;
-
-    const current = !!controller.isActive?.();
-    const next = force === null ? !current : !!force;
-    let status = null;
-
-    if (next) {
-      if (measureModeActive) {
-        toggleMeasureMode(false);
-      }
-      if (firstPersonController?.isActive?.()) {
-        toggleFirstPersonMode(false);
-      }
-      status = controller.activate();
-    } else {
-      status = controller.deactivate();
-    }
-
-    syncDroneUi(status);
-    viewer?.scene.requestRender();
-    return !!controller.isActive?.();
-  }
-
-  function bindDroneButton() {
-    const btn = getDroneButton();
-    if (!btn || btn.dataset.bound === "1") return;
-    btn.dataset.bound = "1";
-    btn.addEventListener("click", function() {
-      toggleDroneMode();
     });
+    return records;
+  }
+
+  function syncRealityBuildingProxies() {
+    const controller = ensureRealityInsetController();
+    controller?.syncBuildingProxies(buildRealityProxyRecords());
+    return controller;
+  }
+
+  function focusRealityBuilding(entity) {
+    if (realitySelectionSyncing || !entity?.__sourceCode) return;
+    const controller = ensureRealityInsetController();
+    void controller?.focusBuilding(entity.__sourceCode);
   }
 
   function normalizeCode(value) {
@@ -1866,23 +1719,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return `${MODEL_BASE_OBJECT_TYPE}__${spaceId}`;
   }
 
-  function getModelPresetById(presetId) {
-    return MODEL_PRESETS.find((item) => item.id === presetId) || null;
-  }
-
   function getModelStateFromRow(row) {
-    const presetId = row?.modelPreset || "";
-    const preset = getModelPresetById(presetId);
-
     return {
-      modelPreset: presetId,
-      modelUrl: row?.modelUrl || preset?.url || "",
+      modelPreset: row?.modelPreset || "",
+      modelAssetId: row?.modelAssetId || "",
+      modelAssetName: row?.modelAssetName || "",
+      modelUrl: row?.modelUrl || "",
       modelStoragePath: row?.modelStoragePath || "",
-      modelScale: normalizeStoredModelScale(row?.modelScale, preset?.scale ?? 1),
-      modelHeading: toFiniteNumber(row?.modelHeading, preset?.heading ?? 0),
-      modelHeightOffset: toFiniteNumber(row?.modelHeightOffset, preset?.heightOffset ?? 0),
-      modelOffsetX: toFiniteNumber(row?.modelOffsetX, preset?.offsetX ?? 0),
-      modelOffsetY: toFiniteNumber(row?.modelOffsetY, preset?.offsetY ?? 0),
+      modelScale: normalizeStoredModelScale(row?.modelScale, 1),
+      modelHeading: toFiniteNumber(row?.modelHeading, 0),
+      modelHeightOffset: toFiniteNumber(row?.modelHeightOffset, 0),
+      modelOffsetX: toFiniteNumber(row?.modelOffsetX, 0),
+      modelOffsetY: toFiniteNumber(row?.modelOffsetY, 0),
       modelStretchX: normalizeStretch(row?.modelStretchX, 1),
       modelStretchY: normalizeStretch(row?.modelStretchY, 1),
       modelExpectedHeight: toFiniteNumber(row?.modelExpectedHeight, NaN),
@@ -1913,41 +1761,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
       };
     }
 
-    const preset = getModelPresetById(presetId);
-    if (!preset) {
-      return {
-        ...(existingRow || {}),
-        modelPreset: "",
-        modelUrl: "",
-        modelStoragePath: "",
-        modelScale: "",
-        modelHeading: "",
-        modelHeightOffset: "",
-        modelOffsetX: "",
-        modelOffsetY: "",
-        modelStretchX: "",
-        modelStretchY: "",
-        modelExpectedHeight: "",
-        modelExpectedLength: "",
-        modelExpectedWidth: "",
-        modelSnapToBase: "1"
-      };
-    }
-
-    const nextScale = manualOverrides.modelScale ?? preset.scale ?? 1;
-    const nextHeading = manualOverrides.modelHeading ?? preset.heading ?? 0;
-    const nextHeightOffset = manualOverrides.modelHeightOffset ?? preset.heightOffset ?? 0;
-    const nextOffsetX = manualOverrides.modelOffsetX ?? preset.offsetX ?? 0;
-    const nextOffsetY = manualOverrides.modelOffsetY ?? preset.offsetY ?? 0;
+    const nextScale = manualOverrides.modelScale ?? 1;
+    const nextHeading = manualOverrides.modelHeading ?? 0;
+    const nextHeightOffset = manualOverrides.modelHeightOffset ?? 0;
+    const nextOffsetX = manualOverrides.modelOffsetX ?? 0;
+    const nextOffsetY = manualOverrides.modelOffsetY ?? 0;
     const nextStretchX = manualOverrides.modelStretchX ?? 1;
     const nextStretchY = manualOverrides.modelStretchY ?? 1;
     const nextSnapToBase = true;
 
     return {
       ...(existingRow || {}),
-      modelPreset: preset.id,
-      modelUrl: preset.url,
-      modelStoragePath: "",
+      modelPreset: "",
+      modelAssetId: presetId,
+      modelAssetName: manualOverrides.modelAssetName || "",
+      modelUrl: manualOverrides.modelUrl || "",
+      modelStoragePath: manualOverrides.modelStoragePath || "",
       modelScale: String(nextScale),
       modelHeading: String(nextHeading),
       modelHeightOffset: String(nextHeightOffset),
@@ -2003,6 +1832,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return {
       ...(existingRow || {}),
       modelPreset: currentState.modelPreset || "",
+      modelAssetId: currentState.modelAssetId || "",
+      modelAssetName: currentState.modelAssetName || "",
       modelUrl: currentState.modelUrl || "",
       modelStoragePath: currentState.modelStoragePath || "",
       modelScale: String(nextScale),
@@ -2061,282 +1892,35 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return { ...(baseRow || {}), ...(editData || {}) };
   }
 
-  function buildModelReplaceCardHtml(row, allowEdit) {
-    const modelState = getModelStateFromRow(row);
-    const currentPreset = getModelPresetById(modelState.modelPreset);
-    const modelStatusText = currentPreset
-      ? `已替换为 ${currentPreset.name}`
-      : (modelState.modelUrl ? "已替换为自定义生成模型" : "白模");
-
-    return `
-      <div class="info-card">
-        <h3 class="house-title">种房子</h3>
-        ${
-          allowEdit
-            ? `
-              <label class="form-row">
-                <span class="form-label">预设模型</span>
-                <span class="form-input-wrap">
-                  <select id="modelPresetSelect" class="form-input">
-                    <option value="">请选择模型</option>
-                    ${MODEL_PRESETS.map((preset) => `
-                      <option value="${escapeHtml(preset.id)}" ${preset.id === modelState.modelPreset ? "selected" : ""}>
-                        ${escapeHtml(preset.name)}
-                      </option>
-                    `).join("")}
-                  </select>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">模型缩放</span>
-                <span class="form-input-wrap">
-                  <input id="modelScaleInput" class="form-input" type="number" step="0.01" value="${escapeHtml(String(modelState.modelScale || 1))}" />
-                  <span class="form-suffix">倍</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">缩放滑条</span>
-                <span class="form-input-wrap">
-                  <input id="modelScaleRange" class="form-input" type="range" min="0.1" max="120" step="0.01" value="${escapeHtml(String(modelState.modelScale || 1))}" />
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">旋转角度</span>
-                <span class="form-input-wrap">
-                  <input id="modelHeadingInput" class="form-input" type="number" step="1" value="${escapeHtml(String(modelState.modelHeading || 0))}" />
-                  <span class="form-suffix">度</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">抬高偏移</span>
-                <span class="form-input-wrap">
-                  <input id="modelHeightOffsetInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelHeightOffset || 0))}" />
-                  <span class="form-suffix">m</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">拉伸 X</span>
-                <span class="form-input-wrap">
-                  <input id="modelStretchXInput" class="form-input" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchX || 1))}" />
-                  <span class="form-suffix">倍</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">拉伸 Y</span>
-                <span class="form-input-wrap">
-                  <input id="modelStretchYInput" class="form-input" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchY || 1))}" />
-                  <span class="form-suffix">倍</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">东-西偏移</span>
-                <span class="form-input-wrap">
-                  <input id="modelOffsetXInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetX || 0))}" />
-                  <span class="form-suffix">m</span>
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">南-北偏移</span>
-                <span class="form-input-wrap">
-                  <input id="modelOffsetYInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetY || 0))}" />
-                  <span class="form-suffix">m</span>
-                </span>
-              </label>
-
-              <div class="edit-actions" style="margin-top:10px;">
-                <button id="applyModelPresetBtn" class="upload-btn" type="button">种上该模型</button>
-                <button id="removeModelPresetBtn" class="upload-btn secondary-btn" type="button">恢复白模</button>
-                <button id="openHouseGeneratorBtn" class="upload-btn secondary-btn" type="button">生成模型</button>
-                <button id="openBuildingAssemblerBtn" class="upload-btn secondary-btn" type="button">组装模型</button>
-              </div>
-
-              <label class="form-row" style="margin-top:8px;">
-                <span class="form-label">显示蓝色白模</span>
-                <span class="form-input-wrap" style="justify-content:flex-start;">
-                  <input id="toggleReplacementBase" type="checkbox" ${showReplacementBase ? "checked" : ""} />
-                </span>
-              </label>
-
-              <label class="form-row">
-                <span class="form-label">显示红点锚点</span>
-                <span class="form-input-wrap" style="justify-content:flex-start;">
-                  <input id="toggleReplacementAnchor" type="checkbox" ${showReplacementAnchor ? "checked" : ""} />
-                </span>
-              </label>
-
-              <div id="applyModelPresetStatus" class="save-status"></div>
-            `
-            : `
-              <div class="house-row">当前为只读空间，不能种房子。</div>
-            `
-        }
-
-        <div class="house-row">当前状态：${escapeHtml(modelStatusText)}</div>
-        ${modelState.modelUrl ? `<div class="house-row">模型路径：${escapeHtml(modelState.modelUrl)}</div>` : ""}
-        <div class="house-row">调参建议：模型会在种上时自动贴合建筑底面，可继续微调拉伸 X/Y、偏移与旋转。</div>
-      </div>
-    `;
-  }
-
-  function buildModelReplaceCardHtmlV2(row, allowEdit) {
-    const modelState = getModelStateFromRow(row);
-    const currentPreset = getModelPresetById(modelState.modelPreset);
-    const hasPlacedModel = !!(modelState.modelPreset || modelState.modelUrl);
-    const modelStatusText = currentPreset
-      ? `已替换为 ${currentPreset.name}`
-      : (modelState.modelUrl ? "已替换为生成/组装模型" : "白模");
-
-    return `
-      <div class="info-card">
-        <h3 class="house-title">种房子</h3>
-        ${
-          allowEdit
-            ? `
-              <div class="model-toolbox-section">
-                <div class="model-toolbox-header">
-                  <h4 class="model-toolbox-title">第一步：选择怎么换模型</h4>
-                  <p class="model-toolbox-desc">点击白模后，可以直接选择预设模型，或进入生成、组装流程。</p>
-                </div>
-
-                <label class="form-row">
-                  <span class="form-label">预设模型</span>
-                  <span class="form-input-wrap">
-                    <select id="modelPresetSelect" class="form-input">
-                      <option value="">请选择模型</option>
-                      ${MODEL_PRESETS.map((preset) => `
-                        <option value="${escapeHtml(preset.id)}" ${preset.id === modelState.modelPreset ? "selected" : ""}>
-                          ${escapeHtml(preset.name)}
-                        </option>
-                      `).join("")}
-                    </select>
-                  </span>
-                </label>
-
-                <div class="model-action-grid">
-                  <button id="applyModelPresetBtn" class="upload-btn" type="button">种上该模型</button>
-                  <button id="openHouseGeneratorBtn" class="upload-btn secondary-btn" type="button">生成模型</button>
-                  <button id="openBuildingAssemblerBtn" class="upload-btn secondary-btn" type="button">组装模型</button>
-                  <button id="removeModelPresetBtn" class="upload-btn secondary-btn" type="button">恢复白模</button>
-                </div>
-              </div>
-
-              <div class="model-toolbox-section">
-                <div class="model-toolbox-header">
-                  <h4 class="model-toolbox-title">第二步：调整当前模型</h4>
-                  <p class="model-toolbox-desc">不管是预设、生成还是组装出来的模型，都可以在这里继续微调。</p>
-                </div>
-
-                <div class="model-adjust-grid">
-                  <label class="form-row">
-                    <span class="form-label">模型缩放</span>
-                    <span class="form-input-wrap">
-                      <input id="modelScaleInput" class="form-input" type="number" step="0.01" value="${escapeHtml(String(modelState.modelScale || 1))}" />
-                      <span class="form-suffix">倍</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row model-adjust-grid-span">
-                    <span class="form-label">缩放滑条</span>
-                    <span class="form-input-wrap">
-                      <input id="modelScaleRange" class="form-input" type="range" min="0.1" max="120" step="0.01" value="${escapeHtml(String(modelState.modelScale || 1))}" />
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">旋转角度</span>
-                    <span class="form-input-wrap">
-                      <input id="modelHeadingInput" class="form-input" type="number" step="1" value="${escapeHtml(String(modelState.modelHeading || 0))}" />
-                      <span class="form-suffix">度</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">抬高偏移</span>
-                    <span class="form-input-wrap">
-                      <input id="modelHeightOffsetInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelHeightOffset || 0))}" />
-                      <span class="form-suffix">m</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">拉伸 X</span>
-                    <span class="form-input-wrap">
-                      <input id="modelStretchXInput" class="form-input" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchX || 1))}" />
-                      <span class="form-suffix">倍</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">拉伸 Y</span>
-                    <span class="form-input-wrap">
-                      <input id="modelStretchYInput" class="form-input" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchY || 1))}" />
-                      <span class="form-suffix">倍</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">东-西偏移</span>
-                    <span class="form-input-wrap">
-                      <input id="modelOffsetXInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetX || 0))}" />
-                      <span class="form-suffix">m</span>
-                    </span>
-                  </label>
-
-                  <label class="form-row">
-                    <span class="form-label">南-北偏移</span>
-                    <span class="form-input-wrap">
-                      <input id="modelOffsetYInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetY || 0))}" />
-                      <span class="form-suffix">m</span>
-                    </span>
-                  </label>
-                </div>
-
-                <div class="model-action-grid model-action-grid-tight">
-                  <button id="saveModelAdjustmentsBtn" class="upload-btn" type="button">保存调整</button>
-                  <button id="removeModelPresetBtnSecondary" class="upload-btn secondary-btn" type="button">恢复白模</button>
-                </div>
-
-                <div class="model-visual-toggle-group">
-                  <label class="model-visual-toggle">
-                    <span class="form-label">显示蓝色白模</span>
-                    <input id="toggleReplacementBase" type="checkbox" ${showReplacementBase ? "checked" : ""} />
-                  </label>
-                  <label class="model-visual-toggle">
-                    <span class="form-label">显示红点锚点</span>
-                    <input id="toggleReplacementAnchor" type="checkbox" ${showReplacementAnchor ? "checked" : ""} />
-                  </label>
-                </div>
-
-                <div id="applyModelPresetStatus" class="save-status"></div>
-              </div>
-            `
-            : `
-              <div class="house-row">当前为空间只读状态，暂不支持 3D 模型替换与调整。</div>
-            `
-        }
-
-        <div class="house-row">当前状态：${escapeHtml(modelStatusText)}</div>
-        ${hasPlacedModel ? `<div class="house-row">当前模型来源：${escapeHtml(currentPreset?.name || "生成/组装模型")}</div>` : ""}
-        <div class="house-row">调整建议：先种上模型，再用“调整当前模型”微调缩放、旋转、抬高和东西/南北偏移。</div>
-      </div>
-    `;
-  }
-
   function buildModelReplaceCardHtmlV3(row, allowEdit) {
     const modelState = getModelStateFromRow(row);
-    const currentPreset = getModelPresetById(modelState.modelPreset);
-    const hasPlacedModel = !!(modelState.modelPreset || modelState.modelUrl);
-    const modelStatusText = currentPreset
-      ? `已替换为 ${currentPreset.name}`
-      : (modelState.modelUrl ? "已替换为生成/组装模型" : "白模");
+    const hasPlacedModel = !!(modelState.modelAssetId || modelState.modelUrl);
+    const modelStatusText = hasPlacedModel
+      ? `已替换为 ${modelState.modelAssetName || currentLibraryBinding?.group_model_assets?.name || "自定义模型"}`
+      : "白模";
+    const modelCards = currentLibraryAssets.length
+      ? currentLibraryAssets.map((asset) => {
+          const assetName = asset.name || "未命名模型";
+          const isActive = asset.id === (modelState.modelAssetId || currentLibraryBinding?.asset_id);
+          return `
+          <article class="group-model-card ${isActive ? "is-active" : ""}">
+            <div class="group-model-card-header">
+              <div class="group-model-card-copy">
+                <strong title="${escapeHtml(assetName)}">${escapeHtml(assetName)}</strong>
+                <div class="group-model-card-meta">
+                  ${isActive ? '<span class="group-model-card-status">使用中</span>' : ""}
+                  <span class="group-model-card-size">${escapeHtml(((Number(asset.file_size) || 0) / 1024 / 1024).toFixed(1))} MB</span>
+                </div>
+              </div>
+              <button class="group-model-delete-btn" type="button" aria-label="删除模型 ${escapeHtml(assetName)}" title="删除模型" data-delete-model-asset-id="${escapeHtml(asset.id)}">删除</button>
+            </div>
+            <div class="group-model-card-actions">
+              <button class="upload-btn group-model-apply-btn" type="button" data-model-asset-id="${escapeHtml(asset.id)}">${isActive ? "重新应用" : "应用模型"}</button>
+            </div>
+          </article>
+        `;
+        }).join("")
+      : `<div class="group-model-empty">当前模型库为空，可上传一个 GLB 模型。</div>`;
 
     return `
       <div class="info-card">
@@ -2346,28 +1930,34 @@ const ENABLE_SUPABASE_SYNC = (() => {
               <div class="model-toolbox-section">
                 <div class="model-toolbox-header">
                   <h4 class="model-toolbox-title">修改模型</h4>
-                  <p class="model-toolbox-desc">点击白模后，可直接替换预设模型，或进入生成、组装流程。</p>
+                  <p class="model-toolbox-desc">本小组成员共享该模型库；无小组时仅本人可见。仅支持不超过 50 MB 的 GLB。</p>
                 </div>
 
-                <label class="form-row">
-                  <span class="form-label">预设模型</span>
-                  <span class="form-input-wrap">
-                    <select id="modelPresetSelect" class="form-input">
-                      <option value="">请选择模型</option>
-                      ${MODEL_PRESETS.map((preset) => `
-                        <option value="${escapeHtml(preset.id)}" ${preset.id === modelState.modelPreset ? "selected" : ""}>
-                          ${escapeHtml(preset.name)}
-                        </option>
-                      `).join("")}
-                    </select>
-                  </span>
-                </label>
+                <div class="group-model-upload-panel">
+                  <label class="group-model-file-picker" for="groupModelUploadInput">
+                    <span class="group-model-file-icon" aria-hidden="true">＋</span>
+                    <span class="group-model-file-copy">
+                      <strong>选择 GLB 模型</strong>
+                      <span id="groupModelSelectedFileName">尚未选择文件 · 最大 50 MB</span>
+                    </span>
+                  </label>
+                  <input id="groupModelUploadInput" class="group-model-file-input" type="file" accept=".glb,model/gltf-binary" />
+                  <div class="group-model-upload-actions">
+                    <button id="groupModelUploadBtn" class="upload-btn" type="button" disabled>上传模型</button>
+                    <button id="refreshGroupModelLibraryBtn" class="model-library-refresh-btn" type="button" aria-label="刷新模型库" title="刷新模型库">↻</button>
+                  </div>
+                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status">上传后会立即应用到当前建筑，并保留在模型库供其他建筑复用。</div>
+                </div>
+
+                <div class="model-library-toolbar">
+                  <span>可用模型</span>
+                  <span>${currentLibraryAssets.length} 个</span>
+                </div>
+                <div class="group-model-library-list">${modelCards}</div>
 
                 <div class="model-action-grid">
-                  <button id="applyModelPresetBtn" class="upload-btn" type="button">种上该模型</button>
-                  <button id="openHouseGeneratorBtn" class="upload-btn secondary-btn" type="button">生成模型</button>
-                  <button id="openBuildingAssemblerBtn" class="upload-btn secondary-btn" type="button">组装模型</button>
-                  <button id="removeModelPresetBtn" class="upload-btn secondary-btn" type="button">恢复白模</button>
+                  <button id="openHouseGeneratorBtn" class="model-utility-btn" type="button">从照片生成模型</button>
+                  <button id="removeModelPresetBtn" class="model-utility-btn model-restore-btn" type="button">恢复白模</button>
                 </div>
               </div>
 
@@ -2474,7 +2064,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         }
 
         <div class="house-row">当前状态：${escapeHtml(modelStatusText)}</div>
-        ${hasPlacedModel ? `<div class="house-row">当前模型来源：${escapeHtml(currentPreset?.name || "生成/组装模型")}</div>` : ""}
+        ${hasPlacedModel ? `<div class="house-row">当前模型来源：${escapeHtml(modelState.modelAssetName || currentLibraryBinding?.group_model_assets?.name || "自定义模型")}</div>` : ""}
         <div class="house-row">调整说明：修改缩放、旋转、抬高、拉伸和偏移后会直接生效。</div>
       </div>
     `;
@@ -3104,14 +2694,43 @@ const ENABLE_SUPABASE_SYNC = (() => {
           applyHeightToEntity(entity, nextHeight);
         }
 
-        await applyModelStateToEntity(entity, data);
+        if (!data.modelAssetId) {
+          await applyModelStateToEntity(entity, data);
+        }
+      }
+
+      try {
+        const library = getGroupModelLibrary();
+        const bindings = await library.listBindings(linkedSpaceId);
+        for (const binding of bindings) {
+          const entity = entityMap.get(normalizeCode(binding.object_code));
+          const asset = binding.group_model_assets;
+          if (!entity || !asset?.storage_path) continue;
+          const signedUrl = await library.createSignedUrl(asset);
+          const transform = binding.transform || {};
+          await applyModelStateToEntity(entity, {
+            modelAssetId: binding.asset_id,
+            modelAssetName: asset.name || "",
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path,
+            modelScale: transform.scale ?? 1,
+            modelHeading: transform.heading ?? 0,
+            modelHeightOffset: transform.heightOffset ?? 0,
+            modelOffsetX: transform.offsetX ?? 0,
+            modelOffsetY: transform.offsetY ?? 0,
+            modelStretchX: transform.stretchX ?? 1,
+            modelStretchY: transform.stretchY ?? 1,
+            modelSnapToBase: "1"
+          });
+        }
+      } catch (error) {
+        console.warn("恢复空间模型库绑定失败：", error);
       }
     }
 
     await applyRuntimeGeneratedModelsForSpace(linkedSpaceId);
 
     update3DStatusText();
-    syncFirstPersonSpaceState();
     viewer?.scene.requestRender();
   }
 
@@ -3333,10 +2952,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     entities.forEach((entity) => {
       if (!entity || !entity.polygon) return;
 
-      const sourceCode = normalizeCode(getEntitySourceCode(entity));
+      const rawSourceCode = String(getEntitySourceCode(entity) || "").trim();
+      const sourceCode = normalizeCode(rawSourceCode);
       if (!sourceCode) return;
 
       entity.__sourceCode = sourceCode;
+      entity.__photoSourceCode = rawSourceCode;
       entity.__isBuildingEntity = true;
       setEntityDefaultStyle(entity);
       entityMap.set(sourceCode, entity);
@@ -3344,6 +2965,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     await applyTerrainHeights(entities);
     await applyCurrent3DSpaceToScene();
+    const realityController = syncRealityBuildingProxies();
+    void realityController?.enter().catch((error) => {
+      console.warn("米埗村实景模型后台加载失败：", error?.message || error);
+    });
     loadedBuildingsSpaceId = linkedSpaceId;
     loadedBuildingRevision = Number(window.__buildingGeometryRevision || 0);
     loadRoadsInBackground("after-load-buildings");
@@ -3396,6 +3021,38 @@ const ENABLE_SUPABASE_SYNC = (() => {
       mergedRow = mergeRow(mergedRow, runtimeGeneratedState);
     }
 
+    if (allowEdit) {
+      try {
+        const { library, binding } = await refreshCurrentModelLibrary(sourceCode);
+        if (binding?.group_model_assets) {
+          const signedUrl = await library.createSignedUrl(binding.group_model_assets);
+          const transform = binding.transform || {};
+          mergedRow = mergeRow(mergedRow, {
+            modelPreset: "",
+            modelAssetId: binding.asset_id,
+            modelAssetName: binding.group_model_assets.name || "",
+            modelUrl: signedUrl,
+            modelStoragePath: binding.group_model_assets.storage_path || "",
+            modelScale: transform.scale ?? mergedRow.modelScale ?? "1",
+            modelHeading: transform.heading ?? mergedRow.modelHeading ?? "0",
+            modelHeightOffset: transform.heightOffset ?? mergedRow.modelHeightOffset ?? "0",
+            modelOffsetX: transform.offsetX ?? mergedRow.modelOffsetX ?? "0",
+            modelOffsetY: transform.offsetY ?? mergedRow.modelOffsetY ?? "0",
+            modelStretchX: transform.stretchX ?? mergedRow.modelStretchX ?? "1",
+            modelStretchY: transform.stretchY ?? mergedRow.modelStretchY ?? "1"
+          });
+          await applyModelStateToEntity(entity, mergedRow);
+        }
+      } catch (error) {
+        console.warn("读取小组模型库失败：", error);
+        currentLibraryAssets = [];
+        currentLibraryBinding = null;
+      }
+    } else {
+      currentLibraryAssets = [];
+      currentLibraryBinding = null;
+    }
+
     currentSelectedEntityCode = sourceCode;
     update3DStatusText();
 
@@ -3415,7 +3072,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function openHouseGeneratorForEntity(entity, statusEl) {
-    const sourceCode = String(entity?.__sourceCode || "").trim();
+    const sourceCode = String(entity?.__photoSourceCode || entity?.__sourceCode || "").trim();
     const sourceName = String(entity?.__displayName || sourceCode || "").trim();
     const linkedSpaceId = getLinked2DSpaceIdFor3D();
 
@@ -3432,23 +3089,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     const opened = window.open(generatorUrl.toString(), "_blank");
-    if (!opened && statusEl) {
-      statusEl.textContent = "打开失败：请允许浏览器弹出新窗口。";
-    }
-    return !!opened;
-  }
-
-  function openBuildingAssemblerForEntity(entity, statusEl) {
-    const sourceCode = String(entity?.__sourceCode || "").trim();
-    const sourceName = String(entity?.__displayName || sourceCode || "").trim();
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-
-    const assemblerUrl = new URL("building-assembler/index.html", window.location.href);
-    if (sourceCode) assemblerUrl.searchParams.set("targetCode", sourceCode);
-    if (linkedSpaceId) assemblerUrl.searchParams.set("targetSpace", linkedSpaceId);
-    if (sourceName) assemblerUrl.searchParams.set("targetName", sourceName);
-
-    const opened = window.open(assemblerUrl.toString(), "_blank");
     if (!opened && statusEl) {
       statusEl.textContent = "打开失败：请允许浏览器弹出新窗口。";
     }
@@ -3521,11 +3161,69 @@ const ENABLE_SUPABASE_SYNC = (() => {
     viewer?.scene.requestRender();
   }
 
+  async function fetchHouseGeneratorPhotoMaterials(sourceCode, spaceId) {
+    if (!supabaseClient || !sourceCode) return [];
+    const normalizedSourceCode = normalizeCode(sourceCode);
+    const objectTypes = ["building"];
+    if (spaceId && spaceId !== "current") objectTypes.push(`building__${spaceId}`);
+
+    const { data, error } = await supabaseClient
+      .from(OBJECT_PHOTOS_TABLE)
+      .select("*")
+      .in("object_type", objectTypes);
+    if (error) throw error;
+
+    const seen = new Set();
+    return (data || [])
+      .filter((item) => normalizeCode(item?.object_code) === normalizedSourceCode)
+      .map((item) => ({
+        id: String(item?.id ?? "").trim(),
+        url: String(item?.photo_url || "").trim(),
+        uploadedAt: String(item?.uploaded_at || "").trim(),
+        uploadedBy: ""
+      }))
+      .filter((item) => {
+        if (!item.url) return false;
+        const key = item.id ? `id:${item.id}` : `url:${item.url}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => (Date.parse(b.uploadedAt) || 0) - (Date.parse(a.uploadedAt) || 0));
+  }
+
+  async function handleHouseGeneratorPhotoRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_PHOTO_REQUEST_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin && origin !== "null" && origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+
+    const payload = message.payload || {};
+    // Photo rows use the exact 2D object_code, including separators such as "building-v4-5".
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || "current").trim() || "current";
+    let photos = [];
+    let errorMessage = "";
+    try {
+      photos = await fetchHouseGeneratorPhotoMaterials(sourceCode, spaceId);
+    } catch (error) {
+      console.warn("读取建筑已有照片失败：", error);
+      errorMessage = String(error?.message || "读取已有照片失败");
+    }
+
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_PHOTO_RESPONSE_TYPE,
+      payload: { sourceCode, spaceId, photos, error: errorMessage }
+    }, origin && origin !== "null" ? origin : "*");
+  }
+
   function bindHouseGeneratorMessageBridge() {
     if (houseGeneratorMessageBound) return;
     houseGeneratorMessageBound = true;
     houseGeneratorMessageHandler = (event) => {
       void handleHouseGeneratorModelMessage(event);
+      void handleHouseGeneratorPhotoRequest(event);
     };
     window.addEventListener("message", houseGeneratorMessageHandler);
   }
@@ -3550,412 +3248,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       modelOffsetX: clampNumber(offsetXEl?.value, -200, 200, 0),
       modelOffsetY: clampNumber(offsetYEl?.value, -200, 200, 0)
     };
-  }
-
-  function bindEntityInfoEvents(entity, baseRow, allowEdit) {
-    const statusEl = byId("applyModelPresetStatus");
-    const restoreButtons = [byId("removeModelPresetBtn"), byId("removeModelPresetBtnSecondary")].filter(Boolean);
-
-    const restoreWhiteModel = async (triggerButton = null) => {
-      restoreButtons.forEach((btn) => {
-        btn.disabled = true;
-      });
-      if (statusEl) statusEl.textContent = "正在恢复白模...";
-
-      try {
-        const linkedSpaceId = getLinked2DSpaceIdFor3D();
-        const existingEditData = linkedSpaceId !== "current"
-          ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-          : {};
-        const baseMerged = { ...(baseRow || {}), ...existingEditData };
-        const payload = buildModelPayloadPatchFromPreset("", baseMerged);
-
-        clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-        await saveSingle3DEdit(entity.__sourceCode, payload);
-        removeReplacementModel(entity.__sourceCode);
-
-        if (statusEl) statusEl.textContent = "已恢复为白模。";
-        await showEntityInfo(entity);
-      } catch (error) {
-        console.error("Failed to restore white model:", error);
-        if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-      } finally {
-        restoreButtons.forEach((btn) => {
-          btn.disabled = false;
-        });
-        if (triggerButton) triggerButton.disabled = false;
-      }
-    };
-
-    const applyModelBtn = byId("applyModelPresetBtn");
-    if (applyModelBtn) {
-      applyModelBtn.onclick = async () => {
-        const statusEl = byId("applyModelPresetStatus");
-        const selectEl = byId("modelPresetSelect");
-        const scaleEl = byId("modelScaleInput");
-        const scaleRangeEl = byId("modelScaleRange");
-        const headingEl = byId("modelHeadingInput");
-        const offsetEl = byId("modelHeightOffsetInput");
-        const stretchXEl = byId("modelStretchXInput");
-        const stretchYEl = byId("modelStretchYInput");
-        const offsetXEl = byId("modelOffsetXInput");
-        const offsetYEl = byId("modelOffsetYInput");
-
-        const presetId = selectEl?.value || "";
-        if (!presetId) {
-          if (statusEl) statusEl.textContent = "请选择预设模型";
-          return;
-        }
-
-        const scaleValue = scaleEl?.value ?? scaleRangeEl?.value;
-        const manualScale = clampNumber(scaleValue, 0.1, 120, 1);
-        const manualHeading = clampNumber(headingEl?.value, -360, 360, 0);
-        const manualOffset = clampNumber(offsetEl?.value, -100, 300, 0);
-        const manualStretchX = clampNumber(stretchXEl?.value, 0.1, 20, 1);
-        const manualStretchY = clampNumber(stretchYEl?.value, 0.1, 20, 1);
-        const manualOffsetX = clampNumber(offsetXEl?.value, -200, 200, 0);
-        const manualOffsetY = clampNumber(offsetYEl?.value, -200, 200, 0);
-
-        applyModelBtn.disabled = true;
-        if (statusEl) statusEl.textContent = "正在应用模型...";
-
-        try {
-          const linkedSpaceId = getLinked2DSpaceIdFor3D();
-          const existingEditData = linkedSpaceId !== 'current'
-            ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-            : {};
-          const baseMerged = { ...(baseRow || {}), ...existingEditData };
-
-          const payload = buildModelPayloadPatchFromPreset(
-            presetId,
-            baseMerged,
-            {
-              modelScale: manualScale,
-              modelHeading: manualHeading,
-              modelHeightOffset: manualOffset,
-              modelStretchX: manualStretchX,
-              modelStretchY: manualStretchY,
-              modelOffsetX: manualOffsetX,
-              modelOffsetY: manualOffsetY
-            }
-          );
-
-          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-          await saveSingle3DEdit(entity.__sourceCode, payload);
-          await applyModelStateToEntity(entity, payload);
-
-          if (statusEl) statusEl.textContent = "模型已应用并自动贴合。";
-          await showEntityInfo(entity);
-        } catch (error) {
-          console.error("应用模型失败：", error);
-          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-        } finally {
-          applyModelBtn.disabled = false;
-        }
-      };
-    }
-
-    const removeModelBtn = byId("removeModelPresetBtn");
-    if (removeModelBtn) {
-      removeModelBtn.onclick = async () => {
-        const statusEl = byId("applyModelPresetStatus");
-        removeModelBtn.disabled = true;
-        if (statusEl) statusEl.textContent = "正在恢复白模...";
-
-        try {
-          const linkedSpaceId = getLinked2DSpaceIdFor3D();
-          const existingEditData = linkedSpaceId !== 'current'
-            ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-            : {};
-          const baseMerged = { ...(baseRow || {}), ...existingEditData };
-          const payload = buildModelPayloadPatchFromPreset("", baseMerged);
-
-          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-          await saveSingle3DEdit(entity.__sourceCode, payload);
-          removeReplacementModel(entity.__sourceCode);
-
-          if (statusEl) statusEl.textContent = "已恢复为白模。";
-          await showEntityInfo(entity);
-        } catch (error) {
-          console.error("Failed to restore white model:", error);
-          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-        } finally {
-          removeModelBtn.disabled = false;
-        }
-      };
-    }
-
-    const openGeneratorBtn = byId("openHouseGeneratorBtn");
-    if (openGeneratorBtn) {
-      openGeneratorBtn.onclick = () => {
-        const statusEl = byId("applyModelPresetStatus");
-        const opened = openHouseGeneratorForEntity(entity, statusEl);
-        if (opened && statusEl) {
-          statusEl.textContent = "已打开生成器。生成后点击\"应用到主平台\"即可替换当前白模。";
-        }
-      };
-    }
-
-    const openAssemblerBtn = byId("openBuildingAssemblerBtn");
-    if (openAssemblerBtn) {
-      openAssemblerBtn.onclick = () => {
-        const statusEl = byId("applyModelPresetStatus");
-        const opened = openBuildingAssemblerForEntity(entity, statusEl);
-        if (opened && statusEl) {
-          statusEl.textContent = "已打开建筑组装器。组装完成后点击\"应用到主平台\"即可替换当前白模。";
-        }
-      };
-    }
-
-    const scaleInput = byId("modelScaleInput");
-    const scaleRange = byId("modelScaleRange");
-
-    if (scaleInput && scaleRange) {
-      scaleInput.oninput = () => {
-        scaleRange.value = scaleInput.value || "1";
-      };
-      scaleRange.oninput = () => {
-        scaleInput.value = scaleRange.value || "1";
-      };
-    }
-    const legacyAutoFitStretchBtn = byId("autoFitModelStretchBtn");
-    if (legacyAutoFitStretchBtn) {
-      legacyAutoFitStretchBtn.onclick = async () => {
-        try {
-          const { mergedRow } = await getCurrentMergedRow();
-          const currentModelState = getModelStateFromRow(mergedRow);
-          if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
-            if (statusEl) statusEl.textContent = "请先替换一个模型，再执行自动适配拉伸。";
-            return;
-          }
-
-          const expectedLength = toFiniteNumber(currentModelState.modelExpectedLength, NaN);
-          const expectedWidth = toFiniteNumber(currentModelState.modelExpectedWidth, NaN);
-          if (!Number.isFinite(expectedLength) || !Number.isFinite(expectedWidth) || expectedLength <= 0.1 || expectedWidth <= 0.1) {
-            if (statusEl) statusEl.textContent = "当前模型缺少原始长宽信息，暂时无法自动适配。";
-            return;
-          }
-
-          const buildingHeadingDeg = getEntityAutoHeading(entity);
-          const modelHeadingCorrectionDeg = Number(headingInput?.value || currentModelState.modelHeading || 0);
-          const footprint = getEntityFootprintSizeMeters(entity, buildingHeadingDeg + modelHeadingCorrectionDeg);
-          if (!footprint) {
-            if (statusEl) statusEl.textContent = "未能读取白模底座范围，无法自动适配。";
-            return;
-          }
-
-          const scaleInput = byId("modelScaleInput");
-          const uiScale = Math.max(0.1, toFiniteNumber(scaleInput?.value, currentModelState.modelScale || 1));
-          const baseScale = uiScale * MODEL_SCALE_BASE;
-          const nextStretchX = clampNumber(footprint.sizeX / Math.max(0.1, expectedLength * baseScale), 0.1, 20, 1);
-          const nextStretchY = clampNumber(footprint.sizeY / Math.max(0.1, expectedWidth * baseScale), 0.1, 20, 1);
-
-          const stretchXInput = byId("modelStretchXInput");
-          const stretchYInput = byId("modelStretchYInput");
-          if (stretchXInput) stretchXInput.value = nextStretchX.toFixed(3).replace(/\.?0+$/, "");
-          if (stretchYInput) stretchYInput.value = nextStretchY.toFixed(3).replace(/\.?0+$/, "");
-
-          await pushCurrentTransform({
-            immediate: true,
-            statusText: `已按白模底座自动适配拉伸（X≈${footprint.sizeX.toFixed(1)}m，Y≈${footprint.sizeY.toFixed(1)}m）。`
-          });
-        } catch (error) {
-          console.error("Failed to auto-fit model stretch:", error);
-          if (statusEl) statusEl.textContent = `自动适配失败：${error.message}`;
-        }
-      };
-    }
-
-    const autoFitStretchBtn = byId("autoFitModelStretchBtn");
-    if (autoFitStretchBtn) {
-      autoFitStretchBtn.onclick = async () => {
-        try {
-          await autoFitStretchAndRotation();
-        } catch (error) {
-          console.error("Failed to auto-fit model stretch/rotation:", error);
-          if (statusEl) statusEl.textContent = `自动适配失败：${error.message}`;
-        }
-      };
-    }
-
-    const replacementBaseToggle = byId("toggleReplacementBase");
-    if (replacementBaseToggle) {
-      replacementBaseToggle.onchange = () => {
-        showReplacementBase = !!replacementBaseToggle.checked;
-        refreshAllEntityVisualStates();
-      };
-    }
-
-    const replacementAnchorToggle = byId("toggleReplacementAnchor");
-    if (replacementAnchorToggle) {
-      replacementAnchorToggle.onchange = () => {
-        showReplacementAnchor = !!replacementAnchorToggle.checked;
-        refreshReplacementAnchorVisibility();
-      };
-    }
-  }
-
-  function bindEntityInfoEventsV2(entity, baseRow, allowEdit) {
-    if (!allowEdit) return;
-
-    const statusEl = byId("applyModelPresetStatus");
-    const restoreButtons = [byId("removeModelPresetBtn"), byId("removeModelPresetBtnSecondary")].filter(Boolean);
-
-    const restoreWhiteModel = async () => {
-      restoreButtons.forEach((btn) => {
-        btn.disabled = true;
-      });
-      if (statusEl) statusEl.textContent = "正在恢复白模...";
-
-      try {
-        const linkedSpaceId = getLinked2DSpaceIdFor3D();
-        const existingEditData = linkedSpaceId !== "current"
-          ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-          : {};
-        const baseMerged = { ...(baseRow || {}), ...existingEditData };
-        const payload = buildModelPayloadPatchFromPreset("", baseMerged);
-
-        clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-        await saveSingle3DEdit(entity.__sourceCode, payload);
-        removeReplacementModel(entity.__sourceCode);
-        if (statusEl) statusEl.textContent = "已恢复为白模。";
-        await showEntityInfo(entity);
-      } catch (error) {
-        console.error("Failed to restore white model:", error);
-        if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-      } finally {
-        restoreButtons.forEach((btn) => {
-          btn.disabled = false;
-        });
-      }
-    };
-
-    const applyModelBtn = byId("applyModelPresetBtn");
-    if (applyModelBtn) {
-      applyModelBtn.onclick = async () => {
-        const selectEl = byId("modelPresetSelect");
-        const presetId = selectEl?.value || "";
-        if (!presetId) {
-          if (statusEl) statusEl.textContent = "请先选择一个预设模型。";
-          return;
-        }
-
-        applyModelBtn.disabled = true;
-        if (statusEl) statusEl.textContent = "正在应用预设模型...";
-
-        try {
-          const linkedSpaceId = getLinked2DSpaceIdFor3D();
-          const existingEditData = linkedSpaceId !== "current"
-            ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-            : {};
-          const baseMerged = { ...(baseRow || {}), ...existingEditData };
-          const payload = buildModelPayloadPatchFromPreset(presetId, baseMerged, readModelTransformInputs());
-
-          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-          await saveSingle3DEdit(entity.__sourceCode, payload);
-          await applyModelStateToEntity(entity, payload);
-          if (statusEl) statusEl.textContent = "预设模型已应用。";
-          await showEntityInfo(entity);
-        } catch (error) {
-          console.error("Failed to apply preset model:", error);
-          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-        } finally {
-          applyModelBtn.disabled = false;
-        }
-      };
-    }
-
-    restoreButtons.forEach((btn) => {
-      btn.onclick = async () => restoreWhiteModel();
-    });
-
-    const saveAdjustmentsBtn = byId("saveModelAdjustmentsBtn");
-    if (saveAdjustmentsBtn) {
-      saveAdjustmentsBtn.onclick = async () => {
-        saveAdjustmentsBtn.disabled = true;
-
-        try {
-          const linkedSpaceId = getLinked2DSpaceIdFor3D();
-          const existingEditData = linkedSpaceId !== "current"
-            ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-            : {};
-          const baseMerged = { ...(baseRow || {}), ...existingEditData };
-          const runtimeState = getRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-          const currentMerged = runtimeState ? mergeRow(baseMerged, runtimeState) : baseMerged;
-          const currentModelState = getModelStateFromRow(currentMerged);
-
-          if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
-            if (statusEl) statusEl.textContent = "请先种上预设模型，或先生成/组装一个模型。";
-            return;
-          }
-
-          if (statusEl) statusEl.textContent = "正在保存模型调整...";
-          const payload = buildModelPayloadPatchFromExistingState(currentMerged, readModelTransformInputs());
-
-          if (runtimeState) {
-            setRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode, payload);
-          } else {
-            await saveSingle3DEdit(entity.__sourceCode, payload);
-          }
-
-          await applyModelStateToEntity(entity, payload);
-          if (statusEl) statusEl.textContent = "模型调整已保存。";
-          await showEntityInfo(entity);
-        } catch (error) {
-          console.error("Failed to save model adjustments:", error);
-          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
-        } finally {
-          saveAdjustmentsBtn.disabled = false;
-        }
-      };
-    }
-
-    const openGeneratorBtn = byId("openHouseGeneratorBtn");
-    if (openGeneratorBtn) {
-      openGeneratorBtn.onclick = () => {
-        const opened = openHouseGeneratorForEntity(entity, statusEl);
-        if (opened && statusEl) {
-          statusEl.textContent = "已打开生成器。生成后点击“应用到主平台”，即可替换当前白模。";
-        }
-      };
-    }
-
-    const openAssemblerBtn = byId("openBuildingAssemblerBtn");
-    if (openAssemblerBtn) {
-      openAssemblerBtn.onclick = () => {
-        const opened = openBuildingAssemblerForEntity(entity, statusEl);
-        if (opened && statusEl) {
-          statusEl.textContent = "已打开组装器。组装完成后点击“应用到主平台”，即可替换当前白模。";
-        }
-      };
-    }
-
-    const scaleInput = byId("modelScaleInput");
-    const scaleRange = byId("modelScaleRange");
-    if (scaleInput && scaleRange) {
-      scaleInput.oninput = () => {
-        scaleRange.value = scaleInput.value || "1";
-      };
-      scaleRange.oninput = () => {
-        scaleInput.value = scaleRange.value || "1";
-      };
-    }
-
-    const replacementBaseToggle = byId("toggleReplacementBase");
-    if (replacementBaseToggle) {
-      replacementBaseToggle.onchange = () => {
-        showReplacementBase = !!replacementBaseToggle.checked;
-        refreshAllEntityVisualStates();
-      };
-    }
-
-    const replacementAnchorToggle = byId("toggleReplacementAnchor");
-    if (replacementAnchorToggle) {
-      replacementAnchorToggle.onchange = () => {
-        showReplacementAnchor = !!replacementAnchorToggle.checked;
-        refreshReplacementAnchorVisibility();
-      };
-    }
   }
 
   function bindEntityInfoEventsV3(entity, baseRow, allowEdit) {
@@ -3991,12 +3283,27 @@ const ENABLE_SUPABASE_SYNC = (() => {
           const { linkedSpaceId, runtimeState, mergedRow } = await getCurrentMergedRow();
           const currentModelState = getModelStateFromRow(mergedRow);
           if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
-            if (statusEl) statusEl.textContent = "请先种上预设模型，或先生成/组装一个模型。";
+            if (statusEl) statusEl.textContent = "请先从模型库替换模型，或先生成一个模型。";
             return;
           }
 
           const payload = buildModelPayloadPatchFromExistingState(mergedRow, readModelTransformInputs());
-          if (runtimeState) {
+          if (currentLibraryBinding?.asset_id) {
+            await getGroupModelLibrary().placeAsset({
+              assetId: currentLibraryBinding.asset_id,
+              spaceId: linkedSpaceId,
+              objectCode: entity.__sourceCode,
+              transform: {
+                scale: payload.modelScale,
+                heading: payload.modelHeading,
+                heightOffset: payload.modelHeightOffset,
+                offsetX: payload.modelOffsetX,
+                offsetY: payload.modelOffsetY,
+                stretchX: payload.modelStretchX,
+                stretchY: payload.modelStretchY
+              }
+            });
+          } else if (runtimeState) {
             setRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode, payload);
           } else {
             await saveSingle3DEdit(entity.__sourceCode, payload);
@@ -4162,8 +3469,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
         const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
         const payload = buildModelPayloadPatchFromPreset("", mergedRow);
 
+        await window.GroupModelLibraryModule.restoreBuildingModel({
+          library: getGroupModelLibrary(),
+          spaceId: linkedSpaceId,
+          objectCode: entity.__sourceCode,
+          clearLegacy: () => saveSingle3DEdit(entity.__sourceCode, payload)
+        });
         clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
-        await saveSingle3DEdit(entity.__sourceCode, payload);
         removeReplacementModel(entity.__sourceCode);
         if (statusEl) statusEl.textContent = "已恢复为白模。";
         await showEntityInfo(entity);
@@ -4177,36 +3489,134 @@ const ENABLE_SUPABASE_SYNC = (() => {
       }
     };
 
-    const applyModelBtn = byId("applyModelPresetBtn");
-    if (applyModelBtn) {
-      applyModelBtn.onclick = async () => {
-        const selectEl = byId("modelPresetSelect");
-        const presetId = selectEl?.value || "";
-        if (!presetId) {
-          if (statusEl) statusEl.textContent = "请先选择一个预设模型。";
-          return;
-        }
-
-        applyModelBtn.disabled = true;
-        if (statusEl) statusEl.textContent = "正在应用预设模型...";
-
+    document.querySelectorAll(".group-model-apply-btn").forEach((button) => {
+      button.onclick = async () => {
+        const asset = currentLibraryAssets.find((item) => item.id === button.dataset.modelAssetId);
+        if (!asset) return;
+        button.disabled = true;
+        if (statusEl) statusEl.textContent = "正在替换建筑模型...";
         try {
           const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
-          const payload = buildModelPayloadPatchFromPreset(presetId, mergedRow, readModelTransformInputs());
-
+          const signedUrl = await getGroupModelLibrary().createSignedUrl(asset);
+          const inputs = readModelTransformInputs();
+          await getGroupModelLibrary().placeAsset({
+            assetId: asset.id,
+            spaceId: linkedSpaceId,
+            objectCode: entity.__sourceCode,
+            transform: {
+              scale: inputs.modelScale ?? 1,
+              heading: inputs.modelHeading ?? 0,
+              heightOffset: inputs.modelHeightOffset ?? 0,
+              offsetX: inputs.modelOffsetX ?? 0,
+              offsetY: inputs.modelOffsetY ?? 0,
+              stretchX: inputs.modelStretchX ?? 1,
+              stretchY: inputs.modelStretchY ?? 1
+            }
+          });
+          const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
+            ...inputs,
+            modelAssetName: asset.name,
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path
+          });
           clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
           await saveSingle3DEdit(entity.__sourceCode, payload);
           await applyModelStateToEntity(entity, payload);
-          if (statusEl) statusEl.textContent = "预设模型已应用。";
+          if (statusEl) statusEl.textContent = "模型已替换并记录操作。";
           await showEntityInfo(entity);
         } catch (error) {
-          console.error("Failed to apply preset model:", error);
+          console.error("Failed to apply library model:", error);
           if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
         } finally {
-          applyModelBtn.disabled = false;
+          button.disabled = false;
+        }
+      };
+    });
+
+    const uploadInput = byId("groupModelUploadInput");
+    const selectedFileName = byId("groupModelSelectedFileName");
+    const uploadStatus = byId("groupModelUploadStatus");
+    const uploadBtn = byId("groupModelUploadBtn");
+    if (uploadInput && uploadBtn) {
+      uploadInput.onchange = () => {
+        const file = uploadInput.files?.[0];
+        uploadBtn.disabled = !file;
+        if (selectedFileName) {
+          selectedFileName.textContent = file
+            ? `${file.name} · ${Math.max(0.1, file.size / 1024 / 1024).toFixed(1)} MB`
+            : "尚未选择文件 · 最大 50 MB";
         }
       };
     }
+    if (uploadBtn) {
+      uploadBtn.onclick = async () => {
+        const file = uploadInput?.files?.[0];
+        if (!file) {
+          if (uploadStatus) uploadStatus.textContent = "请先选择一个 GLB 文件。";
+          return;
+        }
+        uploadBtn.disabled = true;
+        if (uploadStatus) uploadStatus.textContent = "正在上传并应用到当前建筑...";
+        try {
+          const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
+          const inputs = readModelTransformInputs();
+          const transform = {
+            scale: inputs.modelScale ?? 1,
+            heading: inputs.modelHeading ?? 0,
+            heightOffset: inputs.modelHeightOffset ?? 0,
+            offsetX: inputs.modelOffsetX ?? 0,
+            offsetY: inputs.modelOffsetY ?? 0,
+            stretchX: inputs.modelStretchX ?? 1,
+            stretchY: inputs.modelStretchY ?? 1
+          };
+          const { asset, signedUrl } = await window.GroupModelLibraryModule.uploadAndPlaceModel({
+            library: getGroupModelLibrary(),
+            file,
+            scope: getCurrentModelLibraryScope(),
+            spaceId: linkedSpaceId,
+            objectCode: entity.__sourceCode,
+            transform
+          });
+          const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
+            ...inputs,
+            modelAssetName: asset.name,
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path
+          });
+          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+          await saveSingle3DEdit(entity.__sourceCode, payload);
+          await applyModelStateToEntity(entity, payload);
+          if (uploadStatus) uploadStatus.textContent = "上传成功，已应用到当前建筑；切换其他建筑后可直接复用。";
+          await showEntityInfo(entity);
+        } catch (error) {
+          console.error("Failed to upload and apply library model:", error);
+          if (uploadStatus) uploadStatus.textContent = `上传失败：${error.message}`;
+          if (statusEl) statusEl.textContent = `上传失败：${error.message}`;
+        } finally {
+          uploadBtn.disabled = !uploadInput?.files?.[0];
+        }
+      };
+    }
+
+    const refreshLibraryBtn = byId("refreshGroupModelLibraryBtn");
+    if (refreshLibraryBtn) refreshLibraryBtn.onclick = () => showEntityInfo(entity);
+
+    document.querySelectorAll(".group-model-delete-btn").forEach((button) => {
+      button.onclick = async () => {
+        const asset = currentLibraryAssets.find((item) => item.id === button.dataset.deleteModelAssetId);
+        if (!asset || !window.confirm(`确认删除模型“${asset.name}”吗？正在使用的模型不能删除。`)) return;
+        button.disabled = true;
+        try {
+          await getGroupModelLibrary().deleteAsset(asset);
+          if (statusEl) statusEl.textContent = "模型已删除并记录操作。";
+          await showEntityInfo(entity);
+        } catch (error) {
+          if (statusEl) statusEl.textContent = `删除失败：${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      };
+    });
 
     restoreButtons.forEach((btn) => {
       btn.onclick = async () => restoreWhiteModel();
@@ -4218,16 +3628,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
         const opened = openHouseGeneratorForEntity(entity, statusEl);
         if (opened && statusEl) {
           statusEl.textContent = "已打开生成器。生成后点击“应用到主平台”，即可替换当前白模。";
-        }
-      };
-    }
-
-    const openAssemblerBtn = byId("openBuildingAssemblerBtn");
-    if (openAssemblerBtn) {
-      openAssemblerBtn.onclick = () => {
-        const opened = openBuildingAssemblerForEntity(entity, statusEl);
-        if (opened && statusEl) {
-          statusEl.textContent = "已打开组装器。组装完成后点击“应用到主平台”，即可替换当前白模。";
         }
       };
     }
@@ -4325,10 +3725,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
     clickHandler.setInputAction(async (movement) => {
-      if (firstPersonController?.isActive?.()) {
-        return;
-      }
-
       if (measureModeActive) {
         handle3DMeasureClick(movement.position);
         return;
@@ -4368,11 +3764,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
       setActiveEntity(entity);
       await showEntityInfo(entity);
+      focusRealityBuilding(entity);
       viewer.scene.requestRender();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     clickHandler.setInputAction(() => {
-      if (firstPersonController?.isActive?.()) return;
       if (!measureModeActive) return;
       toggleMeasureMode(false);
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
@@ -4452,10 +3848,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     bindClickEvents();
-    bindFirstPersonButton();
-    bindDroneButton();
-    syncFirstPersonSpaceState({ reposition: true });
-    syncDroneSpaceState({ reposition: true });
+    ensureRealityInsetController();
     initialized = true;
   }
 
@@ -4484,6 +3877,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }, 60);
 
     update3DStatusText();
+    const realityController = syncRealityBuildingProxies();
+    void realityController?.enter().catch((error) => {
+      console.warn("米埗村实景模型进入失败：", error?.message || error);
+    });
 
     // 与3D同步选中状态
     try {
@@ -4506,7 +3903,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       showEmpty3DInfo();
     }
 
-    syncFirstPersonSpaceState();
   }
 
   async function reload(selectCode) {
@@ -4527,7 +3923,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       showEmpty3DInfo();
     }
 
-    syncFirstPersonSpaceState();
     viewer.scene.requestRender();
   }
   
@@ -4570,6 +3965,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       duration: 1.2,
       offset: new Cesium.HeadingPitchRange(0, -0.45, 120)
     });
+    focusRealityBuilding(entity);
 
     return true;
   }
@@ -4580,10 +3976,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return;
     }
 
-    if (firstPersonController?.isActive?.()) {
-      toggleFirstPersonMode(false);
-    }
-    
     // 如果有建筑数据，使用与初始化一致的 flyTo 方法
     if (buildingsDataSource) {
       const entities = buildingsDataSource.entities.values || [];
@@ -4617,6 +4009,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!entity || !entity.polygon) return false;
 
     applyHeightToEntity(entity, nextHeight);
+    syncRealityBuildingProxies();
     viewer?.scene.requestRender();
     return true;
   }
@@ -4630,11 +4023,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   function destroy() {
     toggleMeasureMode(false);
-    if (firstPersonController?.isActive?.()) {
-      toggleFirstPersonMode(false);
-    }
-    if (droneController?.isActive?.()) {
-      toggleDroneMode(false);
+    if (realityInsetController) {
+      realityInsetController.destroy();
+      realityInsetController = null;
     }
     roadsLoadToken += 1;
     roadsLoadTask = null;
@@ -4657,24 +4048,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       houseGeneratorMessageBound = false;
     }
 
-    if (firstPersonController) {
-      try {
-        firstPersonController.destroy();
-      } catch (error) {
-        console.warn("销毁第一人称模块失败：", error);
-      }
-      firstPersonController = null;
-    }
-
-    if (droneController) {
-      try {
-        droneController.destroy();
-      } catch (error) {
-        console.warn("销毁无人机模块失败：", error);
-      }
-      droneController = null;
-    }
-
     if (viewer) {
       if (roadsDataSource) {
         viewer.dataSources.remove(roadsDataSource, true);
@@ -4694,7 +4067,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     entityMap.clear();
     currentSelectedEntityCode = "";
     set3DHintText(DEFAULT_3D_HINT_TEXT);
-    syncFirstPersonUi({ active: false, eligible: true, message: DEFAULT_3D_HINT_TEXT });
   }
 
   window.Village3D = {
@@ -4704,7 +4076,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     refreshBuildingHeight,
     refreshEntityInfo,
     toggleMeasureMode,
-    toggleFirstPersonMode,
     recenter,
     destroy
   };

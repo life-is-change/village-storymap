@@ -2384,9 +2384,9 @@ async function ensureVillage3DLoaded() {
       }
     }
 
-    await loadScriptOnce("features/first-person/first-person-controller.js?v=20260512", "first-person-controller-script");
-    await loadScriptOnce("features/drone/drone-controller.js?v=20260512", "drone-controller-script");
-    await loadScriptOnce("app-3d.js?v=20260810-platform-fix", "village-3d-script");
+      await loadScriptOnce("features/3d/reality-inset.js?v=20260813-reality-closeup", "reality-inset-script");
+    await loadScriptOnce("features/models/group-model-library.js?v=20260813-model-card-ui", "group-model-library-script");
+    await loadScriptOnce("app-3d.js?v=20260813-model-card-ui", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");

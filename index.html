@@ -8,7 +8,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260804-2d-cold-start" />
+  <link rel="stylesheet" href="style.css?v=20260813-reality-quality" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -204,8 +204,31 @@
               <div id="measure3dReadout" class="map-measure-readout"></div>
               <!-- 3D 操作提示：告诉用户如何移动、缩放、旋转场景 -->
               <div id="model3dHint" class="model-3d-hint">
-                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转；点击人形按钮可进入过肩视角漫游。
+                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
               </div>
+              <aside id="reality3dPanel" class="reality-3d-panel" aria-label="米埗村实景模型">
+                <header id="reality3dTitlebar" class="reality-3d-titlebar">
+                  <div class="reality-3d-title-copy">
+                    <span class="reality-3d-live-dot" aria-hidden="true"></span>
+                    <strong id="reality3dTitle">米埗村实景模型</strong>
+                  </div>
+                  <div class="reality-3d-actions">
+                    <button id="reality3dTerrainBtn" type="button" aria-label="切换实景地形" title="切换实景地形" aria-pressed="true">⌁</button>
+                    <button id="reality3dResetBtn" type="button" aria-label="重置实景视角" title="重置实景视角">⌖</button>
+                    <button id="reality3dExpandBtn" type="button" aria-label="放大实景窗口" title="放大实景窗口" aria-pressed="false">↗</button>
+                    <button id="reality3dFullscreenBtn" type="button" aria-label="实景模型全屏" title="实景模型全屏">⛶</button>
+                    <button id="reality3dCloseBtn" type="button" aria-label="关闭实景窗口" title="关闭实景窗口">×</button>
+                  </div>
+                </header>
+                <div class="reality-3d-stage">
+                  <div id="reality3dContainer" class="reality-3d-container"></div>
+                  <div id="reality3dStatus" class="reality-3d-status" role="status" aria-live="polite" data-state="idle">
+                    等待加载实景模型
+                  </div>
+                  <button id="reality3dRetryBtn" class="reality-3d-retry" type="button" hidden>重试</button>
+                  <button id="reality3dResizeHandle" class="reality-3d-resize-handle" type="button" aria-label="调整实景窗口大小" title="拖动调整窗口大小"></button>
+                </div>
+              </aside>
             </div>
           </section>
           <!-- 3D 测量按钮：进入三维距离测量模式 -->
@@ -215,20 +238,10 @@
               <path d="M7 8l2 2M10 7l2 2M13 6l2 2M6 11l2 2M5 14l2 2"></path>
             </svg>
           </button>
-          <!-- 3D 过肩视角漫游按钮：人物视角 + WASD + 鼠标控制 -->
-          <button id="firstPerson3dBtn" class="map-recenter-btn map-first-person-btn" title="过肩视角漫游（W/A/S/D + 鼠标）" aria-label="过肩视角漫游">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="5" r="2.2"></circle>
-              <path d="M12 7.5v5.3M8 11.2l4 1.6 4-1.6"></path>
-              <path d="M10 13.2l-2.1 5.3M14 13.2l2.1 5.3"></path>
-            </svg>
-          </button>
-          <!-- 3D 无人机飞行模式按钮：无人机视角 + WASD + Space/Ctrl + 鼠标控制 -->
-          <button id="drone3dBtn" class="map-recenter-btn map-drone-btn" title="无人机飞行模式（W/A/S/D + Space/Ctrl + 鼠标）" aria-label="无人机飞行模式">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 6V2M12 22v-4M6 12H2M22 12h-4M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"></path>
-              <path d="M18 6l-3 3M18 18l-3-3M6 18l3-3M6 6l3 3"></path>
-              <circle cx="12" cy="12" r="1"></circle>
+          <button id="reality3dToggleBtn" class="map-recenter-btn map-reality-toggle-btn" type="button" aria-label="显示实景模型" title="显示实景模型" aria-pressed="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18v12H3z"></path>
+              <path d="m6 15 3-3 2 2 3-4 4 5"></path>
             </svg>
           </button>
           <!-- 3D 重置视角按钮：将相机飞回村庄默认观察位置 -->
@@ -262,7 +275,14 @@
   <!-- 提示：如果浏览器控制台出现 "api.cesium.com ... 404" 且 3D 地形无法加载，说明此 token 已失效。
        请前往 https://ion.cesium.com/ 登录后创建新的 Access Token，并替换下面的值。 -->
   <script>
-    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmYzZjYzZmMC1kNmVhLTRhMDctYTYxMS1mYzk4YmRiMGY4MjUiLCJpZCI6NDA4MjkyLCJpYXQiOjE3NzczNjUzOTl9.dlgwi60bAUwfDj0ImiYAve0bJnQ8NWIsFWQ-DPi53HM";
+    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0NjdlZDk3My1hYjQ3LTQ0M2MtODdjMC04NDAyZWZjM2EwMzEiLCJpZCI6ODY2NjEsInN1YiI6Im1lbW9yeSBoZWkiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidmlsbGFnZS1zdG9yeW1hcCIsImlhdCI6MTc4NjYwNDQ5Mn0.e2jNJ7K4ceZKQZkR3F_Qc4LKyiuzKNaQltdMTUfpSzw";
+    window.VILLAGE_REALITY_MODEL = {
+      enabled: true,
+      ionAssetId: 5133927,
+      title: "米埗村实景模型",
+      terrainEnabled: true,
+      heightOffset: 0
+    };
   </script>
 
   <!-- OpenLayers 固定为项目本地 10.8.0 浏览器构建，避免首次进入 2D 时并发请求 23 个远程模块。 -->

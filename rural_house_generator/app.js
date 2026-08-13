@@ -4,6 +4,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
+const PhotoMaterialBridge = window.PhotoMaterialBridge;
 
 const els = {
   presetList: document.getElementById('presetList'),
@@ -13,6 +14,9 @@ const els = {
   photoModeBtn: document.getElementById('photoModeBtn'),
   presetSection: document.getElementById('presetSection'),
   photoSection: document.getElementById('photoSection'),
+  existingPhotoMaterials: document.getElementById('existingPhotoMaterials'),
+  existingPhotoMaterialState: document.getElementById('existingPhotoMaterialState'),
+  existingPhotoMaterialList: document.getElementById('existingPhotoMaterialList'),
   photoInput: document.getElementById('photoInput'),
   photoPreview: document.getElementById('photoPreview'),
   photoPreviewEmpty: document.getElementById('photoPreviewEmpty'),
@@ -85,18 +89,22 @@ const state = {
   targetCode: '',
   targetSpace: 'current',
   targetName: '',
-  targetDimensions: null
+  targetDimensions: null,
+  photoMaterials: [],
+  photoMaterialsStatus: 'loading'
 };
 
 init();
 
 async function init() {
   if (!PhotoWorkflow) throw new Error('photo-workflow.js 加载失败');
+  if (!PhotoMaterialBridge) throw new Error('photo-material-bridge.js 加载失败');
   parseTargetParams();
   initThree();
   bindEvents();
   els.correctionPrompt.value = PhotoWorkflow.CORRECTION_PROMPT;
   setMode(PhotoWorkflow.resolveInitialMode(new URLSearchParams(window.location.search)));
+  requestExistingPhotoMaterials();
   await loadMeta();
 }
 
@@ -114,6 +122,7 @@ function bindEvents() {
   els.presetModeBtn.addEventListener('click', () => setMode('preset'));
   els.photoModeBtn.addEventListener('click', () => setMode('photo'));
   els.photoInput.addEventListener('change', handlePhotoFiles);
+  window.addEventListener('message', handleExistingPhotoMaterialsMessage);
   els.copyPromptBtn.addEventListener('click', copyCorrectionPrompt);
   els.roofCropHandle.addEventListener('pointerdown', startRoofCropDrag);
   els.roofCropHandle.addEventListener('pointermove', moveRoofCropDrag);
@@ -140,6 +149,98 @@ function bindEvents() {
   });
   els.downloadBtn.addEventListener('click', downloadGlb);
   els.sendBtn.addEventListener('click', replaceOriginalBuilding);
+}
+
+function requestExistingPhotoMaterials() {
+  if (!state.targetCode) {
+    state.photoMaterialsStatus = 'empty';
+    renderExistingPhotoMaterials('未关联具体建筑，可上传新照片');
+    return;
+  }
+  if (!window.opener || window.opener.closed) {
+    state.photoMaterialsStatus = 'unavailable';
+    renderExistingPhotoMaterials('请从平台中的建筑打开生成器');
+    return;
+  }
+  state.photoMaterialsStatus = 'loading';
+  renderExistingPhotoMaterials('正在读取当前建筑的照片…');
+  window.opener.postMessage({
+    type: PhotoMaterialBridge.REQUEST_TYPE,
+    payload: { sourceCode: state.targetCode, spaceId: state.targetSpace }
+  }, window.location.origin);
+}
+
+function handleExistingPhotoMaterialsMessage(event) {
+  if (event.origin !== window.location.origin || event.source !== window.opener) return;
+  const message = event.data;
+  if (!message || message.type !== PhotoMaterialBridge.RESPONSE_TYPE) return;
+  const payload = message.payload || {};
+  if (String(payload.sourceCode || '').trim() !== state.targetCode) return;
+  if (payload.error) {
+    state.photoMaterialsStatus = 'error';
+    renderExistingPhotoMaterials(`读取失败，可继续上传新照片：${payload.error}`, true);
+    return;
+  }
+  state.photoMaterials = PhotoMaterialBridge.normalizePhotoMaterials(payload.photos);
+  state.photoMaterialsStatus = state.photoMaterials.length ? 'ready' : 'empty';
+  renderExistingPhotoMaterials(state.photoMaterials.length
+    ? `找到 ${state.photoMaterials.length} 张，可直接选用`
+    : '当前建筑还没有照片，可上传新照片');
+}
+
+function renderExistingPhotoMaterials(message, isError = false) {
+  els.existingPhotoMaterialState.textContent = message;
+  els.existingPhotoMaterialState.dataset.tone = isError ? 'error' : '';
+  els.existingPhotoMaterialList.replaceChildren();
+  if (!state.photoMaterials.length || state.photoMaterialsStatus !== 'ready') {
+    els.existingPhotoMaterialList.hidden = true;
+    return;
+  }
+
+  state.photoMaterials.forEach((photo) => {
+    const card = document.createElement('article');
+    card.className = 'existing-photo-card';
+    const image = document.createElement('img');
+    image.src = photo.url;
+    image.alt = '已有建筑照片';
+    image.loading = 'lazy';
+    image.referrerPolicy = 'no-referrer';
+    const footer = document.createElement('footer');
+    const meta = document.createElement('small');
+    meta.textContent = photo.uploadedBy ? `上传者：${photo.uploadedBy}` : '已上传素材';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '使用这张';
+    button.addEventListener('click', () => useExistingPhotoMaterial(photo, button));
+    footer.append(meta, button);
+    card.append(image, footer);
+    els.existingPhotoMaterialList.append(card);
+  });
+  els.existingPhotoMaterialList.hidden = false;
+}
+
+async function useExistingPhotoMaterial(photo, button) {
+  button.disabled = true;
+  button.classList.add('is-loading');
+  button.textContent = '读取中…';
+  setStatus('正在读取已有建筑照片…');
+  try {
+    const response = await fetch(photo.url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`图片请求失败（${response.status}）`);
+    const blob = await response.blob();
+    const metadata = PhotoMaterialBridge.getPhotoFileMetadata(photo, blob.type);
+    const file = new File([blob], metadata.name, { type: metadata.type, lastModified: Date.now() });
+    const validation = PhotoWorkflow.validateStandardFacadeFiles([file]);
+    if (!validation.ok) throw new Error(validation.message);
+    await setPhotoFile(file);
+  } catch (error) {
+    console.error('读取已有建筑照片失败：', error);
+    setStatus(`已有照片读取失败：${error.message}。你仍可上传本地照片。`, true);
+  } finally {
+    button.disabled = false;
+    button.classList.remove('is-loading');
+    button.textContent = '使用这张';
+  }
 }
 
 function setMode(mode) {
