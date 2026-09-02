@@ -180,7 +180,7 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
   assert.match(html, /course-workspace-adapter\.js\?v=20260810-platform-fix/);
-  assert.match(html, /app\.js\?v=20260810-platform-fix/);
+  assert.match(html, /app\.js\?v=20260901-reality-instant-focus/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -192,11 +192,12 @@ test("personal space reliability scripts share a cache-busting release version",
     "course-workspace-adapter.js",
     "personal-space-client.js",
     "personal-layer-versions.js",
-    "overlay-renderer.js",
-    "app.js"
+    "overlay-renderer.js"
   ]) {
     assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${version}`));
   }
+
+  assert.match(html, /app\.js\?v=20260901-reality-instant-focus/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {

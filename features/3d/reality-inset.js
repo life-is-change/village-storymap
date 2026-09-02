@@ -97,9 +97,22 @@
       tilesetOptions: {
         maximumScreenSpaceError: 4,
         dynamicScreenSpaceError: false,
-        cacheBytes: 256 * 1024 * 1024
+        cacheBytes: 256 * 1024 * 1024,
+        preloadFlightDestinations: true
       }
     };
+  }
+
+  function resolveImmediateSurfaceHeight(cachedHeight, renderedHeight) {
+    if (cachedHeight !== undefined && cachedHeight !== null &&
+        Number.isFinite(Number(cachedHeight))) return Number(cachedHeight);
+    if (renderedHeight !== undefined && renderedHeight !== null &&
+        Number.isFinite(Number(renderedHeight))) return Number(renderedHeight);
+    return undefined;
+  }
+
+  function shouldCreateTerrainProvider(terrainEnabled, terrainProviderReady) {
+    return terrainEnabled === true && terrainProviderReady !== true;
   }
 
   function clampNumber(value, minimum, maximum, fallback) {
@@ -185,7 +198,9 @@
     const CesiumRef = options.Cesium || root.Cesium || null;
     const config = normalizeConfig(options.config || root.VILLAGE_REALITY_MODEL || {});
     const documentRef = options.document || root.document || null;
+    const docked = options.docked === true;
     const proxyMap = new Map();
+    const surfaceHeightCache = new Map();
     const focusGate = createFocusRequestGate();
     const cleanupCallbacks = [];
 
@@ -214,6 +229,7 @@
     let destroyed = false;
     let controlsBound = false;
     let terrainEnabled = config.terrainEnabled;
+    let terrainProviderReady = false;
     let fullscreenFallback = false;
     let expanded = false;
     let normalPanelRect = null;
@@ -279,6 +295,7 @@
 
     function constrainPanelToHost() {
       if (
+        docked ||
         !panel ||
         !host ||
         panel.classList.contains("is-fullscreen") ||
@@ -301,7 +318,7 @@
     }
 
     function bindDragging() {
-      if (!titlebar || !panel || !host || !documentRef) return;
+      if (docked || !titlebar || !panel || !host || !documentRef) return;
       let dragState = null;
 
       const onPointerMove = (event) => {
@@ -366,6 +383,12 @@
       const next = typeof force === "boolean" ? force : !expanded;
       if (next === expanded) return expanded;
 
+      if (docked) {
+        expanded = next;
+        updateExpandedUi();
+        return expanded;
+      }
+
       if (next) {
         const hostRect = host?.getBoundingClientRect?.();
         const panelRect = panel.getBoundingClientRect();
@@ -391,7 +414,7 @@
     }
 
     function bindResizing() {
-      if (!resizeHandle || !panel || !host || !documentRef) return;
+      if (docked || !resizeHandle || !panel || !host || !documentRef) return;
       let resizeState = null;
 
       const onPointerMove = (event) => {
@@ -530,7 +553,9 @@
       });
       instance.scene.requestRenderMode = true;
       instance.scene.maximumRenderTimeChange = Number.POSITIVE_INFINITY;
-      instance.scene.globe.depthTestAgainstTerrain = true;
+      // World Terrain stays visible, but it must not depth-occlude the
+      // photogrammetry mesh; mixed terrain LOD otherwise makes parts look buried.
+      instance.scene.globe.depthTestAgainstTerrain = false;
       instance.scene.fxaa = false;
       const quality = getRealityRenderQuality(root.devicePixelRatio);
       instance.resolutionScale = quality.resolutionScale;
@@ -604,8 +629,13 @@
 
       if (!terrainEnabled) {
         viewer.terrainProvider = new CesiumRef.EllipsoidTerrainProvider();
+        terrainProviderReady = false;
         viewer.scene.requestRender();
         return false;
+      }
+
+      if (!shouldCreateTerrainProvider(terrainEnabled, terrainProviderReady)) {
+        return true;
       }
 
       try {
@@ -617,10 +647,12 @@
         }
         if (!provider) throw new Error("当前 Cesium 版本不支持在线地形");
         viewer.terrainProvider = provider;
+        terrainProviderReady = true;
         viewer.scene.requestRender();
         return true;
       } catch (error) {
         terrainEnabled = false;
+        terrainProviderReady = false;
         viewer.terrainProvider = new CesiumRef.EllipsoidTerrainProvider();
         updateTerrainUi();
         setStatus("在线地形不可用，已回退到椭球体", "warning");
@@ -651,6 +683,7 @@
     function applyProxyRecords(records) {
       if (!viewer || !CesiumRef) return false;
       removeProxyEntities();
+      surfaceHeightCache.clear();
 
       records.forEach((record) => {
         const code = normalizeBuildingCode(record?.code);
@@ -703,7 +736,30 @@
         Array.from(proxyMap.values())
       );
       const height = sampled?.[0]?.height;
-      return Number.isFinite(Number(height)) ? Number(height) : undefined;
+      const resolved = Number.isFinite(Number(height)) ? Number(height) : undefined;
+      const code = normalizeBuildingCode(record?.code);
+      if (code && resolved !== undefined) surfaceHeightCache.set(code, resolved);
+      return resolved;
+    }
+
+    function getImmediateRealitySurfaceHeight(record) {
+      const code = normalizeBuildingCode(record?.code);
+      const cachedHeight = code ? surfaceHeightCache.get(code) : undefined;
+      let renderedHeight;
+      if (viewer?.scene && CesiumRef && typeof viewer.scene.sampleHeight === "function") {
+        try {
+          const position = new CesiumRef.Cartographic(record.longitude, record.latitude, 0);
+          renderedHeight = viewer.scene.sampleHeight(
+            position,
+            Array.from(proxyMap.values())
+          );
+        } catch (_) {
+          renderedHeight = undefined;
+        }
+      }
+      const resolved = resolveImmediateSurfaceHeight(cachedHeight, renderedHeight);
+      if (code && resolved !== undefined) surfaceHeightCache.set(code, resolved);
+      return resolved;
     }
 
     function flyToRealityCloseup(camera) {
@@ -720,7 +776,7 @@
       );
       return new Promise((resolve, reject) => {
         viewer.camera.flyToBoundingSphere(sphere, {
-          duration: 1.1,
+          duration: 0.75,
           offset,
           complete: resolve,
           cancel: () => reject(new Error("camera flight cancelled"))
@@ -742,15 +798,13 @@
           return false;
         }
         const record = entity.__realityFocusRecord;
-        const initialCamera = getRealityCloseupCamera(record, undefined, viewer.camera.heading);
-        if (!initialCamera) {
+        const immediateHeight = getImmediateRealitySurfaceHeight(record);
+        const closeup = getRealityCloseupCamera(record, immediateHeight, viewer.camera.heading);
+        if (!closeup) {
           setStatus("该建筑缺少实景定位坐标", "warning");
           return false;
         }
-        setStatus(`正在采样建筑 ${code} 的实景表面`, "loading");
-        const sampledHeight = await sampleRealitySurfaceHeight(record);
-        if (!focusGate.isCurrent(token)) return false;
-        const closeup = getRealityCloseupCamera(record, sampledHeight, viewer.camera.heading);
+        setStatus(`正在定位建筑 ${code}`, "loading");
         await flyToRealityCloseup(closeup);
         if (!focusGate.isCurrent(token)) return false;
         setStatus(
@@ -760,6 +814,9 @@
           closeup.sampled ? "ready" : "warning"
         );
         viewer.scene.requestRender();
+        // Refresh maximum-detail height only after the visible camera response.
+        // The result is cached for later clicks and never blocks this interaction.
+        void sampleRealitySurfaceHeight(record).catch(() => undefined);
         return true;
       } catch (error) {
         if (focusGate.isCurrent(token)) {
@@ -830,8 +887,10 @@
         clickHandler = null;
       }
       proxyMap.clear();
+      surfaceHeightCache.clear();
       if (viewer && !viewer.isDestroyed?.()) viewer.destroy();
       viewer = null;
+      terrainProviderReady = false;
       tileset = null;
       tilesetPromise = null;
       enterPromise = null;
@@ -861,6 +920,8 @@
     clampPanelSize,
     calculatePanelResize,
     getRealityRenderQuality,
+    shouldCreateTerrainProvider,
+    resolveImmediateSurfaceHeight,
     resolveRealityTargetHeight,
     getRealityCloseupCamera,
     normalizeBuildingCode,

@@ -8,7 +8,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260813-reality-quality" />
+  <link rel="stylesheet" href="style.css?v=20260901-reality-sidebar" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -206,29 +206,6 @@
               <div id="model3dHint" class="model-3d-hint">
                 操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
               </div>
-              <aside id="reality3dPanel" class="reality-3d-panel" aria-label="米埗村实景模型">
-                <header id="reality3dTitlebar" class="reality-3d-titlebar">
-                  <div class="reality-3d-title-copy">
-                    <span class="reality-3d-live-dot" aria-hidden="true"></span>
-                    <strong id="reality3dTitle">米埗村实景模型</strong>
-                  </div>
-                  <div class="reality-3d-actions">
-                    <button id="reality3dTerrainBtn" type="button" aria-label="切换实景地形" title="切换实景地形" aria-pressed="true">⌁</button>
-                    <button id="reality3dResetBtn" type="button" aria-label="重置实景视角" title="重置实景视角">⌖</button>
-                    <button id="reality3dExpandBtn" type="button" aria-label="放大实景窗口" title="放大实景窗口" aria-pressed="false">↗</button>
-                    <button id="reality3dFullscreenBtn" type="button" aria-label="实景模型全屏" title="实景模型全屏">⛶</button>
-                    <button id="reality3dCloseBtn" type="button" aria-label="关闭实景窗口" title="关闭实景窗口">×</button>
-                  </div>
-                </header>
-                <div class="reality-3d-stage">
-                  <div id="reality3dContainer" class="reality-3d-container"></div>
-                  <div id="reality3dStatus" class="reality-3d-status" role="status" aria-live="polite" data-state="idle">
-                    等待加载实景模型
-                  </div>
-                  <button id="reality3dRetryBtn" class="reality-3d-retry" type="button" hidden>重试</button>
-                  <button id="reality3dResizeHandle" class="reality-3d-resize-handle" type="button" aria-label="调整实景窗口大小" title="拖动调整窗口大小"></button>
-                </div>
-              </aside>
             </div>
           </section>
           <!-- 3D 测量按钮：进入三维距离测量模式 -->
@@ -258,6 +235,32 @@
           <div class="panel-header">
             <h2>对象信息与协作</h2>
             <p id="detailSubtitle">选择地图对象后查看属性、照片、讨论与历史。</p>
+          </div>
+
+          <div id="reality3dSidebarMount" class="reality-3d-sidebar-mount">
+            <aside id="reality3dPanel" class="reality-3d-panel" aria-label="米埗村实景模型">
+              <header id="reality3dTitlebar" class="reality-3d-titlebar">
+                <div class="reality-3d-title-copy">
+                  <span class="reality-3d-live-dot" aria-hidden="true"></span>
+                  <strong id="reality3dTitle">米埗村实景对照</strong>
+                </div>
+                <div class="reality-3d-actions">
+                  <button id="reality3dTerrainBtn" type="button" aria-label="切换实景地形" title="切换实景地形" aria-pressed="true">⌁</button>
+                  <button id="reality3dResetBtn" type="button" aria-label="重置实景视角" title="重置实景视角">⌖</button>
+                  <button id="reality3dExpandBtn" type="button" aria-label="放大实景窗口" title="放大实景窗口" aria-pressed="false">↗</button>
+                  <button id="reality3dFullscreenBtn" type="button" aria-label="实景模型全屏" title="实景模型全屏">⛶</button>
+                  <button id="reality3dCloseBtn" type="button" aria-label="关闭实景窗口" title="关闭实景窗口">×</button>
+                </div>
+              </header>
+              <div class="reality-3d-stage">
+                <div id="reality3dContainer" class="reality-3d-container"></div>
+                <div id="reality3dStatus" class="reality-3d-status" role="status" aria-live="polite" data-state="idle">
+                  等待加载实景模型
+                </div>
+                <button id="reality3dRetryBtn" class="reality-3d-retry" type="button" hidden>重试</button>
+                <button id="reality3dResizeHandle" class="reality-3d-resize-handle" type="button" aria-label="调整实景窗口大小" title="拖动调整窗口大小"></button>
+              </div>
+            </aside>
           </div>
 
           <div id="infoPanel" class="info-panel empty">
@@ -337,6 +340,7 @@
   <script defer src="features/ui/space-panel.js?v=20260723-contour-ui"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
+  <script defer src="features/theory/theory-practice-context.js?v=20260825-theory-context"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
@@ -364,7 +368,7 @@
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
-  <script defer src="app.js?v=20260810-platform-fix"></script>
+  <script defer src="app.js?v=20260901-reality-instant-focus"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

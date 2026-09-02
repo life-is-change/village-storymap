@@ -148,6 +148,7 @@ const basemapToggleWrap = document.getElementById("basemapToggleWrap");
 
 const BASEMAP_LABEL_VISIBLE_KEY = "village_planning_basemap_label_visible_v1";
 const COURSE_TASK_SIDEBAR_KEY = "village_course_task_sidebar_expanded_v1";
+const THEORY_PRACTICE_CONTEXT_KEY = "village_theory_practice_context_v1";
 let basemapLabelToggle = null;
 
 const supabaseClient = window.VillageSupabaseClient || (
@@ -278,6 +279,7 @@ let isRightPanelCollapsed = false;
 let isCourseTaskSidebarExpanded = true;
 let isProjectSettingsOpen = false;
 let activeCourseTaskContext = null;
+let activeTheoryPracticeContext = null;
 let shouldApplyInitialPlatformDefaults = false;
 window.isSpaceSidebarExpanded = isSpaceSidebarExpanded;
 
@@ -1393,6 +1395,116 @@ function bindHomepageLandingBridge() {
   if (!frame || frame.dataset.bridgeBound) return;
   frame.dataset.bridgeBound = "1";
 
+  if (!frame.dataset.theoryBridgeBound) {
+    frame.dataset.theoryBridgeBound = "1";
+    window.addEventListener("message", async (event) => {
+      if (event.source !== frame.contentWindow) return;
+
+      if (event.data?.type === "village-theory-completed") {
+        if (activityLogger) {
+          await recordCourseActivity("theory_lesson_completed", {
+            type: "theory_lesson",
+            id: String(event.data.payload?.lessonId || "")
+          }, { lessonTitle: String(event.data.payload?.lessonTitle || "") });
+        }
+        return;
+      }
+
+      const theoryModule = window.TheoryPracticeContextModule;
+      const theoryContext = theoryModule?.resolveTheoryPracticeMessage?.(event.data);
+      if (!theoryContext) return;
+      if (!currentUserName) {
+        showToast("请先登录，再进入理论实践情境", "error");
+        window.VillageAuth?.openAuthModal?.("login");
+        return;
+      }
+
+      try {
+        const workbench = await ensureCourseWorkbenchInitialized();
+        const courseContext = await workbench.showDashboard();
+        await theoryModule.executeTheoryPracticeContext(theoryContext, {
+          openWorkspace: async (view, spaceMode) => {
+            const group = spaceMode === "group" ? courseContext?.group || null : null;
+            await openCoursePlanningWorkspace(view === "model3d" ? "3d" : "2d", group);
+            if (spaceMode === "group" && !group) {
+              showToast("你尚未加入小组，已先打开米埗村公共现状空间", "info");
+            }
+          },
+          applyWorkspace: async ({ layers, basemapVisible }) => {
+            const target = getCurrentSpace();
+            if (!target) return;
+            const available = new Set(getAvailableLayerKeysForSpace(target));
+            const nextLayers = (layers || []).filter((layerKey) => available.has(layerKey));
+            if (nextLayers.length) setSpaceSelectedLayers(target.id, nextLayers);
+            target.basemapVisible = Boolean(basemapVisible);
+            target.contourLabelsVisible = nextLayers.includes("contours");
+            saveSpacesToStorage();
+            saveAppState();
+            sync2DSpaceStateTo3D();
+            await handleSpaceSelect(target.id);
+          },
+          openTool: async (tool) => {
+            if (tool === "class_discussion") {
+              isCommunityExpanded = true;
+              ensureCommunityBuildPanel();
+              setProjectSettingsOpen(true);
+              window.setTimeout(focusCommunityMessageComposer, 0);
+              return;
+            }
+            if (tool === "problem_marker") {
+              isCommunityExpanded = true;
+              ensureCommunityBuildPanel();
+              setProjectSettingsOpen(true);
+              window.setTimeout(() => {
+                document.querySelector("[data-community-action='report-point']")?.scrollIntoView?.({ block: "center" });
+              }, 0);
+              return;
+            }
+            if (tool === "project_settings") {
+              setProjectSettingsOpen(true);
+              return;
+            }
+            if (tool === "object_info") {
+              isRightPanelCollapsed = false;
+              syncMapSidePanelLayout();
+              if (plan2dView.classList.contains("active")) showPlan2DOverview();
+            }
+          },
+          setContext: (contextValue) => {
+            activeTheoryPracticeContext = contextValue;
+            try { sessionStorage.setItem(THEORY_PRACTICE_CONTEXT_KEY, JSON.stringify(contextValue)); } catch (_) { /* optional persistence */ }
+            updateWorkspaceContextBar();
+          },
+          notify: (message) => showToast(message, "info")
+        });
+        frame.contentWindow?.postMessage({
+          type: "village-theory-practice-opened",
+          payload: {
+            lessonId: theoryContext.lessonId,
+            stepId: theoryContext.stepId,
+            mapTask: theoryContext.mapTask
+          }
+        }, window.location.origin === "null" ? "*" : window.location.origin);
+        shouldApplyInitialPlatformDefaults = false;
+        try {
+          await recordCourseActivity("theory_practice_entered", {
+            type: "theory_task",
+            id: theoryContext.mapTask
+          }, {
+            lessonId: theoryContext.lessonId,
+            stepId: theoryContext.stepId,
+            viewMode: theoryContext.view
+          });
+        } catch (activityError) {
+          console.warn("理论实践活动记录失败：", activityError);
+        }
+      } catch (error) {
+        console.error("进入理论实践情境失败：", error);
+        showToast(error?.message || "理论实践情境加载失败", "error");
+      }
+    });
+  }
+
   const scheduleIdentitySync = (frameDoc) => {
     if (!frameDoc) return;
     [0, 80, 250, 600, 1200, 2000].forEach((delay) => {
@@ -1774,7 +1886,11 @@ async function ensureCourseWorkbenchInitialized() {
       });
       geoprocessingPanel.mount();
     },
-    onTaskSelected: () => setCourseTaskSidebarExpanded(true),
+    onTaskSelected: () => {
+      activeTheoryPracticeContext = null;
+      try { sessionStorage.removeItem(THEORY_PRACTICE_CONTEXT_KEY); } catch (_) { /* optional persistence */ }
+      setCourseTaskSidebarExpanded(true);
+    },
     onTaskChanged: (context) => {
       activeCourseTaskContext = context;
       updateWorkspaceContextBar(context);
@@ -2234,6 +2350,7 @@ function buildSpacePanelEventsDeps() {
   return {
     BASE_SPACE_ID,
     getCurrentSpaceId: () => currentSpaceId,
+    onManualContextChange: clearTheoryPracticeContext,
     setCurrentSpaceId: (spaceId) => {
       setCurrentSpaceIdAndRemember(spaceId);
     },
@@ -2384,9 +2501,9 @@ async function ensureVillage3DLoaded() {
       }
     }
 
-      await loadScriptOnce("features/3d/reality-inset.js?v=20260813-reality-closeup", "reality-inset-script");
+    await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20260813-model-card-ui", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20260813-model-card-ui", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20260901-reality-instant-focus", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -5413,6 +5530,7 @@ function switchMainView(viewKey) {
 
   document.body.classList.toggle("landing-only-mode", isOverview);
   document.body.classList.toggle("map-view-active", isMapView);
+  document.body.classList.toggle("model3d-view-active", viewKey === "model3d");
   document.body.classList.remove("course-workbench-active");
 
   overviewView.classList.remove("active");
@@ -5454,11 +5572,18 @@ function switchMainView(viewKey) {
   }
 }
 
+function clearTheoryPracticeContext() {
+  if (!activeTheoryPracticeContext) return;
+  activeTheoryPracticeContext = null;
+  try { sessionStorage.removeItem(THEORY_PRACTICE_CONTEXT_KEY); } catch (_) { /* optional persistence */ }
+  updateWorkspaceContextBar();
+}
+
 function updateWorkspaceContextBar(context = activeCourseTaskContext) {
   if (context) activeCourseTaskContext = context;
   const course = window.CourseModelModule?.DEFAULT_COURSE;
   const currentSpace = getCurrentSpace();
-  const stageTitle = context?.stage?.title || context?.task?.title || "课程实践";
+  const stageTitle = activeTheoryPracticeContext?.stageLabel || context?.stage?.title || context?.task?.title || "课程实践";
 
   if (workspaceVillageLabel) {
     workspaceVillageLabel.textContent = course?.villageName || "米埗村";
@@ -5466,7 +5591,7 @@ function updateWorkspaceContextBar(context = activeCourseTaskContext) {
   if (workspaceStageLabel) {
     workspaceStageLabel.textContent = stageTitle;
     workspaceStageLabel.title = currentSpace?.title
-      ? `${stageTitle} · ${currentSpace.title}`
+      ? `${stageTitle} · ${currentSpace.title}${activeTheoryPracticeContext?.instruction ? ` · ${activeTheoryPracticeContext.instruction}` : ""}`
       : stageTitle;
   }
 }
@@ -5593,6 +5718,7 @@ function update2DStatusText() {
 }
 
 function showVillageOverview() {
+  clearTheoryPracticeContext();
   setActiveStoryItem("overview");
   switchMainView("overview");
 
@@ -6577,6 +6703,7 @@ function bindStatusBadgeClick() {
       return;
     }
     try {
+      clearTheoryPracticeContext();
       const workbench = await ensureCourseWorkbenchInitialized();
       const context = await workbench.showDashboard();
       await openCoursePlanningWorkspace("2d", context?.group || null);

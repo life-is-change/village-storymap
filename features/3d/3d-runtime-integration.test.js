@@ -47,6 +47,7 @@ test('3D view exposes the configured reality-model inset and its accessible cont
   assert.match(html, /window\.VILLAGE_REALITY_MODEL\s*=\s*\{/);
   assert.match(html, /ionAssetId:\s*5133927/);
   assert.match(html, /id="reality3dPanel"/);
+  assert.match(html, /id="reality3dSidebarMount"[^>]*>[\s\S]*id="reality3dPanel"/);
   assert.match(html, /id="reality3dTitlebar"/);
   assert.match(html, /id="reality3dContainer"/);
   assert.match(html, /id="reality3dStatus"/);
@@ -62,9 +63,14 @@ test('3D view exposes the configured reality-model inset and its accessible cont
   assert.match(css, /\.reality-3d-panel\.is-expanded/);
   assert.match(css, /\.reality-3d-panel\.is-hidden/);
   assert.match(css, /\.reality-3d-resize-handle/);
+  assert.match(css, /body\.model3d-view-active[\s\S]*--right-panel-width:/);
+  assert.match(css, /\.reality-3d-sidebar-mount\s*\{/);
+  assert.match(css, /\.reality-3d-panel\.is-expanded\s*\{[^}]*position:\s*fixed/i);
   assert.match(app, /features\/3d\/reality-inset\.js/);
+  assert.match(app, /classList\.toggle\("model3d-view-active",\s*viewKey\s*===\s*"model3d"\)/);
   assert.match(app3d, /expandButton:\s*byId\("reality3dExpandBtn"\)/);
   assert.match(app3d, /resizeHandle:\s*byId\("reality3dResizeHandle"\)/);
+  assert.match(app3d, /docked:\s*true/);
 });
 
 test('main and reality viewers synchronize building proxies and selection by code', () => {
@@ -81,6 +87,28 @@ test('main and reality viewers synchronize building proxies and selection by cod
   assert.match(app3d, /focusBuilding\(entity\.__sourceCode\)/);
   assert.match(app3d, /async function selectMainBuildingFromReality\(sourceCode\)/);
   assert.match(app3d, /realityInsetController\.destroy\(\)/);
+});
+
+test('white-model clicks let the reality camera settle before refreshing sidebar data', () => {
+  const app3d = read('app-3d.js');
+  const handlerStart = app3d.indexOf('function bindClickEvents()');
+  const handlerEnd = app3d.indexOf('\n  async function initViewer()', handlerStart);
+  const handlerSource = app3d.slice(handlerStart, handlerEnd);
+  const focusIndex = handlerSource.indexOf('focusRealityBuilding(entity)');
+  const detailsIndex = handlerSource.indexOf('scheduleEntityInfoAfterRealityFocus(entity)');
+
+  assert.ok(focusIndex >= 0, 'click handler must start reality focus');
+  assert.ok(detailsIndex >= 0, 'click handler must schedule sidebar details');
+  assert.ok(
+    focusIndex < detailsIndex,
+    'reality focus must not wait for Supabase/model-library sidebar requests'
+  );
+  assert.doesNotMatch(
+    handlerSource,
+    /await showEntityInfo\(entity\)/,
+    'click handler must not run sidebar work during the reality camera flight'
+  );
+  assert.match(app3d, /const REALITY_FOCUS_SETTLE_MS\s*=\s*850/);
 });
 
 test('reality inset has terrain fallback and local photogrammetry stays outside Git', () => {

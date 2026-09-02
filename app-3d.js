@@ -60,6 +60,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR = 6;
   const PERF_RESOLUTION_SCALE_CAP = 1.0;
   const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
+  const REALITY_FOCUS_SETTLE_MS = 850;
   const ENABLE_ION_WORLD_IMAGERY = false;
   const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
   const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
@@ -106,6 +107,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let measureLabelEntity = null;
   let realityInsetController = null;
   let realitySelectionSyncing = false;
+  let deferredEntityInfoTimer = 0;
 
   const FALLBACK_BASEMAP_GEOREF = {
     imageUrl: "assets/orthophoto.webp",
@@ -681,8 +683,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     realityInsetController = moduleApi.createController({
       Cesium,
       config: window.VILLAGE_REALITY_MODEL,
+      docked: true,
       panel,
-      host: panel?.parentElement || byId("model3dView"),
+      host: byId("model3dView"),
       container: byId("reality3dContainer"),
       statusEl: byId("reality3dStatus"),
       titleEl: byId("reality3dTitle"),
@@ -747,6 +750,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (realitySelectionSyncing || !entity?.__sourceCode) return;
     const controller = ensureRealityInsetController();
     void controller?.focusBuilding(entity.__sourceCode);
+  }
+
+  function scheduleEntityInfoAfterRealityFocus(entity) {
+    if (deferredEntityInfoTimer) {
+      window.clearTimeout(deferredEntityInfoTimer);
+    }
+
+    const sourceCode = normalizeCode(entity?.__sourceCode);
+    deferredEntityInfoTimer = window.setTimeout(() => {
+      deferredEntityInfoTimer = 0;
+      if (!sourceCode || normalizeCode(activeEntity?.__sourceCode) !== sourceCode) return;
+
+      void showEntityInfo(entity)
+        .then(() => viewer?.scene.requestRender())
+        .catch((error) => console.error("Failed to load 3D building details:", error));
+    }, REALITY_FOCUS_SETTLE_MS);
   }
 
   function normalizeCode(value) {
@@ -3724,7 +3743,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
-    clickHandler.setInputAction(async (movement) => {
+    clickHandler.setInputAction((movement) => {
       if (measureModeActive) {
         handle3DMeasureClick(movement.position);
         return;
@@ -3763,8 +3782,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
       }
 
       setActiveEntity(entity);
-      await showEntityInfo(entity);
       focusRealityBuilding(entity);
+      scheduleEntityInfoAfterRealityFocus(entity);
       viewer.scene.requestRender();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -4023,6 +4042,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   function destroy() {
     toggleMeasureMode(false);
+    if (deferredEntityInfoTimer) {
+      window.clearTimeout(deferredEntityInfoTimer);
+      deferredEntityInfoTimer = 0;
+    }
     if (realityInsetController) {
       realityInsetController.destroy();
       realityInsetController = null;

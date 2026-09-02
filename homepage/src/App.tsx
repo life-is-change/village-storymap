@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { VillageMapSection } from '@/features/village-map/VillageMapSection';
 import { DEFAULT_VILLAGE_ID, getVillageById } from '@/features/village-map/village-data.js';
+import { buildTheoryPracticeMessage, getTheoryTaskStatus, resolveTheoryPracticeOpened } from '@/features/theory/theory-practice.js';
 import { 
   MapPin, 
   BookOpen, 
@@ -84,8 +85,43 @@ type Lesson = {
   steps: LessonStep[];
 };
 
+type TheoryPhase = {
+  title: string;
+  description: string;
+  lessonIds: string[];
+};
+
 const pdfPathFor = (lessonId: string) => `../../assets/lessons/${lessonId}.pdf`;
 const displayPdfPathFor = (lessonId: string) => `assets/lessons/${lessonId}.pdf`;
+
+const theoryPhases: TheoryPhase[] = [
+  { title: '认识村庄', description: '从民居、聚落、类型与规划原理建立村庄认知框架', lessonIds: ['lesson01', 'lesson02', 'lesson03'] },
+  { title: '分析与设计', description: '把米埗村现状判断转化为总体规划与多尺度设计', lessonIds: ['lesson04', 'lesson05'] },
+  { title: '实施与评价', description: '检验方案如何落地、评价并持续迭代', lessonIds: ['lesson06', 'lesson07'] }
+];
+
+const groupPracticeTasks = new Set([
+  'settlement_planning', 'road_public_service', 'sanitation_landuse', 'action_plan',
+  'middle_scale_design', 'small_scale_design', 'design_path', 'house_construction',
+  'infrastructure_implementation', 'public_service_implementation', 'project_schedule',
+  'evaluation_framework', 'feedback_improvement', 'plan_assessment'
+]);
+
+const threeDimensionalTasks = new Set(['small_scale_design', 'design_path', 'house_construction', 'plan_assessment']);
+const discussionTasks = new Set(['co_creation', 'action_plan', 'project_schedule', 'feedback_improvement']);
+const problemMarkerTasks = new Set([
+  'planning_features', 'planning_relationship', 'road_public_service', 'sanitation_landuse',
+  'design_principles', 'infrastructure_implementation', 'public_service_implementation', 'problem_evaluation'
+]);
+
+const describePlatformContext = (step: TaskStep) => {
+  const space = groupPracticeTasks.has(step.mapTask) ? '小组规划空间' : '米埗村现状空间';
+  if (threeDimensionalTasks.has(step.mapTask)) return `${space} · 3D场景 · 建筑对象信息`;
+  if (discussionTasks.has(step.mapTask)) return `${space} · 2D地图 · 班级讨论`;
+  if (problemMarkerTasks.has(step.mapTask)) return `${space} · 2D地图 · 问题标记`;
+  if (step.mapTask === 'large_scale_design') return '米埗村现状空间 · 2D地图 · 水系、等高线与遥感底图';
+  return `${space} · 2D地图 · 对应图层与对象信息`;
+};
 
 const lessons: Lesson[] = [
   {
@@ -114,7 +150,7 @@ const lessons: Lesson[] = [
     shortTitle: '识别类型',
     pdfPath: pdfPathFor('lesson02'),
     displayPdfPath: displayPdfPathFor('lesson02'),
-    pageCount: 54,
+    pageCount: 55,
     description: '学习行政属性、空间区位、经济功能、文化价值等多维乡村分类方法。',
     tag: '已开放',
     steps: [
@@ -134,7 +170,7 @@ const lessons: Lesson[] = [
     shortTitle: '理解原理',
     pdfPath: pdfPathFor('lesson03'),
     displayPdfPath: displayPdfPathFor('lesson03'),
-    pageCount: 76,
+    pageCount: 82,
     description: '理解乡村规划的性质、体系、基本特性、关键关系与共同缔造方法。',
     tag: '已开放',
     steps: [
@@ -154,7 +190,7 @@ const lessons: Lesson[] = [
     shortTitle: '总体规划',
     pdfPath: pdfPathFor('lesson04'),
     displayPdfPath: displayPdfPathFor('lesson04'),
-    pageCount: 125,
+    pageCount: 126,
     description: '学习村域总体规划的定义、现状分析、功能布局、专项规划和工作路径。',
     tag: '已开放',
     steps: [
@@ -176,7 +212,7 @@ const lessons: Lesson[] = [
     shortTitle: '乡村设计',
     pdfPath: pdfPathFor('lesson05'),
     displayPdfPath: displayPdfPathFor('lesson05'),
-    pageCount: 83,
+    pageCount: 85,
     description: '学习“千尺审势、百尺造形、十尺提质”的多尺度乡村设计方法。',
     tag: '已开放',
     steps: [
@@ -217,7 +253,7 @@ const lessons: Lesson[] = [
     shortTitle: '建设评价',
     pdfPath: pdfPathFor('lesson07'),
     displayPdfPath: displayPdfPathFor('lesson07'),
-    pageCount: 88,
+    pageCount: 89,
     description: '学习乡村建设评价的指标体系、数据采集、问题评价和整改反馈机制。',
     tag: '已开放',
     steps: [
@@ -243,6 +279,7 @@ function App() {
   const [lessonGuideOpen, setLessonGuideOpen] = useState(true);
   const [lessonInputs, setLessonInputs] = useState<Record<string, string>>({});
   const [lessonChecks, setLessonChecks] = useState<Record<string, boolean[]>>({});
+  const [lessonLaunches, setLessonLaunches] = useState<Record<string, boolean>>({});
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
   const [visitedSteps, setVisitedSteps] = useState<string[]>([]);
   const [reflectionSaved, setReflectionSaved] = useState(false);
@@ -265,7 +302,12 @@ function App() {
           displayName: event.data.payload?.name || '',
           username: event.data.payload?.studentId || ''
         });
+        return;
       }
+      const opened = resolveTheoryPracticeOpened(event.data);
+      if (!opened) return;
+      localStorage.setItem(`${opened.lessonId}_${opened.stepId}_launched`, 'true');
+      setLessonLaunches((current) => ({ ...current, [opened.stepId]: true }));
     };
     window.addEventListener('message', handleMessage);
     // 请求父页面发送当前登录状态
@@ -350,6 +392,10 @@ function App() {
       if (step.type === 'task') acc[step.id] = loadLessonChecks(lesson.id, step.id, step.checklist.length);
       return acc;
     }, {});
+    const launches = lesson.steps.reduce<Record<string, boolean>>((acc, step) => {
+      if (step.type === 'task') acc[step.id] = localStorage.getItem(`${lesson.id}_${step.id}_launched`) === 'true';
+      return acc;
+    }, {});
 
     setActiveLessonId(lesson.id);
     setCurrentLessonStep(nextStep);
@@ -357,6 +403,7 @@ function App() {
     setVisitedSteps(Array.from(new Set([...nextVisited, nextStep])));
     setLessonInputs(inputs);
     setLessonChecks(checks);
+    setLessonLaunches(launches);
     setReflectionSaved(false);
     setPdfAvailable(false);
   };
@@ -365,15 +412,22 @@ function App() {
     setActiveLessonId(null);
   };
 
-  const goToMapPractice = (fallbackMessage = '请进入互动平台，在地图中完成对应观察任务。') => {
+  const goToMapPractice = (step: TaskStep) => {
+    if (!activeLesson) return;
+    const message = buildTheoryPracticeMessage({
+      lessonId: activeLesson.id,
+      lessonTitle: `${activeLesson.number}：${activeLesson.title}`,
+      stepId: step.id,
+      taskTitle: step.title,
+      mapTask: step.mapTask
+    });
     closeLessonModal();
     window.setTimeout(() => {
-      const entryButton = document.querySelector<HTMLButtonElement>('.home-hero-primary-btn');
-      if (entryButton) {
-        entryButton.click();
-        return;
+      if (window.parent !== window) {
+        window.parent.postMessage(message, window.location.origin === 'null' ? '*' : window.location.origin);
+      } else {
+        alert('请从村庄规划平台首页进入本任务，以便自动打开对应地图情境。');
       }
-      alert(fallbackMessage);
     }, 80);
   };
 
@@ -415,6 +469,12 @@ function App() {
     if (!activeLesson) return;
     localStorage.setItem(`${activeLesson.id}_completed`, 'true');
     setCompletedLessons((current) => ({ ...current, [activeLesson.id]: true }));
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: 'village-theory-completed',
+        payload: { lessonId: activeLesson.id, lessonTitle: `${activeLesson.number}：${activeLesson.title}` }
+      }, window.location.origin === 'null' ? '*' : window.location.origin);
+    }
     setReflectionSaved(true);
     alert('你已完成本讲学习，可以进入互动平台开展实践。');
     closeLessonModal();
@@ -452,6 +512,17 @@ function App() {
     const previousStep = getPreviousStep();
     const nextStep = getNextStep();
     const checks = lessonChecks[step.id] || Array(step.checklist.length).fill(false);
+    const taskStatus = getTheoryTaskStatus({
+      launched: !!lessonLaunches[step.id],
+      note: lessonInputs[step.storageKey] || '',
+      checks
+    });
+    const statusLabels = {
+      not_started: '尚未进入平台',
+      entered: '已进入平台，待记录判断',
+      recorded: '已记录判断，待核对清单',
+      completed: '本任务已完成'
+    };
 
     return (
       <section className="lesson-task-panel">
@@ -459,9 +530,27 @@ function App() {
           <div className="lesson-task-heading">
             <MessageSquareText className="w-5 h-5" />
             <h3>{step.title}</h3>
+            <span className={`lesson-task-status is-${taskStatus}`}>{statusLabels[taskStatus]}</span>
           </div>
-          <p>{step.content}</p>
-          <div className="lesson-task-note">相关 PPT 页码：{step.relatedPages}</div>
+          <dl className="lesson-theory-bridge">
+            <div>
+              <dt>理论依据</dt>
+              <dd>{step.content}</dd>
+            </div>
+            <div>
+              <dt>米埗村观察证据</dt>
+              <dd>围绕任务清单，在地图对象、空间关系和现场信息中寻找证据。</dd>
+            </div>
+            <div>
+              <dt>一键打开</dt>
+              <dd>{describePlatformContext(step)}</dd>
+            </div>
+            <div>
+              <dt>形成成果</dt>
+              <dd>{step.placeholder.replace(/…+$/, '')}</dd>
+            </div>
+          </dl>
+          <div className="lesson-task-note">对应课件：{step.relatedPages}</div>
           <div className="lesson-task-checklist">
             <h4>任务清单</h4>
             {step.checklist.map((item, index) => (
@@ -486,9 +575,9 @@ function App() {
               className="lesson-practice-btn"
               data-lesson={activeLesson?.id}
               data-map-task={step.mapTask}
-              onClick={() => goToMapPractice('请进入互动平台，在地图中完成对应观察任务。')}
+              onClick={() => goToMapPractice(step)}
             >
-              去地图实践
+              {lessonLaunches[step.id] ? '返回对应平台情境' : '进入米埗村平台情境'}
               <ArrowRight className="w-4 h-4" />
             </Button>
             {previousStep && (
@@ -568,7 +657,12 @@ function App() {
                 <h3>{activeStep.guideTitle}</h3>
                 <button type="button" onClick={() => setLessonGuideOpen(false)}>收起导学</button>
               </div>
-              <p>{activeLesson.number}请重点关注：</p>
+              <div className="lesson-reading-objective">
+                <strong>本讲学习目标</strong>
+                <span>{activeLesson.description}</span>
+                <small>课件共 {activeLesson.pageCount} 页，后续设置 {activeLesson.steps.filter((step) => step.type === 'task').length} 个米埗村验证任务。</small>
+              </div>
+              <p>{activeLesson.number}阅读时请重点关注：</p>
               <ol>
                 {activeStep.guidePoints.map((point) => (
                   <li key={point}>{point}</li>
@@ -599,6 +693,7 @@ function App() {
           <h3>{reflectionStep.title}</h3>
           <p>{reflectionStep.question}</p>
           <p>{reflectionStep.hint}</p>
+          <p className="lesson-reflection-evidence">请至少引用一项你在米埗村地图、对象信息、照片、问题标记或方案空间中发现的证据。</p>
         </div>
         <textarea
           id={`${activeLesson.id}-reflection`}
@@ -931,45 +1026,56 @@ function App() {
               村庄规划理论学习
             </h2>
             <p className="text-white/78 max-w-3xl mx-auto leading-relaxed">
-              以课程 PPT 为基础，通过导学提示、关键问题与地图实践任务，帮助学生从理论理解走向空间认知。
+              以课程 PPT 为理论依据，在米埗村中寻找空间证据；每个章节任务都可一键进入对应地图、图层与协作情境。
             </p>
           </div>
 
-          <div className="theory-grid">
-            {lessons.map((lesson, index) => {
-              const isCompleted = !!completedLessons[lesson.id];
-              const hasStarted = !!localStorage.getItem(`${lesson.id}_current_step`);
-              const buttonLabel = isCompleted ? '重新学习' : hasStarted ? '继续学习' : '开始学习';
-              return (
-                <article
-                  key={lesson.id}
-                  className={`theory-card theory-card-open ${isCompleted ? 'theory-card-completed' : ''}`}
-                  onClick={() => openLessonModal(lesson.id)}
-                >
-                  <div className="theory-card-top">
-                    <span className="theory-card-index">{String(index + 1).padStart(2, '0')}</span>
-                    <span className={`theory-status ${isCompleted ? 'theory-status-completed' : 'theory-status-open'}`}>
-                      {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                      {isCompleted ? '已完成' : lesson.tag}
-                    </span>
-                  </div>
-                  <div className="theory-card-subtitle">{lesson.shortTitle}</div>
-                  <h3>{lesson.number} {lesson.title}</h3>
-                  <p>{lesson.description}</p>
-                  <Button
-                    type="button"
-                    className="theory-card-btn theory-card-btn-open"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openLessonModal(lesson.id);
-                    }}
-                  >
-                    {buttonLabel}
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </article>
-              );
-            })}
+          <div className="theory-path">
+            {theoryPhases.map((phase, phaseIndex) => (
+              <section className="theory-phase" key={phase.title}>
+                <header className="theory-phase-header">
+                  <span>{phaseIndex + 1}</span>
+                  <div><h3>{phase.title}</h3><p>{phase.description}</p></div>
+                </header>
+                <div className="theory-grid">
+                  {phase.lessonIds.map((lessonId) => lessons.find((lesson) => lesson.id === lessonId)).filter((lesson): lesson is Lesson => !!lesson).map((lesson) => {
+                    const index = lessons.findIndex((item) => item.id === lesson.id);
+                    const isCompleted = !!completedLessons[lesson.id];
+                    const hasStarted = !!localStorage.getItem(`${lesson.id}_current_step`);
+                    const buttonLabel = isCompleted ? '重新学习' : hasStarted ? '继续学习' : '开始学习';
+                    return (
+                      <article
+                        key={lesson.id}
+                        className={`theory-card theory-card-open ${isCompleted ? 'theory-card-completed' : ''}`}
+                        onClick={() => openLessonModal(lesson.id)}
+                      >
+                        <div className="theory-card-top">
+                          <span className="theory-card-index">{String(index + 1).padStart(2, '0')}</span>
+                          <span className={`theory-status ${isCompleted ? 'theory-status-completed' : 'theory-status-open'}`}>
+                            {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                            {isCompleted ? '已完成' : lesson.tag}
+                          </span>
+                        </div>
+                        <div className="theory-card-subtitle">{lesson.shortTitle}</div>
+                        <h3>{lesson.number} {lesson.title}</h3>
+                        <p>{lesson.description}</p>
+                        <Button
+                          type="button"
+                          className="theory-card-btn theory-card-btn-open"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openLessonModal(lesson.id);
+                          }}
+                        >
+                          {buttonLabel}
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       </section>

@@ -9,6 +9,8 @@ const {
   clampPanelSize,
   calculatePanelResize,
   getRealityRenderQuality,
+  shouldCreateTerrainProvider,
+  resolveImmediateSurfaceHeight,
   resolveRealityTargetHeight,
   getRealityCloseupCamera,
   normalizeBuildingCode,
@@ -75,10 +77,24 @@ test('reality render quality favors sharp tiles without exceeding 2x DPR', () =>
     tilesetOptions: {
       maximumScreenSpaceError: 4,
       dynamicScreenSpaceError: false,
-      cacheBytes: 256 * 1024 * 1024
+      cacheBytes: 256 * 1024 * 1024,
+      preloadFlightDestinations: true
     }
   });
   assert.equal(getRealityRenderQuality(1.25).resolutionScale, 1.25);
+});
+
+test('building focus uses cached or already-rendered height without waiting for maximum LOD', () => {
+  assert.equal(resolveImmediateSurfaceHeight(128, 126), 128);
+  assert.equal(resolveImmediateSurfaceHeight(undefined, 126), 126);
+  assert.equal(resolveImmediateSurfaceHeight(null, null), undefined);
+  assert.equal(resolveImmediateSurfaceHeight(undefined, undefined), undefined);
+});
+
+test('world terrain provider is created only when enabled and not already ready', () => {
+  assert.equal(shouldCreateTerrainProvider(true, false), true);
+  assert.equal(shouldCreateTerrainProvider(true, true), false);
+  assert.equal(shouldCreateTerrainProvider(false, false), false);
 });
 
 test('sampled roof height produces a target inside the upper building volume', () => {
@@ -150,12 +166,31 @@ test('proxy picking searches through tileset hits for the transparent building e
   );
 });
 
-test('building focus samples photogrammetry and flies a synthetic closeup sphere', () => {
+test('building focus flies immediately and only then refreshes maximum-detail height cache', () => {
   const source = fs.readFileSync(path.join(__dirname, 'reality-inset.js'), 'utf8');
   assert.match(source, /sampleHeightMostDetailed/);
+  assert.match(source, /scene\.sampleHeight\(/);
+  assert.match(source, /surfaceHeightCache/);
   assert.match(source, /camera\.flyToBoundingSphere/);
   assert.match(source, /Array\.from\(proxyMap\.values\(\)\)/);
   assert.doesNotMatch(source, /viewer\.flyTo\(entity/);
+
+  const focusStart = source.indexOf('async function focusBuilding');
+  const focusEnd = source.indexOf('\n    async function resetView', focusStart);
+  const focusSource = source.slice(focusStart, focusEnd);
+  assert.ok(focusSource.indexOf('flyToRealityCloseup') >= 0);
+  assert.ok(focusSource.indexOf('sampleRealitySurfaceHeight') >= 0);
+  assert.ok(
+    focusSource.indexOf('flyToRealityCloseup') < focusSource.indexOf('sampleRealitySurfaceHeight'),
+    'camera flight must start before maximum-detail sampling'
+  );
+  assert.doesNotMatch(focusSource, /await\s+sampleRealitySurfaceHeight/);
+});
+
+test('terrain stays enabled while terrain depth occlusion is disabled for the reality mesh', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'reality-inset.js'), 'utf8');
+  assert.match(source, /depthTestAgainstTerrain\s*=\s*false/);
+  assert.match(source, /terrainEnabled\s*=\s*config\.terrainEnabled/);
 });
 
 test('createController exposes the complete inset lifecycle API', () => {

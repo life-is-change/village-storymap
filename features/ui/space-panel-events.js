@@ -6,6 +6,7 @@
         dropdown.addEventListener("change", async (event) => {
           const spaceId = event.target.value;
           if (!spaceId) return;
+          deps.onManualContextChange?.();
           await deps.handleSpaceSelect(spaceId);
         });
       }
@@ -86,6 +87,8 @@
           if (!target || !viewMode) return;
 
           if (target.viewMode === viewMode && deps.getCurrentSpaceId() === spaceId) return;
+
+          deps.onManualContextChange?.();
 
           target.viewMode = viewMode;
           deps.saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
