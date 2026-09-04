@@ -162,7 +162,9 @@ test("course entry ensures one personal figure-ground space without mirroring it
   assert.match(html, /features\/data\/personal-space-client\.js\?v=20260810-platform-fix/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
   assert.match(app, /personalSpaceClient\.ensure\(/);
-  assert.match(app, /s\.spaceType !== "course_personal"/);
+  assert.match(app, /managedSpaceTypes = new Set\(\[/);
+  assert.match(app, /"course_personal"/);
+  assert.match(app, /!s\.teachingProjectId/);
 });
 
 test("workspace initialization waits for auth and reloads account-scoped state after identity changes", () => {
@@ -179,8 +181,8 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /if\s*\(!Array\.isArray\(data\)\)\s*return null;[\s\S]*?return data\.map/);
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
-  assert.match(html, /course-workspace-adapter\.js\?v=20260810-platform-fix/);
-  assert.match(html, /app\.js\?v=20260901-reality-instant-focus/);
+  assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
+  assert.match(html, /app\.js\?v=20260903-home-guide/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -189,7 +191,6 @@ test("personal space reliability scripts share a cache-busting release version",
 
   for (const script of [
     "space-panel-events.js",
-    "course-workspace-adapter.js",
     "personal-space-client.js",
     "personal-layer-versions.js",
     "overlay-renderer.js"
@@ -197,7 +198,8 @@ test("personal space reliability scripts share a cache-busting release version",
     assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${version}`));
   }
 
-  assert.match(html, /app\.js\?v=20260901-reality-instant-focus/);
+  assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
+  assert.match(html, /app\.js\?v=20260903-home-guide/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {

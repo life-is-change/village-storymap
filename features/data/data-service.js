@@ -8,6 +8,14 @@
     return String(name || "").trim();
   }
 
+  function requireContext(deps) {
+    const context = deps.getContext?.() || {};
+    if (!context.teachingProjectId) throw new Error("PROJECT_CONTEXT_REQUIRED");
+    if (!context.villageId) throw new Error("VILLAGE_CONTEXT_REQUIRED");
+    if (!context.spaceId) throw new Error("SPACE_CONTEXT_REQUIRED");
+    return context;
+  }
+
   function readJsonMap(key) {
     try {
       const raw = localStorage.getItem(key);
@@ -61,6 +69,7 @@
 
   const api = {
     async fetchObjectEdits(deps, sourceCode, objectType) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !sourceCode || !objectType) return null;
 
@@ -69,6 +78,9 @@
         .select("data")
         .eq("object_code", sourceCode)
         .eq("object_type", objectType)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .maybeSingle();
 
       if (error) {
@@ -80,6 +92,7 @@
     },
 
     async saveObjectEdits(deps, sourceCode, objectType, payload) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("当前未配置 Supabase。");
@@ -92,15 +105,19 @@
             object_code: sourceCode,
             object_type: objectType,
             data: payload,
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       if (error) throw error;
     },
 
     async acquireSpaceEditLock(deps, spaceId, editorName) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !spaceId || !editorName) return { success: true };
 
@@ -112,6 +129,9 @@
         .select("data, updated_at")
         .eq("object_code", lockCode)
         .eq("object_type", "space_lock")
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .maybeSingle();
 
       if (fetchError) {
@@ -133,7 +153,10 @@
           .from(deps.OBJECT_EDITS_TABLE)
           .delete()
           .eq("object_code", lockCode)
-          .eq("object_type", "space_lock");
+          .eq("object_type", "space_lock")
+          .eq("teaching_project_id", context.teachingProjectId)
+          .eq("village_id", context.villageId)
+          .eq("space_id", context.spaceId);
       }
 
       await supabaseClient
@@ -143,15 +166,19 @@
             object_code: lockCode,
             object_type: "space_lock",
             data: { editor_name: editorName, locked_at: new Date().toISOString() },
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       return { success: true };
     },
 
     async releaseSpaceEditLock(deps, spaceId) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !spaceId) return;
 
@@ -160,10 +187,14 @@
         .from(deps.OBJECT_EDITS_TABLE)
         .delete()
         .eq("object_code", lockCode)
-        .eq("object_type", "space_lock");
+        .eq("object_type", "space_lock")
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId);
     },
 
     async fetchObjectPhotos(deps, sourceCode, objectType) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !sourceCode || !objectType) return [];
 
@@ -171,7 +202,10 @@
         .from(deps.OBJECT_PHOTOS_TABLE)
         .select("*")
         .eq("object_code", sourceCode)
-        .eq("object_type", objectType);
+        .eq("object_type", objectType)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId);
 
       if (error) {
         console.warn("读取照片列表失败：", error);
@@ -192,6 +226,7 @@
     },
 
     async uploadObjectPhoto(deps, file, sourceCode, objectType, uploadedBy) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("当前未配置 Supabase。");
@@ -199,7 +234,7 @@
 
       const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
       const safeCode = deps.normalizeCode(sourceCode || "object");
-      const fileName = `${objectType}/${safeCode}_${Date.now()}.${fileExt}`;
+      const fileName = `${context.teachingProjectId}/${context.villageId}/${context.spaceId}/${objectType}/${safeCode}_${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabaseClient.storage
         .from(deps.PHOTO_BUCKET)
@@ -221,7 +256,10 @@
         object_type: objectType,
         photo_url: photoUrl,
         photo_path: fileName,
-        uploaded_by: uploadedBy || null
+        uploaded_by: uploadedBy || null,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
+        space_id: context.spaceId
       };
 
       let { error: insertError } = await supabaseClient
@@ -233,7 +271,10 @@
           object_code: sourceCode,
           object_type: objectType,
           photo_url: photoUrl,
-          photo_path: fileName
+          photo_path: fileName,
+          teaching_project_id: context.teachingProjectId,
+          village_id: context.villageId,
+          space_id: context.spaceId
         };
         const retry = await supabaseClient
           .from(deps.OBJECT_PHOTOS_TABLE)
@@ -248,6 +289,7 @@
     },
 
     async deleteObjectPhoto(deps, photoRecord) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("当前未配置 Supabase。");
@@ -266,7 +308,10 @@
       const { error: deleteError } = await supabaseClient
         .from(deps.OBJECT_PHOTOS_TABLE)
         .delete()
-        .eq("id", photoRecord.id);
+        .eq("id", photoRecord.id)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId);
 
       if (deleteError) throw deleteError;
       forgetPhotoUploader(photoRecord.photo_path, photoRecord.photo_url);

@@ -19,13 +19,14 @@ const {
   createController
 } = require('./reality-inset.js');
 
-test('normalizeConfig pins the approved asset and safe defaults', () => {
-  assert.deepEqual(normalizeConfig({ ionAssetId: 5133927 }), {
+test('normalizeConfig accepts a village resource and safe defaults', () => {
+  assert.deepEqual(normalizeConfig({ ionAssetId: 5133927, revision: 'v0' }), {
     enabled: true,
     ionAssetId: 5133927,
-    title: '米埗村实景模型',
+    title: '村庄实景模型',
     terrainEnabled: true,
-    heightOffset: 0
+    heightOffset: 0,
+    revision: 'v0'
   });
 });
 

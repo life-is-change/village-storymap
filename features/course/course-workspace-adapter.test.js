@@ -59,11 +59,25 @@ test("personal workspace restores all selected imported layers including contour
       { layer_key: "contours" }
     ],
     courseId: "course-1",
-    villageId: "mibu"
+    villageId: "mibu",
+    spaceType: "practice_personal"
   });
   assert.deepEqual(space.selectedLayers, ["building", "road", "water", "contours"]);
   assert.equal(space.contourLabelsVisible, true);
-  assert.equal(space.spaceType, "course_personal");
+  assert.equal(space.spaceType, "practice_personal");
+});
+
+test("personal workspace requires an explicit dual-track space type", () => {
+  assert.throws(() => buildPersonalPlanningSpace({
+    personalSpace: { id: "personal-3" }, courseId: "course-1", villageId: "mibu"
+  }), /PERSONAL_SPACE_TYPE_REQUIRED/);
+});
+
+test("group workspace is forbidden for the practice village", () => {
+  assert.throws(() => buildGroupPlanningSpace(
+    { id: "g1", name: "组", courseId: "c1", spaceId: "s1" }, "学生", {},
+    { villageRole: "practice", villageId: "mibu", teachingProjectId: "p1" }
+  ), /PRACTICE_GROUP_SPACE_FORBIDDEN/);
 });
 
 test("new personal workspace shows contour values by default", () => {
@@ -71,7 +85,8 @@ test("new personal workspace shows contour values by default", () => {
     personalSpace: { id: "personal-2" },
     selections: [{ layer_key: "contours" }],
     courseId: "course-1",
-    villageId: "mibu"
+    villageId: "mibu",
+    spaceType: "practice_personal"
   });
   assert.equal(space.contourLabelsVisible, true);
 });
@@ -91,6 +106,18 @@ test("students never receive unrelated remote planning spaces", () => {
     actorName: "新同学",
     isAdmin: false,
     activeGroupId: ""
+  }), []);
+});
+
+test("daily workspace sync never exposes migration archives even to staff", () => {
+  const remote = [
+    { id: "shared", spaceType: "practice_shared" },
+    { id: "owned-copy", spaceType: "legacy_personal", creatorName: "管理员" },
+    { id: "unscoped", spaceType: "legacy_unscoped" },
+    { id: "old-system", spaceType: "", creatorName: "系统" }
+  ];
+  assert.deepEqual(filterRemotePlanningSpaces(remote, {
+    actorName: "管理员", isStaff: true, activeGroupId: ""
   }), []);
 });
 

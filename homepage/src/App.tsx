@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { VillageMapSection } from '@/features/village-map/VillageMapSection';
-import { DEFAULT_VILLAGE_ID, getVillageById } from '@/features/village-map/village-data.js';
+import { DEFAULT_VILLAGE_ID, VILLAGES, getVillageById, mergeRuntimeVillages } from '@/features/village-map/village-data.js';
 import { buildTheoryPracticeMessage, getTheoryTaskStatus, resolveTheoryPracticeOpened } from '@/features/theory/theory-practice.js';
 import { 
   MapPin, 
@@ -23,7 +23,8 @@ import {
   GraduationCap,
   Map,
   Leaf,
-  MessageSquareText
+  MessageSquareText,
+  ShieldCheck
 } from 'lucide-react';
 
 type IntroStep = {
@@ -274,6 +275,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
   const [selectedVillageId, setSelectedVillageId] = useState(DEFAULT_VILLAGE_ID);
+  const [villages, setVillages] = useState(VILLAGES);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [currentLessonStep, setCurrentLessonStep] = useState('intro');
   const [lessonGuideOpen, setLessonGuideOpen] = useState(true);
@@ -284,15 +286,16 @@ function App() {
   const [visitedSteps, setVisitedSteps] = useState<string[]>([]);
   const [reflectionSaved, setReflectionSaved] = useState(false);
   const [pdfAvailable, setPdfAvailable] = useState(true);
-  const [authState, setAuthState] = useState<{ isLoggedIn: boolean; displayName: string; username: string }>({
+  const [authState, setAuthState] = useState<{ isLoggedIn: boolean; displayName: string; username: string; role: string }>({
     isLoggedIn: false,
     displayName: '',
-    username: ''
+    username: '',
+    role: ''
   });
 
   const activeLesson = lessons.find((lesson) => lesson.id === activeLessonId);
   const activeStep = activeLesson?.steps.find((step) => step.id === currentLessonStep) || activeLesson?.steps[0];
-  const selectedVillage = getVillageById(selectedVillageId);
+  const selectedVillage = getVillageById(selectedVillageId, villages);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -300,8 +303,18 @@ function App() {
         setAuthState({
           isLoggedIn: event.data.payload?.isLoggedIn || false,
           displayName: event.data.payload?.name || '',
-          username: event.data.payload?.studentId || ''
+          username: event.data.payload?.studentId || '',
+          role: event.data.payload?.role || ''
         });
+        return;
+      }
+      if (event.data?.type === 'village-home-context') {
+        const nextVillages = mergeRuntimeVillages(event.data.payload?.villages);
+        const preferredId = String(event.data.payload?.selectedVillageId || '');
+        setVillages(nextVillages);
+        setSelectedVillageId(nextVillages.some((village) => village.id === preferredId)
+          ? preferredId
+          : nextVillages[0].id);
         return;
       }
       const opened = resolveTheoryPracticeOpened(event.data);
@@ -312,6 +325,7 @@ function App() {
     window.addEventListener('message', handleMessage);
     // 请求父页面发送当前登录状态
     window.parent.postMessage({ type: 'village-auth-request' }, '*');
+    window.parent.postMessage({ type: 'village-home-context-request' }, '*');
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
@@ -324,9 +338,21 @@ function App() {
     setAuthState({
       isLoggedIn: false,
       displayName: '',
-      username: ''
+      username: '',
+      role: ''
     });
   }, []);
+
+  const requestAdmin = useCallback(() => {
+    window.parent.postMessage({ type: 'village-open-admin' }, '*');
+  }, []);
+
+  const requestEnterPlatform = useCallback(() => {
+    window.parent.postMessage({
+      type: 'village-home-enter',
+      payload: { villageId: selectedVillageId }
+    }, '*');
+  }, [selectedVillageId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -742,6 +768,14 @@ function App() {
 
             {/* Desktop Navigation */}
             <div className="home-nav-list hidden md:flex items-center justify-center gap-8">
+              <button
+                onClick={() => scrollToSection('platform-guide')}
+                className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
+                  isScrolled ? 'text-gray-700' : 'text-white/90'
+                }`}
+              >
+                平台说明
+              </button>
               <button 
                 onClick={() => scrollToSection('teaching-purpose')}
                 className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
@@ -772,6 +806,17 @@ function App() {
             <div className="hidden md:flex items-center gap-3">
               {authState.isLoggedIn ? (
                 <>
+                  {authState.role === 'admin' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={`home-admin-btn gap-2 rounded-full px-3 py-1.5 ${isScrolled ? 'text-green-800' : 'text-white'}`}
+                      onClick={requestAdmin}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      后台管理
+                    </Button>
+                  )}
                   <div className={`home-auth-pill flex items-center gap-2 px-3 py-1.5 rounded-full ${isScrolled ? 'home-auth-pill-scrolled' : 'home-auth-pill-hero'}`}>
                     <User className="w-4 h-4" />
                     <span className="text-sm font-medium">你好，{authState.displayName || authState.username}</span>
@@ -826,6 +871,12 @@ function App() {
         {isMobileMenuOpen && (
           <div className="md:hidden glass mt-3 mx-4 rounded-2xl shadow-xl p-4 animate-slide-up">
             <div className="flex flex-col gap-3">
+              <button
+                onClick={() => scrollToSection('platform-guide')}
+                className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
+              >
+                平台说明
+              </button>
               <button 
                 onClick={() => scrollToSection('teaching-purpose')}
                 className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
@@ -847,6 +898,12 @@ function App() {
               <hr className="my-2" />
               {authState.isLoggedIn ? (
                 <>
+                  {authState.role === 'admin' && (
+                    <Button variant="outline" className="w-full gap-2 justify-center" onClick={requestAdmin}>
+                      <ShieldCheck className="w-4 h-4" />
+                      后台管理
+                    </Button>
+                  )}
                   <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-green-50 text-green-700">
                     <User className="w-4 h-4" />
                     <span className="text-sm font-medium">你好，{authState.displayName || authState.username}</span>
@@ -922,6 +979,7 @@ function App() {
               <Button 
                 size="lg"
                 className="home-hero-action-btn home-hero-primary-btn w-full sm:w-auto gap-3 text-lg px-8 py-6 rounded-xl font-semibold"
+                onClick={requestEnterPlatform}
               >
                 进入互动平台
                 <ArrowRight className="w-5 h-5" />
@@ -929,7 +987,7 @@ function App() {
               <Button 
                 size="lg"
                 className="home-hero-action-btn home-hero-secondary-btn home-hero-secondary-compact w-full sm:w-auto gap-3 text-lg px-8 py-6 rounded-xl font-semibold"
-                onClick={() => scrollToSection('teaching-purpose')}
+                onClick={() => scrollToSection('platform-guide')}
               >
                 了解更多
                 <ArrowRight className="w-5 h-5" />
@@ -940,7 +998,7 @@ function App() {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {[
-              { label: '规划村庄', value: '50+' },
+              { label: '本学期村庄', value: String(villages.length) },
               { label: '参与用户', value: '1000+' },
               { label: '规划方案', value: '200+' },
               { label: '覆盖面积', value: '5000亩' },
@@ -960,6 +1018,40 @@ function App() {
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
           <div className="w-8 h-12 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
             <div className="w-1.5 h-3 bg-white/60 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Guide */}
+      <section id="platform-guide" className="py-24 px-4 sm:px-6 lg:px-8 bg-emerald-50/70 scroll-mt-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-green-700 border border-green-100 mb-5">
+              <Compass className="w-4 h-4" />
+              <span className="text-sm font-semibold">平台说明</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">第一次使用，从这条流程开始</h2>
+            <p className="text-gray-600 max-w-3xl mx-auto leading-7">平台把课程学习、村庄现状调查、二维编辑与三维认知放在同一个项目中。所有小组共同规划本学期绑定的同一个正式村庄。</p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-5">
+            {[
+              { step: '01', title: '登录并选择村庄', desc: '先在米埗村熟悉流程，再切换到本学期正式村庄。' },
+              { step: '02', title: '学习与认识现状', desc: '结合课程内容查看影像、建筑、道路、水系和等高线。' },
+              { step: '03', title: '个人体验生产', desc: '在我的个人体验空间运行图底处理，也可以尝试修改要素。' },
+              { step: '04', title: '共同校核现状', desc: '进入全班共享现状空间补充和修改，形成后续规划的数据基础。' },
+              { step: '05', title: '二维三维协同', desc: '在二维中编辑现状，在三维中查看白模和已发布的实景模型。' },
+            ].map((item) => (
+              <article key={item.step} className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
+                <span className="text-sm font-bold text-emerald-600">{item.step}</span>
+                <h3 className="mt-3 mb-3 text-lg font-bold text-gray-800">{item.title}</h3>
+                <p className="text-sm leading-6 text-gray-600">{item.desc}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-5 text-sm leading-7 text-amber-950">
+            <strong>双轨空间说明：</strong>个人体验空间主要用于学习和尝试，结果不会自动反馈到系统现状；只有在“全班共享现状空间”中完成并保存的修改，才会影响后续课程成果。
           </div>
         </div>
       </section>
@@ -1099,6 +1191,7 @@ function App() {
           <VillageMapSection
             selectedVillageId={selectedVillageId}
             onVillageChange={setSelectedVillageId}
+            villages={villages}
           />
 
           <div id="village-status" className="mt-20 scroll-mt-24">
@@ -1240,6 +1333,7 @@ function App() {
             <div>
               <h4 className="font-semibold mb-4">快速链接</h4>
               <ul className="space-y-2 text-gray-400">
+                <li><button onClick={() => scrollToSection('platform-guide')} className="hover:text-white transition-colors">平台说明</button></li>
                 <li><button onClick={() => scrollToSection('teaching-purpose')} className="hover:text-white transition-colors">教学目的</button></li>
                 <li><button onClick={() => scrollToSection('theory-learning')} className="hover:text-white transition-colors">理论学习</button></li>
                 <li><button onClick={() => scrollToSection('practice')} className="hover:text-white transition-colors">开始实践</button></li>

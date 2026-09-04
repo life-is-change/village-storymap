@@ -44,8 +44,7 @@ test('3D view exposes the configured reality-model inset and its accessible cont
   const html = read('index.html');
   const css = read('style.css');
 
-  assert.match(html, /window\.VILLAGE_REALITY_MODEL\s*=\s*\{/);
-  assert.match(html, /ionAssetId:\s*5133927/);
+  assert.doesNotMatch(html, /window\.VILLAGE_REALITY_MODEL\s*=\s*\{/);
   assert.match(html, /id="reality3dPanel"/);
   assert.match(html, /id="reality3dSidebarMount"[^>]*>[\s\S]*id="reality3dPanel"/);
   assert.match(html, /id="reality3dTitlebar"/);
@@ -71,6 +70,8 @@ test('3D view exposes the configured reality-model inset and its accessible cont
   assert.match(app3d, /expandButton:\s*byId\("reality3dExpandBtn"\)/);
   assert.match(app3d, /resizeHandle:\s*byId\("reality3dResizeHandle"\)/);
   assert.match(app3d, /docked:\s*true/);
+  assert.match(app3d, /getActiveVillage3DContext/);
+  assert.match(app3d, /resolveRealityConfigForContext/);
 });
 
 test('main and reality viewers synchronize building proxies and selection by code', () => {

@@ -39,6 +39,10 @@
           p_aoi: payload.aoi,
           p_parameters: normalizeParameters(payload.parameters)
         };
+        if (payload.teachingProjectId && payload.datasetId) {
+          args.p_teaching_project_id = String(payload.teachingProjectId);
+          args.p_dataset_id = String(payload.datasetId);
+        }
         return assertNoError(await supabaseClient.rpc("submit_geoprocessing_run", args));
       },
       async getAvailability() {

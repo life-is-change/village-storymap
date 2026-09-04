@@ -39,48 +39,40 @@
       }
 
       const currentSpaceId = deps.getCurrentSpaceId();
-      const isPersonalSpace = currentSpace.spaceType === "course_personal";
+      const isPersonalSpace = ["course_personal", "practice_personal", "formal_personal"].includes(currentSpace.spaceType);
       const availableLayerKeys = deps.getAvailableLayerKeysForSpace(currentSpace);
       const layerConfigs = deps.getLayerConfigs();
       const currentSpaceCreator = deps.getSpaceCreatorName(currentSpace);
-      const currentUserName = String(deps.getCurrentUserName?.() || "").trim();
       const canManageCurrentSpace = deps.canManageSpace(currentSpace.id);
 
       // ===== 空间管理：下拉选择器 =====
+      const personalTypes = new Set(["course_personal", "practice_personal", "formal_personal"]);
+      const sharedTypes = new Set(["practice_shared", "formal_shared"]);
+      const groupTypes = new Set(["course_group", "group_plan"]);
+      const managedVillageContext = spaces.some((space) => (
+        Boolean(space?.teachingProjectId) && Boolean(space?.villageId)
+      ));
       const spaceGroups = [
-        { label: "我创建的空间", items: [] },
-        { label: "他人创建的空间", items: [] },
-        { label: "未标注创建者", items: [] },
-        { label: "系统空间 🔒", items: [] }
+        { label: "我的个人体验空间", items: [] },
+        { label: "全班共享现状空间", items: [] },
+        { label: "本组规划空间", items: [] },
+        { label: "其他空间", items: [] }
       ];
 
       spaces.forEach((space) => {
-        const creatorName = deps.getSpaceCreatorName(space);
-        const isOwnSpace = space.id !== deps.BASE_SPACE_ID && !!currentUserName && creatorName === currentUserName;
-        if (isOwnSpace) {
+        if (personalTypes.has(space.spaceType)) {
           spaceGroups[0].items.push(space);
-        } else if (space.id === deps.BASE_SPACE_ID) {
-          spaceGroups[3].items.push(space);
-        } else if (creatorName) {
+        } else if (space.id === deps.BASE_SPACE_ID || sharedTypes.has(space.spaceType)) {
           spaceGroups[1].items.push(space);
-        } else {
+        } else if (groupTypes.has(space.spaceType)) {
           spaceGroups[2].items.push(space);
+        } else {
+          spaceGroups[3].items.push(space);
         }
       });
 
       const visibleSpaceGroups = spaceGroups.filter((group) => group.items.length > 0);
-      const getSpaceOptionDisplayText = (space) => {
-        const creatorName = deps.getSpaceCreatorName(space);
-        const isOwnSpace = space.id !== deps.BASE_SPACE_ID && !!currentUserName && creatorName === currentUserName;
-        const isSystemSpace = space.id === deps.BASE_SPACE_ID;
-        return isOwnSpace
-          ? `我的 | ${space.title}`
-          : isSystemSpace
-            ? `系统 | ${space.title}`
-            : creatorName
-              ? `${creatorName} | ${space.title}`
-              : `未标注 | ${space.title}`;
-      };
+      const getSpaceOptionDisplayText = (space) => space.title || "未命名空间";
       const dropdownOptionsHtml = visibleSpaceGroups
         .map((group) => `
           <optgroup label="${deps.escapeHtml(group.label)}">
@@ -349,6 +341,11 @@
           </select>
         `;
       }
+
+      const contextBar = document.getElementById("workspaceContextBar");
+      contextBar?.classList.toggle("is-managed-village", managedVillageContext);
+      const spaceActions = document.getElementById("workspaceSpaceActions");
+      if (spaceActions) spaceActions.hidden = managedVillageContext;
 
       const isSystemSpace = currentSpace.id === deps.BASE_SPACE_ID;
       const topSpaceButtons = [

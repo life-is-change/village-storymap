@@ -28,6 +28,8 @@ function createLogger(overrides = {}) {
     getContext: () => ({
       actor: { studentKey: "2026001::张三", name: "张三" },
       courseId: "mibu-village-planning",
+      teachingProjectId: "project-1",
+      villageId: "village-1",
       groupId: "group-1",
       taskId: "design-workspace",
       spaceId: "group-space-1",
@@ -60,6 +62,8 @@ test("record attaches actor, course, group, task and target context", async () =
 
   assert.equal(event.studentKey, "2026001::张三");
   assert.equal(event.courseId, "mibu-village-planning");
+  assert.equal(event.teachingProjectId, "project-1");
+  assert.equal(event.villageId, "village-1");
   assert.equal(event.groupId, "group-1");
   assert.equal(event.taskId, "design-workspace");
   assert.equal(event.targetType, "building");

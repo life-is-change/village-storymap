@@ -57,6 +57,8 @@ class ProcessingRequest:
     requested_steps: tuple[str, ...]
     parameters: ProcessingParameters
     work_dir: Path
+    dataset_id: str | None = None
+    input_manifest: dict | None = None
 
     @classmethod
     def from_json(cls, path: Path) -> "ProcessingRequest":
@@ -82,6 +84,8 @@ class ProcessingRequest:
             requested_steps=steps,
             parameters=ProcessingParameters.from_dict(raw.get("parameters")),
             work_dir=work_dir,
+            dataset_id=str(raw["dataset_id"]) if raw.get("dataset_id") else None,
+            input_manifest=raw.get("input_manifest") if isinstance(raw.get("input_manifest"), dict) else None,
         )
 
 

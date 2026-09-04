@@ -10,6 +10,7 @@ test("object info supplies the active Supabase client lazily", () => {
 
   const deps = createObjectCommentDeps({
     getClient: () => activeClient,
+    getContext: () => ({ teachingProjectId: "p1", villageId: "v1", spaceId: "s1" }),
     commentsTable: "object_comments",
     editsTable: "object_edits"
   });

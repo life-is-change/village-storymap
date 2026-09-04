@@ -9,9 +9,12 @@ export type VillageProfile = {
   longitude: number;
   latitude: number;
   zoom: number;
+  isPractice?: boolean;
+  role?: 'practice' | 'formal';
 };
 
 export const VILLAGES: VillageProfile[];
 export const DEFAULT_VILLAGE_ID: string;
 export const HOME_REGION: Pick<VillageProfile, 'name' | 'longitude' | 'latitude' | 'zoom'>;
-export function getVillageById(id: string): VillageProfile;
+export function mergeRuntimeVillages(runtimeVillages: Partial<VillageProfile>[]): VillageProfile[];
+export function getVillageById(id: string, villages?: VillageProfile[]): VillageProfile;

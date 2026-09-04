@@ -27,11 +27,13 @@ function fakeSupabase() {
 test("ensure creates one server-owned course personal space", async () => {
   const fake = fakeSupabase();
   const client = createPersonalSpaceClient({ supabaseClient: fake });
-  const result = await client.ensure({ courseId: "course-1", villageId: "mibu", title: "张三 · 个人图底空间" });
+  const result = await client.ensure({ courseId: "course-1", teachingProjectId: "project-1", villageId: "mibu", spaceType: "practice_personal", title: "张三 · 个人图底空间" });
   assert.equal(result.id, "space-1");
   assert.deepEqual(fake.calls[0], ["ensure_course_personal_space", {
     p_course_id: "course-1",
+    p_teaching_project_id: "project-1",
     p_village_id: "mibu",
+    p_space_type: "practice_personal",
     p_title: "张三 · 个人图底空间"
   }]);
 });

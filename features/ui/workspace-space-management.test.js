@@ -34,3 +34,23 @@ test("persistent top space buttons bind only once and follow the current space",
   assert.match(panelSource, /deleteCurrentSpaceBtn/);
   assert.match(eventsSource, /spaceActionBound/);
 });
+
+test("managed village context uses semantic space labels and hides manual space actions", () => {
+  assert.doesNotMatch(panelSource, /label: "(?:我创建的空间|他人创建的空间|未标注创建者|系统空间)/);
+  assert.match(panelSource, /我的个人体验空间/);
+  assert.match(panelSource, /全班共享现状空间/);
+  assert.match(panelSource, /workspaceSpaceActions/);
+  assert.match(panelSource, /managedVillageContext/);
+});
+
+test("realtime space sync reapplies the active village context", () => {
+  const syncFunction = appSource.match(
+    /async function syncSpacesFromSupabase\(\)[\s\S]*?(?=\n\s*function saveAppState)/
+  )?.[0] || "";
+  assert.match(syncFunction, /activeVillageContext\?\.teachingProjectId/);
+  assert.match(syncFunction, /filterSpacesForContext\(\{\s*spaces:/);
+  assert.match(syncFunction, /mapContextSpaceToWorkspace/);
+  assert.match(syncFunction, /isStaff:\s*false/);
+  assert.match(appSource, /teachingProjectId:\s*row\.teaching_project_id/);
+  assert.match(appSource, /villageId:\s*row\.village_id/);
+});

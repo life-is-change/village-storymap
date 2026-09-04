@@ -105,7 +105,8 @@
   }
 
   function createGeoprocessingPanel({
-    container, client, aoiController, courseId, villageId, availability = "offline",
+    container, client, aoiController, courseId, teachingProjectId = null,
+    villageId, datasetId = null, availability = "offline",
     onCompleted, onPreview, onImported, onStartAoi
   }) {
     let run = null;
@@ -165,7 +166,8 @@
       if (!steps.length) return showMessage("请至少选择一个处理内容");
       const data = new FormData(form);
       const runId = await client.submit({
-        courseId, villageId, aoi: validation.geometry, requestedSteps: steps,
+        courseId, teachingProjectId, villageId, datasetId,
+        aoi: validation.geometry, requestedSteps: steps,
         parameters: {
           building_score_threshold: Number(data.get("buildingThreshold")),
           contour_interval_m: Number(data.get("contourInterval")),

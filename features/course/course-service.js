@@ -55,10 +55,12 @@
     const uuid =
       deps.uuid ||
       (() => root?.crypto?.randomUUID?.() || `course-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+    const teachingProjectId = String(deps.teachingProjectId || course.teachingProjectId || "legacy").trim();
+    const cacheScope = `${course.id}:${teachingProjectId}`;
     const keys = {
-      groups: `village_course_groups_v1:${course.id}`,
-      memberships: `village_group_memberships_v1:${course.id}`,
-      progress: `village_task_progress_v1:${course.id}`
+      groups: `village_course_groups_v1:${cacheScope}`,
+      memberships: `village_group_memberships_v1:${cacheScope}`,
+      progress: `village_task_progress_v1:${cacheScope}`
     };
 
     function getGroups() {
@@ -420,6 +422,7 @@
       const group = membership ? getGroups().find((item) => item.id === membership.groupId) || null : null;
       return {
         course: clone(course),
+        teachingProjectId,
         user: clone(user || {}),
         membership: clone(membership),
         group: clone(group),

@@ -12,6 +12,16 @@ from village_processing.processors.osm import extract_osm_layers
 from village_processing.raster import crop_imagery
 
 
+def resolve_dataset(request: ProcessingRequest, local_catalog, remote_resolver):
+    if request.dataset_id:
+        if remote_resolver is None:
+            raise ValueError("REMOTE_DATASET_RESOLVER_REQUIRED")
+        return remote_resolver.resolve(request, request.work_dir)
+    if request.village_id != "mibu":
+        raise ValueError("DATASET_ID_REQUIRED")
+    return local_catalog.resolve("mibu")
+
+
 @dataclass(frozen=True)
 class RunManifest:
     run_id: str
@@ -33,9 +43,9 @@ def _write_manifest(request: ProcessingRequest, manifest: RunManifest) -> None:
     partial.replace(target)
 
 
-def run_pipeline(request: ProcessingRequest, catalog, processors) -> RunManifest:
+def run_pipeline(request: ProcessingRequest, catalog, processors, remote_resolver=None) -> RunManifest:
     request.work_dir.mkdir(parents=True, exist_ok=True)
-    dataset = catalog.resolve(request.village_id)
+    dataset = resolve_dataset(request, catalog, remote_resolver)
     artifacts: list[ArtifactSummary] = []
     warnings: list[str] = []
     stages = {step: "pending" for step in request.requested_steps}

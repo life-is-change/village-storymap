@@ -37,6 +37,13 @@
     const remote = deps.remote || null;
     const supabaseClient = deps.supabaseClient || null;
 
+    function requireContext(context) {
+      if (!context?.teachingProjectId) throw new Error("PROJECT_CONTEXT_REQUIRED");
+      if (!context?.villageId) throw new Error("VILLAGE_CONTEXT_REQUIRED");
+      if (!context?.spaceId) throw new Error("SPACE_CONTEXT_REQUIRED");
+      return context;
+    }
+
     async function insertRemote(event) {
       if (remote?.insert) {
         return remote.insert(clone(event));
@@ -51,6 +58,8 @@
         student_key: event.studentKey || null,
         student_name: event.studentName || null,
         course_id: event.courseId || null,
+        teaching_project_id: event.teachingProjectId,
+        village_id: event.villageId,
         group_id: event.groupId || null,
         task_id: event.taskId || null,
         space_id: event.spaceId || null,
@@ -68,7 +77,7 @@
     }
 
     async function record(action, target = {}, metadata = {}) {
-      const context = (await getContext()) || {};
+      const context = requireContext((await getContext()) || {});
       const actor = context.actor || {};
       const clientEventId = String(uuid());
       const event = {
@@ -78,6 +87,8 @@
         studentKey: actor.studentKey || context.studentKey || "",
         studentName: actor.name || context.studentName || "",
         courseId: context.courseId || "",
+        teachingProjectId: context.teachingProjectId,
+        villageId: context.villageId,
         groupId: context.groupId || "",
         taskId: context.taskId || "",
         spaceId: context.spaceId || "",

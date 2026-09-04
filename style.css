@@ -6809,7 +6809,7 @@ body.map-view-active .course-task-sidebar {
 
 .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(92px, 110px) minmax(160px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(92px, 110px) minmax(130px, 190px) minmax(150px, 1fr) auto auto auto auto;
   --workspace-action-label-display: inline-flex;
   display: none;
   position: fixed;
@@ -6873,6 +6873,21 @@ body.map-view-active .workspace-context-bar {
   max-width: none;
 }
 
+.workspace-project-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.workspace-project-select select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(33, 101, 63, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #193e2a;
+}
+
 .workspace-space-select .space-select-dropdown {
   width: 100%;
   min-height: 36px;
@@ -6885,6 +6900,10 @@ body.map-view-active .workspace-context-bar {
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+}
+
+.workspace-space-actions[hidden] {
+  display: none !important;
 }
 
 .workspace-icon-btn {
@@ -6968,6 +6987,7 @@ body.map-view-active .workspace-context-bar {
 
 .workspace-view-mode-switch .view-mode-btn {
   padding: 7px 12px;
+  white-space: nowrap;
 }
 
 .workspace-settings-btn {
@@ -6993,26 +7013,34 @@ body.map-view-active .workspace-context-bar {
 
 .main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed).mode-map-right-collapsed .workspace-context-bar {
   --workspace-identity-display: none;
-  --workspace-grid-columns: auto minmax(160px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(130px, 180px) minmax(160px, 1fr) auto auto auto auto;
   --workspace-action-label-display: inline-flex;
 }
 
 .main-layout.mode-map.mode-map-left-collapsed:not(.mode-map-right-collapsed) .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(92px, 110px) minmax(160px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(92px, 110px) minmax(130px, 180px) minmax(160px, 1fr) auto auto auto auto;
   --workspace-action-label-display: inline-flex;
 }
 
 .main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed):not(.mode-map-right-collapsed) .workspace-context-bar {
   --workspace-identity-display: none;
-  --workspace-grid-columns: auto minmax(160px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(130px, 180px) minmax(160px, 1fr) auto auto auto auto;
   --workspace-action-label-display: none;
 }
 
 .main-layout.mode-map.mode-map-left-collapsed.mode-map-right-collapsed .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(92px, 110px) minmax(160px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(92px, 110px) minmax(130px, 180px) minmax(160px, 1fr) auto auto auto auto;
   --workspace-action-label-display: inline-flex;
+}
+
+.workspace-context-bar.is-managed-village {
+  --workspace-grid-columns: auto minmax(92px, 110px) minmax(130px, 190px) minmax(150px, 1fr) auto auto auto;
+}
+
+.main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed) .workspace-context-bar.is-managed-village {
+  --workspace-grid-columns: auto minmax(130px, 180px) minmax(160px, 1fr) auto auto auto;
 }
 
 .workspace-settings-btn:hover,
@@ -7133,9 +7161,13 @@ body.map-view-active .workspace-context-bar {
 @container workspace (max-width: 620px) {
   .workspace-context-bar {
     height: 56px;
-    grid-template-columns: auto minmax(100px, 1fr) auto auto auto auto;
+    grid-template-columns: auto minmax(100px, 1fr) minmax(100px, 1fr) auto auto auto auto;
     gap: 4px;
     padding: 6px 14px;
+  }
+
+  .workspace-context-bar.is-managed-village {
+    grid-template-columns: auto minmax(100px, 1fr) minmax(100px, 1fr) auto auto auto;
   }
 
   .workspace-context-identity {
@@ -7190,6 +7222,7 @@ body.map-view-active .workspace-context-bar {
   .workspace-context-bar {
     left: 80px;
     right: 12px;
+    grid-template-columns: auto minmax(100px, 1fr) auto auto;
   }
 
   .workspace-context-identity,

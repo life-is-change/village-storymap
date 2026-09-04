@@ -106,6 +106,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let measureLineEntity = null;
   let measureLabelEntity = null;
   let realityInsetController = null;
+  let realityInsetRevision = "";
   let realitySelectionSyncing = false;
   let deferredEntityInfoTimer = 0;
 
@@ -261,6 +262,26 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return spaces.find((space) => String(space?.id) === String(spaceId)) || { id: spaceId };
   }
 
+  function getActualLinkedSpaceIdFor3D() {
+    const space = getLinked2DSpaceFor3D();
+    return String(space?.actualSpaceId || space?.id || getLinked2DSpaceIdFor3D());
+  }
+
+  function getActiveVillage3DContext() {
+    return window.__activeVillageContext || {};
+  }
+
+  function getMain3DResources() {
+    return window.Village3DConfigModule?.buildMain3dResources(
+      getActiveVillage3DContext().datasetResources || {}
+    ) || {};
+  }
+
+  function get3DLoadKey() {
+    const context = getActiveVillage3DContext();
+    return [context.teachingProjectId, context.villageId, getActualLinkedSpaceIdFor3D()].join("::");
+  }
+
   function getGroupModelLibrary() {
     if (groupModelLibrary) return groupModelLibrary;
     if (!window.GroupModelLibraryModule) throw new Error("小组模型库模块未加载。");
@@ -368,12 +389,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function list3DBuildingsFromDb() {
     if (!supabaseClient) return [];
 
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-
-    const { data, error } = await supabaseClient
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("*")
-      .eq("space_id", linkedSpaceId)
+      .eq("space_id", linkedSpaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
       .eq("layer_key", "building")
       .order("object_code", { ascending: true });
 
@@ -383,12 +410,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     return data || [];
-  }
-
-  function getLinked2DSpaceFor3D() {
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    const spaces = typeof window.__get2DSpaces === "function" ? window.__get2DSpaces() : [];
-    return spaces.find((space) => String(space?.id) === String(linkedSpaceId)) || { id: linkedSpaceId };
   }
 
   async function list3DPersonalBuildings(spaceId) {
@@ -417,12 +438,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function list3DRoadsFromDb() {
     if (!supabaseClient) return [];
 
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-
-    const { data, error } = await supabaseClient
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("*")
-      .eq("space_id", linkedSpaceId)
+      .eq("space_id", linkedSpaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
       .eq("layer_key", "road")
       .or("is_deleted.is.null,is_deleted.eq.false")
       .order("object_code", { ascending: true });
@@ -437,11 +464,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   async function hasAny3DBuildingRowsForSpace(spaceId) {
     if (!supabaseClient) return false;
-
-    const { data, error } = await supabaseClient
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("id")
-      .eq("space_id", spaceId)
+      .eq("space_id", spaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
       .eq("layer_key", "building")
       .or("is_deleted.is.null,is_deleted.eq.false")
       .limit(1);
@@ -456,11 +489,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   async function hasAny3DRoadRowsForSpace(spaceId) {
     if (!supabaseClient) return false;
-
-    const { data, error } = await supabaseClient
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("id")
-      .eq("space_id", spaceId)
+      .eq("space_id", spaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
       .eq("layer_key", "road")
       .or("is_deleted.is.null,is_deleted.eq.false")
       .limit(1);
@@ -675,14 +714,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function ensureRealityInsetController() {
-    if (realityInsetController) return realityInsetController;
     const moduleApi = window.VillageRealityInsetModule;
     if (!moduleApi || typeof moduleApi.createController !== "function") return null;
+
+    const context = getActiveVillage3DContext();
+    const config = window.Village3DConfigModule?.resolveRealityConfigForContext(context)
+      || moduleApi.normalizeConfig(context.village?.realityModel || context.datasetResources?.realityModel || null);
+    const nextRevision = `${context.villageId || ""}::${config.revision || config.ionAssetId || "none"}`;
+    if (realityInsetController && realityInsetRevision === nextRevision) return realityInsetController;
+    realityInsetController?.destroy?.();
+    realityInsetController = null;
+    realityInsetRevision = nextRevision;
 
     const panel = byId("reality3dPanel");
     realityInsetController = moduleApi.createController({
       Cesium,
-      config: window.VILLAGE_REALITY_MODEL,
+      config,
       docked: true,
       panel,
       host: byId("model3dView"),
@@ -937,10 +984,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function getOverviewCameraOffset() {
+    const extent = getMain3DResources().initialExtent;
+    const camera = extent && window.Village3DConfigModule?.resolveVillageCamera
+      ? window.Village3DConfigModule.resolveVillageCamera(extent)
+      : null;
     return new Cesium.HeadingPitchRange(
-      Cesium.Math.toRadians(OVERVIEW_CAMERA_HEADING_DEG),
-      Cesium.Math.toRadians(OVERVIEW_CAMERA_PITCH_DEG),
-      OVERVIEW_CAMERA_RANGE
+      Cesium.Math.toRadians(camera?.headingDegrees ?? OVERVIEW_CAMERA_HEADING_DEG),
+      Cesium.Math.toRadians(camera?.pitchDegrees ?? OVERVIEW_CAMERA_PITCH_DEG),
+      camera?.range ?? OVERVIEW_CAMERA_RANGE
     );
   }
 
@@ -977,6 +1028,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function readBuildingHeightFromObject(obj) {
+    if (window.Village3DConfigModule?.resolveBuildingHeight) {
+      return window.Village3DConfigModule.resolveBuildingHeight(obj, DEFAULT_HEIGHT);
+    }
     for (const field of HEIGHT_FIELDS) {
       if (!(field in obj)) continue;
       const value = obj[field];
@@ -1249,7 +1303,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
       console.warn("已跳过 OSM 在线底图回退，使用本地/内置底图保持稳定显示。");
     }
 
-    const georef = getBasemapGeoref();
+    const mainResources = getMain3DResources();
+    const dynamicExtent = mainResources.initialExtent;
+    const georef = mainResources.imageryUrl && Array.isArray(dynamicExtent)
+      ? {
+          imageUrl: mainResources.imageryUrl,
+          minX: dynamicExtent[0], minY: dynamicExtent[1],
+          maxX: dynamicExtent[2], maxY: dynamicExtent[3]
+        }
+      : getBasemapGeoref();
     const rectValues = [georef.minX, georef.minY, georef.maxX, georef.maxY].map((v) => Number(v));
     const validRect = rectValues.every((v) => Number.isFinite(v)) && georef.minX < georef.maxX && georef.minY < georef.maxY;
     if (!validRect) {
@@ -1332,9 +1394,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
     });
   }
 
-  async function loadCSVRows() {
+  async function loadCSVRows(url = CSV_URL) {
+    if (!url) {
+      csvRows = [];
+      rowMap = new Map();
+      return;
+    }
     try {
-      const text = await loadText(CSV_URL);
+      const text = await loadText(url);
       csvRows = parseCSV(text);
     } catch (error) {
       console.warn("读取 CSV 失败，将只使用 GeoJSON 属性：", error);
@@ -2765,24 +2832,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
     roadEntitiesForWidthSync = [];
 
     let featureCollection = null;
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    const isBaseLinkedSpace = linkedSpaceId === "current";
-
-    if (isBaseLinkedSpace) {
-      const geojsonText = await loadText(ROAD_GEOJSON_URL);
-      featureCollection = JSON.parse(geojsonText);
-      const baseFeatures = Array.isArray(featureCollection?.features) ? featureCollection.features : [];
-      console.info("[3D roads] space=current, source=local", {
-        total: baseFeatures.length,
-        geomTypes: getFeatureGeometryTypeStats(baseFeatures)
-      });
-    } else {
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const roadUrl = getMain3DResources().roadUrl || ROAD_GEOJSON_URL;
+    {
       const dbRows = await list3DRoadsFromDb();
       const hasAnyDbRows = await hasAny3DRoadRowsForSpace(linkedSpaceId);
       const dbFeatureCollection = makeDbRoadFeatureCollection(dbRows);
       const dbFeatures = Array.isArray(dbFeatureCollection?.features) ? dbFeatureCollection.features : [];
 
-      const localGeojsonText = await loadText(ROAD_GEOJSON_URL);
+      const localGeojsonText = await loadText(roadUrl);
       const localFeatureCollection = JSON.parse(localGeojsonText);
       const localFeatures = Array.isArray(localFeatureCollection?.features) ? localFeatureCollection.features : [];
 
@@ -2807,7 +2865,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           features: mergedFeatures
         };
         if (!dbFeatures.length) {
-          console.warn("3D 道路数据存在但几何不可渲染，已回退到本地 roads.geojson。");
+          console.warn("3D 道路数据存在但几何不可渲染，已回退到当前村庄V0道路。");
         }
       } else {
         featureCollection = localFeatureCollection;
@@ -2924,19 +2982,20 @@ const ENABLE_SUPABASE_SYNC = (() => {
     entityMap.clear();
     terrainHeightCache.clear();
 
-    await loadCSVRows();
+    const mainResources = getMain3DResources();
+    const buildingUrl = mainResources.buildingUrl || GEOJSON_URL;
+    await loadCSVRows(mainResources.buildingUrl ? null : CSV_URL);
 
     let featureCollection = null;
 
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const linkedSpace = getLinked2DSpaceFor3D();
-    const isBaseLinkedSpace = linkedSpaceId === "current";
-    const geojsonText = await loadText(GEOJSON_URL);
+    const geojsonText = await loadText(buildingUrl);
     const baseCollection = JSON.parse(geojsonText);
     const resolver = window.EffectiveBuildingFeaturesModule;
     if (!resolver) throw new Error("EFFECTIVE_BUILDING_FEATURES_MODULE_REQUIRED");
 
-    if (linkedSpace?.spaceType === "course_personal") {
+    if (["course_personal", "practice_personal", "formal_personal"].includes(linkedSpace?.spaceType)) {
       const personalRows = await list3DPersonalBuildings(linkedSpaceId);
       featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
         baseFeatures: baseCollection.features,
@@ -2944,8 +3003,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
         isPersonalSpace: true,
         getBaseCode: (feature) => getRoadCodeFromFeatureLike(feature)
       });
-    } else if (isBaseLinkedSpace) {
-      featureCollection = baseCollection;
     } else {
       const dbRows = await list3DBuildingsFromDb();
       featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
@@ -2986,9 +3043,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     await applyCurrent3DSpaceToScene();
     const realityController = syncRealityBuildingProxies();
     void realityController?.enter().catch((error) => {
-      console.warn("米埗村实景模型后台加载失败：", error?.message || error);
+      console.warn("村庄实景模型后台加载失败：", error?.message || error);
     });
-    loadedBuildingsSpaceId = linkedSpaceId;
+    loadedBuildingsSpaceId = get3DLoadKey();
     loadedBuildingRevision = Number(window.__buildingGeometryRevision || 0);
     loadRoadsInBackground("after-load-buildings");
 
@@ -3875,7 +3932,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     await initViewer();
     bindHouseGeneratorMessageBridge();
 
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const linkedSpaceId = get3DLoadKey();
     const currentRevision = Number(window.__buildingGeometryRevision || 0);
     if (window.EffectiveBuildingFeaturesModule.shouldReloadBuildingSpace(
       loadedBuildingsSpaceId,
@@ -3898,7 +3955,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     update3DStatusText();
     const realityController = syncRealityBuildingProxies();
     void realityController?.enter().catch((error) => {
-      console.warn("米埗村实景模型进入失败：", error?.message || error);
+      console.warn("村庄实景模型进入失败：", error?.message || error);
     });
 
     // 与3D同步选中状态
@@ -4008,7 +4065,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
     
     // 后备方案：建筑数据未加载时，飞到默认中心
-    const georef = getBasemapGeoref();
+    const mainResources = getMain3DResources();
+    const extent = mainResources.initialExtent;
+    const georef = mainResources.imageryUrl && Array.isArray(extent)
+      ? { minX: extent[0], minY: extent[1], maxX: extent[2], maxY: extent[3] }
+      : getBasemapGeoref();
     const center = Cesium.Cartesian3.fromDegrees(
       (georef.minX + georef.maxX) / 2,
       (georef.minY + georef.maxY) / 2

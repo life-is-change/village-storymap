@@ -502,12 +502,40 @@
 
     .admin-course-input { min-width: 190px; }
     .admin-course-hint { margin: 6px 0 0; color: #728296; font-size: 13px; }
+    .village-admin-hero { padding: 26px 28px; color: #fff; background: linear-gradient(125deg, #155c37, #2f7a2a 58%, #56a549); border-radius: 18px; box-shadow: 0 16px 40px rgba(25,90,55,.18); }
+    .village-admin-hero h1 { margin: 0 0 8px; font-size: 26px; }
+    .village-admin-hero p { margin: 0; color: rgba(255,255,255,.84); line-height: 1.7; }
+    .village-admin-project { margin-top: 14px; display: inline-flex; gap: 6px; padding: 7px 12px; border: 1px solid rgba(255,255,255,.26); border-radius: 999px; background: rgba(255,255,255,.11); }
+    .village-workflow { display: grid; gap: 16px; margin-top: 16px; }
+    .village-step { overflow: hidden; border: 1px solid rgba(31,53,82,.09); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: 0 10px 30px rgba(31,53,82,.07); }
+    .village-step-head { display: grid; grid-template-columns: 42px 1fr; gap: 14px; padding: 20px 24px 14px; }
+    .village-step-number { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: #2f7a2a; font-weight: 800; }
+    .village-step h2 { margin: 0 0 5px; color: #1f3552; font-size: 19px; }
+    .village-step p { margin: 0; color: #718095; line-height: 1.6; }
+    .village-step-body { padding: 0 24px 22px 80px; }
+    .village-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    .village-field { display: grid; gap: 7px; color: #314963; font-size: 13px; font-weight: 700; }
+    .village-field .admin-course-input, .village-field .admin-course-select { width: 100%; min-width: 0; min-height: 44px; }
+    .village-field-wide { grid-column: 1 / -1; }
+    .village-inline-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .village-boundary-status, .village-package-status { padding: 12px 14px; border-radius: 11px; color: #557086; background: #f3f7f4; font-size: 13px; line-height: 1.55; }
+    .village-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+    .village-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid rgba(31,53,82,.08); border-radius: 12px; background: #f8faf8; }
+    .village-list li strong { margin-right: auto; color: #1f3552; }
+    .village-midterm { margin-top: 24px; border-top: 1px dashed rgba(31,53,82,.2); padding-top: 24px; }
+    .village-midterm-label { display: inline-block; margin-bottom: 10px; padding: 5px 10px; border-radius: 999px; color: #7b5b11; background: #fff4cf; font-size: 12px; font-weight: 800; }
+    @media (max-width: 760px) {
+      .village-form-grid { grid-template-columns: 1fr; }
+      .village-field-wide { grid-column: auto; }
+      .village-step-body { padding: 0 18px 20px; }
+      .village-step-head { padding: 18px; }
+    }
   </style>
 </head>
 <body class="admin-page">
   <main class="admin-shell">
     <header class="admin-topbar">
-      <a class="admin-brand" href="./profile.html" aria-label="返回个人中心">
+      <a class="admin-brand" href="./index.html" aria-label="返回平台首页">
         <span class="admin-brand-mark">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -516,13 +544,13 @@
         </span>
         <span>村庄规划互动平台 · 后台管理</span>
       </a>
-      <a class="admin-link-btn" href="./profile.html">返回个人中心</a>
+      <a class="admin-link-btn" href="./index.html">返回平台首页</a>
     </header>
 
     <section id="adminLocked" class="admin-locked" style="display:none;">
       <h1>权限不足</h1>
       <p>只有管理员账号才能访问后台管理平台。</p>
-      <a class="admin-btn admin-btn-primary" href="./profile.html">返回个人中心</a>
+      <a class="admin-btn admin-btn-primary" href="./index.html">返回平台首页</a>
     </section>
 
     <section id="adminContent" style="display:none;">
@@ -551,6 +579,12 @@
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
               <span>留言管理</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="villages">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"></path>
+              </svg>
+              <span>村庄与项目</span>
             </button>
             <button class="admin-menu-item" type="button" data-admin-tab="courseGroups">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -662,6 +696,54 @@
               </table></div>
             </div>
           </div>
+          <div id="adminTabVillages" class="admin-tab-panel">
+            <div id="adminVillageRoot" data-village-admin-root>
+              <div class="village-admin-hero">
+                <h1>新村庄数据发布</h1>
+                <p>本地工具负责生成标准 V0 数据包；后台只负责校验、上传、发布和教学项目绑定。</p>
+                <div class="village-admin-project">当前项目：<strong data-village-active-project>加载中…</strong></div>
+              </div>
+              <div class="village-workflow">
+                <section class="village-step" data-village-step="create">
+                  <div class="village-step-head"><span class="village-step-number">1</span><div><h2>创建村庄</h2><p>先登记名称和大致边界。边界同时决定首页地图范围及本地处理范围。</p></div></div>
+                  <form data-village-create-form class="village-step-body">
+                    <div class="village-form-grid">
+                      <label class="village-field">村庄名称<input name="villageName" class="admin-course-input" type="text" maxlength="80" placeholder="例如：溪口村" required /></label>
+                      <label class="village-field">村庄边界（GeoJSON）<input data-village-boundary-file type="file" accept=".geojson,.json" required /></label>
+                      <label class="village-field"><span>村庄类型</span><span><input name="isPractice" type="checkbox" /> 设为练习村庄</span></label>
+                      <details class="village-field"><summary>高级选项：坐标系</summary><input name="defaultCrs" class="admin-course-input" value="EPSG:4326" aria-label="默认坐标系" /></details>
+                      <div data-village-boundary-summary class="village-boundary-status village-field-wide">尚未读取边界。本地工具支持 Shapefile ZIP；后台建村使用工具导出的 boundary.geojson。</div>
+                    </div>
+                    <div class="village-inline-actions"><button class="admin-btn admin-btn-primary" type="submit">创建村庄草稿</button></div>
+                  </form>
+                </section>
+                <section class="village-step" data-village-step="import" data-village-package-step>
+                  <div class="village-step-head"><span class="village-step-number">2</span><div><h2>导入本地 V0 数据包</h2><p>选择本地工具生成的完整文件夹。浏览器会先核验结构与文件哈希，再写入私有存储。</p></div></div>
+                  <div class="village-step-body"><div class="village-form-grid">
+                    <label class="village-field">对应村庄<select name="villageId" data-village-select class="admin-course-select" aria-label="选择数据准备村庄"><option value="">选择村庄</option></select></label>
+                    <label class="village-field">成果文件夹<input data-village-upload-bundle type="file" webkitdirectory multiple aria-label="选择V0数据包文件夹" /></label>
+                    <div data-village-package-status class="village-package-status village-field-wide">等待选择数据包。不会上传原始 GeoTIFF、PBF、DEM 或模型权重。</div>
+                  </div></div>
+                </section>
+                <section class="village-step" data-village-step="publish">
+                  <div class="village-step-head"><span class="village-step-number">3</span><div><h2>校验、发布并绑定教学项目</h2><p>只有包含建筑成果且校验通过的数据包才能发布；正式村庄发布后再绑定到当前学期。</p></div></div>
+                  <div class="village-step-body"><ul data-village-admin-list class="village-list"><li>加载中…</li></ul></div>
+                </section>
+              </div>
+              <section class="village-step village-midterm">
+                <div class="village-step-head"><span class="village-step-number">3D</span><div><span class="village-midterm-label">学期中期 · 3D 实景模型</span><h2>发布 Cesium 实景资源</h2><p>该资源独立叠加，可随时补充，不替换或干扰二维建筑白模。</p></div></div>
+                <form data-village-reality-form class="village-step-body">
+                  <div class="village-form-grid">
+                    <label class="village-field">所属村庄<select name="villageId" data-village-select class="admin-course-select" required><option value="">选择村庄</option></select></label>
+                    <label class="village-field">Cesium ion Asset ID<input name="ionAssetId" class="admin-course-input" type="number" min="1" step="1" placeholder="例如：1234567" required /></label>
+                    <label class="village-field">显示名称<input name="title" class="admin-course-input" type="text" maxlength="100" value="村庄实景模型" /></label>
+                    <label class="village-field">高度偏移（米）<input name="heightOffset" class="admin-course-input" type="number" min="-1000" max="1000" step="0.1" value="0" /></label>
+                  </div>
+                  <div class="village-inline-actions"><label><input name="publishNow" type="checkbox" /> 保存后立即发布</label><button class="admin-btn admin-btn-primary" type="submit">保存实景模型</button></div>
+                </form>
+              </section>
+            </div>
+          </div>
           <div id="adminTabActivity" class="admin-tab-panel">
             <div class="admin-card">
               <div class="admin-card-header">
@@ -724,6 +806,12 @@
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
+  <script defer src="features/villages/village-model.js?v=20260903-home-guide"></script>
+  <script defer src="features/villages/village-client.js"></script>
+  <script defer src="features/villages/village-boundary.js"></script>
+  <script defer src="features/geoprocessing/geoprocessing-client.js"></script>
+  <script defer src="features/admin/village-package.js"></script>
+  <script defer src="features/admin/village-admin.js"></script>
   <script defer src="features/admin/course-admin.js"></script>
   <script defer src="admin.js"></script>
 </body>

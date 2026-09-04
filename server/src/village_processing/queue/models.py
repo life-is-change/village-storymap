@@ -12,6 +12,8 @@ class QueuedRun:
     requested_steps: tuple[str, ...]
     aoi: dict
     parameters: dict
+    dataset_id: str | None = None
+    input_manifest: dict | None = None
 
     @classmethod
     def from_row(cls, row: dict) -> "QueuedRun":
@@ -22,6 +24,8 @@ class QueuedRun:
             requested_steps=tuple(row["requested_steps"]),
             aoi=row["aoi"],
             parameters=row.get("parameters") or {},
+            dataset_id=str(row["dataset_id"]) if row.get("dataset_id") else None,
+            input_manifest=row.get("input_manifest") if isinstance(row.get("input_manifest"), dict) else None,
         )
 
     def processing_request(self, work_root: Path) -> ProcessingRequest:
@@ -37,4 +41,6 @@ class QueuedRun:
                 "contour_smoothing": parameters.get("contour_smoothing", 1),
             }),
             work_dir=Path(work_root).resolve() / "runs" / self.run_id,
+            dataset_id=self.dataset_id,
+            input_manifest=self.input_manifest,
         )

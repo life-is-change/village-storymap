@@ -50,19 +50,19 @@ test('top bar defines all four semantic side-panel states', () => {
   const bothClosed = css.match(/\.main-layout\.mode-map\.mode-map-left-collapsed\.mode-map-right-collapsed \.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
 
   assert.match(leftOnly, /--workspace-identity-display:\s*none/);
-  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
   assert.match(leftOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(rightOnly, /--workspace-identity-display:\s*flex/);
-  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
   assert.match(rightOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(bothOpen, /--workspace-identity-display:\s*none/);
-  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
   assert.match(bothOpen, /--workspace-action-label-display:\s*none/);
 
   assert.match(bothClosed, /--workspace-identity-display:\s*flex/);
-  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
   assert.match(bothClosed, /--workspace-action-label-display:\s*inline-flex/);
 });
 
@@ -76,6 +76,7 @@ test('top bar adapts to the actual center workspace width', () => {
   assert.match(css, /@container workspace \(max-width:\s*1150px\)[\s\S]*?\.workspace-settings-btn span\s*\{[^}]*display:\s*none/);
   assert.match(css, /@container workspace \(max-width:\s*920px\)[\s\S]*?\.workspace-action-btn span\s*\{[^}]*display:\s*none/);
   assert.match(css, /@container workspace \(max-width:\s*620px\)/);
+  assert.match(css, /\.workspace-view-mode-switch \.view-mode-btn\s*\{[^}]*white-space:\s*nowrap/);
   assert.doesNotMatch(css, /\.main-layout\.mode-map:not\(\.mode-map-(?:left|right)-collapsed\) \.workspace-settings-btn/);
   assert.doesNotMatch(desktopViewportRule, /workspace-settings-btn span/);
 });

@@ -91,10 +91,10 @@
           deps.onManualContextChange?.();
 
           target.viewMode = viewMode;
-          deps.saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
+          deps.saveSpacesToStorage({ syncRemote: !["course_personal", "practice_personal", "formal_personal"].includes(target.spaceType) });
 
           deps.setCurrentSpaceId(spaceId);
-          deps.saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
+          deps.saveSpacesToStorage({ syncRemote: !["course_personal", "practice_personal", "formal_personal"].includes(target.spaceType) });
           deps.sync2DSpaceStateTo3D();
 
           deps.clearBuildingInteractions();
@@ -116,7 +116,7 @@
           const target = deps.getSpaceById(button.dataset.contourLabelToggle || "");
           if (!target || !(target.selectedLayers || []).includes("contours")) return;
           target.contourLabelsVisible = target.contourLabelsVisible !== true;
-          deps.saveSpacesToStorage({ syncRemote: target.spaceType !== "course_personal" });
+          deps.saveSpacesToStorage({ syncRemote: !["course_personal", "practice_personal", "formal_personal"].includes(target.spaceType) });
           deps.getPlanVectorLayer?.()?.changed?.();
           deps.renderSpaceList();
         });

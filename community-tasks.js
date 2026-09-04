@@ -11,6 +11,17 @@
     }
   }
 
+  function requireContext(deps, requestedSpaceId = null) {
+    const context = deps.getContext?.() || {};
+    const teachingProjectId = String(context.teachingProjectId || "").trim();
+    const villageId = String(context.villageId || "").trim();
+    const spaceId = String(context.spaceId || requestedSpaceId || "").trim();
+    if (!teachingProjectId) throw new Error("PROJECT_CONTEXT_REQUIRED");
+    if (!villageId) throw new Error("VILLAGE_CONTEXT_REQUIRED");
+    if (!spaceId) throw new Error("SPACE_CONTEXT_REQUIRED");
+    return { teachingProjectId, villageId, spaceId };
+  }
+
   const api = {
     async fetchCommunityTaskPhotos(deps, taskId) {
       if (!taskId) return [];
@@ -21,13 +32,16 @@
     },
 
     async listCommunityTasks(deps, spaceId) {
+      const context = requireContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !deps.getCommunityGameTablesReady()) return [];
 
       const { data, error } = await supabaseClient
         .from(deps.COMMUNITY_TASKS_TABLE)
         .select("*")
-        .eq("space_id", spaceId)
+        .eq("space_id", context.spaceId)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
         .order("created_at", { ascending: false })
         .limit(2000);
 
@@ -56,6 +70,7 @@
     },
 
     async createCommunityTask(deps, { spaceId, reporterName, lng, lat, category = null, description = "" }) {
+      const context = requireContext(deps, spaceId);
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
 
@@ -67,7 +82,9 @@
 
       const hasCoord = Number.isFinite(Number(lng)) && Number.isFinite(Number(lat));
       const payload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         reporter_name: safeReporter,
         category: safeCategory,
         description: safeDescription,
@@ -98,6 +115,7 @@
     },
 
     async deleteCommunityMessage(deps, messageId) {
+      const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
       if (!messageId) throw new Error("留言无效");
@@ -105,7 +123,10 @@
       const { error } = await supabaseClient
         .from(deps.COMMUNITY_TASKS_TABLE)
         .delete()
-        .eq("id", messageId);
+        .eq("id", messageId)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId);
 
       if (error) {
         if (deps.isCommunityGameTableMissingError(error)) {
@@ -118,6 +139,7 @@
     },
 
     async fetchMessageReplies(deps, messageId) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !messageId) return [];
       const { data, error } = await supabaseClient
@@ -125,6 +147,9 @@
         .select("data")
         .eq("object_code", `MSG_${messageId}`)
         .eq("object_type", "message_replies")
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .maybeSingle();
 
       if (error) {
@@ -135,6 +160,7 @@
     },
 
     async addMessageReply(deps, { messageId, authorName, content }) {
+      const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId) throw new Error("参数不足");
       const safeAuthor = String(authorName || "").trim();
@@ -161,9 +187,12 @@
             object_code: `MSG_${messageId}`,
             object_type: "message_replies",
             data: { replies: nextReplies },
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       if (error) throw error;
@@ -171,6 +200,7 @@
     },
 
     async deleteMessageReply(deps, { messageId, replyId }) {
+      const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !replyId) throw new Error("参数不足");
 
@@ -184,9 +214,12 @@
             object_code: `MSG_${messageId}`,
             object_type: "message_replies",
             data: { replies: nextReplies },
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       if (error) throw error;
@@ -194,6 +227,7 @@
     },
 
     async fetchMessageLikes(deps, messageId) {
+      const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !messageId) return [];
       const { data, error } = await supabaseClient
@@ -201,6 +235,9 @@
         .select("data")
         .eq("object_code", `MSG_${messageId}`)
         .eq("object_type", "message_likes")
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .maybeSingle();
 
       if (error) {
@@ -211,6 +248,7 @@
     },
 
     async toggleMessageLike(deps, { messageId, likerName }) {
+      const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !likerName) throw new Error("参数不足");
       const likers = await api.fetchMessageLikes(deps, messageId);
@@ -231,9 +269,12 @@
             object_code: `MSG_${messageId}`,
             object_type: "message_likes",
             data: { likers },
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       if (error) throw error;
@@ -241,6 +282,7 @@
     },
 
     async toggleReplyLike(deps, { messageId, replyId, likerName }) {
+      const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !replyId || !likerName) throw new Error("参数不足");
 
@@ -268,9 +310,12 @@
             object_code: `MSG_${messageId}`,
             object_type: "message_replies",
             data: { replies },
+            teaching_project_id: context.teachingProjectId,
+            village_id: context.villageId,
+            space_id: context.spaceId,
             updated_at: new Date().toISOString()
           },
-          { onConflict: "object_code,object_type" }
+          { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
         );
 
       if (error) throw error;
@@ -377,6 +422,7 @@
     },
 
     async transitionCommunityTaskStatus(deps, { taskRow, operatorName, nextStatus }) {
+      const context = requireContext(deps, taskRow?.space_id);
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
       if (!taskRow?.id) throw new Error("任务无效。");
@@ -386,6 +432,9 @@
         .from(deps.COMMUNITY_TASKS_TABLE)
         .select("*")
         .eq("id", taskRow.id)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .maybeSingle();
 
       if (latestError) {
@@ -417,6 +466,9 @@
           settled_at: nextStatus === "resolved" || nextStatus === "archived" ? nowIso : latestTask.settled_at
         })
         .eq("id", latestTask.id)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", context.spaceId)
         .select("*")
         .single();
 
@@ -464,5 +516,6 @@
 
   };
 
-  window.CommunityTasksModule = api;
+  if (typeof module === "object" && module.exports) module.exports = { ...api, requireContext };
+  if (typeof window !== "undefined") window.CommunityTasksModule = api;
 })();

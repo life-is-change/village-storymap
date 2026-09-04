@@ -60,15 +60,16 @@ function tileUrl(layer: 'img' | 'cia') {
 type VillageMapSectionProps = {
   selectedVillageId: string;
   onVillageChange: (villageId: string) => void;
+  villages: typeof VILLAGES;
 };
 
-export function VillageMapSection({ selectedVillageId, onVillageChange }: VillageMapSectionProps) {
+export function VillageMapSection({ selectedVillageId, onVillageChange, villages }: VillageMapSectionProps) {
   const mapElementId = `village-map-${useId().replaceAll(':', '')}`;
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<TianDiTuMap | null>(null);
   const apiRef = useRef<TianDiTuApi | null>(null);
   const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const selectedVillage = getVillageById(selectedVillageId);
+  const selectedVillage = getVillageById(selectedVillageId, villages);
 
   useEffect(() => {
     let isActive = true;
@@ -123,7 +124,7 @@ export function VillageMapSection({ selectedVillageId, onVillageChange }: Villag
                 onChange={(event) => onVillageChange(event.target.value)}
                 className="w-full appearance-none rounded-xl border border-emerald-200 bg-white px-4 py-3 pr-10 text-base font-semibold text-emerald-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
               >
-                {VILLAGES.map((village) => <option key={village.id} value={village.id} className="text-slate-900">{village.name}</option>)}
+                {villages.map((village) => <option key={village.id} value={village.id} className="text-slate-900">{village.name}</option>)}
               </select>
               <span aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-emerald-700">⌄</span>
             </div>
@@ -136,7 +137,7 @@ export function VillageMapSection({ selectedVillageId, onVillageChange }: Villag
           <h3 className="mb-2 text-2xl font-bold tracking-tight text-emerald-950 sm:text-3xl">{selectedVillage.name}</h3>
           <p className="mb-5 text-base font-medium text-emerald-700">{selectedVillage.tagline}</p>
           <p className="max-w-md text-sm leading-7 text-slate-600">{selectedVillage.description}</p>
-          <p className="mt-6 border-t border-emerald-100 pt-4 text-xs leading-5 text-emerald-700/80">新增村庄时，在配置中补充名称、简介与中心点即可。</p>
+          <p className="mt-6 border-t border-emerald-100 pt-4 text-xs leading-5 text-emerald-700/80">正式村庄完成 V0 发布并绑定到本学期后，会自动出现在这里。</p>
         </article>
 
         <div ref={hostRef} className="relative isolate min-h-[29rem] bg-slate-100" aria-label="村庄位置地图">

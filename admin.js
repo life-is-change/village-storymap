@@ -34,6 +34,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let messageBoardSortOrder = "time_desc";
   let courseAdminService = null;
   let courseAdminLogger = null;
+  let villageAdminController = null;
   let courseGroupRows = [];
   let courseActivityRows = [];
 
@@ -1270,12 +1271,35 @@ const ENABLE_SUPABASE_SYNC = (() => {
       supabaseClient,
       getContext: () => ({
         actor: { studentKey: "admin::管理员", name: getCurrentUser()?.name || "管理员" },
-        courseId: "mibu-village-planning"
+        courseId: "mibu-village-planning",
+        teachingProjectId: "00000000-0000-4000-8000-000000000003",
+        villageId: "00000000-0000-4000-8000-000000000001",
+        spaceId: "practice-shared-00000000-0000-4000-8000-000000000003"
       })
     }) || null;
     bindCourseAdminEvents();
     await renderCourseGroups();
     await loadCourseActivity();
+  }
+
+  async function initializeVillageAdmin() {
+    if (villageAdminController || !supabaseClient || !window.VillageAdminModule
+      || !window.VillageClientModule || !window.VillageBoundaryModule) return;
+    const root = $("adminVillageRoot");
+    if (!root) return;
+    const client = window.VillageClientModule.createVillageClient({ supabaseClient });
+    const boundary = window.VillageBoundaryModule.createBoundaryController();
+    const geoprocessing = window.GeoprocessingClientModule?.createGeoprocessingClient({ supabaseClient }) || null;
+    villageAdminController = window.VillageAdminModule.createVillageAdminController({
+      root,
+      client,
+      boundary,
+      geoprocessing,
+      supabaseClient,
+      notify: showAdminNotice,
+      confirm: (message) => adminConfirm(message, { title: "发布确认", okText: "确认发布", isDanger: false })
+    });
+    await villageAdminController.mount();
   }
 
   function bindAdminTabs() {
@@ -1294,6 +1318,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         photos: $("adminTabPhotos"),
         messages: $("adminTabMessages"),
         courseGroups: $("adminTabCourseGroups"),
+        villages: $("adminTabVillages"),
         activity: $("adminTabActivity")
       };
       const target = targetByTab[tab];
@@ -1328,6 +1353,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     initializeCourseAdmin().catch((error) => {
       console.warn("课程管理模块初始化失败：", error);
       showAdminNotice("课程小组或操作记录暂时无法加载。", "warning");
+    });
+    initializeVillageAdmin().catch((error) => {
+      console.warn("村庄与项目模块初始化失败：", error);
+      showAdminNotice(error?.message || "村庄与项目暂时无法加载。", "warning");
     });
   }
 

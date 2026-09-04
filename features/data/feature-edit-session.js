@@ -24,6 +24,17 @@
     return String(value || "").trim();
   }
 
+  function requireContext(deps, payload = {}) {
+    const context = payload.context || deps?.getContext?.() || {};
+    const teachingProjectId = normalize(context.teachingProjectId);
+    const villageId = normalize(context.villageId);
+    const spaceId = normalize(context.spaceId || payload.spaceId);
+    if (!teachingProjectId) throw new Error("PROJECT_CONTEXT_REQUIRED");
+    if (!villageId) throw new Error("VILLAGE_CONTEXT_REQUIRED");
+    if (!spaceId) throw new Error("SPACE_CONTEXT_REQUIRED");
+    return { teachingProjectId, villageId, spaceId };
+  }
+
   function buildLockTarget(spaceId, layerKey, objectCode) {
     const target = {
       spaceId: normalize(spaceId),
@@ -68,6 +79,7 @@
   }
 
   async function acquireFeatureEditLock(deps, target, editorName) {
+    const context = requireContext(deps, target);
     const lockTarget = buildLockTarget(target?.spaceId, target?.layerKey, target?.objectCode);
     const client = deps?.getSupabaseClient?.();
     if (!lockTarget || !normalize(editorName)) {
@@ -76,7 +88,9 @@
     if (!client) return { success: true, offline: true, target: lockTarget };
 
     const { data, error } = await client.rpc("acquire_feature_edit_lock", {
-      p_space_id: lockTarget.spaceId,
+      p_space_id: context.spaceId,
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
       p_layer_key: lockTarget.layerKey,
       p_object_code: lockTarget.objectCode,
       p_editor_name: normalize(editorName),
@@ -89,8 +103,11 @@
   async function heartbeatFeatureEditLock(deps, lock) {
     const client = deps?.getSupabaseClient?.();
     if (!client || lock?.offline) return { success: true };
+    const context = requireContext(deps, lock);
     const { data, error } = await client.rpc("heartbeat_feature_edit_lock", {
-      p_space_id: lock.spaceId,
+      p_space_id: context.spaceId,
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
       p_layer_key: lock.layerKey,
       p_object_code: lock.objectCode,
       p_editor_name: lock.editorName,
@@ -104,8 +121,11 @@
   async function releaseFeatureEditLock(deps, lock) {
     const client = deps?.getSupabaseClient?.();
     if (!lock || !client || lock.offline) return { success: true };
+    const context = requireContext(deps, lock);
     const { data, error } = await client.rpc("release_feature_edit_lock", {
-      p_space_id: lock.spaceId,
+      p_space_id: context.spaceId,
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
       p_layer_key: lock.layerKey,
       p_object_code: lock.objectCode,
       p_editor_name: lock.editorName,
@@ -116,10 +136,13 @@
   }
 
   async function saveFeatureEditBatch(deps, payload) {
+    const context = requireContext(deps, payload);
     const client = deps?.getSupabaseClient?.();
     if (!client) throw new Error("当前未连接 Supabase，无法保存并同步本次编辑。");
     const { data, error } = await client.rpc("save_feature_edit_batch", {
-      p_space_id: normalize(payload?.spaceId),
+      p_space_id: context.spaceId,
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
       p_editor_name: normalize(payload?.editorName),
       p_summary: normalize(payload?.summary),
       p_note: normalize(payload?.note),
@@ -130,24 +153,30 @@
   }
 
   async function listSnapshots(deps, spaceId) {
+    const context = requireContext(deps, { spaceId });
     const client = deps?.getSupabaseClient?.();
     if (!client) return [];
     const { data, error } = await client
       .from("feature_snapshots")
       .select("id,space_id,version_name,version_type,description,created_by,created_at,is_published")
-      .eq("space_id", normalize(spaceId))
+      .eq("space_id", context.spaceId)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
   }
 
   async function listRecentVersions(deps, spaceId, limit = 20) {
+    const context = requireContext(deps, { spaceId });
     const client = deps?.getSupabaseClient?.();
     if (!client) return [];
     const { data, error } = await client
       .from("feature_change_batches")
       .select("id,space_id,editor_name,summary,note,created_at")
-      .eq("space_id", normalize(spaceId))
+      .eq("space_id", context.spaceId)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -167,10 +196,13 @@
   }
 
   async function freezeSnapshot(deps, payload) {
+    const context = requireContext(deps, payload);
     const client = deps?.getSupabaseClient?.();
     if (!client) throw new Error("当前未配置 Supabase。");
     const { data, error } = await client.rpc("freeze_feature_snapshot", {
-      p_space_id: normalize(payload?.spaceId),
+      p_space_id: context.spaceId,
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
       p_version_name: normalize(payload?.versionName),
       p_description: normalize(payload?.description),
       p_created_by: normalize(payload?.createdBy),
@@ -187,6 +219,7 @@
     buildLockTarget,
     summarizeChanges,
     canFreezeSnapshot,
+    requireContext,
     acquireFeatureEditLock,
     heartbeatFeatureEditLock,
     releaseFeatureEditLock,

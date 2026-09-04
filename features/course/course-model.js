@@ -12,6 +12,8 @@
     title: "米埗村规划实践",
     villageId: "mibu",
     villageName: "米埗村",
+    teachingProjectId: "00000000-0000-4000-8000-000000000003",
+    practiceVillageId: "00000000-0000-4000-8000-000000000001",
     stages: Object.freeze([
       { key: "group_join", kind: "preparation", title: "加入小组", taskIds: ["join-group"] },
       { key: "learning", kind: "preparation", title: "学习准备", taskIds: ["learning-ready"] },

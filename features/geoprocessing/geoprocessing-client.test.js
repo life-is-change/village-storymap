@@ -32,7 +32,9 @@ test("submit sends only whitelisted fields and never owner_id", async () => {
   const client = createGeoprocessingClient({ supabaseClient: fake });
   await client.submit({
     courseId: "mibu-village-planning",
+    teachingProjectId: "project-1",
     villageId: "mibu",
+    datasetId: "dataset-1",
     aoi: AOI,
     requestedSteps: ["buildings", "roads_water", "contours"],
     parameters: { building_score_threshold: 0.35, contour_interval_m: 5, smoothing_sigma: 1 },
@@ -41,6 +43,8 @@ test("submit sends only whitelisted fields and never owner_id", async () => {
 
   assert.equal(fake.calls[0][0], "submit_geoprocessing_run");
   assert.equal("owner_id" in fake.calls[0][1], false);
+  assert.equal(fake.calls[0][1].p_teaching_project_id, "project-1");
+  assert.equal(fake.calls[0][1].p_dataset_id, "dataset-1");
   assert.deepEqual(fake.calls[0][1].p_parameters, {
     building_threshold: 0.35,
     contour_interval: 5,

@@ -28,11 +28,17 @@ def write_request(path: Path, **overrides):
 
 
 def test_processing_request_accepts_supported_values(tmp_path: Path):
-    request = ProcessingRequest.from_json(write_request(tmp_path / "request.json"))
+    request = ProcessingRequest.from_json(write_request(
+        tmp_path / "request.json",
+        dataset_id="dataset-1",
+        input_manifest={"files": {}},
+    ))
 
     assert request.village_id == "mibu"
     assert request.parameters.contour_interval == 10
     assert request.requested_steps == ("buildings", "roads_water", "contours")
+    assert request.dataset_id == "dataset-1"
+    assert request.input_manifest == {"files": {}}
 
 
 @pytest.mark.parametrize(

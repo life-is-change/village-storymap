@@ -9,8 +9,6 @@
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
 
-  const DEFAULT_ASSET_ID = 5133927;
-  const DEFAULT_TITLE = "米埗村实景模型";
   const DEFAULT_STATUS = "等待加载实景模型";
 
   function toFiniteNumber(value, fallback = 0) {
@@ -19,16 +17,16 @@
   }
 
   function normalizeConfig(candidate = {}) {
-    const hasAssetId = candidate.ionAssetId !== undefined && candidate.ionAssetId !== null;
-    const parsedAssetId = hasAssetId ? Number(candidate.ionAssetId) : DEFAULT_ASSET_ID;
+    const parsedAssetId = Number(candidate.ionAssetId ?? candidate.ion_asset_id);
     const ionAssetId = Number.isInteger(parsedAssetId) && parsedAssetId > 0 ? parsedAssetId : 0;
 
     return {
       enabled: candidate.enabled !== false && ionAssetId > 0,
       ionAssetId,
-      title: String(candidate.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE,
-      terrainEnabled: candidate.terrainEnabled !== false,
-      heightOffset: toFiniteNumber(candidate.heightOffset, 0)
+      title: ionAssetId ? (String(candidate.title || "村庄实景模型").trim() || "村庄实景模型") : "",
+      terrainEnabled: (candidate.terrainEnabled ?? candidate.terrain_enabled) !== false,
+      heightOffset: toFiniteNumber(candidate.heightOffset ?? candidate.height_offset, 0),
+      revision: String(candidate.revision || candidate.updated_at || candidate.published_at || candidate.id || "")
     };
   }
 
@@ -196,7 +194,7 @@
 
   function createController(options = {}) {
     const CesiumRef = options.Cesium || root.Cesium || null;
-    const config = normalizeConfig(options.config || root.VILLAGE_REALITY_MODEL || {});
+    const config = normalizeConfig(options.config || {});
     const documentRef = options.document || root.document || null;
     const docked = options.docked === true;
     const proxyMap = new Map();
@@ -589,7 +587,7 @@
     async function loadTileset() {
       if (tileset) return tileset;
       if (tilesetPromise) return tilesetPromise;
-      setStatus("正在加载米埗村实景模型…", "loading");
+      setStatus(`正在加载${config.title || "村庄实景模型"}…`, "loading");
 
       tilesetPromise = (async () => {
         const quality = getRealityRenderQuality(root.devicePixelRatio);
@@ -910,6 +908,7 @@
       syncBuildingProxies,
       focusBuilding,
       resize,
+      getConfig: () => ({ ...config }),
       destroy
     };
   }

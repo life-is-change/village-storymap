@@ -16,6 +16,9 @@ create table if not exists public.geoprocessing_runs (
   owner_id uuid not null references auth.users(id) on delete cascade,
   course_id text not null,
   village_id text not null references public.geoprocessing_villages(village_id),
+  teaching_project_id uuid,
+  dataset_id uuid,
+  input_manifest jsonb,
   requested_steps text[] not null,
   aoi jsonb not null,
   parameters jsonb not null default '{}'::jsonb,
@@ -34,6 +37,24 @@ create table if not exists public.geoprocessing_runs (
   completed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+alter table public.geoprocessing_runs
+  add column if not exists teaching_project_id uuid,
+  add column if not exists dataset_id uuid,
+  add column if not exists input_manifest jsonb;
+
+do $$ begin
+  alter table public.geoprocessing_runs
+    add constraint geoprocessing_runs_teaching_project_fk
+    foreign key (teaching_project_id) references public.teaching_projects(id) on delete restrict;
+exception when duplicate_object or undefined_table then null;
+end $$;
+do $$ begin
+  alter table public.geoprocessing_runs
+    add constraint geoprocessing_runs_dataset_fk
+    foreign key (dataset_id) references public.village_datasets(id) on delete restrict;
+exception when duplicate_object or undefined_table then null;
+end $$;
 
 create index if not exists geoprocessing_runs_queue_idx
   on public.geoprocessing_runs(status, created_at);
@@ -146,6 +167,85 @@ begin
   return v_id;
 end; $$;
 
+create or replace function public.submit_geoprocessing_run(
+  p_course_id text, p_village_id text, p_requested_steps text[], p_aoi jsonb, p_parameters jsonb,
+  p_teaching_project_id uuid, p_dataset_id uuid
+) returns uuid
+language plpgsql security definer set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_id uuid;
+  v_bounds jsonb;
+  v_max_area numeric;
+  v_geom geometry;
+  v_envelope geometry;
+  v_input_manifest jsonb;
+  v_village public.villages;
+  v_dataset public.village_datasets;
+begin
+  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
+  if p_teaching_project_id is null then raise exception 'TEACHING_PROJECT_REQUIRED'; end if;
+  if p_dataset_id is null then raise exception 'DATASET_REQUIRED'; end if;
+
+  select * into v_dataset from public.village_datasets where id = p_dataset_id;
+  select * into v_village from public.villages where id::text = p_village_id;
+  if v_dataset.id is null or v_village.id is null or v_dataset.village_id <> v_village.id then
+    raise exception 'DATASET_VILLAGE_MISMATCH';
+  end if;
+  if v_dataset.status <> 'published' and public.current_profile_role() not in ('teacher','admin') then
+    raise exception 'PUBLISHED_DATASET_REQUIRED';
+  end if;
+  if not exists (
+    select 1 from public.teaching_projects project
+    where project.id = p_teaching_project_id and project.course_id = p_course_id
+      and v_village.id in (project.practice_village_id, project.formal_village_id)
+  ) then raise exception 'PROJECT_VILLAGE_MISMATCH'; end if;
+
+  v_input_manifest := v_dataset.layer_manifest->'worker_manifest';
+  if jsonb_typeof(v_input_manifest) <> 'object' or jsonb_typeof(v_input_manifest->'files') <> 'object' then
+    raise exception 'WORKER_MANIFEST_REQUIRED';
+  end if;
+  if v_input_manifest::text ~* 'https?://' then raise exception 'ARBITRARY_DATASET_URL_FORBIDDEN'; end if;
+
+  v_bounds := jsonb_build_array(
+    st_xmin(box2d(v_village.boundary)), st_ymin(box2d(v_village.boundary)),
+    st_xmax(box2d(v_village.boundary)), st_ymax(box2d(v_village.boundary))
+  );
+  v_max_area := greatest(st_area(v_village.boundary::geography) / 1000000.0, 0.01);
+  insert into public.geoprocessing_villages(village_id, display_name, bounds, max_aoi_sq_km, active)
+  values(v_village.id::text, v_village.name, v_bounds, v_max_area, true)
+  on conflict(village_id) do update set display_name=excluded.display_name,
+    bounds=excluded.bounds,max_aoi_sq_km=excluded.max_aoi_sq_km,active=true;
+
+  if coalesce(array_length(p_requested_steps, 1), 0) = 0
+     or not p_requested_steps <@ array['buildings','roads_water','contours']::text[]
+  then raise exception 'INVALID_PROCESSING_STEP'; end if;
+  if p_parameters - array['building_threshold','contour_interval','contour_smoothing']::text[] <> '{}'::jsonb
+  then raise exception 'INVALID_PARAMETERS'; end if;
+  begin v_geom := st_setsrid(st_geomfromgeojson(p_aoi::text), 4326);
+  exception when others then raise exception 'INVALID_AOI'; end;
+  if geometrytype(v_geom) not in ('POLYGON','MULTIPOLYGON') or st_npoints(v_geom) > 500 or not st_isvalid(v_geom)
+  then raise exception 'INVALID_AOI'; end if;
+  v_envelope := st_makeenvelope(
+    (v_bounds->>0)::double precision, (v_bounds->>1)::double precision,
+    (v_bounds->>2)::double precision, (v_bounds->>3)::double precision, 4326
+  );
+  if not st_coveredby(v_geom, v_envelope) then raise exception 'AOI_OUTSIDE_VILLAGE'; end if;
+  if st_area(v_geom::geography) > v_max_area * 1000000 then raise exception 'AOI_TOO_LARGE'; end if;
+  if (select count(*) from public.geoprocessing_runs
+      where owner_id = auth.uid() and status in ('queued','claimed','running','cancel_requested')) >= 2
+  then raise exception 'TOO_MANY_ACTIVE_RUNS'; end if;
+
+  insert into public.geoprocessing_runs(
+    owner_id, course_id, village_id, teaching_project_id, dataset_id, input_manifest,
+    requested_steps, aoi, parameters
+  ) values (
+    auth.uid(), p_course_id, p_village_id, p_teaching_project_id, p_dataset_id, v_input_manifest,
+    p_requested_steps, p_aoi, p_parameters
+  ) returning id into v_id;
+  return v_id;
+end; $$;
+
 create or replace function public.claim_next_geoprocessing_run(p_worker_id text)
 returns setof public.geoprocessing_runs
 language plpgsql security definer set search_path = public
@@ -248,6 +348,8 @@ $$;
 
 revoke all on function public.submit_geoprocessing_run(text,text,text[],jsonb,jsonb) from public, anon;
 grant execute on function public.submit_geoprocessing_run(text,text,text[],jsonb,jsonb) to authenticated;
+revoke all on function public.submit_geoprocessing_run(text,text,text[],jsonb,jsonb,uuid,uuid) from public, anon;
+grant execute on function public.submit_geoprocessing_run(text,text,text[],jsonb,jsonb,uuid,uuid) to authenticated;
 revoke all on function public.claim_next_geoprocessing_run(text) from public, anon, authenticated;
 grant execute on function public.claim_next_geoprocessing_run(text) to service_role;
 revoke all on function public.renew_geoprocessing_lease(uuid,text) from public, anon, authenticated;

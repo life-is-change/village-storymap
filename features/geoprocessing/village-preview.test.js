@@ -47,3 +47,23 @@ test("missing requested preview fails instead of falling back to another village
   });
   await assert.rejects(() => controller.show("mibu"), /VILLAGE_PREVIEW_NOT_FOUND/);
 });
+
+test("controller can preview the active dataset without a static Mibu catalog entry", async () => {
+  const calls = [];
+  class ImageStatic { constructor(options) { this.options = options; } }
+  class ImageLayer { constructor(options) { this.options = options; } }
+  const controller = createVillagePreviewController({
+    map: {
+      addLayer() {}, removeLayer() {}, getSize() { return [800, 600]; },
+      getView() { return { fit(bounds) { calls.push(bounds); } }; }
+    },
+    ol: { ImageLayer, ImageStatic },
+    fetchJson: async () => { throw new Error("STATIC_CATALOG_SHOULD_NOT_LOAD"); }
+  });
+  const entry = await controller.show("formal-1", {
+    imagery: "https://signed.test/formal.tif",
+    initialExtent: [110, 20, 112, 22]
+  });
+  assert.equal(entry.id, "formal-1");
+  assert.deepEqual(calls[0], [110, 20, 112, 22]);
+});

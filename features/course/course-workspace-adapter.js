@@ -7,7 +7,8 @@
     root.CourseWorkspaceAdapterModule = api;
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  function buildGroupPlanningSpace(group, actorName, baseSpace = {}) {
+  function buildGroupPlanningSpace(group, actorName, baseSpace = {}, context = {}) {
+    if (context.villageRole === "practice") throw new Error("PRACTICE_GROUP_SPACE_FORBIDDEN");
     return {
       id: group.spaceId,
       title: `${group.name} · 规划空间`,
@@ -22,6 +23,8 @@
       basemapVisible: Boolean(baseSpace.basemapVisible),
       viewMode: "2d",
       courseId: group.courseId || "",
+      teachingProjectId: context.teachingProjectId || "",
+      villageId: context.villageId || "",
       courseGroupId: group.id,
       spaceType: "course_group"
     };
@@ -42,11 +45,9 @@
   }
 
   function filterRemotePlanningSpaces(remoteSpaces = [], options = {}) {
-    const canViewAll = options.isAdmin === true || options.isStaff === true;
     const activeGroupId = String(options.activeGroupId || "").trim();
     return (Array.isArray(remoteSpaces) ? remoteSpaces : []).filter((space) => {
-      if (!space || space.spaceType === "course_personal") return false;
-      if (canViewAll) return true;
+      if (!space || ["course_personal", "practice_personal", "formal_personal"].includes(space.spaceType)) return false;
       return Boolean(
         activeGroupId &&
         space.spaceType === "course_group" &&
@@ -63,7 +64,7 @@
   } = {}) {
     const local = Array.isArray(localSpaces) ? localSpaces : [];
     const base = local.find((space) => String(space?.id) === String(baseSpaceId)) || null;
-    const personal = local.filter((space) => space?.spaceType === "course_personal");
+    const personal = local.filter((space) => ["course_personal", "practice_personal", "formal_personal"].includes(space?.spaceType));
     const visibleRemote = filterRemotePlanningSpaces(remoteSpaces, visibility);
     const merged = [base, ...personal, ...visibleRemote].filter(Boolean);
     const seen = new Set();
@@ -81,8 +82,13 @@
     existingSpace = null,
     selections = [],
     courseId,
-    villageId
+    villageId,
+    teachingProjectId,
+    spaceType
   }) {
+    if (!["practice_personal", "formal_personal"].includes(spaceType)) {
+      throw new Error("PERSONAL_SPACE_TYPE_REQUIRED");
+    }
     const selectedFromServer = (Array.isArray(selections) ? selections : [])
       .map((item) => String(item?.layer_key || ""))
       .filter((key) => ["building", "road", "water", "contours"].includes(key));
@@ -102,8 +108,9 @@
       basemapVisible: true,
       viewMode: "2d",
       courseId,
+      teachingProjectId,
       villageId,
-      spaceType: "course_personal"
+      spaceType
     };
   }
 

@@ -51,6 +51,37 @@ export const HOME_REGION = {
  * @param {string} id
  * @returns {VillageProfile}
  */
-export function getVillageById(id) {
-  return VILLAGES.find((village) => village.id === id) ?? VILLAGES[0];
+export function mergeRuntimeVillages(runtimeVillages) {
+  if (!Array.isArray(runtimeVillages) || runtimeVillages.length === 0) return [...VILLAGES];
+  return runtimeVillages.map((village) => {
+    const practiceFallback = village.isPractice || village.role === 'practice' ? VILLAGES[0] : null;
+    return {
+      ...(practiceFallback || {}),
+      ...village,
+      location: village.location || (practiceFallback?.location ?? '本学期正式规划村庄'),
+      tagline: village.tagline || (practiceFallback?.tagline ?? '全班共同开展村庄规划实践'),
+      description: village.description || (practiceFallback?.description ?? '该村庄已完成基础数据发布，可进入平台开展现状调查与规划实践。'),
+      statusItems: Array.isArray(village.statusItems) && village.statusItems.length
+        ? village.statusItems
+        : (practiceFallback?.statusItems ?? [
+          { title: '基础数据', desc: '村庄边界、影像与建筑等基础数据已经发布。' },
+          { title: '现状调查', desc: '全班在共享现状空间中共同补充和校核村庄信息。' },
+          { title: '三维认知', desc: '二维建筑数据会按统一规则生成三维白模。' },
+        ]),
+      issueItems: Array.isArray(village.issueItems) && village.issueItems.length
+        ? village.issueItems
+        : (practiceFallback?.issueItems ?? [
+          { title: '现状待调查', desc: '需要结合地图、影像与实地调研识别具体问题。' },
+          { title: '信息待校核', desc: '共享现状数据需要由全班持续补充并交叉检查。' },
+        ]),
+      longitude: Number.isFinite(Number(village.longitude)) ? Number(village.longitude) : (practiceFallback?.longitude ?? VILLAGES[0].longitude),
+      latitude: Number.isFinite(Number(village.latitude)) ? Number(village.latitude) : (practiceFallback?.latitude ?? VILLAGES[0].latitude),
+      zoom: Number.isFinite(Number(village.zoom)) ? Number(village.zoom) : 14,
+    };
+  });
+}
+
+export function getVillageById(id, villages = VILLAGES) {
+  const source = Array.isArray(villages) && villages.length ? villages : VILLAGES;
+  return source.find((village) => village.id === id) ?? source[0];
 }

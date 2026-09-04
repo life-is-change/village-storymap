@@ -129,6 +129,7 @@ const courseWorkbenchContent = document.getElementById("courseWorkbenchContent")
 const courseTaskNav = document.getElementById("courseTaskNav");
 const workspaceVillageLabel = document.getElementById("workspaceVillageLabel");
 const workspaceStageLabel = document.getElementById("workspaceStageLabel");
+const projectHeaderSelect = document.getElementById("projectHeaderSelect");
 const classDiscussionBtn = document.getElementById("classDiscussionBtn");
 const projectSettingsBtn = document.getElementById("projectSettingsBtn");
 const projectSettingsDrawer = document.getElementById("projectSettingsDrawer");
@@ -216,6 +217,9 @@ let geoprocessingAoiController = null;
 let geoprocessingResultPreview = null;
 let villagePreviewController = null;
 let personalSpaceClient = null;
+let villageClient = null;
+let projectSwitcher = null;
+let activeVillageContext = null;
 let objectInfoRequestSerial = 0;
 let personalVersionCompareController = null;
 let isCreatingSpace = false;
@@ -654,7 +658,10 @@ async function loadSpacesFromSupabase() {
       viewMode: row.view_mode || "2d",
       courseId: row.course_id || "",
       courseGroupId: row.group_id || "",
-      spaceType: row.space_type || ""
+      spaceType: row.space_type || "",
+      teachingProjectId: row.teaching_project_id || "",
+      villageId: row.village_id || "",
+      ownerId: row.owner_id || null
     }));
   } catch (err) {
     console.warn("从 Supabase 加载空间列表异常：", err);
@@ -666,8 +673,19 @@ async function saveSpacesToSupabase() {
   if (!supabaseClient) return;
 
   // 只保存规划空间（排除现状空间）
+  const managedSpaceTypes = new Set([
+    "course_personal",
+    "practice_personal",
+    "formal_personal",
+    "practice_shared",
+    "formal_shared",
+    "legacy_personal",
+    "legacy_unscoped"
+  ]);
   const planningSpaces = spaces.filter((s) => (
-    s.id !== BASE_SPACE_ID && s.spaceType !== "course_personal"
+    s.id !== BASE_SPACE_ID &&
+    !s.teachingProjectId &&
+    !managedSpaceTypes.has(s.spaceType)
   ));
   if (planningSpaces.length === 0) return;
 
@@ -720,19 +738,43 @@ async function syncSpacesFromSupabase() {
   const remoteSpaces = await loadSpacesFromSupabase();
   if (!remoteSpaces) return;
 
-  // 以服务器数据为准：保留本地现状空间 + 远程规划空间
-  // 不再保留本地独有的规划空间，确保删除操作能跨设备同步
   const authUser = window.VillageAuth?.getCurrentUser?.() || {};
   const activeGroupId = courseWorkbench?.getContext?.()?.group?.id || "";
   const isStaff = Boolean(window.AccessControlModule?.isStaffUser?.(authUser));
-  const merged = window.CourseWorkspaceAdapterModule.mergeWorkspaceSpaces({
-    localSpaces: spaces,
-    remoteSpaces,
-    baseSpaceId: BASE_SPACE_ID,
-    actorName: getCourseUser().name,
-    isStaff,
-    activeGroupId
-  });
+  const hasVillageContext = Boolean(
+    activeVillageContext?.teachingProjectId && activeVillageContext?.villageId
+  );
+  let merged;
+
+  if (hasVillageContext) {
+    const context = {
+      teachingProjectId: activeVillageContext.teachingProjectId,
+      villageId: activeVillageContext.villageId,
+      villageRole: activeVillageContext.villageRole
+    };
+    const actor = {
+      ...(activeVillageContext.actor || {}),
+      groupId: activeGroupId || null,
+      isStaff: false
+    };
+    const contextSpaces = remoteSpaces.filter((space) => (
+      String(space.teachingProjectId || "") === String(context.teachingProjectId) &&
+      String(space.villageId || "") === String(context.villageId)
+    ));
+    merged = window.VillageModelModule
+      .filterSpacesForContext({ spaces: contextSpaces, context, actor })
+      .map((space) => mapContextSpaceToWorkspace(space));
+  } else {
+    // 兼容尚未绑定村庄项目的旧课程小组空间；迁移归档空间不进入日常选择器。
+    merged = window.CourseWorkspaceAdapterModule.mergeWorkspaceSpaces({
+      localSpaces: spaces,
+      remoteSpaces,
+      baseSpaceId: BASE_SPACE_ID,
+      actorName: getCourseUser().name,
+      isStaff,
+      activeGroupId
+    });
+  }
   if (!merged.some((space) => space.id === BASE_SPACE_ID)) {
     merged.unshift(getDefaultSpaces()[0]);
   }
@@ -1036,11 +1078,27 @@ function openProfileCenterPage() {
   window.location.href = "./profile.html";
 }
 
+function broadcastHomepageContext() {
+  const frame = document.getElementById("homeLandingFrame");
+  if (!frame?.contentWindow || !window.VillageModelModule) return;
+  const homepageVillages = window.VillageModelModule.buildHomepageProjectVillages(
+    activeVillageContext || {}
+  );
+  frame.contentWindow.postMessage({
+    type: "village-home-context",
+    payload: {
+      villages: homepageVillages,
+      selectedVillageId: activeVillageContext?.villageId || homepageVillages[0]?.id || ""
+    }
+  }, "*");
+}
+
 function renderHomepageIdentityUi(frameDoc = getHomeLandingFrameDoc()) {
   if (!frameDoc) return;
   if (window.VillageAuth && typeof window.VillageAuth.broadcastAuthState === "function") {
     window.VillageAuth.broadcastAuthState();
   }
+  broadcastHomepageContext();
 }
 
 function applyHomepageVisualTweaks(frameDoc) {
@@ -1400,6 +1458,35 @@ function bindHomepageLandingBridge() {
     window.addEventListener("message", async (event) => {
       if (event.source !== frame.contentWindow) return;
 
+      if (event.data?.type === "village-home-context-request") {
+        broadcastHomepageContext();
+        return;
+      }
+
+      const homepageEntries = window.VillageModelModule?.buildProjectEntries?.(
+        activeVillageContext || {}
+      ) || [];
+      const homepageCommand = window.VillageModelModule?.resolveHomepageCommand?.(
+        event.data,
+        {
+          isAdmin: window.AccessControlModule?.isAdminUser?.(
+            window.VillageAuth?.getCurrentUser?.()
+          ) === true,
+          allowedVillageIds: homepageEntries.map((entry) => entry.villageId)
+        }
+      );
+      if (homepageCommand?.type === "open_admin") {
+        window.location.href = "./admin.html";
+        return;
+      }
+      if (homepageCommand?.type === "enter_village") {
+        const entry = homepageEntries.find((item) => item.villageId === homepageCommand.villageId);
+        if (!entry || !projectSwitcher) return;
+        await projectSwitcher.switchTo(entry);
+        statusBadge?.click();
+        return;
+      }
+
       if (event.data?.type === "village-theory-completed") {
         if (activityLogger) {
           await recordCourseActivity("theory_lesson_completed", {
@@ -1672,6 +1759,156 @@ function getAccountStorageKey(baseKey) {
   return window.CourseWorkspaceAdapterModule.buildAccountStorageKey(baseKey, authUser);
 }
 
+function isDualTrackPersonalSpace(space) {
+  return ["course_personal", "practice_personal", "formal_personal"].includes(space?.spaceType);
+}
+
+function mapContextSpaceToWorkspace(space, role) {
+  const isShared = ["practice_shared", "formal_shared"].includes(space.spaceType);
+  const existing = spaces.find((item) => item.actualSpaceId === space.id || item.id === space.id)
+    || (isShared ? getSpaceById(BASE_SPACE_ID) : null);
+  return {
+    ...(existing || {}),
+    id: isShared ? BASE_SPACE_ID : space.id,
+    actualSpaceId: space.id,
+    title: space.title || (isShared ? "全班共享现状空间" : "我的个人体验空间"),
+    creatorName: existing?.creatorName || "",
+    readonly: Boolean(space.readonly),
+    editEnabled: !space.readonly,
+    expanded: true,
+    selectedLayers: existing?.selectedLayers || ["building", "road", "water", "contours"],
+    contourLabelsVisible: existing?.contourLabelsVisible !== false,
+    basemapVisible: existing?.basemapVisible !== false,
+    viewMode: existing?.viewMode || "2d",
+    teachingProjectId: space.teachingProjectId,
+    villageId: space.villageId,
+    villageRole: role,
+    ownerId: space.ownerId,
+    courseGroupId: space.groupId,
+    spaceType: space.spaceType
+  };
+}
+
+async function prepareVillageContext(entry) {
+  const context = {
+    teachingProjectId: entry.teachingProjectId,
+    villageId: entry.villageId,
+    villageRole: entry.villageRole || entry.role
+  };
+  await villageClient.ensurePersonalSpace(context);
+  const allSpaces = await villageClient.listSpaces(context);
+  const actor = {
+    ...(activeVillageContext?.actor || {}),
+    groupId: courseWorkbench?.getContext?.()?.group?.id || null,
+    isStaff: false
+  };
+  const visible = window.VillageModelModule.filterSpacesForContext({ spaces: allSpaces, context, actor });
+  const workspaceSpaces = visible.map((space) => mapContextSpaceToWorkspace(space, context.villageRole));
+  const sharedType = context.villageRole === "practice" ? "practice_shared" : "formal_shared";
+  const preferred = workspaceSpaces.find((space) => space.spaceType === sharedType)
+    || workspaceSpaces.find((space) => isDualTrackPersonalSpace(space));
+  if (!preferred) throw new Error("CONTEXT_SPACE_REQUIRED");
+  const village = activeVillageContext?.villages?.find((item) => item.id === context.villageId)
+    || { id: context.villageId, name: entry.villageName || "村庄" };
+  let datasetResources = null;
+  if (village.publishedDataset && window.VillageDatasetResolverModule) {
+    try {
+      const signedUrls = await window.VillageDatasetResolverModule.createSignedUrlMap(
+        supabaseClient,
+        village.publishedDataset
+      );
+      datasetResources = window.VillageDatasetResolverModule.resolveDatasetResources({
+        village,
+        dataset: village.publishedDataset,
+        signedUrls
+      });
+    } catch (error) {
+      if (context.villageRole === "formal") throw error;
+      console.warn("练习村庄继续使用内置米埗数据：", error);
+    }
+  }
+  return {
+    ...context,
+    village,
+    actor,
+    spaces: workspaceSpaces,
+    spaceId: preferred.id,
+    datasetId: village.publishedDatasetId || null,
+    datasetResources
+  };
+}
+
+async function unloadVillageContext() {
+  geoprocessingPanel?.destroy?.();
+  geoprocessingAoiController?.destroy?.();
+  geoprocessingResultPreview?.destroy?.();
+  villagePreviewController?.destroy?.();
+  geoprocessingPanel = null;
+  geoprocessingAoiController = null;
+  geoprocessingResultPreview = null;
+  villagePreviewController = null;
+  Object.keys(layerDataCache).forEach((key) => delete layerDataCache[key]);
+  invalidateBuildingDbCache();
+  invalidateRoadDbCache();
+  invalidateCroplandDbCache();
+  invalidateOpenSpaceDbCache();
+  invalidateWaterDbCache();
+}
+
+async function commitVillageContext(prepared) {
+  activeVillageContext = { ...activeVillageContext, ...prepared };
+  window.__activeVillageContext = activeVillageContext;
+  broadcastHomepageContext();
+  spaces = prepared.spaces;
+  currentSpaceId = prepared.spaceId;
+  lastPlanningSpaceId = prepared.spaceId;
+  try {
+    localStorage.setItem(getAccountStorageKey("village_active_context_v1"), JSON.stringify({
+      teachingProjectId: prepared.teachingProjectId,
+      villageId: prepared.villageId,
+      spaceId: prepared.spaceId
+    }));
+  } catch (_) { /* optional local preference */ }
+  sync2DSpaceStateTo3D();
+  renderSpaceList();
+  if (planMap && plan2dView?.classList.contains("active")) {
+    await refresh2DOverlay({ forceFullRebuild: true });
+  }
+  if (document.getElementById("model3dView")?.classList.contains("active")
+      && window.Village3D?.reload) {
+    await window.Village3D.reload();
+  }
+}
+
+async function initializeVillageProjectSwitcher() {
+  if (!supabaseClient || !projectHeaderSelect || !window.VillageClientModule
+    || !window.VillageModelModule || !window.ProjectSwitcherModule) return null;
+  villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
+  const serverContext = await villageClient.getActiveContext();
+  if (!serverContext?.project) return null;
+  activeVillageContext = serverContext;
+  const entries = window.VillageModelModule.buildProjectEntries(serverContext);
+  if (!entries.length) return null;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(getAccountStorageKey("village_active_context_v1")) || "null"); } catch (_) {}
+  const initial = entries.find((entry) => entry.villageId === saved?.villageId) || entries[0];
+  projectSwitcher = window.ProjectSwitcherModule.createProjectSwitcher({
+    mount: projectHeaderSelect,
+    getContext: () => activeVillageContext,
+    hasUnsavedChanges: () => buildingEditState.dirtyCodes.size > 0 || buildingEditState.pendingDeletedFeatures.length > 0,
+    resolveUnsaved: async () => await customConfirm("切换村庄会放弃当前未保存修改，是否继续？", {
+      title: "切换村庄", okText: "放弃并切换", cancelText: "继续编辑", isDanger: true
+    }) ? "discard" : "cancel",
+    loadTarget: prepareVillageContext,
+    unloadTarget: unloadVillageContext,
+    commitContext: commitVillageContext,
+    rollbackContext: (_previous, _entry, error) => showToast(error?.message || "村庄加载失败", "error")
+  });
+  projectSwitcher.mount({ entries });
+  await projectSwitcher.switchTo(initial);
+  return activeVillageContext;
+}
+
 function ensureCourseGroupSpace(group) {
   if (!group?.id || !group?.spaceId) return { space: null, created: false };
   const existing = getSpaceById(group.spaceId);
@@ -1754,7 +1991,8 @@ async function ensureCourseWorkbenchInitialized() {
   courseService = window.CourseServiceModule.createCourseService({
     storage: localStorage,
     supabaseClient,
-    actorName: getCourseUser().name
+    actorName: getCourseUser().name,
+    teachingProjectId: activeVillageContext?.teachingProjectId
   });
   activityLogger = window.ActivityLoggerModule.createActivityLogger({
     storage: localStorage,
@@ -1768,6 +2006,8 @@ async function ensureCourseWorkbenchInitialized() {
           name: user.name
         },
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
         groupId: context.group?.id || "",
         taskId: courseWorkbench?.getActiveTaskId?.() || "",
         spaceId: context.group?.spaceId || currentSpaceId || "",
@@ -1782,7 +2022,9 @@ async function ensureCourseWorkbenchInitialized() {
       const user = getCourseUser();
       coursePersonalSpace = await personalSpaceClient.ensure({
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        villageId: "mibu",
+        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+        villageId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
+        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
         title: `${user.name || "学生"} · 个人图底空间`
       });
       const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
@@ -1793,7 +2035,9 @@ async function ensureCourseWorkbenchInitialized() {
         existingSpace: existingPersonalWorkspace,
         selections,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        villageId: "mibu"
+        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal"
       });
       const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
       if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
@@ -1831,7 +2075,8 @@ async function ensureCourseWorkbenchInitialized() {
       geoprocessingAoiController = window.GeoprocessingAoiModule.createAoiController({
         map: planMap,
         ol: window.__OL__,
-        villageBounds: [113.6578225, 23.6739555, 113.6695615, 23.6806181],
+        villageBounds: activeVillageContext?.datasetResources?.initialExtent
+          || [113.6578225, 23.6739555, 113.6695615, 23.6806181],
         maxAreaSqKm: 2
       });
       villagePreviewController = window.VillagePreviewModule.createVillagePreviewController({
@@ -1855,10 +2100,15 @@ async function ensureCourseWorkbenchInitialized() {
         client,
         aoiController: geoprocessingAoiController,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        villageId: "mibu",
+        teachingProjectId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.teachingProjectId : null,
+        villageId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
+        datasetId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.datasetId : null,
         availability,
         onStartAoi: async () => {
-          const entry = await villagePreviewController.show("mibu");
+          const entry = await villagePreviewController.show(
+            activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
+            activeVillageContext?.datasetResources
+          );
           geoprocessingAoiController.setVillageBounds(entry.bounds);
         },
         onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success"),
@@ -2248,6 +2498,11 @@ function buildCommunityTaskDeps() {
     COMMUNITY_TASK_PHOTO_OBJECT_TYPE,
     COMMUNITY_DAILY_POINTS_CAP,
     getSupabaseClient: () => supabaseClient,
+    getContext: () => ({
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+    }),
     getCommunityGameTablesReady: () => communityGameTablesReady,
     setCommunityGameTablesReady: (next) => {
       communityGameTablesReady = !!next;
@@ -2593,6 +2848,11 @@ function buildDataServiceDeps() {
     OBJECT_PHOTOS_TABLE,
     PHOTO_BUCKET,
     getSupabaseClient: () => supabaseClient,
+    getContext: () => ({
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+    }),
     normalizeIdentityName,
     normalizeCode
   };
@@ -2609,6 +2869,11 @@ function buildFeatureDbDeps() {
   return {
     PLANNING_FEATURES_TABLE,
     getSupabaseClient: () => supabaseClient,
+    getContext: () => ({
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+    }),
     getBuildingSpaceCacheKey,
     getLayerLabel,
     getLayerCodeField,
@@ -2682,8 +2947,13 @@ function getFeatureEditSessionModule() {
 function buildFeatureEditSessionDeps() {
   return {
     getSupabaseClient: () => (
-      getCurrentSpace()?.spaceType === "course_personal" ? null : supabaseClient
-    )
+      isDualTrackPersonalSpace(getCurrentSpace()) ? null : supabaseClient
+    ),
+    getContext: () => ({
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+    })
   };
 }
 
@@ -2766,7 +3036,7 @@ function stopFeatureLockHeartbeatIfIdle() {
 }
 
 async function saveFeatureEditBatch(payload) {
-  if (getSpaceById(payload?.spaceId)?.spaceType === "course_personal") {
+  if (isDualTrackPersonalSpace(getSpaceById(payload?.spaceId))) {
     if (!personalSpaceClient) throw new Error("PERSONAL_SPACE_CLIENT_REQUIRED");
     await personalSpaceClient.saveEdits(payload.spaceId, payload.changes || []);
     return { success: true };
@@ -2795,7 +3065,7 @@ async function refreshVersionManagerPanel(options = {}) {
   const statusEl = document.getElementById("versionManagerStatus");
   if (!statusEl) return;
   const currentSpace = getCurrentSpace();
-  if (currentSpace?.spaceType === "course_personal") {
+  if (isDualTrackPersonalSpace(currentSpace)) {
     if (!supabaseClient || !personalSpaceClient || !window.PersonalLayerVersionsModule) {
       statusEl.textContent = "个人图层版本服务尚未初始化。";
       return;
@@ -3682,7 +3952,8 @@ function getCurrent2DBuildingSpaceId() {
 }
 
 function getBuildingSpaceCacheKey(spaceId) {
-  return spaceId || BASE_SPACE_ID;
+  const context = activeVillageContext || {};
+  return [context.teachingProjectId || "legacy", context.villageId || "legacy", spaceId || BASE_SPACE_ID].join("::");
 }
 
 function getLayerLabel(layerKey) {
@@ -4123,7 +4394,12 @@ async function submitCommunityMessage({ category, description, photoFile, lng, l
         );
       } catch (photoError) {
         const client = getSupabaseClient();
-        await client.from(COMMUNITY_TASKS_TABLE).delete().eq("id", createdTask.id);
+        await client.from(COMMUNITY_TASKS_TABLE)
+          .delete()
+          .eq("id", createdTask.id)
+          .eq("teaching_project_id", activeVillageContext?.teachingProjectId)
+          .eq("village_id", activeVillageContext?.villageId)
+          .eq("space_id", getCurrentSpace()?.actualSpaceId || currentSpaceId);
         throw new Error("照片上传失败，请重新发布");
       }
     }
@@ -5136,9 +5412,19 @@ async function ensureLayerLoaded(layerKey) {
     throw new Error(`未找到图层配置：${layerKey}`);
   }
 
+  const dynamicResources = activeVillageContext?.datasetResources;
+  const usesDynamicDataset = activeVillageContext?.villageRole === "formal" && Boolean(dynamicResources);
+  const dynamicGeojsonUrl = dynamicResources?.layers?.[layerKey] || null;
+  if (usesDynamicDataset && !dynamicGeojsonUrl) {
+    const result = { features: [], rows: [], rowIndex: new Map() };
+    layerDataCache[layerKey] = result;
+    return result;
+  }
+  const geojsonUrl = dynamicGeojsonUrl || config.geojsonUrl;
+  const tableUrl = dynamicGeojsonUrl ? null : config.tableUrl;
   const [geojson, csvText] = await Promise.all([
-    fetchJSON(config.geojsonUrl),
-    config.tableUrl ? fetchText(config.tableUrl).catch(() => "") : Promise.resolve("")
+    fetchJSON(geojsonUrl),
+    tableUrl ? fetchText(tableUrl).catch(() => "") : Promise.resolve("")
   ]);
 
   const features = getGeoJSONFeatures(geojson);
@@ -5586,7 +5872,7 @@ function updateWorkspaceContextBar(context = activeCourseTaskContext) {
   const stageTitle = activeTheoryPracticeContext?.stageLabel || context?.stage?.title || context?.task?.title || "课程实践";
 
   if (workspaceVillageLabel) {
-    workspaceVillageLabel.textContent = course?.villageName || "米埗村";
+    workspaceVillageLabel.textContent = activeVillageContext?.village?.name || course?.villageName || "米埗村";
   }
   if (workspaceStageLabel) {
     workspaceStageLabel.textContent = stageTitle;
@@ -5813,12 +6099,23 @@ async function saveObjectEdits(sourceCode, objectType, payload) {
 
 async function migrateObjectEdits(oldCode, newCode, objectType) {
   if (!supabaseClient || !objectType) return;
+  const context = activeVillageContext && {
+    teaching_project_id: activeVillageContext.teachingProjectId,
+    village_id: activeVillageContext.villageId,
+    space_id: getCurrentSpace()?.actualSpaceId || currentSpaceId
+  };
+  if (!context?.teaching_project_id || !context?.village_id || !context?.space_id) {
+    throw new Error("PROJECT_CONTEXT_REQUIRED");
+  }
 
   const { data: oldEdit, error: fetchError } = await supabaseClient
     .from(OBJECT_EDITS_TABLE)
     .select("data")
     .eq("object_code", oldCode)
     .eq("object_type", objectType)
+    .eq("teaching_project_id", context.teaching_project_id)
+    .eq("village_id", context.village_id)
+    .eq("space_id", context.space_id)
     .maybeSingle();
 
   if (fetchError || !oldEdit) return;
@@ -5827,7 +6124,10 @@ async function migrateObjectEdits(oldCode, newCode, objectType) {
     .from(OBJECT_EDITS_TABLE)
     .delete()
     .eq("object_code", oldCode)
-    .eq("object_type", objectType);
+    .eq("object_type", objectType)
+    .eq("teaching_project_id", context.teaching_project_id)
+    .eq("village_id", context.village_id)
+    .eq("space_id", context.space_id);
 
   await supabaseClient
     .from(OBJECT_EDITS_TABLE)
@@ -5836,9 +6136,10 @@ async function migrateObjectEdits(oldCode, newCode, objectType) {
         object_code: newCode,
         object_type: objectType,
         data: { ...oldEdit.data, "房屋编码": newCode },
+        ...context,
         updated_at: new Date().toISOString()
       },
-      { onConflict: "object_code,object_type" }
+      { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
     );
 }
 
@@ -6304,6 +6605,11 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
   const objectCommentDeps = window.ObjectInfoDepsModule.createObjectCommentDeps({
     getClient: () => supabaseClient,
+    getContext: () => ({
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+    }),
     commentsTable: OBJECT_COMMENTS_TABLE,
     editsTable: OBJECT_EDITS_TABLE
   });
@@ -6814,6 +7120,9 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   currentSpaceId = getValidSpaceId(currentSpaceId, BASE_SPACE_ID);
   lastPlanningSpaceId = getValidSpaceId(lastPlanningSpaceId, BASE_SPACE_ID);
   lastCollabSpaceId = getValidSpaceId(lastCollabSpaceId, BASE_SPACE_ID);
+  await initializeVillageProjectSwitcher().catch((error) => {
+    console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
+  });
   sync2DSpaceStateTo3D();
   renderSpaceList();
 
@@ -6885,6 +7194,10 @@ async function init() {
       saveSpacesToStorage();
       saveAppState();
     }
+
+    await initializeVillageProjectSwitcher().catch((error) => {
+      console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
+    });
 
     sync2DSpaceStateTo3D();
 
@@ -7443,7 +7756,7 @@ function bindMeasureButtons() {
       showToast("正在刷新...", "info");
 
       const currentSpace = getCurrentSpace();
-      if (currentSpace?.spaceType === "course_personal") {
+      if (currentSpace?.spaceType === "course_personal" || isDualTrackPersonalSpace(currentSpace)) {
         if (!personalSpaceClient) {
           showToast("个人图层服务尚未初始化。", "error");
           return;

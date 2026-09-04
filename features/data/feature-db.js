@@ -35,6 +35,15 @@
     return String(value ?? "").trim();
   }
 
+  function resolveContext(deps, requestedSpaceId) {
+    const context = deps.getContext?.() || {};
+    if (!context.teachingProjectId) throw new Error("PROJECT_CONTEXT_REQUIRED");
+    if (!context.villageId) throw new Error("VILLAGE_CONTEXT_REQUIRED");
+    const spaceId = String(context.spaceId || requestedSpaceId || "").trim();
+    if (!spaceId) throw new Error("SPACE_CONTEXT_REQUIRED");
+    return { teachingProjectId: context.teachingProjectId, villageId: context.villageId, spaceId };
+  }
+
   function makeLocalFeatureKey(row) {
     return [
       normalizeLocalKeyPart(row?.space_id),
@@ -112,13 +121,16 @@
   }
 
   function listLayerFeaturesFromDb(deps, spaceId, layerKey) {
+    const context = resolveContext(deps, spaceId);
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listLayerFeaturesFromLocal(spaceId, layerKey));
 
     return supabaseClient
       .from(deps.PLANNING_FEATURES_TABLE)
       .select("*")
-      .eq("space_id", spaceId)
+      .eq("space_id", context.spaceId)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
       .eq("layer_key", layerKey)
       .or("is_deleted.is.null,is_deleted.eq.false")
       .order("object_code", { ascending: true })
@@ -143,13 +155,16 @@
   }
 
   function listDeletedLayerFeatureCodesFromDb(deps, spaceId, layerKey) {
+    const context = resolveContext(deps, spaceId);
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listDeletedLayerFeatureCodesFromLocal(spaceId, layerKey));
 
     return supabaseClient
       .from(deps.PLANNING_FEATURES_TABLE)
       .select("object_code")
-      .eq("space_id", spaceId)
+      .eq("space_id", context.spaceId)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
       .eq("layer_key", layerKey)
       .eq("is_deleted", true)
       .then(({ data, error }) => {
@@ -168,13 +183,16 @@
   }
 
   function hasAnyLayerFeaturesInDb(deps, spaceId, layerKey) {
+    const context = resolveContext(deps, spaceId);
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listLayerFeaturesFromLocal(spaceId, layerKey).length > 0);
 
     return supabaseClient
       .from(deps.PLANNING_FEATURES_TABLE)
       .select("id")
-      .eq("space_id", spaceId)
+      .eq("space_id", context.spaceId)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
       .eq("layer_key", layerKey)
       .or("is_deleted.is.null,is_deleted.eq.false")
       .limit(1)
@@ -337,10 +355,13 @@
     },
 
     async upsertBuildingFeatureToDb(deps, { spaceId, objectCode, objectName, geom, props = {} }) {
+      const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
       const payload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: "building",
         object_code: objectCode,
         object_name: objectName || objectCode,
@@ -369,10 +390,13 @@
     },
 
     async upsertRoadFeatureToDb(deps, { spaceId, objectCode, objectName, geom, props = {} }) {
+      const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
       const payload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: "road",
         object_code: objectCode,
         object_name: objectName || objectCode,
@@ -401,10 +425,13 @@
     },
 
     async upsertLayerFeatureToDb(deps, { spaceId, layerKey, objectCode, objectName, geom, props = {} }) {
+      const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
       const payload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: layerKey,
         object_code: objectCode,
         object_name: objectName || objectCode,
@@ -433,6 +460,7 @@
     },
 
     async softDeleteBuildingFeatureInDb(deps, spaceId, objectCode) {
+      const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         softDeleteLocalRow(spaceId, "building", objectCode, { 房屋编码: objectCode, 房屋名称: objectCode });
@@ -443,7 +471,9 @@
       const { data, error } = await supabaseClient
         .from(deps.PLANNING_FEATURES_TABLE)
         .update({ is_deleted: true })
-        .eq("space_id", spaceId)
+        .eq("space_id", context.spaceId)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
         .eq("layer_key", "building")
         .eq("object_code", objectCode)
         .select("id");
@@ -461,7 +491,9 @@
       }
 
       const fallbackPayload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: "building",
         object_code: objectCode,
         object_name: objectCode,
@@ -484,6 +516,7 @@
     },
 
     async softDeleteRoadFeatureInDb(deps, spaceId, objectCode) {
+      const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         softDeleteLocalRow(spaceId, "road", objectCode, { 道路编码: objectCode, 道路名称: objectCode });
@@ -494,7 +527,9 @@
       const { data, error } = await supabaseClient
         .from(deps.PLANNING_FEATURES_TABLE)
         .update({ is_deleted: true })
-        .eq("space_id", spaceId)
+        .eq("space_id", context.spaceId)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
         .eq("layer_key", "road")
         .eq("object_code", objectCode)
         .select("id");
@@ -512,7 +547,9 @@
       }
 
       const fallbackPayload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: "road",
         object_code: objectCode,
         object_name: objectCode,
@@ -535,6 +572,7 @@
     },
 
     async softDeleteLayerFeatureInDb(deps, spaceId, layerKey, objectCode) {
+      const context = resolveContext(deps, spaceId);
       if (layerKey === "building") return api.softDeleteBuildingFeatureInDb(deps, spaceId, objectCode);
       if (layerKey === "road") return api.softDeleteRoadFeatureInDb(deps, spaceId, objectCode);
 
@@ -550,7 +588,9 @@
       const { data, error } = await supabaseClient
         .from(deps.PLANNING_FEATURES_TABLE)
         .update({ is_deleted: true })
-        .eq("space_id", spaceId)
+        .eq("space_id", context.spaceId)
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
         .eq("layer_key", layerKey)
         .eq("object_code", objectCode)
         .select("id");
@@ -572,7 +612,9 @@
       const codeKey = deps.getLayerCodeField(layerKey);
       const nameKey = deps.getLayerNameField(layerKey);
       const fallbackPayload = {
-        space_id: spaceId,
+        space_id: context.spaceId,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
         layer_key: layerKey,
         object_code: objectCode,
         object_name: objectCode,

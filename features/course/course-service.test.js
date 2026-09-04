@@ -113,6 +113,15 @@ test("local state remains usable when Supabase mirror fails", async () => {
   assert.equal((await service.listGroups()).length, 1);
 });
 
+test("local course state is isolated by teaching project", async () => {
+  const storage = createMemoryStorage();
+  const first = createService({ storage, teachingProjectId: "semester-a" });
+  const second = createService({ storage, teachingProjectId: "semester-b" });
+  await first.createGroup("第一学期小组", "TERM01");
+  assert.equal((await first.listGroups()).length, 1);
+  assert.equal((await second.listGroups()).length, 0);
+});
+
 test("join fetches teacher-created groups from the remote store on another device", async () => {
   const remoteStore = {
     async listGroups() {

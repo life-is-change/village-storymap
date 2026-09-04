@@ -8,7 +8,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260901-reality-sidebar" />
+  <link rel="stylesheet" href="style.css?v=20260903-space-context-fix" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -88,6 +88,7 @@
               <span id="workspaceVillageLabel">米埗村</span>
               <strong id="workspaceStageLabel">课程实践</strong>
             </div>
+            <div id="projectHeaderSelect" class="workspace-project-select" aria-label="当前村庄项目"></div>
             <div id="spaceHeaderSelect" class="workspace-space-select" aria-label="当前空间"></div>
             <div id="workspaceSpaceActions" class="workspace-space-actions" aria-label="空间管理">
               <button id="addSpaceTopBtn" class="workspace-icon-btn" type="button" data-add-space title="新增空间" aria-label="新增空间">＋</button>
@@ -136,7 +137,7 @@
               <iframe
                 id="homeLandingFrame"
                 class="home-landing-frame"
-                src="./homepage/dist/index.html"
+                src="./homepage/dist/index.html?v=20260903-home-guide"
                 title="村庄规划互动平台首页"
                 data-entry-role="embedded-homepage-build"
                 data-source-entry="homepage/index.html"
@@ -238,11 +239,11 @@
           </div>
 
           <div id="reality3dSidebarMount" class="reality-3d-sidebar-mount">
-            <aside id="reality3dPanel" class="reality-3d-panel" aria-label="米埗村实景模型">
+            <aside id="reality3dPanel" class="reality-3d-panel" aria-label="村庄实景模型">
               <header id="reality3dTitlebar" class="reality-3d-titlebar">
                 <div class="reality-3d-title-copy">
                   <span class="reality-3d-live-dot" aria-hidden="true"></span>
-                  <strong id="reality3dTitle">米埗村实景对照</strong>
+                  <strong id="reality3dTitle">村庄实景对照</strong>
                 </div>
                 <div class="reality-3d-actions">
                   <button id="reality3dTerrainBtn" type="button" aria-label="切换实景地形" title="切换实景地形" aria-pressed="true">⌁</button>
@@ -279,13 +280,6 @@
        请前往 https://ion.cesium.com/ 登录后创建新的 Access Token，并替换下面的值。 -->
   <script>
     window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0NjdlZDk3My1hYjQ3LTQ0M2MtODdjMC04NDAyZWZjM2EwMzEiLCJpZCI6ODY2NjEsInN1YiI6Im1lbW9yeSBoZWkiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidmlsbGFnZS1zdG9yeW1hcCIsImlhdCI6MTc4NjYwNDQ5Mn0.e2jNJ7K4ceZKQZkR3F_Qc4LKyiuzKNaQltdMTUfpSzw";
-    window.VILLAGE_REALITY_MODEL = {
-      enabled: true,
-      ionAssetId: 5133927,
-      title: "米埗村实景模型",
-      terrainEnabled: true,
-      heightOffset: 0
-    };
   </script>
 
   <!-- OpenLayers 固定为项目本地 10.8.0 浏览器构建，避免首次进入 2D 时并发请求 23 个远程模块。 -->
@@ -337,16 +331,21 @@
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
   <script defer src="features/ui/map-style.js?v=20260810-contour-fix"></script>
-  <script defer src="features/ui/space-panel.js?v=20260723-contour-ui"></script>
+  <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
   <script defer src="features/theory/theory-practice-context.js?v=20260825-theory-context"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
-  <script defer src="features/course/course-workspace-adapter.js?v=20260810-platform-fix"></script>
+  <script defer src="features/villages/village-model.js?v=20260903-home-guide"></script>
+  <script defer src="features/villages/village-client.js"></script>
+  <script defer src="features/villages/project-switcher.js"></script>
+  <script defer src="features/course/course-workspace-adapter.js?v=20260903-space-context-fix"></script>
   <script defer src="features/data/personal-edit-version.js?v=20260810-version-guard"></script>
+  <script defer src="features/data/village-dataset-resolver.js"></script>
   <script defer src="features/data/effective-building-features.js?v=20260810-space-alignment"></script>
+  <script defer src="features/3d/village-3d-config.js"></script>
   <script defer src="features/data/personal-space-client.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/personal-layer-versions.js?v=20260810-platform-fix"></script>
   <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260723-contour-ui"></script>
@@ -368,7 +367,7 @@
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
-  <script defer src="app.js?v=20260901-reality-instant-focus"></script>
+  <script defer src="app.js?v=20260903-home-guide"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

@@ -29,9 +29,10 @@
     let layer = null;
 
     return {
-      async show(villageId) {
-        const catalog = await loadJson(catalogUrl);
-        const entry = findVillagePreview(catalog, villageId);
+      async show(villageId, resources = null) {
+        const entry = resources?.imagery && Array.isArray(resources?.initialExtent)
+          ? { id: villageId, preview_path: resources.imagery, bounds: resources.initialExtent }
+          : findVillagePreview(await loadJson(catalogUrl), villageId);
         if (!entry) throw new Error("VILLAGE_PREVIEW_NOT_FOUND");
         const bounds = validateEntry(entry);
         if (layer) map.removeLayer(layer);

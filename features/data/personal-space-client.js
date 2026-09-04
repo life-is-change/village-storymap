@@ -37,10 +37,14 @@
     }
 
     return {
-      async ensure({ courseId, villageId, title }) {
+      async ensure({ courseId, teachingProjectId, villageId, spaceType, title }) {
+        if (!teachingProjectId) throw new Error("PROJECT_REQUIRED");
+        if (!["practice_personal", "formal_personal"].includes(spaceType)) throw new Error("PERSONAL_SPACE_TYPE_REQUIRED");
         return assertNoError(await supabaseClient.rpc("ensure_course_personal_space", {
           p_course_id: String(courseId),
+          p_teaching_project_id: String(teachingProjectId),
           p_village_id: String(villageId),
+          p_space_type: spaceType,
           p_title: title ? String(title) : null
         }));
       },
