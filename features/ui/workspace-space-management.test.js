@@ -39,6 +39,9 @@ test("managed village context uses semantic space labels and hides manual space 
   assert.doesNotMatch(panelSource, /label: "(?:我创建的空间|他人创建的空间|未标注创建者|系统空间)/);
   assert.match(panelSource, /我的个人体验空间/);
   assert.match(panelSource, /全班共享现状空间/);
+  assert.match(panelSource, /本小组方案空间/);
+  assert.match(panelSource, /组内共享/);
+  assert.match(panelSource, /baseSnapshotLabel/);
   assert.match(panelSource, /workspaceSpaceActions/);
   assert.match(panelSource, /managedVillageContext/);
 });

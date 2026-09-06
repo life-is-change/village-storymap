@@ -69,8 +69,23 @@
       return rows;
     },
 
-    async createCommunityTask(deps, { spaceId, reporterName, lng, lat, category = null, description = "" }) {
+    async createCommunityTask(deps, {
+      spaceId,
+      reporterName,
+      lng,
+      lat,
+      category = null,
+      description = "",
+      targetLayerKey = null,
+      targetObjectCode = null
+    }) {
       const context = requireContext(deps, spaceId);
+      if (targetLayerKey && targetObjectCode) {
+        await deps.assertSurveyDownstreamReady?.({
+          objectCode: targetObjectCode,
+          layerKey: targetLayerKey
+        });
+      }
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
 
@@ -92,6 +107,8 @@
         lng: hasCoord ? Number(lng) : null,
         lat: hasCoord ? Number(lat) : null,
         geom: hasCoord ? { type: "Point", coordinates: [Number(lng), Number(lat)] } : null,
+        target_layer_key: targetLayerKey || null,
+        target_object_code: targetObjectCode || null,
         verify_count: 0,
         settled_at: null
       };

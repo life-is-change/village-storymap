@@ -130,13 +130,16 @@
       if (spaceProjectId !== projectId || spaceVillageId !== villageId || !allowedTypes.has(spaceType)) {
         return false;
       }
-      if (isStaff) return true;
       if (PERSONAL_SPACE_TYPES.has(spaceType)) {
         return cleanText(space.ownerId ?? space.owner_id) === userId;
       }
       if (spaceType === SPACE_TYPES.GROUP_PLAN) {
         return Boolean(groupId) && cleanText(space.groupId ?? space.group_id) === groupId;
       }
+      // Staff enter other groups through an explicit, server-verified admin
+      // context. Their ordinary workspace follows the same visibility rules
+      // as everyone else's so the selector never becomes a roster dump.
+      if (isStaff) return true;
       return true;
     });
   }

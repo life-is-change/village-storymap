@@ -35,6 +35,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let courseAdminService = null;
   let courseAdminLogger = null;
   let villageAdminController = null;
+  let surveyAdminController = null;
+  let groupPlanAdminController = null;
   let courseGroupRows = [];
   let courseActivityRows = [];
 
@@ -339,6 +341,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function deleteObjectPhotosByRows(photoRows) {
     if (!supabaseClient || !Array.isArray(photoRows) || photoRows.length === 0) return;
 
+    for (const row of photoRows) {
+      if (row?.id !== null && row?.id !== undefined && window.SurveyAdminModule?.assertPhotoDeletable) {
+        await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, row.id);
+      }
+    }
+
     const photoPaths = Array.from(new Set(photoRows.map((row) => row?.photo_path).filter(Boolean)));
     if (photoPaths.length > 0) {
       await ignoreMissingTable("照片文件", async () => {
@@ -603,6 +611,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!confirmed) return;
 
     try {
+      if (window.SurveyAdminModule?.assertPhotoDeletable) {
+        await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, photoId);
+      }
       if (photoPath) {
         await ignoreMissingTable("照片文件", async () => {
           const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([photoPath]);
@@ -966,6 +977,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
         if (!confirmed) return;
 
         try {
+          if (window.SurveyAdminModule?.assertPhotoDeletable) {
+            await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, photoId);
+          }
           if (photoPath) {
             await ignoreMissingTable("照片文件", async () => {
               const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([photoPath]);
@@ -1300,6 +1314,50 @@ const ENABLE_SUPABASE_SYNC = (() => {
       confirm: (message) => adminConfirm(message, { title: "发布确认", okText: "确认发布", isDanger: false })
     });
     await villageAdminController.mount();
+    const villageState = villageAdminController.getState();
+    await initializeSurveyAdmin(client, villageState);
+    await initializeGroupPlanAdmin(villageState);
+  }
+
+  async function initializeGroupPlanAdmin(villageState) {
+    if (groupPlanAdminController || !supabaseClient || !window.GroupPlanAdminModule) return;
+    const root = $("adminGroupPlanRoot");
+    if (!root) return;
+    const context = window.GroupPlanAdminModule.resolveGroupPlanAdminContext(villageState || {});
+    if (!context) {
+      root.innerHTML = '<div class="admin-empty">当前教学项目尚未绑定正式村庄。完成村庄发布与绑定后，这里会列出全部课程小组。</div>';
+      return;
+    }
+    groupPlanAdminController = window.GroupPlanAdminModule.createGroupPlanAdminController({
+      root,
+      supabaseClient,
+      notify: showAdminNotice,
+      confirm: (message) => adminConfirm(message, {
+        title: "小组方案管理",
+        okText: "确认执行",
+        cancelText: "取消",
+        isDanger: false
+      })
+    });
+    await groupPlanAdminController.mount(context);
+  }
+
+  async function initializeSurveyAdmin(villageClient, villageState) {
+    if (surveyAdminController || !supabaseClient || !window.SurveyAdminModule) return;
+    const root = $("adminSurveyRoot");
+    if (!root) return;
+    const activeContext = villageState?.context || await villageClient.getActiveContext().catch(() => null);
+    const context = window.SurveyAdminModule.resolveFormalSharedContext(activeContext || {});
+    if (!context) {
+      root.innerHTML = '<div class="admin-empty">当前教学项目尚未同时绑定正式村庄和全班共享现状空间。请先在“村庄与项目”完成发布与绑定。</div>';
+      return;
+    }
+    surveyAdminController = window.SurveyAdminModule.createSurveyAdminController({
+      root,
+      supabaseClient,
+      notify: showAdminNotice
+    });
+    await surveyAdminController.mount(context);
   }
 
   function bindAdminTabs() {
@@ -1319,10 +1377,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
         messages: $("adminTabMessages"),
         courseGroups: $("adminTabCourseGroups"),
         villages: $("adminTabVillages"),
+        surveyReview: $("adminTabSurveyReview"),
+        groupPlans: $("adminTabGroupPlans"),
         activity: $("adminTabActivity")
       };
       const target = targetByTab[tab];
       if (target) target.classList.add("active");
+      if (tab === "groupPlans") history.replaceState(null, "", "#group-plans");
     });
   }
 
@@ -1344,6 +1405,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (content) content.style.display = "";
     document.title = "后台管理 - 村庄规划互动平台";
     bindAdminTabs();
+    if (location.hash === "#group-plans") {
+      document.querySelector('[data-admin-tab="groupPlans"]')?.click();
+    }
     bindTableEvents();
     renderTable();
     bindPhotoEvents();

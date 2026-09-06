@@ -37,6 +37,8 @@
       teachingProjectId: row.teaching_project_id || row.teachingProjectId || "",
       villageId: row.village_id || row.villageId || "",
       baseDatasetId: row.base_dataset_id || row.baseDatasetId || null,
+      baseSnapshotId: row.base_snapshot_id || row.baseSnapshotId || null,
+      baseSnapshotLabel: row.base_snapshot_label || row.baseSnapshotLabel || "",
       spaceType: row.space_type || row.spaceType || "",
       ownerId: row.owner_id || row.ownerId || null,
       groupId: row.group_id || row.groupId || null,

@@ -391,6 +391,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId: linkedSpaceId });
+      return rows.filter((row) => row?.layer_key === "building");
+    }
     let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("*")
@@ -440,6 +444,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId: linkedSpaceId });
+      return rows.filter((row) => row?.layer_key === "road");
+    }
     let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("*")
@@ -465,6 +473,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function hasAny3DBuildingRowsForSpace(spaceId) {
     if (!supabaseClient) return false;
     const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId });
+      return rows.some((row) => row?.layer_key === "building");
+    }
     let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("id")
@@ -490,6 +502,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function hasAny3DRoadRowsForSpace(spaceId) {
     if (!supabaseClient) return false;
     const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId });
+      return rows.some((row) => row?.layer_key === "road");
+    }
     let query = supabaseClient
       .from(PLANNING_FEATURES_TABLE)
       .select("id")
@@ -2701,6 +2717,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
       primitive.errorEvent.addEventListener((error) => {
         console.error("GLB loading failed:", modelUrl, error);
+        if (replacementRequestTokenMap.get(key) !== requestToken) return;
+        try {
+          viewer.scene.primitives.remove(primitive);
+          if (pointEntity) viewer.entities.remove(pointEntity);
+        } catch (_) {}
+        replacementModelMap.set(key, { primitive: null, pointEntity: null });
+        setEntityReplacementVisual(entity, false, false);
+        refreshReplacementAnchorVisibility();
+        viewer.scene.requestRender();
       });
 
       replacementModelMap.set(key, {
@@ -2739,7 +2764,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const modelState = getModelStateFromRow(row);
     if (modelState.modelUrl) {
-      await addOrUpdateReplacementModel(entity, modelState);
+      const fallback = window.GroupModelLibraryModule?.applyOptionalModelWithWhiteFallback;
+      if (!fallback) {
+        await addOrUpdateReplacementModel(entity, modelState);
+        return;
+      }
+      const result = await fallback({
+        loadModel: () => addOrUpdateReplacementModel(entity, modelState),
+        setWhiteModelVisible: (visible) => {
+          if (visible) setEntityReplacementVisual(entity, false, false);
+        }
+      });
+      if (!result.applied) console.warn("可选 GLB 加载失败，已保留建筑白模：", result.error);
     } else {
       removeReplacementModel(entity.__sourceCode || "");
     }

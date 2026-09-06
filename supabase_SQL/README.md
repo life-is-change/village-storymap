@@ -41,3 +41,7 @@
 - `TEST - 用途 (ROLLBACK)`：事务回滚测试。
 
 禁止继续保存 `Untitled query`；同一迁移只保留一个编辑器副本，权威版本始终以仓库文件为准。
+## 阶段 2 增量迁移
+
+- `Shared Survey Calibration and Freeze.sql`：正式共享现状空间的对象校核、后续操作门禁、历史恢复与冻结底图。应在 `Multi-Village Dual-Track Repair.sql` 之后执行。
+- `Shared Survey Calibration Security Followup.sql`：撤销阶段 2 内部触发器函数的直接 RPC 执行权限。应紧接阶段 2 主迁移执行。

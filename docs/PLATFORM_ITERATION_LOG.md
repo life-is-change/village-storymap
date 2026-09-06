@@ -305,3 +305,30 @@
 - 仅将高精度正射影像外围的黑色无数据区域处理为透明。
 - 2D 与 3D 共用处理后的影像结果。
 - 保留影像内部真实的暗色地物，避免误删有效内容。
+## 2026-09-05｜阶段 2：全班共享现状校核与冻结
+
+**状态：数据库能力已远程部署，等待正式村庄绑定后完成真实协作验收**
+
+### 已完成
+
+- 为正式村庄 `formal_shared` 空间建立建筑、道路、水系对象级几何校核状态。
+- V0 固定分母与新增、删除、当前有效对象采用混合统计口径。
+- 几何确认、修改与删除统一校验对象锁和几何修订号。
+- 属性、照片、对象问题和对象讨论在几何校核前由前后端共同禁止。
+- 学生端加入紧凑校核进度、聚焦未校核和 18% 已校核淡化显示。
+- Realtime 重连后先重新读取事实，断线期间禁止正式共享空间写入。
+- 后台加入“现状校核”总览、筛选、对象历史、追加式恢复和冻结入口。
+- 冻结版本引用照片与问题的不可变修订，不锁定共享现状，也不自动升级已有小组底图。
+- 全量 380 项 Node 测试通过。
+
+### 远程部署结果
+
+- 目标项目：`rzmbmwauomzwiyenafha`。
+- 已应用 `shared_survey_calibration_and_freeze`、`enable_shared_survey_review_realtime_only` 和 `shared_survey_calibration_security_followup`。
+- 新增四张阶段 2 表均已启用 RLS 且各有上下文读取策略；六个核心 RPC 已创建。
+- `survey_feature_reviews` 已加入 Realtime publication。
+- 内部触发器 `append_community_task_version()` 已撤销 `public`、`anon` 和 `authenticated` 的直接执行权限。
+- 当前项目的 `formal_village_id` 仍为空，尚无 `formal_shared` 空间，因此 V0 初始化和管理员/学生身份矩阵验收需在正式村庄创建并绑定后继续。
+- 冻结前需确认 `planning_features` 是完整服务端现状，而不是只含稀疏覆盖项。
+
+---

@@ -7,8 +7,14 @@
     root.CourseWorkspaceAdapterModule = api;
   }
 })(typeof window !== "undefined" ? window : globalThis, function () {
+  function normalizeGroupSpaceType(value) {
+    return value === "course_group" ? "group_plan" : value;
+  }
+
   function buildGroupPlanningSpace(group, actorName, baseSpace = {}, context = {}) {
     if (context.villageRole === "practice") throw new Error("PRACTICE_GROUP_SPACE_FORBIDDEN");
+    const baseSnapshotId = String(group?.baseSnapshotId || group?.base_snapshot_id || "").trim();
+    if (!baseSnapshotId) throw new Error("GROUP_BASELINE_REQUIRED");
     return {
       id: group.spaceId,
       title: `${group.name} · 规划空间`,
@@ -26,7 +32,8 @@
       teachingProjectId: context.teachingProjectId || "",
       villageId: context.villageId || "",
       courseGroupId: group.id,
-      spaceType: "course_group"
+      baseSnapshotId,
+      spaceType: "group_plan"
     };
   }
 
@@ -48,9 +55,10 @@
     const activeGroupId = String(options.activeGroupId || "").trim();
     return (Array.isArray(remoteSpaces) ? remoteSpaces : []).filter((space) => {
       if (!space || ["course_personal", "practice_personal", "formal_personal"].includes(space.spaceType)) return false;
+      const spaceType = normalizeGroupSpaceType(space.spaceType);
       return Boolean(
         activeGroupId &&
-        space.spaceType === "course_group" &&
+        spaceType === "group_plan" &&
         String(space.courseGroupId || "") === activeGroupId
       );
     });
@@ -115,6 +123,7 @@
   }
 
   return {
+    normalizeGroupSpaceType,
     buildGroupPlanningSpace,
     canActorAccessGroupSpace,
     buildAccountStorageKey,

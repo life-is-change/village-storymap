@@ -525,6 +525,16 @@
         feature.set("layerKey", layerKey);
         feature.set("sourceCode", nextCode);
         feature.set("displayName", nextCode);
+        if (deps.requiresFeatureEditLock?.(layerKey) || deps.usesSharedSurveyGeometryWorkflow?.(layerKey)) {
+          const lock = await deps.acquireFeatureEditLock?.(layerKey, nextCode);
+          if (!lock?.success || !lock.lockToken) {
+            deps.showToast("新增对象未取得编辑锁，请重试。", "error");
+            setTimeout(() => source?.removeFeature?.(feature), 0);
+            state.isDrawingActive = false;
+            api.updateBuildingEditorToolbarState(deps);
+            return;
+          }
+        }
         if (layerKey === "road") {
           feature.set("baseRow", {
             道路编码: nextCode,
@@ -700,15 +710,19 @@
             originalFeature.setGeometry(originalGeom.clone());
             beforeGeom = deps.olFeatureToDbGeometry(originalFeature);
           }
+          const action = addedFeatures.has(feature) ? "add" : "update";
           changes.push(window.PersonalEditVersionModule.withFeatureVersion({
-            action: addedFeatures.has(feature) ? "add" : "update",
+            action,
             layerKey,
             objectCode: code,
             objectName: props[nameField] || props.道路名称 || props.房屋名称 || code,
             beforeGeom,
             afterGeom: geom,
             beforeProps: addedFeatures.has(feature) ? null : deps.cloneJson(baseRow || {}),
-            afterProps: props
+            afterProps: props,
+            expectedRevision: Number(baseRow.__featureRevision || feature.get("featureRevision") || 0),
+            lockToken: deps.getFeatureEditLockToken?.(layerKey, code) || null,
+            ...deps.getSurveyGeometryEvidence?.(layerKey, code, action)
           }, feature));
         }
 
@@ -724,7 +738,10 @@
               beforeGeom: deps.olFeatureToDbGeometry(feature),
               afterGeom: null,
               beforeProps: deps.cloneJson(feature.get("baseRow") || {}),
-              afterProps: null
+              afterProps: null,
+              expectedRevision: Number((feature.get("baseRow") || {}).__featureRevision || feature.get("featureRevision") || 0),
+              lockToken: deps.getFeatureEditLockToken?.(layerKey, code) || null,
+              ...deps.getSurveyGeometryEvidence?.(layerKey, code, "delete")
             }, feature));
           }
         }
@@ -752,6 +769,7 @@
         state.originalGeoms.clear();
 
         await deps.refresh2DOverlay();
+        await deps.refreshSurveyReviewState?.();
 
         deps.sync2DSpaceStateTo3D();
 

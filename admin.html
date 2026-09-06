@@ -524,11 +524,35 @@
     .village-list li strong { margin-right: auto; color: #1f3552; }
     .village-midterm { margin-top: 24px; border-top: 1px dashed rgba(31,53,82,.2); padding-top: 24px; }
     .village-midterm-label { display: inline-block; margin-bottom: 10px; padding: 5px 10px; border-radius: 999px; color: #7b5b11; background: #fff4cf; font-size: 12px; font-weight: 800; }
+    .survey-admin-context { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:22px 28px; background:linear-gradient(125deg,#155c37,#2f7a2a); color:#fff; }
+    .survey-admin-context div { display:grid; gap:5px; padding:13px 15px; border:1px solid rgba(255,255,255,.2); border-radius:13px; background:rgba(255,255,255,.08); }
+    .survey-admin-context span { color:rgba(255,255,255,.72); font-size:12px; }
+    .admin-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; padding:20px 28px; }
+    .admin-stat-grid > div { display:grid; gap:6px; padding:17px; border:1px solid rgba(31,53,82,.08); border-radius:14px; background:#f7faf7; }
+    .admin-stat-grid strong { color:#1f5f38; font-size:23px; }
+    .admin-stat-grid span { color:#718095; font-size:12px; }
+    .survey-admin-history { margin:18px 28px 26px; padding:18px; border:1px solid rgba(31,53,82,.1); border-radius:14px; background:#f8faf8; }
+    .survey-admin-history h3 { margin:0 0 12px; color:#1f3552; }
+    .survey-admin-history > div { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; padding:9px 0; border-top:1px solid rgba(31,53,82,.08); }
+    .group-plan-admin-card { overflow: visible; }
+    .group-plan-admin-context { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:22px 28px; background:linear-gradient(125deg,#173f32,#28754a 62%,#4d9b62); color:#fff; }
+    .group-plan-admin-context > div { display:grid; gap:5px; min-width:0; padding:13px 15px; border:1px solid rgba(255,255,255,.2); border-radius:13px; background:rgba(255,255,255,.09); }
+    .group-plan-admin-context span { color:rgba(255,255,255,.72); font-size:12px; }
+    .group-plan-admin-context strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .group-plan-table td { vertical-align:top; }
+    .group-plan-row-meta { display:block; margin-top:4px; color:#8392a2; font-weight:500; }
+    .group-plan-state { display:inline-flex; padding:5px 9px; border-radius:999px; background:#fff4d6; color:#8a621b; font-size:12px; white-space:nowrap; }
+    .group-plan-state.is-ready { background:#e7f6eb; color:#24683d; }
+    .group-plan-conflict-count { color:#a15b16; font-weight:800; }
+    .group-plan-actions { display:flex; flex-wrap:wrap; gap:7px; min-width:210px; }
+    .group-plan-actions .admin-btn { min-height:31px; padding:0 10px; font-size:12px; }
     @media (max-width: 760px) {
       .village-form-grid { grid-template-columns: 1fr; }
       .village-field-wide { grid-column: auto; }
       .village-step-body { padding: 0 18px 20px; }
       .village-step-head { padding: 18px; }
+      .survey-admin-context, .admin-stat-grid { grid-template-columns:1fr 1fr; }
+      .group-plan-admin-context { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -585,6 +609,18 @@
                 <path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"></path>
               </svg>
               <span>村庄与项目</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="surveyReview">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3h18v18H3z"></path><path d="M7 12l3 3 7-7"></path>
+              </svg>
+              <span>现状校核</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="groupPlans">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V8l8-5 8 5v11"></path><path d="M8 21v-7h8v7M2 21h20"></path>
+              </svg>
+              <span>小组方案</span>
             </button>
             <button class="admin-menu-item" type="button" data-admin-tab="courseGroups">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -744,6 +780,20 @@
               </section>
             </div>
           </div>
+          <div id="adminTabSurveyReview" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header"><div><h1>共享现状校核</h1><p class="admin-course-hint">查看固定 V0 进度、对象状态与追加式历史；这里不分配或认领对象。</p></div></div>
+              <div id="adminSurveyRoot"><div class="admin-empty">正在读取当前正式村庄…</div></div>
+            </div>
+          </div>
+          <div id="adminTabGroupPlans" class="admin-tab-panel">
+            <div class="admin-card group-plan-admin-card">
+              <div class="admin-card-header">
+                <div><h1>小组方案管理</h1><p class="admin-course-hint">统一查看各组方案空间、冻结基线、最近活动和冲突；进入方案采用临时管理视图，不会混入普通空间下拉框。</p></div>
+              </div>
+              <div id="adminGroupPlanRoot"><div class="admin-empty">正在读取当前正式村庄的小组方案…</div></div>
+            </div>
+          </div>
           <div id="adminTabActivity" class="admin-tab-panel">
             <div class="admin-card">
               <div class="admin-card-header">
@@ -812,6 +862,8 @@
   <script defer src="features/geoprocessing/geoprocessing-client.js"></script>
   <script defer src="features/admin/village-package.js"></script>
   <script defer src="features/admin/village-admin.js"></script>
+  <script defer src="features/admin/survey-admin.js"></script>
+  <script defer src="features/admin/group-plan-admin.js?v=20260906-group-plan"></script>
   <script defer src="features/admin/course-admin.js"></script>
   <script defer src="admin.js"></script>
 </body>

@@ -55,7 +55,7 @@
       const spaceGroups = [
         { label: "我的个人体验空间", items: [] },
         { label: "全班共享现状空间", items: [] },
-        { label: "本组规划空间", items: [] },
+        { label: "本小组方案空间", items: [] },
         { label: "其他空间", items: [] }
       ];
 
@@ -72,7 +72,13 @@
       });
 
       const visibleSpaceGroups = spaceGroups.filter((group) => group.items.length > 0);
-      const getSpaceOptionDisplayText = (space) => space.title || "未命名空间";
+      const getSpaceOptionDisplayText = (space) => {
+        if (groupTypes.has(space.spaceType)) {
+          const baseSnapshotLabel = String(space.baseSnapshotLabel || "").trim();
+          return `${space.title || "本小组方案空间"} · 组内共享${baseSnapshotLabel ? ` · 基线 ${baseSnapshotLabel}` : ""}`;
+        }
+        return space.title || "未命名空间";
+      };
       const dropdownOptionsHtml = visibleSpaceGroups
         .map((group) => `
           <optgroup label="${deps.escapeHtml(group.label)}">

@@ -7,7 +7,8 @@ const {
   buildAccountStorageKey,
   buildPersonalPlanningSpace,
   filterRemotePlanningSpaces,
-  mergeWorkspaceSpaces
+  mergeWorkspaceSpaces,
+  normalizeGroupSpaceType
 } = require("./course-workspace-adapter.js");
 
 test("group workspace keeps course ownership while reusing map defaults", () => {
@@ -16,7 +17,8 @@ test("group workspace keeps course ownership while reusing map defaults", () => 
       id: "group-1",
       name: "第1小组",
       courseId: "mibu-village-planning",
-      spaceId: "group-space-1"
+      spaceId: "group-space-1",
+      baseSnapshotId: "snapshot-v1"
     },
     "张三",
     { selectedLayers: ["building", "road", "water"], basemapVisible: true }
@@ -25,6 +27,8 @@ test("group workspace keeps course ownership while reusing map defaults", () => 
   assert.equal(space.id, "group-space-1");
   assert.equal(space.title, "第1小组 · 规划空间");
   assert.equal(space.courseGroupId, "group-1");
+  assert.equal(space.baseSnapshotId, "snapshot-v1");
+  assert.equal(space.spaceType, "group_plan");
   assert.deepEqual(space.selectedLayers, ["building", "road", "water"]);
   assert.equal(space.basemapVisible, true);
 });
@@ -80,6 +84,18 @@ test("group workspace is forbidden for the practice village", () => {
   ), /PRACTICE_GROUP_SPACE_FORBIDDEN/);
 });
 
+test("group workspace requires a frozen baseline", () => {
+  assert.throws(() => buildGroupPlanningSpace(
+    { id: "g1", name: "组", courseId: "c1", spaceId: "s1" }, "学生", {},
+    { villageRole: "formal", villageId: "v1", teachingProjectId: "p1" }
+  ), /GROUP_BASELINE_REQUIRED/);
+});
+
+test("legacy course group space type normalizes to group plan", () => {
+  assert.equal(normalizeGroupSpaceType("course_group"), "group_plan");
+  assert.equal(normalizeGroupSpaceType("group_plan"), "group_plan");
+});
+
 test("new personal workspace shows contour values by default", () => {
   const space = buildPersonalPlanningSpace({
     personalSpace: { id: "personal-2" },
@@ -94,7 +110,7 @@ test("new personal workspace shows contour values by default", () => {
 test("students never receive unrelated remote planning spaces", () => {
   const remote = [
     { id: "legacy-other", creatorName: "别人", spaceType: "" },
-    { id: "group-other", courseGroupId: "g-other", spaceType: "course_group" },
+    { id: "group-other", courseGroupId: "g-other", spaceType: "group_plan" },
     { id: "group-mine", courseGroupId: "g-mine", spaceType: "course_group" }
   ];
   assert.deepEqual(filterRemotePlanningSpaces(remote, {

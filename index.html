@@ -96,6 +96,7 @@
               <button id="deleteCurrentSpaceBtn" class="workspace-icon-btn workspace-delete-space-btn" type="button" data-space-delete="" title="删除当前空间" aria-label="删除当前空间">⌫</button>
             </div>
             <div id="workspaceViewModeSwitch" class="workspace-view-mode-switch" aria-label="视图切换"></div>
+            <div id="surveyReviewPanelRoot" class="survey-review-panel-root" hidden></div>
             <button id="classDiscussionBtn" type="button" class="workspace-action-btn workspace-action-btn-secondary" title="打开班级讨论">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-6a7 7 0 0 1-1-4V8a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"></path>
@@ -118,6 +119,7 @@
               <button id="projectSettingsCloseBtn" type="button" title="关闭设置">×</button>
             </header>
             <div class="project-settings-body">
+              <section id="groupBaselinePanelMount" class="group-baseline-panel" aria-label="小组方案基线" hidden></section>
               <div id="spaceList" class="space-list-panel active"></div>
             </div>
           </aside>
@@ -343,6 +345,9 @@
   <script defer src="features/villages/project-switcher.js"></script>
   <script defer src="features/course/course-workspace-adapter.js?v=20260903-space-context-fix"></script>
   <script defer src="features/data/personal-edit-version.js?v=20260810-version-guard"></script>
+  <script defer src="features/data/group-baseline-client.js?v=20260906-group-baseline"></script>
+  <script defer src="features/data/group-plan-resolver.js?v=20260906-group-plan"></script>
+  <script defer src="features/ui/group-baseline-panel.js?v=20260906-group-baseline"></script>
   <script defer src="features/data/village-dataset-resolver.js"></script>
   <script defer src="features/data/effective-building-features.js?v=20260810-space-alignment"></script>
   <script defer src="features/3d/village-3d-config.js"></script>
@@ -354,6 +359,10 @@
   <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260723-contour-ui"></script>
   <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260723-contour-ui"></script>
   <script defer src="features/ui/course-workbench.js?v=20260723-contour-ui"></script>
+  <script defer src="features/survey/survey-review-model.js"></script>
+  <script defer src="features/survey/survey-review-client.js"></script>
+  <script defer src="features/survey/survey-review-panel.js"></script>
+  <script defer src="features/survey/survey-realtime-controller.js"></script>
   <script defer src="features/data/data-service.js"></script>
   <script defer src="features/data/feature-edit-session.js"></script>
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
@@ -362,6 +371,7 @@
   <script defer src="features/object-collaboration/object-info-deps.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
   <script defer src="features/map-editing/geometry-editor.js?v=20260723-contour-ui"></script>
+  <script defer src="features/map-editing/survey-review-overlay.js"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js"></script>
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>

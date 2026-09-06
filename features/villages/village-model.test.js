@@ -77,10 +77,12 @@ test("正式村庄只显示本人的个人空间、共享现状和本组方案",
   assert.deepEqual(visible.map((space) => space.id), ["mine", "shared", "my-group"]);
 });
 
-test("工作人员可以查看当前村庄全部正式空间但不能跨项目", () => {
+test("工作人员普通工作区不暴露其他人的个人空间和全部小组方案", () => {
   const visible = filterSpacesForContext({
     spaces: [
+      { id: "mine", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.FORMAL_PERSONAL, ownerId: "staff" },
       { id: "personal", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.FORMAL_PERSONAL, ownerId: "u2" },
+      { id: "shared", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.FORMAL_SHARED },
       { id: "group", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.GROUP_PLAN, groupId: "g2" },
       { id: "other-project", teachingProjectId: "p2", villageId: "v1", spaceType: SPACE_TYPES.FORMAL_SHARED }
     ],
@@ -88,7 +90,21 @@ test("工作人员可以查看当前村庄全部正式空间但不能跨项目",
     actor: { userId: "staff", isStaff: true }
   });
 
-  assert.deepEqual(visible.map((space) => space.id), ["personal", "group"]);
+  assert.deepEqual(visible.map((space) => space.id), ["mine", "shared"]);
+});
+
+test("工作人员只有明确属于当前小组时才在普通工作区看到本组方案", () => {
+  const visible = filterSpacesForContext({
+    spaces: [
+      { id: "shared", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.FORMAL_SHARED },
+      { id: "my-group", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.GROUP_PLAN, groupId: "g1" },
+      { id: "other-group", teachingProjectId: "p1", villageId: "v1", spaceType: SPACE_TYPES.GROUP_PLAN, groupId: "g2" }
+    ],
+    context: { teachingProjectId: "p1", villageId: "v1", villageRole: "formal" },
+    actor: { userId: "staff", groupId: "g1", isStaff: true }
+  });
+
+  assert.deepEqual(visible.map((space) => space.id), ["shared", "my-group"]);
 });
 
 test("未开放正式项目时只生成练习条目", () => {

@@ -152,13 +152,48 @@
     return { success: true, batchId: data };
   }
 
+  async function saveGroupPlanEditBatch(deps, payload = {}) {
+    const rawContext = payload.context || deps?.getContext?.() || {};
+    if (normalize(rawContext.spaceType ?? rawContext.space_type) !== "group_plan") {
+      throw new Error("GROUP_PLAN_SPACE_REQUIRED");
+    }
+    const context = requireContext(deps, payload);
+    const changes = Array.isArray(payload.changes) ? payload.changes : [];
+    if (!changes.length) throw new Error("GROUP_PLAN_CHANGES_REQUIRED");
+    changes.forEach((change) => {
+      const layerKey = normalize(change?.layerKey);
+      if (!["building", "road", "water"].includes(layerKey)) {
+        throw new Error("GROUP_LAYER_READ_ONLY");
+      }
+      if (!normalize(change?.action) || !normalize(change?.objectCode)) {
+        throw new Error("GROUP_PLAN_CHANGE_INVALID");
+      }
+      if (!Number.isInteger(Number(change?.expectedRevision)) || Number(change.expectedRevision) < 0) {
+        throw new Error("GROUP_PLAN_REVISION_REQUIRED");
+      }
+    });
+
+    const client = deps?.getSupabaseClient?.();
+    if (!client) throw new Error("当前未连接 Supabase，无法保存小组方案。");
+    const { data, error } = await client.rpc("save_group_plan_edit_batch", {
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
+      p_space_id: context.spaceId,
+      p_editor_name: normalize(payload.editorName),
+      p_summary: normalize(payload.summary),
+      p_changes: changes
+    });
+    if (error) throw error;
+    return { success: true, result: data };
+  }
+
   async function listSnapshots(deps, spaceId) {
     const context = requireContext(deps, { spaceId });
     const client = deps?.getSupabaseClient?.();
     if (!client) return [];
     const { data, error } = await client
       .from("feature_snapshots")
-      .select("id,space_id,version_name,version_type,description,created_by,created_at,is_published")
+      .select("id,space_id,version_name,version_type,description,created_by,created_at,is_published,version_number,recommended_for_groups,stats")
       .eq("space_id", context.spaceId)
       .eq("teaching_project_id", context.teachingProjectId)
       .eq("village_id", context.villageId)
@@ -213,6 +248,22 @@
     return data;
   }
 
+  async function freezeSurveySnapshot(deps, payload) {
+    const context = requireContext(deps, payload);
+    const client = deps?.getSupabaseClient?.();
+    if (!client) throw new Error("当前未配置 Supabase。");
+    const { data, error } = await client.rpc("freeze_shared_survey_snapshot", {
+      p_teaching_project_id: context.teachingProjectId,
+      p_village_id: context.villageId,
+      p_space_id: context.spaceId,
+      p_version_name: normalize(payload?.versionName),
+      p_description: normalize(payload?.description),
+      p_recommended_for_groups: Boolean(payload?.recommendedForGroups)
+    });
+    if (error) throw error;
+    return data;
+  }
+
   return {
     LOCK_LEASE_SECONDS,
     LOCK_HEARTBEAT_MS,
@@ -224,9 +275,11 @@
     heartbeatFeatureEditLock,
     releaseFeatureEditLock,
     saveFeatureEditBatch,
+    saveGroupPlanEditBatch,
     listSnapshots,
     listRecentVersions,
     listSnapshotItems,
-    freezeSnapshot
+    freezeSnapshot,
+    freezeSurveySnapshot
   };
 });

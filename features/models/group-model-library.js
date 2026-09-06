@@ -206,6 +206,21 @@
     return { asset, signedUrl };
   }
 
+  async function applyOptionalModelWithWhiteFallback({ loadModel, setWhiteModelVisible } = {}) {
+    if (typeof loadModel !== 'function' || typeof setWhiteModelVisible !== 'function') {
+      throw new Error('MODEL_FALLBACK_HANDLER_REQUIRED');
+    }
+    try {
+      const loaded = await loadModel();
+      if (!loaded) throw new Error('MODEL_LOAD_FAILED');
+      setWhiteModelVisible(false);
+      return { applied: true };
+    } catch (error) {
+      setWhiteModelVisible(true);
+      return { applied: false, error };
+    }
+  }
+
   return {
     MAX_MODEL_BYTES,
     DEFAULT_BUCKET,
@@ -214,6 +229,7 @@
     buildStoragePath,
     createGroupModelLibrary,
     restoreBuildingModel,
-    uploadAndPlaceModel
+    uploadAndPlaceModel,
+    applyOptionalModelWithWhiteFallback
   };
 });

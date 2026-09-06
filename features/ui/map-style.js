@@ -1,4 +1,20 @@
 (function () {
+  function applyColorOpacity(color, opacity) {
+    const factor = Number.isFinite(Number(opacity)) ? Math.max(0, Math.min(1, Number(opacity))) : 1;
+    if (factor >= 1 || typeof color !== "string") return color;
+    const rgba = color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+    if (rgba) {
+      const alpha = (rgba[4] == null ? 1 : Number(rgba[4])) * factor;
+      return `rgba(${rgba[1]},${rgba[2]},${rgba[3]},${alpha})`;
+    }
+    const hex = color.match(/^#([0-9a-f]{6})$/i);
+    if (hex) {
+      const value = Number.parseInt(hex[1], 16);
+      return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${factor})`;
+    }
+    return color;
+  }
+
   const api = {
     getOlFeatureStyle(deps, feature, resolution) {
       const OL = deps.getOL();
@@ -8,6 +24,8 @@
       const CircleStyle = OL.CircleStyle || OL.Circle;
       const layerKey = feature.get("layerKey");
       const sourceCode = feature.get("sourceCode");
+      const surveyReviewVisual = feature.get("surveyReviewVisual") || {};
+      const visualOpacity = Number(surveyReviewVisual.opacity ?? 1);
       const geomType = feature?.getGeometry?.()?.getType?.() || "";
       const isActive = deps.isActiveFeature(feature);
       const isHovered = deps.isHoveredFeature(feature);
@@ -179,6 +197,7 @@
           strokeColor = "#1e88e5";
           strokeWidthRoad = Math.max(2.2, baseWidth + 0.5);
         }
+        strokeColor = applyColorOpacity(strokeColor, visualOpacity);
 
         return new Style({
           zIndex: featureZIndex,
@@ -201,6 +220,17 @@
         stroke = "#42a5f5";
         strokeWidth = 2.8;
       }
+
+      if (surveyReviewVisual.lockOutline === "blue" && !isActive) {
+        stroke = "#1565c0";
+        strokeWidth = Math.max(strokeWidth, 3);
+      } else if (surveyReviewVisual.issueMarker === "red" && !isActive) {
+        stroke = "#d32f2f";
+        strokeWidth = Math.max(strokeWidth, 3);
+        strokeLineDash = [5, 3];
+      }
+      fill = applyColorOpacity(fill, visualOpacity);
+      stroke = applyColorOpacity(stroke, visualOpacity);
 
       return new Style({
         zIndex: featureZIndex,

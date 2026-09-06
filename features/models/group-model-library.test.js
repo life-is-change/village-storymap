@@ -8,7 +8,8 @@ const {
   buildStoragePath,
   createGroupModelLibrary,
   restoreBuildingModel,
-  uploadAndPlaceModel
+  uploadAndPlaceModel,
+  applyOptionalModelWithWhiteFallback
 } = require('./group-model-library.js');
 
 test('group spaces resolve to one shared group scope', () => {
@@ -227,4 +228,24 @@ test('listing bindings returns the asset metadata needed to recreate signed mode
     transform: { scale: 2 },
     group_model_assets: { id: 'asset-1', name: '住宅', storage_path: 'groups/g/asset.glb' }
   }]);
+});
+
+test('failed optional GLB load keeps the building white model visible', async () => {
+  const states = [];
+  const result = await applyOptionalModelWithWhiteFallback({
+    async loadModel() { throw new Error('signed URL expired'); },
+    setWhiteModelVisible(visible) { states.push(visible); }
+  });
+  assert.equal(result.applied, false);
+  assert.match(result.error.message, /expired/);
+  assert.deepEqual(states, [true]);
+});
+
+test('white model is hidden only after an optional GLB loads', async () => {
+  const states = [];
+  assert.deepEqual(await applyOptionalModelWithWhiteFallback({
+    async loadModel() { return true; },
+    setWhiteModelVisible(visible) { states.push(visible); }
+  }), { applied: true });
+  assert.deepEqual(states, [false]);
 });

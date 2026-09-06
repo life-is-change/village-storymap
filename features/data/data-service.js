@@ -67,6 +67,25 @@
     return String(byUrl || "").trim();
   }
 
+  function normalizeSurveyLayerKey(layerKey) {
+    const value = String(layerKey || "").trim();
+    return ["building", "road", "water"].includes(value) ? value : null;
+  }
+
+  async function assertSurveyDownstreamReady(deps, { objectCode, layerKey } = {}) {
+    const context = requireContext(deps);
+    const surveyLayerKey = normalizeSurveyLayerKey(layerKey);
+    if (context.spaceType !== "formal_shared" || !surveyLayerKey) return true;
+    if (typeof deps.assertSurveyDownstreamReady === "function") {
+      await deps.assertSurveyDownstreamReady({ objectCode, layerKey: surveyLayerKey });
+      return true;
+    }
+    const review = await deps.getSurveyReview?.(surveyLayerKey, objectCode);
+    const ready = deps.canUseSurveyDownstreamActions?.(review);
+    if (!ready) throw new Error("GEOMETRY_REVIEW_REQUIRED");
+    return true;
+  }
+
   const api = {
     async fetchObjectEdits(deps, sourceCode, objectType) {
       const context = requireContext(deps);
@@ -91,8 +110,13 @@
       return data?.data || null;
     },
 
-    async saveObjectEdits(deps, sourceCode, objectType, payload) {
+    async saveObjectEdits(deps, sourceCode, objectType, payload, surveyLayerKey = null) {
       const context = requireContext(deps);
+      const normalizedSurveyLayerKey = normalizeSurveyLayerKey(surveyLayerKey);
+      await assertSurveyDownstreamReady(deps, {
+        objectCode: sourceCode,
+        layerKey: normalizedSurveyLayerKey
+      });
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("当前未配置 Supabase。");
@@ -108,6 +132,7 @@
             teaching_project_id: context.teachingProjectId,
             village_id: context.villageId,
             space_id: context.spaceId,
+            survey_layer_key: normalizedSurveyLayerKey,
             updated_at: new Date().toISOString()
           },
           { onConflict: "teaching_project_id,village_id,space_id,object_code,object_type" }
@@ -225,8 +250,13 @@
         });
     },
 
-    async uploadObjectPhoto(deps, file, sourceCode, objectType, uploadedBy) {
+    async uploadObjectPhoto(deps, file, sourceCode, objectType, uploadedBy, surveyLayerKey = null) {
       const context = requireContext(deps);
+      const normalizedSurveyLayerKey = normalizeSurveyLayerKey(surveyLayerKey);
+      await assertSurveyDownstreamReady(deps, {
+        objectCode: sourceCode,
+        layerKey: normalizedSurveyLayerKey
+      });
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("当前未配置 Supabase。");
@@ -259,7 +289,8 @@
         uploaded_by: uploadedBy || null,
         teaching_project_id: context.teachingProjectId,
         village_id: context.villageId,
-        space_id: context.spaceId
+        space_id: context.spaceId,
+        survey_layer_key: normalizedSurveyLayerKey
       };
 
       let { error: insertError } = await supabaseClient
@@ -274,7 +305,8 @@
           photo_path: fileName,
           teaching_project_id: context.teachingProjectId,
           village_id: context.villageId,
-          space_id: context.spaceId
+          space_id: context.spaceId,
+          survey_layer_key: normalizedSurveyLayerKey
         };
         const retry = await supabaseClient
           .from(deps.OBJECT_PHOTOS_TABLE)
@@ -282,7 +314,13 @@
         insertError = retry.error;
       }
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        const { error: cleanupError } = await supabaseClient.storage
+          .from(deps.PHOTO_BUCKET)
+          .remove([fileName]);
+        if (cleanupError) console.warn("照片关联失败后的存储清理也失败：", cleanupError);
+        throw insertError;
+      }
 
       rememberPhotoUploader(fileName, photoUrl, uploadedBy);
       return { photoUrl, photoPath: fileName };
@@ -319,5 +357,7 @@
 
   };
 
+  api.assertSurveyDownstreamReady = assertSurveyDownstreamReady;
+  api.normalizeSurveyLayerKey = normalizeSurveyLayerKey;
   window.DataServiceModule = api;
 })();

@@ -2,6 +2,54 @@
   box-sizing: border-box;
 }
 
+/* 小组方案只显示一个稳定空间；这里呈现其当前冻结基线与可选更新。 */
+.group-baseline-panel {
+  margin: 12px 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(35, 111, 66, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(239, 250, 242, 0.98), rgba(255, 255, 255, 0.98));
+  color: #18372a;
+}
+.group-baseline-panel[hidden] { display: none; }
+.group-baseline-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.group-baseline-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+}
+.group-baseline-summary span,
+.group-baseline-counts,
+.group-baseline-current,
+.group-baseline-empty { color: #688073; font-size: 12px; }
+.group-baseline-counts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; }
+.group-baseline-counts .is-warning { color: #9a6218; }
+.group-baseline-update-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #237044;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.group-baseline-conflicts { display: grid; gap: 6px; margin-top: 12px; }
+.group-baseline-conflict {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid #ead8bb;
+  border-radius: 9px;
+  background: #fffaf1;
+  color: #6d4c1d;
+  cursor: pointer;
+}
+.group-baseline-conflict small { color: #9a6218; }
+.group-baseline-empty.is-error { color: #a64040; }
+
 html,
 body {
   margin: 0;
@@ -7352,4 +7400,73 @@ body.map-view-active .workspace-context-bar {
 @media (max-width: 720px) {
   .geoprocessing-parameter-grid { grid-template-columns: 1fr; }
   .geoprocessing-result-actions { grid-template-columns: 1fr; }
+}
+
+/* 正式共享现状：紧凑几何校核入口 */
+.survey-review-panel-root {
+  min-width: 0;
+}
+
+.survey-review-panel-root[data-connection-state="disconnected"]::after {
+  content: "共享数据暂时不同步";
+  display: inline-block;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #fff2e8;
+  color: #a54818;
+  font-size: 12px;
+}
+
+.survey-review-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid rgba(35, 108, 64, 0.2);
+  border-radius: 10px;
+  background: rgba(244, 251, 246, 0.94);
+  color: #254b34;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.survey-review-progress button,
+.survey-object-review button {
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 9px;
+  background: #26723d;
+  color: #fff;
+  cursor: pointer;
+}
+
+.survey-review-progress button[aria-pressed="true"] {
+  background: #174d2a;
+}
+
+.survey-object-review {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(35, 108, 64, 0.18);
+  border-radius: 12px;
+  background: rgba(240, 249, 242, 0.8);
+}
+
+.survey-object-review > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.survey-object-review-meta {
+  margin: 5px 0 9px;
+  color: #65766b;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .survey-review-progress {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
 }

@@ -130,10 +130,12 @@ const courseTaskNav = document.getElementById("courseTaskNav");
 const workspaceVillageLabel = document.getElementById("workspaceVillageLabel");
 const workspaceStageLabel = document.getElementById("workspaceStageLabel");
 const projectHeaderSelect = document.getElementById("projectHeaderSelect");
+const surveyReviewPanelRoot = document.getElementById("surveyReviewPanelRoot");
 const classDiscussionBtn = document.getElementById("classDiscussionBtn");
 const projectSettingsBtn = document.getElementById("projectSettingsBtn");
 const projectSettingsDrawer = document.getElementById("projectSettingsDrawer");
 const projectSettingsCloseBtn = document.getElementById("projectSettingsCloseBtn");
+const groupBaselinePanelMount = document.getElementById("groupBaselinePanelMount");
 const plan2dView = document.getElementById("plan2dView");
 const model3dView = document.getElementById("model3dView");
 
@@ -151,6 +153,9 @@ const BASEMAP_LABEL_VISIBLE_KEY = "village_planning_basemap_label_visible_v1";
 const COURSE_TASK_SIDEBAR_KEY = "village_course_task_sidebar_expanded_v1";
 const THEORY_PRACTICE_CONTEXT_KEY = "village_theory_practice_context_v1";
 let basemapLabelToggle = null;
+let groupBaselinePanel = null;
+let groupBaselinePanelSpaceId = "";
+let activeAdminGroupPlanContext = null;
 
 const supabaseClient = window.VillageSupabaseClient || (
   ENABLE_SUPABASE_SYNC &&
@@ -162,6 +167,9 @@ const supabaseClient = window.VillageSupabaseClient || (
     ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
     : null
 );
+const groupPlanLoader = supabaseClient && window.GroupPlanResolverModule
+  ? window.GroupPlanResolverModule.createGroupPlanLoader({ client: supabaseClient })
+  : null;
 
 let planMap = null;
 let planVectorSource = null;
@@ -218,6 +226,14 @@ let geoprocessingResultPreview = null;
 let villagePreviewController = null;
 let personalSpaceClient = null;
 let villageClient = null;
+let surveyReviewClient = null;
+let surveyReviewPanel = null;
+let surveyReviewRows = [];
+let surveyReviewByKey = new Map();
+let surveyFocusPending = false;
+let surveyRealtimeController = null;
+let surveyRealtimeContextKey = "";
+let surveyRealtimeState = "disconnected";
 let projectSwitcher = null;
 let activeVillageContext = null;
 let objectInfoRequestSerial = 0;
@@ -1771,7 +1787,9 @@ function mapContextSpaceToWorkspace(space, role) {
     ...(existing || {}),
     id: isShared ? BASE_SPACE_ID : space.id,
     actualSpaceId: space.id,
-    title: space.title || (isShared ? "全班共享现状空间" : "我的个人体验空间"),
+    title: space.spaceType === "group_plan"
+      ? "本小组方案空间"
+      : (space.title || (isShared ? "全班共享现状空间" : "我的个人体验空间")),
     creatorName: existing?.creatorName || "",
     readonly: Boolean(space.readonly),
     editEnabled: !space.readonly,
@@ -1785,6 +1803,8 @@ function mapContextSpaceToWorkspace(space, role) {
     villageRole: role,
     ownerId: space.ownerId,
     courseGroupId: space.groupId,
+    baseSnapshotId: space.baseSnapshotId || null,
+    baseSnapshotLabel: space.baseSnapshotLabel || "",
     spaceType: space.spaceType
   };
 }
@@ -1907,6 +1927,65 @@ async function initializeVillageProjectSwitcher() {
   projectSwitcher.mount({ entries });
   await projectSwitcher.switchTo(initial);
   return activeVillageContext;
+}
+
+async function applyAdminGroupPlanContextFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("adminGroupPlan") !== "1") return false;
+  if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
+  const request = {
+    p_teaching_project_id: String(params.get("project") || "").trim(),
+    p_village_id: String(params.get("village") || "").trim(),
+    p_group_id: String(params.get("group") || "").trim(),
+    p_space_id: String(params.get("space") || "").trim()
+  };
+  if (Object.values(request).some((value) => !value)) throw new Error("GROUP_PLAN_ADMIN_CONTEXT_REQUIRED");
+  const { data, error } = await supabaseClient.rpc("get_group_plan_admin_context", request);
+  if (error) throw error;
+  if (!data?.space?.id || data.admin_management !== true) throw new Error("GROUP_PLAN_ADMIN_CONTEXT_INVALID");
+
+  const row = data.space;
+  const workspace = mapContextSpaceToWorkspace({
+    id: row.id,
+    teachingProjectId: row.teaching_project_id,
+    villageId: row.village_id,
+    spaceType: row.space_type,
+    groupId: row.group_id,
+    title: "本小组方案空间",
+    readonly: row.readonly,
+    baseSnapshotId: row.base_snapshot_id
+  }, "formal");
+  activeAdminGroupPlanContext = {
+    adminManagement: true,
+    teachingProjectId: request.p_teaching_project_id,
+    villageId: request.p_village_id,
+    groupId: request.p_group_id,
+    spaceId: request.p_space_id
+  };
+  activeVillageContext = {
+    project: data.project,
+    village: data.village,
+    group: data.group,
+    villages: [data.village],
+    actor: { userId: window.VillageAuth?.getCurrentUser?.()?.id || null, isStaff: true, groupId: null },
+    teachingProjectId: request.p_teaching_project_id,
+    villageId: request.p_village_id,
+    villageRole: "formal",
+    spaces: [workspace],
+    adminManagement: true
+  };
+  window.__activeVillageContext = activeVillageContext;
+  spaces = [workspace];
+  currentSpaceId = workspace.id;
+  lastPlanningSpaceId = workspace.id;
+  isPlanningMode = true;
+  if (projectHeaderSelect) {
+    projectHeaderSelect.innerHTML = '<button type="button" class="space-select-dropdown" data-exit-group-plan-admin>退出小组管理</button>';
+    projectHeaderSelect.querySelector("[data-exit-group-plan-admin]")?.addEventListener("click", () => {
+      window.location.href = "./admin.html#group-plans";
+    });
+  }
+  return true;
 }
 
 function ensureCourseGroupSpace(group) {
@@ -2209,6 +2288,7 @@ function getSpaceCreatorName(spaceOrId) {
 function canManageSpace(spaceOrId, actorName = currentUserName) {
   const space = typeof spaceOrId === "string" ? getSpaceById(spaceOrId) : spaceOrId;
   if (!space) return false;
+  if (space.spaceType === "formal_shared" && surveyRealtimeState !== "connected") return false;
   const actor = normalizeIdentityName(actorName);
   if (space.id !== BASE_SPACE_ID && isAdminIdentity(actor)) return true;
   if (space.readonly) return false;
@@ -2241,6 +2321,15 @@ function sync2DSpaceStateTo3D() {
   window.__fetchObjectEdits = fetchObjectEdits;
   window.__active2DSelectedCode = currentSelectedObject?.sourceCode || null;
   window.__renameBuildingCodeInDb = renameBuildingCodeInDb;
+  window.__loadResolvedGroupPlan = async (context = {}, options = {}) => {
+    if (!groupPlanLoader) throw new Error("GROUP_PLAN_LOADER_UNAVAILABLE");
+    return groupPlanLoader.load({
+      teachingProjectId: context.teachingProjectId || activeVillageContext?.teachingProjectId,
+      villageId: context.villageId || activeVillageContext?.villageId,
+      spaceId: context.spaceId || getCurrentSpace()?.actualSpaceId || currentSpaceId
+    }, options);
+  };
+  void syncGroupPlanRealtimeSubscription();
   window.__refresh2DBuildingInfo = async (sourceCode) => {
     if (!sourceCode) return;
     if (!plan2dView.classList.contains("active")) return;
@@ -2501,8 +2590,10 @@ function buildCommunityTaskDeps() {
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
       villageId: activeVillageContext?.villageId,
-      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+      spaceType: getCurrentSpace()?.spaceType || ""
     }),
+    assertSurveyDownstreamReady,
     getCommunityGameTablesReady: () => communityGameTablesReady,
     setCommunityGameTablesReady: (next) => {
       communityGameTablesReady = !!next;
@@ -2851,11 +2942,192 @@ function buildDataServiceDeps() {
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
       villageId: activeVillageContext?.villageId,
-      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+      spaceType: getCurrentSpace()?.spaceType || ""
     }),
+    getSurveyReview: (layerKey, objectCode) => getSurveyReviewClient().getReview(layerKey, objectCode),
+    canUseSurveyDownstreamActions: (review) => window.SurveyReviewModelModule.canUseDownstreamActions(review),
+    assertSurveyDownstreamReady,
     normalizeIdentityName,
     normalizeCode
   };
+}
+
+function getSurveyReviewClient() {
+  if (!window.SurveyReviewClientModule || !window.SurveyReviewModelModule) {
+    throw new Error("SURVEY_REVIEW_MODULE_REQUIRED");
+  }
+  if (!surveyReviewClient) {
+    surveyReviewClient = window.SurveyReviewClientModule.createSurveyReviewClient({
+      supabaseClient,
+      getContext: () => ({
+        teachingProjectId: activeVillageContext?.teachingProjectId,
+        villageId: activeVillageContext?.villageId,
+        spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+        spaceType: getCurrentSpace()?.spaceType || ""
+      })
+    });
+  }
+  return surveyReviewClient;
+}
+
+function surveyReviewKey(layerKey, objectCode) {
+  return `${String(layerKey || "").trim()}:${String(objectCode || "").trim()}`;
+}
+
+function usesSharedSurveyGeometryWorkflow(layerKey) {
+  return getCurrentSpace()?.spaceType === "formal_shared"
+    && ["building", "road", "water"].includes(String(layerKey || ""));
+}
+
+function getSurveyGeometryEvidence(layerKey, objectCode, action) {
+  if (!usesSharedSurveyGeometryWorkflow(layerKey)) return {};
+  const lock = buildingEditState.activeFeatureLocks.get(buildDirtyFeatureKey(layerKey, objectCode));
+  const review = surveyReviewByKey.get(surveyReviewKey(layerKey, objectCode));
+  if (!lock?.lockToken) throw new Error("FEATURE_LOCK_REQUIRED");
+  if (action !== "add" && !review) throw new Error("SURVEY_FEATURE_NOT_FOUND");
+  return {
+    expectedGeometryRevision: action === "add"
+      ? 0
+      : window.SurveyReviewModelModule.normalizeReviewRow(review).geometryRevision,
+    lockToken: lock.lockToken
+  };
+}
+
+function applyCurrentSurveyReviewOverlay() {
+  if (!window.SurveyReviewOverlayModule || !planVectorLayer) return;
+  const locks = new Map();
+  for (const [key, lock] of buildingEditState.activeFeatureLocks.entries()) {
+    locks.set(key.replace("::", ":"), lock);
+  }
+  window.SurveyReviewOverlayModule.applySurveyReviewVisuals({
+    layers: [planVectorLayer],
+    reviews: surveyReviewByKey,
+    locks,
+    issues: new Map(),
+    focusPending: surveyFocusPending
+  });
+}
+
+function ensureSurveyReviewPanel() {
+  if (surveyReviewPanel || !surveyReviewPanelRoot || !window.SurveyReviewPanelModule) {
+    return surveyReviewPanel;
+  }
+  surveyReviewPanel = window.SurveyReviewPanelModule.createSurveyReviewPanel({
+    root: surveyReviewPanelRoot,
+    onToggleFocus: async (focusPending) => {
+      surveyFocusPending = focusPending;
+      applyCurrentSurveyReviewOverlay();
+    }
+  });
+  return surveyReviewPanel;
+}
+
+function setSurveyRealtimeState(state) {
+  surveyRealtimeState = state;
+  if (surveyReviewPanelRoot) {
+    surveyReviewPanelRoot.dataset.connectionState = state;
+    surveyReviewPanelRoot.title = state === "disconnected" ? "共享数据暂时不同步" : "";
+  }
+  ensureBuildingEditorToolbar?.();
+}
+
+function isSharedSurveyConnectionReady() {
+  return getCurrentSpace()?.spaceType !== "formal_shared" || surveyRealtimeState === "connected";
+}
+
+async function syncSurveyRealtimeSubscription() {
+  const space = getCurrentSpace();
+  if (space?.spaceType !== "formal_shared" || !supabaseClient || !window.SurveyRealtimeControllerModule) {
+    surveyRealtimeContextKey = "";
+    await surveyRealtimeController?.stop?.();
+    setSurveyRealtimeState(space?.spaceType === "formal_shared" ? "disconnected" : "connected");
+    return;
+  }
+  const context = {
+    teachingProjectId: activeVillageContext?.teachingProjectId,
+    villageId: activeVillageContext?.villageId,
+    spaceId: space.actualSpaceId || currentSpaceId
+  };
+  const key = `${context.teachingProjectId}:${context.villageId}:${context.spaceId}`;
+  if (!context.teachingProjectId || !context.villageId || surveyRealtimeContextKey === key) return;
+  surveyRealtimeContextKey = key;
+  surveyRealtimeController ||= window.SurveyRealtimeControllerModule.createSurveyRealtimeController({
+    client: supabaseClient,
+    loadLatest: refreshSurveyReviewState,
+    onConnectionChange: setSurveyRealtimeState
+  });
+  await surveyRealtimeController.start(context);
+}
+
+async function refreshSurveyReviewState() {
+  const space = getCurrentSpace();
+  const panel = ensureSurveyReviewPanel();
+  if (!panel || space?.spaceType !== "formal_shared") {
+    panel?.hide();
+    surveyReviewRows = [];
+    surveyReviewByKey = new Map();
+    surveyFocusPending = false;
+    applyCurrentSurveyReviewOverlay();
+    return;
+  }
+  try {
+    surveyReviewRows = await getSurveyReviewClient().listReviews();
+    surveyReviewByKey = new Map(surveyReviewRows.map((row) => [
+      surveyReviewKey(row.layer_key, row.object_code), row
+    ]));
+    panel.setProgress(
+      window.SurveyReviewModelModule.buildSurveyProgress(surveyReviewRows),
+      surveyFocusPending
+    );
+    applyCurrentSurveyReviewOverlay();
+  } catch (error) {
+    console.warn("刷新几何校核进度失败：", error);
+    panel.hide();
+  }
+}
+
+async function confirmSurveyGeometry(review, layerKey, objectCode, baseRow) {
+  const normalized = window.SurveyReviewModelModule.normalizeReviewRow(review);
+  const lock = await acquireFeatureEditLock(layerKey, objectCode);
+  if (!lock?.success || !lock.lockToken) {
+    showToast(lock?.editorName ? `该对象正在由 ${lock.editorName} 编辑` : "暂时无法取得对象编辑锁", "error");
+    return false;
+  }
+  try {
+    await getSurveyReviewClient().confirmGeometry({
+      layerKey,
+      objectCode,
+      expectedRevision: normalized.geometryRevision,
+      lockToken: lock.lockToken
+    });
+    showToast("几何已确认无误", "success");
+    await refreshSurveyReviewState();
+    await showObjectInfo(baseRow, layerKey, objectCode);
+    return true;
+  } catch (error) {
+    if (String(error?.message || error).includes("GEOMETRY_REVISION_CONFLICT")) {
+      showToast("对象已被其他同学更新，已刷新到最新版", "error");
+      await refreshSurveyReviewState();
+      await showObjectInfo(baseRow, layerKey, objectCode);
+      return false;
+    }
+    throw error;
+  } finally {
+    await releaseFeatureEditLock(layerKey, objectCode);
+  }
+}
+
+async function assertSurveyDownstreamReady({ objectCode, layerKey } = {}) {
+  const space = getCurrentSpace();
+  if (space?.spaceType !== "formal_shared") return true;
+  if (!["building", "road", "water"].includes(String(layerKey || ""))) return true;
+  if (!isSharedSurveyConnectionReady()) throw new Error("SHARED_DATA_NOT_SYNCHRONIZED");
+  const review = await getSurveyReviewClient().getReview(layerKey, objectCode);
+  if (!window.SurveyReviewModelModule.canUseDownstreamActions(review)) {
+    throw new Error("GEOMETRY_REVIEW_REQUIRED");
+  }
+  return true;
 }
 
 function getFeatureDbModule() {
@@ -2952,7 +3224,8 @@ function buildFeatureEditSessionDeps() {
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
       villageId: activeVillageContext?.villageId,
-      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+      spaceType: getCurrentSpace()?.spaceType || ""
     })
   };
 }
@@ -2965,6 +3238,9 @@ function getCurrentUserRole() {
 
 async function acquireFeatureEditLock(layerKey, objectCode) {
   if (!currentUserName) return { success: false, reason: "未登录" };
+  if (usesSharedSurveyGeometryWorkflow(layerKey) && !isSharedSurveyConnectionReady()) {
+    return { success: false, reason: "SHARED_DATA_NOT_SYNCHRONIZED" };
+  }
   const module = getFeatureEditSessionModule();
   const target = module.buildLockTarget(currentSpaceId || BASE_SPACE_ID, layerKey, objectCode);
   if (!target) return { success: false, reason: "invalid_target" };
@@ -3036,10 +3312,38 @@ function stopFeatureLockHeartbeatIfIdle() {
 }
 
 async function saveFeatureEditBatch(payload) {
-  if (isDualTrackPersonalSpace(getSpaceById(payload?.spaceId))) {
+  const workspaceSpace = getSpaceById(payload?.spaceId)
+    || spaces.find((space) => space.actualSpaceId === payload?.spaceId)
+    || getCurrentSpace();
+  if (isDualTrackPersonalSpace(workspaceSpace)) {
     if (!personalSpaceClient) throw new Error("PERSONAL_SPACE_CLIENT_REQUIRED");
     await personalSpaceClient.saveEdits(payload.spaceId, payload.changes || []);
     return { success: true };
+  }
+  if (workspaceSpace?.spaceType === "group_plan") {
+    const changes = (payload.changes || []).map((change) => {
+      const lock = buildingEditState.activeFeatureLocks.get(
+        buildDirtyFeatureKey(change.layerKey, change.objectCode)
+      );
+      return {
+        ...change,
+        expectedRevision: Number(change.expectedRevision || 0),
+        lockToken: change.lockToken || lock?.lockToken || null,
+        baseObjectCode: change.baseObjectCode || (change.action === "add" ? null : change.objectCode)
+      };
+    });
+    const actualSpaceId = workspaceSpace.actualSpaceId || workspaceSpace.id;
+    return getFeatureEditSessionModule().saveGroupPlanEditBatch(buildFeatureEditSessionDeps(), {
+      ...payload,
+      spaceId: actualSpaceId,
+      context: {
+        teachingProjectId: activeVillageContext?.teachingProjectId,
+        villageId: activeVillageContext?.villageId,
+        spaceId: actualSpaceId,
+        spaceType: "group_plan"
+      },
+      changes
+    });
   }
   return getFeatureEditSessionModule().saveFeatureEditBatch(buildFeatureEditSessionDeps(), payload);
 }
@@ -3393,6 +3697,16 @@ function buildGeometryEditorDeps() {
     getCurrent2DBuildingSpaceId,
     isBaseSpace,
     getCurrentUserName: () => currentUserName,
+    acquireFeatureEditLock,
+    requiresFeatureEditLock: (layerKey) => (
+      usesSharedSurveyGeometryWorkflow(layerKey)
+      || (getCurrentSpace()?.spaceType === "group_plan" && ["building", "road", "water"].includes(layerKey))
+    ),
+    getFeatureEditLockToken: (layerKey, objectCode) => (
+      buildingEditState.activeFeatureLocks.get(buildDirtyFeatureKey(layerKey, objectCode))?.lockToken || null
+    ),
+    usesSharedSurveyGeometryWorkflow,
+    getSurveyGeometryEvidence,
     releaseAllFeatureEditLocks,
     listBuildingFeaturesFromDbCached,
     listRoadFeaturesFromDbCached,
@@ -3406,6 +3720,7 @@ function buildGeometryEditorDeps() {
     summarizeFeatureChanges,
     requestFeatureSaveNote,
     refresh2DOverlay,
+    refreshSurveyReviewState,
     sync2DSpaceStateTo3D,
     refreshBuildingEdgeLabels,
     refreshDrawingEdgeLengthPreview,
@@ -3624,12 +3939,64 @@ function getLayerIconSvg(layerKey) {
 function renderSpaceList() {
   const result = getSpacePanelModule().renderSpaceList(buildSpacePanelDeps());
   updateWorkspaceContextBar();
+  void refreshGroupBaselinePanel();
   if (isProjectSettingsOpen) {
     Promise.resolve(refreshCommunityMessageBoard()).catch((error) => {
       console.warn("刷新问题与留言失败：", error);
     });
   }
   return result;
+}
+
+async function refreshGroupBaselinePanel() {
+  if (!groupBaselinePanelMount) return;
+  const space = getCurrentSpace();
+  if (space?.spaceType !== "group_plan" || !supabaseClient
+      || !window.GroupBaselineClientModule || !window.GroupBaselinePanelModule) {
+    groupBaselinePanelMount.hidden = true;
+    groupBaselinePanelMount.innerHTML = "";
+    groupBaselinePanel = null;
+    groupBaselinePanelSpaceId = "";
+    return;
+  }
+
+  groupBaselinePanelMount.hidden = false;
+  const remoteSpaceId = space.actualSpaceId || space.id;
+  if (!groupBaselinePanel || groupBaselinePanelSpaceId !== remoteSpaceId) {
+    const client = window.GroupBaselineClientModule.createGroupBaselineClient({
+      supabaseClient,
+      getContext: () => ({
+        teachingProjectId: activeVillageContext?.teachingProjectId || space.teachingProjectId,
+        villageId: activeVillageContext?.villageId || space.villageId,
+        spaceId: remoteSpaceId,
+        spaceType: "group_plan"
+      })
+    });
+    groupBaselinePanel = window.GroupBaselinePanelModule.createGroupBaselinePanel({
+      root: groupBaselinePanelMount,
+      client,
+      confirm: (message) => customConfirm(message, {
+        title: "更新小组方案底图",
+        okText: "确认更新",
+        cancelText: "暂不更新"
+      }),
+      notify: (message) => showToast(message, "info"),
+      onReload: async () => {
+        if (planMap && plan2dView?.classList.contains("active")) {
+          await refresh2DOverlay({ forceFullRebuild: true });
+        }
+        if (model3dView?.classList.contains("active") && window.Village3D?.reload) {
+          await window.Village3D.reload();
+        }
+      },
+      onLocate: (detail) => window.dispatchEvent(new CustomEvent("group-baseline-locate", { detail }))
+    });
+    groupBaselinePanelSpaceId = remoteSpaceId;
+  }
+  const state = await groupBaselinePanel.refresh();
+  if (state?.current) {
+    space.baseSnapshotLabel = state.current.version_name || state.current.versionName || "";
+  }
 }
 
 function bindSpaceListEvents() {
@@ -3977,6 +4344,9 @@ function getDrawTypeForLayer(layerKey) {
 }
 
 function isEditableGeometryLayer(layerKey) {
+  if (getCurrentSpace()?.spaceType === "group_plan") {
+    return Boolean(window.GroupPlanResolverModule?.canEditGroupLayer(layerKey));
+  }
   return EDITABLE_GEOMETRY_LAYERS.includes(layerKey);
 }
 
@@ -4003,6 +4373,35 @@ function invalidateOpenSpaceDbCache(spaceId = null) {
 
 function invalidateWaterDbCache(spaceId = null) {
   return getFeatureDbModule().invalidateWaterDbCache(buildFeatureDbDeps(), spaceId);
+}
+
+function getGroupPlanWorkspaceSpace(spaceId) {
+  return spaces.find((space) => (
+    space.spaceType === "group_plan"
+    && (String(space.id) === String(spaceId) || String(space.actualSpaceId) === String(spaceId))
+  )) || null;
+}
+
+function isGroupPlanSpaceId(spaceId) {
+  return Boolean(getGroupPlanWorkspaceSpace(spaceId));
+}
+
+async function listResolvedGroupPlanLayer(spaceId, layerKey, options = {}) {
+  const space = getGroupPlanWorkspaceSpace(spaceId);
+  if (!space || !groupPlanLoader) return [];
+  const rows = await groupPlanLoader.load({
+    teachingProjectId: space.teachingProjectId || activeVillageContext?.teachingProjectId,
+    villageId: space.villageId || activeVillageContext?.villageId,
+    spaceId: space.actualSpaceId || space.id
+  }, { force: Boolean(options.force) });
+  return groupPlanLoader.forLayer(rows, layerKey).map((row) => ({
+    ...row,
+    props: {
+      ...(row.props || {}),
+      __featureRevision: Number(row.feature_revision || 0),
+      __groupPlanSource: row.source || "baseline"
+    }
+  }));
 }
 
 function buildDirtyFeatureKey(layerKey, sourceCode) {
@@ -4043,14 +4442,17 @@ function olFeatureToDbGeometry(feature) {
 }
 
 async function listBuildingFeaturesFromDb(spaceId) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "building");
   return getFeatureDbModule().listBuildingFeaturesFromDb(buildFeatureDbDeps(), spaceId);
 }
 
 async function listBuildingFeaturesFromDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "building", options);
   return getFeatureDbModule().listBuildingFeaturesFromDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function listRoadFeaturesFromDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "road", options);
   return getFeatureDbModule().listRoadFeaturesFromDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
@@ -4059,6 +4461,7 @@ async function listCroplandFeaturesFromDb(spaceId) {
 }
 
 async function listCroplandFeaturesFromDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "cropland", options);
   return getFeatureDbModule().listCroplandFeaturesFromDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
@@ -4067,6 +4470,7 @@ async function listOpenSpaceFeaturesFromDb(spaceId) {
 }
 
 async function listOpenSpaceFeaturesFromDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "openSpace", options);
   return getFeatureDbModule().listOpenSpaceFeaturesFromDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 const MC_SYNC_CONFIG_TABLE = "mc_sync_config";
@@ -4196,10 +4600,12 @@ async function resolveCurrentPersonalVersionId(spaceId, layerKey) {
 }
 
 async function listDeletedLayerFeatureCodesFromDb(spaceId, layerKey) {
+  if (isGroupPlanSpaceId(spaceId)) return [];
   return getFeatureDbModule().listDeletedLayerFeatureCodesFromDb(buildFeatureDbDeps(), spaceId, layerKey);
 }
 
 async function hasAnyBuildingFeaturesInDb(spaceId) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "building")).length > 0;
   return getFeatureDbModule().hasAnyBuildingFeaturesInDb(buildFeatureDbDeps(), spaceId);
 }
 
@@ -4216,34 +4622,42 @@ async function hasAnyOpenSpaceFeaturesInDb(spaceId) {
 }
 
 async function hasAnyBuildingFeaturesInDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "building", options)).length > 0;
   return getFeatureDbModule().hasAnyBuildingFeaturesInDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function hasAnyRoadFeaturesInDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "road", options)).length > 0;
   return getFeatureDbModule().hasAnyRoadFeaturesInDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function hasAnyCroplandFeaturesInDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "cropland", options)).length > 0;
   return getFeatureDbModule().hasAnyCroplandFeaturesInDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function hasAnyOpenSpaceFeaturesInDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "openSpace", options)).length > 0;
   return getFeatureDbModule().hasAnyOpenSpaceFeaturesInDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function listWaterFeaturesFromDb(spaceId) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "water");
   return getFeatureDbModule().listWaterFeaturesFromDb(buildFeatureDbDeps(), spaceId);
 }
 
 async function listWaterFeaturesFromDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return listResolvedGroupPlanLayer(spaceId, "water", options);
   return getFeatureDbModule().listWaterFeaturesFromDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
 async function hasAnyWaterFeaturesInDb(spaceId) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "water")).length > 0;
   return getFeatureDbModule().hasAnyWaterFeaturesInDb(buildFeatureDbDeps(), spaceId);
 }
 
 async function hasAnyWaterFeaturesInDbCached(spaceId, options = {}) {
+  if (isGroupPlanSpaceId(spaceId)) return (await listResolvedGroupPlanLayer(spaceId, "water", options)).length > 0;
   return getFeatureDbModule().hasAnyWaterFeaturesInDbCached(buildFeatureDbDeps(), spaceId, options);
 }
 
@@ -5638,7 +6052,9 @@ async function refresh2DOverlay(options = {}) {
       )
     });
   }
-  return overlayRefreshController.request(options);
+  const result = await overlayRefreshController.request(options);
+  applyCurrentSurveyReviewOverlay();
+  return result;
 }
 
 function getCommunityTaskPosition(taskRow) {
@@ -5880,6 +6296,8 @@ function updateWorkspaceContextBar(context = activeCourseTaskContext) {
       ? `${stageTitle} · ${currentSpace.title}${activeTheoryPracticeContext?.instruction ? ` · ${activeTheoryPracticeContext.instruction}` : ""}`
       : stageTitle;
   }
+  void refreshSurveyReviewState();
+  void syncSurveyRealtimeSubscription();
 }
 
 function setProjectSettingsOpen(open) {
@@ -6089,8 +6507,10 @@ async function fetchObjectEdits(sourceCode, objectType) {
   return getDataServiceModule().fetchObjectEdits(buildDataServiceDeps(), sourceCode, objectType);
 }
 
-async function saveObjectEdits(sourceCode, objectType, payload) {
-  const result = await getDataServiceModule().saveObjectEdits(buildDataServiceDeps(), sourceCode, objectType, payload);
+async function saveObjectEdits(sourceCode, objectType, payload, layerKey = null) {
+  const result = await getDataServiceModule().saveObjectEdits(
+    buildDataServiceDeps(), sourceCode, objectType, payload, layerKey
+  );
   await recordCourseActivity("object_attributes_updated", { type: objectType, id: sourceCode }, {
     fields: Object.keys(payload || {})
   });
@@ -6197,14 +6617,25 @@ async function fetchCommunityTaskPhotos(taskId) {
   return getCommunityTasksModule().fetchCommunityTaskPhotos(buildCommunityTaskDeps(), taskId);
 }
 
-async function createCommunityTask({ spaceId, reporterName, lng, lat, category = "garbage", description = "" }) {
+async function createCommunityTask({
+  spaceId,
+  reporterName,
+  lng,
+  lat,
+  category = "garbage",
+  description = "",
+  targetLayerKey = null,
+  targetObjectCode = null
+}) {
   const result = await getCommunityTasksModule().createCommunityTask(buildCommunityTaskDeps(), {
     spaceId,
     reporterName,
     lng,
     lat,
     category,
-    description
+    description,
+    targetLayerKey,
+    targetObjectCode
   });
   await recordCourseActivity(category ? "diagnosis_created" : "comment_created", {
     type: "community_task",
@@ -6239,8 +6670,10 @@ async function fetchObjectPhotos(sourceCode, objectType) {
   return getDataServiceModule().fetchObjectPhotos(buildDataServiceDeps(), sourceCode, objectType);
 }
 
-async function uploadObjectPhoto(file, sourceCode, objectType, uploadedBy) {
-  const result = await getDataServiceModule().uploadObjectPhoto(buildDataServiceDeps(), file, sourceCode, objectType, uploadedBy);
+async function uploadObjectPhoto(file, sourceCode, objectType, uploadedBy, layerKey = null) {
+  const result = await getDataServiceModule().uploadObjectPhoto(
+    buildDataServiceDeps(), file, sourceCode, objectType, uploadedBy, layerKey
+  );
   await recordCourseActivity("photo_uploaded", { type: objectType, id: sourceCode }, {
     fileName: file?.name || "",
     fileSize: Number(file?.size || 0)
@@ -6385,7 +6818,7 @@ async function handlePhotoUpload(context) {
         ? window.VillageAuth.getCurrentDisplayName()
         : "";
     const uploader = String(authName || currentUserName || "").trim();
-    await uploadObjectPhoto(file, context.sourceCode, context.photoObjectType, uploader);
+    await uploadObjectPhoto(file, context.sourceCode, context.photoObjectType, uploader, context.layerKey);
     if (uploadStatus) uploadStatus.textContent = "上传成功。";
     await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
   } catch (error) {
@@ -6425,6 +6858,10 @@ async function handleFieldSave(context, fieldKey, newValue) {
   if (saveStatus) saveStatus.textContent = "正在保存...";
 
   try {
+    await assertSurveyDownstreamReady({
+      objectCode: context.sourceCode,
+      layerKey: context.layerKey
+    });
     // Special handling for building code rename
     if (fieldKey === "房屋编码" && newValue.trim() !== context.sourceCode) {
       const previousCode = context.sourceCode;
@@ -6459,7 +6896,7 @@ async function handleFieldSave(context, fieldKey, newValue) {
     }
 
     const payload = { [fieldKey]: newValue.trim() };
-    await saveObjectEdits(context.sourceCode, context.editObjectType, payload);
+    await saveObjectEdits(context.sourceCode, context.editObjectType, payload, context.layerKey);
 
     if (activeFeature && activeFeature.get("sourceCode") === context.sourceCode) {
       const oldBaseRow = activeFeature.get("baseRow") || {};
@@ -6596,10 +7033,27 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const config = layerConfigs[layerKey];
   const baseObjectType = config?.objectType || "";
 
+  renderObjectInfoLoadingState(layerKey, sourceCode, config);
+
+  const surveyGateApplies = currentSpace?.spaceType === "formal_shared"
+    && ["building", "road", "water"].includes(layerKey);
+  let surveyDownstreamReady = true;
+  let surveyReview = null;
+  if (surveyGateApplies) {
+    try {
+      surveyReview = await getSurveyReviewClient().getReview(layerKey, sourceCode);
+      surveyDownstreamReady = window.SurveyReviewModelModule.canUseDownstreamActions(surveyReview);
+    } catch (error) {
+      console.warn("读取几何校核状态失败：", error);
+      surveyDownstreamReady = false;
+    }
+  }
+  if (requestSerial !== objectInfoRequestSerial) return;
+
   const showPhotoBlock = layerKey !== "road";
   const editableByIdentity = canManageSpace(currentSpace);
-  const allowLayerEdit = canEditLayer(layerKey, editableByIdentity);
-  const allowPhotoUpload = showPhotoBlock && !!currentUserName;
+  const allowLayerEdit = canEditLayer(layerKey, editableByIdentity) && surveyDownstreamReady;
+  const allowPhotoUpload = showPhotoBlock && !!currentUserName && surveyDownstreamReady;
 
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
@@ -6611,10 +7065,9 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId
     }),
     commentsTable: OBJECT_COMMENTS_TABLE,
-    editsTable: OBJECT_EDITS_TABLE
+    editsTable: OBJECT_EDITS_TABLE,
+    assertSurveyDownstreamReady
   });
-
-  renderObjectInfoLoadingState(layerKey, sourceCode, config);
 
   const editPromise = allowLayerEdit
     ? fetchObjectEdits(sourceCode, editObjectType)
@@ -6718,6 +7171,9 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const saveStatusHtml = options.flashSaved
     ? `<div id="saveStatus" class="save-status success-inline">保存成功。</div>`
     : `<div id="saveStatus" class="save-status"></div>`;
+  const surveyReviewHtml = surveyGateApplies && surveyReview
+    ? window.SurveyReviewPanelModule.renderObjectReview(surveyReview)
+    : "";
 
   const photosHtml = mergedPhotos.length
     ? `
@@ -6783,7 +7239,9 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       : `
       <div class="info-card">
         <h3 class="house-title">照片说明</h3>
-        <div class="house-row">登录后可上传照片，上传后全空间可见；仅上传者本人可删除。</div>
+        <div class="house-row">${surveyGateApplies && !surveyDownstreamReady
+          ? "请先完成几何校核，再上传照片。"
+          : "登录后可上传照片，上传后全空间可见；仅上传者本人可删除。"}</div>
         ${photosHtml}
       </div>
     `;
@@ -6826,12 +7284,14 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
         <h3 class="house-title">要素讨论</h3>
         <span class="object-discussion-code">${escapeHtml(sourceCode || "")}</span>
       </div>
-      ${currentUserName ? `
+      ${currentUserName && surveyDownstreamReady ? `
         <form id="objectCommentForm" class="object-comment-form">
           <textarea id="objectCommentInput" maxlength="200" rows="2" placeholder="围绕这个${escapeHtml(config?.label || "要素")}发表留言……"></textarea>
           <button type="submit">发表</button>
         </form>
-      ` : `<div class="object-comment-empty">登录后可留言、点赞和回复。</div>`}
+      ` : `<div class="object-comment-empty">${surveyGateApplies && !surveyDownstreamReady
+        ? "请先完成几何校核，再讨论或报告该对象的问题。"
+        : "登录后可留言、点赞和回复。"}</div>`}
       <div class="object-comment-list">${objectCommentsHtml}</div>
     </div>
   `;
@@ -6840,6 +7300,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
 
   infoPanel.classList.remove("empty");
   infoPanel.innerHTML = `
+    ${surveyReviewHtml}
     <div class="info-card">
       <h3 class="house-title">${layerKey === "building" ? "建筑信息" : `${escapeHtml(config?.label || "对象")}信息`}</h3>
       ${detailHtml}
@@ -6851,6 +7312,18 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   `;
 
   bindInlineEdit(context);
+
+  const confirmSurveyButton = infoPanel.querySelector("[data-survey-confirm]");
+  confirmSurveyButton?.addEventListener("click", async () => {
+    confirmSurveyButton.disabled = true;
+    try {
+      await confirmSurveyGeometry(surveyReview, layerKey, sourceCode, baseRow);
+    } catch (error) {
+      console.error("确认几何校核失败：", error);
+      showToast(error?.message || "确认几何校核失败", "error");
+      confirmSurveyButton.disabled = false;
+    }
+  });
 
   const uploadInput = document.getElementById("photoUploadInput");
   if (uploadInput) {
@@ -6888,6 +7361,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       await window.ObjectCommentsModule.create(objectCommentDeps, {
         objectCode: sourceCode,
         objectType: editObjectType,
+        layerKey: context.layerKey,
         authorName: currentUserName,
         content
       });
@@ -7148,6 +7622,7 @@ async function init() {
     return;
   }
 
+  let adminGroupPlanApplied = false;
   try {
     await window.VillageAuth?.ready;
 
@@ -7198,6 +7673,11 @@ async function init() {
     await initializeVillageProjectSwitcher().catch((error) => {
       console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
     });
+    adminGroupPlanApplied = await applyAdminGroupPlanContextFromUrl().catch((error) => {
+      console.warn("小组方案临时管理上下文校验失败：", error);
+      showToast("无法进入小组方案：后台校验未通过。", "error");
+      return false;
+    });
 
     sync2DSpaceStateTo3D();
 
@@ -7217,6 +7697,10 @@ async function init() {
     ensureBuildingEditorToolbar();
     bindHomepageLandingBridge();
     showVillageOverview();
+    if (adminGroupPlanApplied) {
+      switchMainView("plan2d");
+      await handleSpaceSelect(currentSpaceId);
+    }
     syncMapSidePanelLayout();
 
     // 监听认证状态变化
@@ -7283,6 +7767,79 @@ async function init() {
 /* ===================== Realtime 实时同步 ===================== */
 let realtimeRefreshTimer = null;
 const REALTIME_REFRESH_DELAY = 800;
+const GROUP_PLAN_REALTIME_DELAY = 180;
+let groupPlanRealtimeTimer = null;
+let groupPlanRealtimeChannel = null;
+let groupPlanRealtimeKey = "";
+
+function scheduleGroupPlanRealtimeRefresh(refreshFn) {
+  if (groupPlanRealtimeTimer) clearTimeout(groupPlanRealtimeTimer);
+  groupPlanRealtimeTimer = setTimeout(async () => {
+    groupPlanRealtimeTimer = null;
+    try {
+      await refreshFn();
+    } catch (error) {
+      console.warn("小组方案实时刷新失败：", error);
+    }
+  }, GROUP_PLAN_REALTIME_DELAY);
+}
+
+async function refreshActiveGroupPlan() {
+  const space = getCurrentSpace();
+  if (space?.spaceType !== "group_plan") return;
+  const actualSpaceId = space.actualSpaceId || space.id;
+  groupPlanLoader?.invalidate(actualSpaceId);
+  if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
+    showToast("小组成员已保存新修改；请先保存或放弃当前草稿后再刷新。", "info");
+    return;
+  }
+  if (plan2dView?.classList.contains("active")) {
+    await refresh2DOverlay({ forceFullRebuild: true });
+  }
+  if (model3dView?.classList.contains("active") && window.Village3D?.reload) {
+    await window.Village3D.reload();
+  }
+  await groupBaselinePanel?.refresh?.();
+}
+
+async function syncGroupPlanRealtimeSubscription() {
+  if (!supabaseClient) return;
+  const space = getCurrentSpace();
+  const actualSpaceId = space?.actualSpaceId || space?.id || "";
+  const nextKey = space?.spaceType === "group_plan" ? String(actualSpaceId) : "";
+  if (nextKey === groupPlanRealtimeKey) return;
+  groupPlanRealtimeKey = nextKey;
+  if (groupPlanRealtimeChannel) {
+    await supabaseClient.removeChannel(groupPlanRealtimeChannel);
+    groupPlanRealtimeChannel = null;
+  }
+  if (!nextKey) return;
+  let initialRefreshDone = false;
+  const handleChange = () => scheduleGroupPlanRealtimeRefresh(refreshActiveGroupPlan);
+  groupPlanRealtimeChannel = supabaseClient
+    .channel(`group-plan-${actualSpaceId}`)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: PLANNING_FEATURES_TABLE,
+      filter: `space_id=eq.${actualSpaceId}`
+    }, handleChange)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "group_baseline_updates",
+      filter: `space_id=eq.${actualSpaceId}`
+    }, handleChange)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "group_baseline_conflicts",
+      filter: `space_id=eq.${actualSpaceId}`
+    }, handleChange)
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED" && !initialRefreshDone) {
+        initialRefreshDone = true;
+        handleChange();
+      }
+      if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+        console.warn("小组方案实时协作连接已断开：", status);
+      }
+    });
+}
 
 function scheduleRealtimeRefresh(refreshFn) {
   if (realtimeRefreshTimer) {
@@ -7312,6 +7869,7 @@ function initRealtimeSubscriptions() {
       { event: "*", schema: "public", table: PLANNING_FEATURES_TABLE },
       (payload) => {
         console.log("[Realtime] planning_features changed:", payload.eventType);
+        if (getCurrentSpace()?.spaceType === "group_plan") return;
         if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
           showToast("其他同学已保存图层修改；请先保存或放弃你的草稿，再刷新图层。", "info");
           return;

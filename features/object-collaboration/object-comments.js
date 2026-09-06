@@ -94,8 +94,9 @@
     })));
   }
 
-  async function create(deps, { objectCode, objectType, authorName, content }) {
+  async function create(deps, { objectCode, objectType, layerKey = null, authorName, content }) {
     const context = requireContext(deps);
+    await deps.assertSurveyDownstreamReady?.({ objectCode, layerKey });
     const client = deps.getClient();
     if (!client) throw new Error("当前未配置 Supabase。");
     const payload = {
@@ -105,7 +106,8 @@
       content: String(content || "").trim().slice(0, 200),
       teaching_project_id: context.teachingProjectId,
       village_id: context.villageId,
-      space_id: context.spaceId
+      space_id: context.spaceId,
+      survey_layer_key: layerKey || null
     };
     const { data, error } = await client.from(deps.commentsTable).insert(payload).select().single();
     if (error) throw error;

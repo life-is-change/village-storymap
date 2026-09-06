@@ -18,7 +18,10 @@ declare
     'feature_change_batches',
     'feature_versions',
     'feature_snapshots',
-    'feature_snapshot_items'
+    'feature_snapshot_items',
+    'survey_feature_reviews',
+    'group_baseline_updates',
+    'group_baseline_conflicts'
   ];
 begin
   foreach tbl in array tables loop
