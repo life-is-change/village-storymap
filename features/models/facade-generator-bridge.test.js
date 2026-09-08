@@ -30,3 +30,9 @@ test('bridge returns photo path availability while queue submission stays id bas
   assert.match(generator, /photoId:\s*Number\(photo\.id\)/);
   assert.doesNotMatch(generator, /photoUrl:\s*photo\.url/);
 });
+
+test('historical photo lookup is scoped to the active project village and space', () => {
+  assert.match(source, /\.eq\("teaching_project_id",\s*context\.teachingProjectId\)/);
+  assert.match(source, /\.eq\("village_id",\s*context\.villageId\)/);
+  assert.match(source, /\.eq\("space_id",\s*spaceId\)/);
+});

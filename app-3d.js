@@ -3299,10 +3299,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const objectTypes = ["building"];
     if (spaceId && spaceId !== "current") objectTypes.push(`building__${spaceId}`);
 
-    const { data, error } = await supabaseClient
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
       .from(OBJECT_PHOTOS_TABLE)
       .select("*")
       .in("object_type", objectTypes);
+    if (context.teachingProjectId && context.villageId) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", spaceId);
+    }
+    const { data, error } = await query;
     if (error) throw error;
 
     const seen = new Set();

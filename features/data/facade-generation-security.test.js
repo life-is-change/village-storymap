@@ -24,6 +24,7 @@ test("student RPC trusts photo id and worker RPCs require service_role", () => {
     sql,
     /revoke\s+all\s+on\s+function\s+public\.claim_next_facade_run\(text\)\s+from\s+public\s*,\s*anon\s*,\s*authenticated/i,
   );
+  assert.match(sql, /v_space_id\s*<>\s*p_space_id/i);
 });
 
 test("private facade artifacts are owner scoped", () => {
@@ -38,3 +39,8 @@ test("private facade artifacts are owner scoped", () => {
   );
 });
 
+test("completed facade generation publishes the browser building_glb contract", () => {
+  assert.match(sql, /p_run_id,\s*'building_glb',\s*p_storage_path/i);
+  assert.match(sql, /p_artifact_type\s+not\s+in\s*\([^)]*'building_glb'/i);
+  assert.doesNotMatch(sql, /p_run_id,\s*'glb',\s*p_storage_path/i);
+});

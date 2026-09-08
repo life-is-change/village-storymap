@@ -106,6 +106,7 @@ begin
      or v_object_type not in ('building', 'building__' || p_space_id)
   then raise exception 'PHOTO_BUILDING_MISMATCH'; end if;
   if v_teaching_project_id is null or v_village_id is null or v_space_id is null
+     or v_space_id <> p_space_id
      or not public.context_space_accessible(v_teaching_project_id, v_village_id, v_space_id)
   then raise exception 'PHOTO_NOT_ACCESSIBLE'; end if;
   if not exists (
@@ -243,7 +244,7 @@ begin
   where id = p_run_id and worker_id = p_worker_id
     and status in ('claimed_rectification','rectifying','claimed_generation','generating');
   if not found then return false; end if;
-  if p_artifact_type not in ('rectified_preview','rectified_source','building_mask','diagnostics','glb')
+  if p_artifact_type not in ('rectified_preview','rectified_source','building_mask','diagnostics','building_glb')
      or p_storage_path not like v_owner_id::text || '/' || p_run_id::text || '/%'
      or nullif(btrim(p_content_type), '') is null
      or p_size_bytes < 0
@@ -346,7 +347,7 @@ begin
     run_id, artifact_type, storage_path, content_type, size_bytes, sha256,
     generation_revision, source
   ) values (
-    p_run_id, 'glb', p_storage_path, p_content_type, p_size_bytes, p_sha256,
+    p_run_id, 'building_glb', p_storage_path, p_content_type, p_size_bytes, p_sha256,
     p_generation_revision, coalesce(p_source,'{}'::jsonb)
   ) on conflict(run_id, artifact_type) do update set
     storage_path=excluded.storage_path, content_type=excluded.content_type,
