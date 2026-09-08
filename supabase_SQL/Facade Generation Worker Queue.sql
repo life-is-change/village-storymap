@@ -10,6 +10,8 @@ create table if not exists public.facade_generation_runs (
   space_id text not null,
   object_code text not null,
   photo_id bigint not null references public.object_photos(id) on delete restrict,
+  source_photo_path text,
+  source_photo_url text,
   status text not null default 'queued_rectification' check (status in (
     'queued_rectification','claimed_rectification','rectifying','awaiting_crop',
     'queued_generation','claimed_generation','generating','completed',
@@ -25,6 +27,8 @@ create table if not exists public.facade_generation_runs (
   worker_id text,
   lease_expires_at timestamptz,
   attempt_count integer not null default 0,
+  rectification_attempt_count integer not null default 0,
+  generation_attempt_count integer not null default 0,
   error_code text,
   error_message text,
   created_at timestamptz not null default now(),
@@ -32,6 +36,12 @@ create table if not exists public.facade_generation_runs (
   completed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+alter table public.facade_generation_runs
+  add column if not exists source_photo_path text,
+  add column if not exists source_photo_url text,
+  add column if not exists rectification_attempt_count integer not null default 0,
+  add column if not exists generation_attempt_count integer not null default 0;
 
 create table if not exists public.facade_generation_artifacts (
   run_id uuid not null references public.facade_generation_runs(id) on delete cascade,
@@ -91,6 +101,9 @@ declare
   v_teaching_project_id uuid;
   v_village_id uuid;
   v_space_id text;
+  v_photo_path text;
+  v_photo_url text;
+  v_context_prefix text;
 begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
   if nullif(btrim(p_course_id), '') is null
@@ -98,8 +111,10 @@ begin
      or nullif(btrim(p_object_code), '') is null
   then raise exception 'INVALID_FACADE_CONTEXT'; end if;
 
-  select object_code, object_type, teaching_project_id, village_id, space_id
-    into v_object_code, v_object_type, v_teaching_project_id, v_village_id, v_space_id
+  select object_code, object_type, teaching_project_id, village_id, space_id,
+         photo_path, photo_url
+    into v_object_code, v_object_type, v_teaching_project_id, v_village_id, v_space_id,
+         v_photo_path, v_photo_url
   from public.object_photos where id = p_photo_id;
   if not found then raise exception 'PHOTO_NOT_FOUND'; end if;
   if v_object_code <> p_object_code
@@ -114,6 +129,21 @@ begin
     where project.id = v_teaching_project_id and project.course_id = p_course_id
   ) then raise exception 'PHOTO_COURSE_MISMATCH'; end if;
 
+  v_context_prefix := v_teaching_project_id::text || '/' || v_village_id::text || '/' || v_space_id || '/';
+  if nullif(btrim(v_photo_path), '') is not null
+     and v_photo_path like v_context_prefix || 'building/' ||
+       regexp_replace(v_object_code, '[^a-zA-Z0-9_-]', '-', 'g') || '\_%' escape '\'
+     and position('..' in v_photo_path) = 0
+  then
+    v_photo_url := null;
+  elsif nullif(btrim(v_photo_url), '') is not null then
+    -- Historical records are retained, but the worker independently restricts
+    -- this URL to this project's public house-photos endpoint.
+    v_photo_path := null;
+  else
+    raise exception 'PHOTO_LOCATOR_INVALID';
+  end if;
+
   if (select count(*) from public.facade_generation_runs
       where owner_id = auth.uid()
         and status in ('queued_rectification','claimed_rectification','rectifying',
@@ -122,9 +152,11 @@ begin
   then raise exception 'TOO_MANY_ACTIVE_FACADE_RUNS'; end if;
 
   insert into public.facade_generation_runs(
-    owner_id, course_id, space_id, object_code, photo_id
+    owner_id, course_id, space_id, object_code, photo_id,
+    source_photo_path, source_photo_url
   ) values (
-    auth.uid(), p_course_id, p_space_id, p_object_code, p_photo_id
+    auth.uid(), p_course_id, p_space_id, p_object_code, p_photo_id,
+    v_photo_path, v_photo_url
   ) returning id into v_id;
   return v_id;
 end;
@@ -153,6 +185,7 @@ begin
     building_width = p_building_width,
     building_depth = p_building_depth,
     generation_revision = generation_revision + 1,
+    generation_attempt_count = 0,
     status = 'queued_generation',
     current_stage = 'queued_generation',
     progress = 55,
@@ -168,6 +201,38 @@ begin
 end;
 $$;
 
+create or replace function public.retry_failed_facade_run(p_run_id uuid)
+returns boolean
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  v_can_generate boolean;
+begin
+  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
+  select crop_top is not null and roof_type is not null
+      and building_width is not null and building_depth is not null
+      and exists(select 1 from public.facade_generation_artifacts artifact
+                 where artifact.run_id=p_run_id and artifact.artifact_type='rectified_source')
+      and exists(select 1 from public.facade_generation_artifacts artifact
+                 where artifact.run_id=p_run_id and artifact.artifact_type='building_mask')
+    into v_can_generate
+  from public.facade_generation_runs
+  where id=p_run_id and owner_id=auth.uid() and status='failed';
+  if not found then return false; end if;
+
+  update public.facade_generation_runs set
+    status=case when v_can_generate then 'queued_generation' else 'queued_rectification' end,
+    current_stage=case when v_can_generate then 'queued_generation' else 'queued_rectification' end,
+    generation_attempt_count=case when v_can_generate then 0 else generation_attempt_count end,
+    rectification_attempt_count=case when v_can_generate then rectification_attempt_count else 0 end,
+    progress=case when v_can_generate then 55 else 0 end,
+    worker_id=null, lease_expires_at=null, error_code=null, error_message=null,
+    completed_at=null, updated_at=now()
+  where id=p_run_id;
+  return true;
+end;
+$$;
+
 create or replace function public.claim_next_facade_run(p_worker_id text)
 returns setof public.facade_generation_runs
 language plpgsql security definer set search_path = public, pg_temp
@@ -178,6 +243,16 @@ declare
 begin
   if nullif(btrim(p_worker_id), '') is null then raise exception 'INVALID_WORKER_ID'; end if;
 
+  update public.facade_generation_runs set
+    status='failed', current_stage='failed', completed_at=now(), lease_expires_at=null,
+    worker_id=null, error_code='RETRY_LIMIT_EXCEEDED',
+    error_message='任务自动重试三次后仍未完成，请检查照片或联系管理员。', updated_at=now()
+  where lease_expires_at < now()
+    and (
+      (status in ('claimed_rectification','rectifying') and rectification_attempt_count >= 3)
+      or (status in ('claimed_generation','generating') and generation_attempt_count >= 3)
+    );
+
   select id, status into v_id, v_status
   from public.facade_generation_runs
   where (
@@ -185,7 +260,11 @@ begin
       or (status in ('claimed_rectification','rectifying','claimed_generation','generating')
           and lease_expires_at < now())
     )
-    and attempt_count < 3
+    and case
+      when status in ('queued_rectification','claimed_rectification','rectifying')
+        then rectification_attempt_count < 3
+      else generation_attempt_count < 3
+    end
   order by created_at
   for update skip locked
   limit 1;
@@ -205,9 +284,52 @@ begin
     worker_id = p_worker_id,
     lease_expires_at = now() + interval '90 seconds',
     attempt_count = attempt_count + 1,
+    rectification_attempt_count = rectification_attempt_count +
+      case when v_status in ('queued_rectification','claimed_rectification','rectifying') then 1 else 0 end,
+    generation_attempt_count = generation_attempt_count +
+      case when v_status in ('queued_generation','claimed_generation','generating') then 1 else 0 end,
     started_at = coalesce(started_at, now()),
     updated_at = now()
   where id = v_id returning *;
+end;
+$$;
+
+create or replace function public.retry_or_fail_facade_run(
+  p_run_id uuid,
+  p_worker_id text,
+  p_error_code text,
+  p_error_message text
+) returns text
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  v_run public.facade_generation_runs%rowtype;
+  v_next text;
+begin
+  select * into v_run from public.facade_generation_runs
+  where id=p_run_id and worker_id=p_worker_id
+    and lease_expires_at > now()
+    and status in ('claimed_rectification','rectifying','claimed_generation','generating')
+  for update;
+  if not found then return 'lease_lost'; end if;
+
+  if v_run.status in ('claimed_rectification','rectifying') then
+    v_next := case when v_run.rectification_attempt_count < 3 then 'queued_rectification' else 'failed' end;
+  else
+    v_next := case when v_run.generation_attempt_count < 3 then 'queued_generation' else 'failed' end;
+  end if;
+
+  update public.facade_generation_runs set
+    status=v_next,
+    current_stage=case when v_next='failed' then 'failed' else 'retrying' end,
+    worker_id=null,
+    lease_expires_at=null,
+    error_code=left(p_error_code,100),
+    error_message=left(p_error_message,500),
+    completed_at=case when v_next='failed' then now() else null end,
+    updated_at=now()
+  where id=p_run_id;
+  return v_next;
 end;
 $$;
 
@@ -220,6 +342,7 @@ as $$
   update public.facade_generation_runs
   set lease_expires_at = now() + interval '90 seconds', updated_at = now()
   where id = p_run_id and worker_id = p_worker_id
+    and lease_expires_at > now()
     and status in ('claimed_rectification','rectifying','claimed_generation','generating')
   returning true;
 $$;
@@ -242,6 +365,7 @@ declare
 begin
   select owner_id into v_owner_id from public.facade_generation_runs
   where id = p_run_id and worker_id = p_worker_id
+    and lease_expires_at > now()
     and status in ('claimed_rectification','rectifying','claimed_generation','generating');
   if not found then return false; end if;
   if p_artifact_type not in ('rectified_preview','rectified_source','building_mask','diagnostics','building_glb')
@@ -283,6 +407,7 @@ declare
 begin
   select owner_id into v_owner_id from public.facade_generation_runs
   where id = p_run_id and worker_id = p_worker_id
+    and lease_expires_at > now()
     and status in ('claimed_rectification','rectifying') for update;
   if not found then return false; end if;
   if jsonb_typeof(p_artifacts) <> 'array' then raise exception 'INVALID_RECTIFICATION_ARTIFACTS'; end if;
@@ -334,7 +459,8 @@ declare
   v_run public.facade_generation_runs%rowtype;
 begin
   select * into v_run from public.facade_generation_runs
-  where id=p_run_id and worker_id=p_worker_id and status='generating' for update;
+  where id=p_run_id and worker_id=p_worker_id and lease_expires_at > now()
+    and status='generating' for update;
   if not found then return false; end if;
   if p_generation_revision <> v_run.generation_revision
      or p_storage_path not like v_run.owner_id::text || '/' || p_run_id::text || '/generation-r' || p_generation_revision::text || '/%'
@@ -379,10 +505,12 @@ begin
   then raise exception 'INVALID_STATUS'; end if;
   if p_status = 'rectifying' and not exists (
       select 1 from public.facade_generation_runs where id=p_run_id and worker_id=p_worker_id
+        and lease_expires_at > now()
         and status='claimed_rectification')
   then return false; end if;
   if p_status = 'generating' and not exists (
       select 1 from public.facade_generation_runs where id=p_run_id and worker_id=p_worker_id
+        and lease_expires_at > now()
         and status='claimed_generation')
   then return false; end if;
 
@@ -396,6 +524,7 @@ begin
     lease_expires_at=case when p_status in ('completed','failed','canceled') then null else lease_expires_at end,
     updated_at=now()
   where id=p_run_id and worker_id=p_worker_id
+    and lease_expires_at > now()
     and (
       (p_status='rectifying' and status='claimed_rectification')
       or (p_status='generating' and status='claimed_generation')
@@ -436,6 +565,8 @@ revoke all on function public.submit_facade_run(text,text,text,bigint) from publ
 grant execute on function public.submit_facade_run(text,text,text,bigint) to authenticated;
 revoke all on function public.confirm_facade_crop(uuid,double precision,text,double precision,double precision) from public, anon;
 grant execute on function public.confirm_facade_crop(uuid,double precision,text,double precision,double precision) to authenticated;
+revoke all on function public.retry_failed_facade_run(uuid) from public, anon;
+grant execute on function public.retry_failed_facade_run(uuid) to authenticated;
 revoke all on function public.request_facade_cancel(uuid) from public, anon;
 grant execute on function public.request_facade_cancel(uuid) to authenticated;
 
@@ -443,6 +574,8 @@ revoke all on function public.claim_next_facade_run(text) from public, anon, aut
 grant execute on function public.claim_next_facade_run(text) to service_role;
 revoke all on function public.renew_facade_run_lease(uuid,text) from public, anon, authenticated;
 grant execute on function public.renew_facade_run_lease(uuid,text) to service_role;
+revoke all on function public.retry_or_fail_facade_run(uuid,text,text,text) from public, anon, authenticated;
+grant execute on function public.retry_or_fail_facade_run(uuid,text,text,text) to service_role;
 revoke all on function public.record_facade_artifact(uuid,text,text,text,text,bigint,text,integer,jsonb) from public, anon, authenticated;
 grant execute on function public.record_facade_artifact(uuid,text,text,text,text,bigint,text,integer,jsonb) to service_role;
 revoke all on function public.publish_facade_rectification(uuid,text,jsonb) from public, anon, authenticated;
@@ -456,12 +589,41 @@ insert into storage.buckets(id,name,public)
 values('facade-generation','facade-generation',false)
 on conflict(id) do update set public=false;
 
+update storage.buckets set
+  file_size_limit=10485760,
+  allowed_mime_types=array['image/jpeg','image/png']::text[]
+where id='house-photos';
+
 drop policy if exists facade_generation_read_own on storage.objects;
 create policy facade_generation_read_own on storage.objects
 for select to authenticated using (
   bucket_id='facade-generation'
-  and (storage.foldername(name))[1]=auth.uid()::text
+  and (
+    (storage.foldername(name))[1]=auth.uid()::text
+    or (
+      public.current_profile_role() in ('teacher','admin')
+      and exists (
+        select 1 from public.facade_generation_artifacts artifact
+        join public.facade_generation_runs run on run.id=artifact.run_id
+        where artifact.storage_path=storage.objects.name
+      )
+    )
+  )
 );
+
+create or replace function public.get_facade_worker_availability()
+returns jsonb
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select jsonb_build_object(
+    'available', coalesce(max(last_seen_at) > now() - interval '2 minutes', false),
+    'last_seen_at', max(last_seen_at)
+  )
+  from public.worker_heartbeats
+  where version like 'facade-%';
+$$;
+revoke all on function public.get_facade_worker_availability() from public, anon;
+grant execute on function public.get_facade_worker_availability() to authenticated;
 
 drop policy if exists facade_generation_service_write on storage.objects;
 create policy facade_generation_service_write on storage.objects

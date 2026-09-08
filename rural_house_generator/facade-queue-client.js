@@ -31,6 +31,11 @@
           .single());
       },
 
+      async getWorkerAvailability() {
+        const value = unwrap(await supabaseClient.rpc('get_facade_worker_availability'));
+        return value || { available: false, last_seen_at: null };
+      },
+
       async findLatestRun({ spaceId, objectCode }) {
         return unwrap(await supabaseClient
           .from('facade_generation_runs')
@@ -54,6 +59,12 @@
 
       async cancel(runId) {
         return unwrap(await supabaseClient.rpc('request_facade_cancel', {
+          p_run_id: runId
+        }));
+      },
+
+      async retryFailed(runId) {
+        return unwrap(await supabaseClient.rpc('retry_failed_facade_run', {
           p_run_id: runId
         }));
       },

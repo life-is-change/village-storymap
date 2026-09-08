@@ -25,11 +25,11 @@ done
 
 compose exec -T facade-worker blender --version | grep -F "Blender 3.0.1"
 compose exec -T facade-worker python -c \
-  "import urllib.request; urllib.request.urlopen('http://facade-ml:8012/health', timeout=5); urllib.request.urlopen('http://facade-lama:8013/health', timeout=5)"
+  "import urllib.request; urllib.request.urlopen('http://facade-ml:8012/ready', timeout=170); urllib.request.urlopen('http://facade-lama:8013/ready', timeout=55)"
 compose exec -T facade-worker python -c \
   "from village_processing.health import run_facade_health_checks; raise SystemExit(run_facade_health_checks())"
 compose exec -T facade-worker python -c \
-  'import os; from datetime import datetime, timezone; from supabase import create_client; c=create_client(os.environ["SUPABASE_URL"],os.environ["SUPABASE_SERVICE_ROLE_KEY"]); row=c.table("worker_heartbeats").select("worker_id,last_seen_at").eq("worker_id",os.environ["WORKER_ID"]).single().execute().data; age=(datetime.now(timezone.utc)-datetime.fromisoformat(row["last_seen_at"].replace("Z","+00:00"))).total_seconds(); assert age < 120, f"stale facade worker heartbeat: {age:.0f}s"'
+  'import os; from datetime import datetime, timezone; from supabase import create_client; c=create_client(os.environ["SUPABASE_URL"],os.environ["SUPABASE_SERVICE_ROLE_KEY"]); rows=c.table("worker_heartbeats").select("worker_id,last_seen_at").like("worker_id",os.environ["WORKER_ID"]+"-%").order("last_seen_at",desc=True).limit(1).execute().data; assert rows, "facade heartbeat missing"; age=(datetime.now(timezone.utc)-datetime.fromisoformat(rows[0]["last_seen_at"].replace("Z","+00:00"))).total_seconds(); assert age < 120, f"stale facade worker heartbeat: {age:.0f}s"'
 
 compose exec -T building python3 -c \
   "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8021/ready', timeout=10)"

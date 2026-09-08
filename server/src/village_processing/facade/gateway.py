@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path, PurePosixPath
 import re
 from typing import Any
+from urllib.parse import urlsplit
+from urllib.parse import quote
 
 import httpx
 
@@ -13,6 +16,11 @@ from .models import FacadeRun
 BUCKET = "facade-generation"
 PHOTO_BUCKET = "house-photos"
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png"}
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+
+
+class FacadeLeaseLost(RuntimeError):
+    pass
 
 
 def safe_message(message: str) -> str:
@@ -49,18 +57,34 @@ class FacadeGateway:
     def __init__(self, client, *, http_client: Any | None = None):
         self.client = client
         self.http_client = http_client or httpx
+        self._lost_leases: set[str] = set()
 
     def claim(self, worker_id: str) -> FacadeRun | None:
         rows = self.client.rpc(
             "claim_next_facade_run", {"p_worker_id": worker_id}
         ).execute().data or []
-        return FacadeRun.from_row(rows[0]) if rows else None
+        if not rows:
+            return None
+        run = FacadeRun.from_row(rows[0])
+        self._lost_leases.discard(run.run_id)
+        return run
 
     def renew(self, run_id: str, worker_id: str) -> None:
-        self.client.rpc(
-            "renew_facade_run_lease",
-            {"p_run_id": run_id, "p_worker_id": worker_id},
-        ).execute()
+        try:
+            result = self.client.rpc(
+                "renew_facade_run_lease",
+                {"p_run_id": run_id, "p_worker_id": worker_id},
+            ).execute().data
+        except Exception:
+            self._lost_leases.add(run_id)
+            raise
+        if result is not True:
+            self._lost_leases.add(run_id)
+            raise FacadeLeaseLost("FACADE_LEASE_LOST")
+
+    def assert_lease(self, run_id: str) -> None:
+        if run_id in self._lost_leases:
+            raise FacadeLeaseLost("FACADE_LEASE_LOST")
 
     def set_state(
         self,
@@ -96,6 +120,18 @@ class FacadeGateway:
             error_message=message,
         )
 
+    def retry_or_fail(self, run_id: str, worker_id: str, code: str, message: str) -> str:
+        result = self.client.rpc(
+            "retry_or_fail_facade_run",
+            {
+                "p_run_id": run_id,
+                "p_worker_id": worker_id,
+                "p_error_code": code,
+                "p_error_message": safe_message(message),
+            },
+        ).execute().data
+        return str(result or "")
+
     def cancel(self, run_id: str, worker_id: str) -> None:
         self.set_state(run_id, worker_id, "canceled", stage="canceled")
 
@@ -109,25 +145,21 @@ class FacadeGateway:
         )
         return bool(result.data and result.data.get("status") == "cancel_requested")
 
-    def download_photo(self, photo_id: int, destination: Path) -> Path:
-        row = (
-            self.client.table("object_photos")
-            .select("id,photo_path,photo_url")
-            .eq("id", photo_id)
-            .single()
-            .execute()
-            .data
-        )
-        if not row or int(row.get("id", -1)) != int(photo_id):
-            raise ValueError("PHOTO_NOT_FOUND")
-
-        storage_path = str(row.get("photo_path") or "").strip()
+    def download_photo(self, run: FacadeRun, destination: Path) -> Path:
+        storage_path = str(run.source_photo_path or "").strip()
         if storage_path:
             if PurePosixPath(storage_path).is_absolute() or ".." in PurePosixPath(storage_path).parts:
                 raise ValueError("PHOTO_STORAGE_PATH_INVALID")
-            content = self.client.storage.from_(PHOTO_BUCKET).download(storage_path)
+            base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+            if not base:
+                raise ValueError("SUPABASE_URL_INVALID")
+            content = self._download_legacy_photo_url(
+                f"{base}/storage/v1/object/public/{PHOTO_BUCKET}/{quote(storage_path, safe='/')}"
+            )
         else:
-            content = self._download_legacy_photo_url(str(row.get("photo_url") or ""))
+            content = self._download_legacy_photo_url(str(run.source_photo_url or ""))
+        if len(content) > MAX_PHOTO_BYTES:
+            raise ValueError("PHOTO_TOO_LARGE")
         if not _looks_like_supported_photo(content):
             raise ValueError("PHOTO_CONTENT_INVALID")
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -135,19 +167,37 @@ class FacadeGateway:
         return destination
 
     def _download_legacy_photo_url(self, database_url: str) -> bytes:
-        if not database_url.startswith("https://"):
+        target = urlsplit(database_url)
+        supabase = urlsplit(os.environ.get("SUPABASE_URL", ""))
+        allowed_prefix = f"/storage/v1/object/public/{PHOTO_BUCKET}/"
+        if (target.scheme != "https" or not supabase.hostname
+                or target.hostname != supabase.hostname or target.port not in (None, 443)
+                or target.username or target.password or not target.path.startswith(allowed_prefix)):
             raise ValueError("PHOTO_URL_INVALID")
-        response = self.http_client.get(
-            database_url,
-            timeout=30,
-            follow_redirects=False,
+        chunks: list[bytes] = []
+        size = 0
+        with self.http_client.stream(
+            "GET", database_url, timeout=30, follow_redirects=False,
             headers={"Accept": "image/jpeg,image/png"},
-        )
-        response.raise_for_status()
-        content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
-        if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
-            raise ValueError("PHOTO_CONTENT_TYPE_INVALID")
-        return bytes(response.content)
+        ) as response:
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (403, 404):
+                    raise ValueError("PHOTO_NOT_FOUND") from exc
+                raise
+            content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+            if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
+                raise ValueError("PHOTO_CONTENT_TYPE_INVALID")
+            length = response.headers.get("content-length")
+            if length and int(length) > MAX_PHOTO_BYTES:
+                raise ValueError("PHOTO_TOO_LARGE")
+            for chunk in response.iter_bytes():
+                size += len(chunk)
+                if size > MAX_PHOTO_BYTES:
+                    raise ValueError("PHOTO_TOO_LARGE")
+                chunks.append(chunk)
+        return b"".join(chunks)
 
     def download_artifact(
         self,
@@ -259,4 +309,3 @@ class FacadeGateway:
 
 def _looks_like_supported_photo(content: bytes) -> bool:
     return content.startswith(b"\xff\xd8\xff") or content.startswith(b"\x89PNG\r\n\x1a\n")
-

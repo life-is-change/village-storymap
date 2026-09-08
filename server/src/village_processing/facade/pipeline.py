@@ -29,6 +29,7 @@ class FacadePipeline:
     def _check_canceled(self, run: FacadeRun) -> None:
         if self.gateway.is_cancel_requested(run.run_id):
             raise FacadeCancelRequested()
+        self.gateway.assert_lease(run.run_id)
 
     def rectify(self, run: FacadeRun):
         job_dir = self.work_dir(run)
@@ -41,7 +42,7 @@ class FacadePipeline:
             progress=2,
         )
         self._check_canceled(run)
-        self.gateway.download_photo(run.photo_id, input_path)
+        self.gateway.download_photo(run, input_path)
         self._check_canceled(run)
         artifacts = self.processor.rectify(input_path, job_dir)
 

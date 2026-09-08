@@ -91,6 +91,10 @@ def test_facade_services_are_private_least_privilege_and_share_work():
     assert compose["networks"]["facade-internal"]["internal"] is True
     assert worker["depends_on"]["facade-ml"]["condition"] == "service_healthy"
     assert worker["depends_on"]["facade-lama"]["condition"] == "service_healthy"
+    assert "/ready" in model["healthcheck"]["test"][-1]
+    assert model["healthcheck"]["timeout"] == "180s"
+    assert "/ready" in lama["healthcheck"]["test"][-1]
+    assert lama["healthcheck"]["timeout"] == "60s"
 
     mounts = [volume_map(service) for service in (worker, model, lama)]
     assert all(item["/work"]["source"] == "/var/lib/village-platform/runtime" for item in mounts)
@@ -116,6 +120,9 @@ def test_facade_images_pin_blender_and_model_runtimes():
     assert "python -m village_processing facade-worker" in worker
     assert "torch==2.5.1" in read("requirements-facade-ml.txt")
     assert "torchvision==0.20.1" in read("requirements-facade-ml.txt")
+    assert "hydra-core==1.3.2" in read("requirements-facade-ml.txt")
+    assert "omegaconf==2.3.0" in read("requirements-facade-ml.txt")
+    assert "iopath==0.1.10" in read("requirements-facade-ml.txt")
     assert "simple-lama-inpainting==0.1.2" in read("requirements-facade-lama.txt")
     for dockerfile in (worker, model, lama):
         assert "USER 10001:10001" in dockerfile
@@ -370,3 +377,18 @@ def test_deployment_sources_contain_no_embedded_secret_or_windows_path():
         assert not re.search(r"(?i)\b[a-z]:\\", text), relative
         assert "SUPABASE_SERVICE_ROLE_KEY=replace-locally" not in text
         assert "COPY . " not in text
+
+
+def test_facade_queue_has_secure_legacy_photos_phase_retries_and_real_heartbeat():
+    sql = (ROOT / "supabase_SQL" / "Facade Generation Worker Queue.sql").read_text("utf-8")
+    assert "source_photo_path" in sql and "source_photo_url" in sql
+    assert "v_context_prefix" in sql
+    assert "rectification_attempt_count" in sql
+    assert "generation_attempt_count = 0" in sql
+    assert "retry_or_fail_facade_run" in sql
+    assert "retry_failed_facade_run" in sql
+    assert "RETRY_LIMIT_EXCEEDED" in sql
+    assert "lease_expires_at > now()" in sql
+    assert "get_facade_worker_availability" in sql
+    assert "artifact.storage_path=storage.objects.name" in sql
+    assert "file_size_limit=10485760" in sql

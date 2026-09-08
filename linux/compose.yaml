@@ -144,9 +144,9 @@ services:
               count: 1
               capabilities: [gpu]
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/health', timeout=5)"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/ready', timeout=170)"]
       interval: 15s
-      timeout: 10s
+      timeout: 180s
       retries: 8
       start_period: 180s
     logging:
@@ -182,9 +182,9 @@ services:
         source: /var/lib/village-platform/runtime
         target: /work
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/health', timeout=5)"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8013/ready', timeout=55)"]
       interval: 15s
-      timeout: 10s
+      timeout: 60s
       retries: 8
       start_period: 60s
     logging:

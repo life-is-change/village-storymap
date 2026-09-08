@@ -76,7 +76,8 @@ def run_facade_worker() -> None:
     from .facade.worker import FacadeWorker
 
     work_root = Path(os.environ.get("FACADE_WORK_ROOT", "/work")).resolve()
-    worker_id = os.environ.get("WORKER_ID", "linux-facade-worker")
+    from uuid import uuid4
+    worker_id = f'{os.environ.get("WORKER_ID", "linux-facade-worker")}-{uuid4().hex[:8]}'
     gateway = FacadeGateway(
         create_client(
             os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]

@@ -83,6 +83,34 @@ class FakeSupabase:
         return FakeQuery(self, name)
 
 
+class FakeStreamResponse:
+    def __init__(self, chunks, content_type="image/jpeg"):
+        self.chunks = chunks
+        self.headers = {"content-type": content_type}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+    def raise_for_status(self):
+        return None
+
+    def iter_bytes(self):
+        yield from self.chunks
+
+
+class FakeHttp:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.calls = []
+
+    def stream(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        return FakeStreamResponse(self.chunks)
+
+
 def run_row(**overrides):
     row = {
         "id": "run-1",
@@ -92,6 +120,7 @@ def run_row(**overrides):
         "space_id": "current",
         "status": "queued_generation",
         "generation_revision": 2,
+        "source_photo_path": "project/village/current/building/front.jpg",
         "crop_top": 0.18,
         "roof_type": "gable",
         "building_width": 10,
@@ -137,20 +166,62 @@ def test_artifact_path_is_owner_run_and_phase_scoped():
         artifact_path(run, "generation-r2", "../building.glb")
 
 
-def test_download_photo_uses_only_database_photo_path(tmp_path):
+def test_download_photo_uses_frozen_run_photo_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
     client = FakeSupabase()
-    client.table_results["object_photos"] = {
-        "id": 4,
-        "photo_path": "user-1/history/front.jpg",
-        "photo_url": "https://database.example/fallback.jpg",
-    }
-    client.files[("house-photos", "user-1/history/front.jpg")] = b"\xff\xd8\xffphoto"
+    run = FacadeRun.from_row(run_row())
+    http = FakeHttp([b"\xff\xd8\xffphoto"])
 
-    output = FacadeGateway(client).download_photo(4, tmp_path / "source.jpg")
+    output = FacadeGateway(client, http_client=http).download_photo(run, tmp_path / "source.jpg")
 
     assert output.read_bytes() == b"\xff\xd8\xffphoto"
-    assert client.downloads == [("house-photos", "user-1/history/front.jpg")]
-    assert client.table_calls == [("object_photos", {"id": 4})]
+    assert "/house-photos/project/village/current/building/front.jpg" in http.calls[0][1]
+    assert client.table_calls == []
+
+
+def test_legacy_photo_url_is_restricted_to_configured_supabase(monkeypatch, tmp_path):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    run = FacadeRun.from_row(run_row(
+        source_photo_path=None,
+        source_photo_url="https://evil.example/storage/v1/object/public/house-photos/front.jpg",
+    ))
+
+    with pytest.raises(ValueError, match="PHOTO_URL_INVALID"):
+        FacadeGateway(FakeSupabase()).download_photo(run, tmp_path / "source.jpg")
+
+
+def test_allowed_legacy_photo_is_streamed_without_redirects(monkeypatch, tmp_path):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    url = "https://project.supabase.co/storage/v1/object/public/house-photos/old/front.jpg"
+    run = FacadeRun.from_row(run_row(source_photo_path=None, source_photo_url=url))
+    http = FakeHttp([b"\xff\xd8\xff", b"photo"])
+
+    output = FacadeGateway(FakeSupabase(), http_client=http).download_photo(
+        run, tmp_path / "source.jpg"
+    )
+
+    assert output.read_bytes() == b"\xff\xd8\xffphoto"
+    assert http.calls[0][2]["follow_redirects"] is False
+
+
+def test_storage_photo_has_ten_megabyte_stream_limit(monkeypatch, tmp_path):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    run = FacadeRun.from_row(run_row())
+    http = FakeHttp([b"\xff\xd8\xff", b"x" * (10 * 1024 * 1024)])
+
+    with pytest.raises(ValueError, match="PHOTO_TOO_LARGE"):
+        FacadeGateway(FakeSupabase(), http_client=http).download_photo(run, tmp_path / "source.jpg")
+
+
+def test_renew_rejects_lost_lease():
+    client = FakeSupabase()
+    client.rpc_results["renew_facade_run_lease"] = False
+    gateway = FacadeGateway(client)
+
+    with pytest.raises(RuntimeError, match="FACADE_LEASE_LOST"):
+        gateway.renew("run-1", "worker-1")
+    with pytest.raises(RuntimeError, match="FACADE_LEASE_LOST"):
+        gateway.assert_lease("run-1")
 
 
 def test_upload_artifact_sets_mime_hash_and_deterministic_path(tmp_path):

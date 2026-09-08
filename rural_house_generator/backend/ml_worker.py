@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -47,35 +48,48 @@ class FacadeMLRuntime:
         self.processor = None
         self.dino = None
         self.sam = None
+        self._load_lock = threading.Lock()
 
     def _load(self):
-        if self.dino is not None:
+        if self.dino is not None and self.sam is not None:
             return
-        # This worker is deliberately local-only.  Avoid Hugging Face opening a
-        # short-lived network client on the first inference request; the model
-        # is installed in the environment cache by the setup workflow.
-        self.processor = AutoProcessor.from_pretrained(
-            "IDEA-Research/grounding-dino-base", local_files_only=True
-        )
-        self.dino = AutoModelForZeroShotObjectDetection.from_pretrained(
-            "IDEA-Research/grounding-dino-base", local_files_only=True
-        ).to(self.device).eval()
-        root = Path(os.environ.get("BUILD_SEG_ROOT", r"E:\建筑分割"))
-        configured_root = os.environ.get("BUILD_SEG_ROOT", "").strip()
-        if not configured_root:
-            raise RuntimeError("BUILD_SEG_ROOT is not configured")
-        root = Path(configured_root)
-        repo = root / "repos" / "sam2"
-        if str(repo) not in sys.path:
-            sys.path.insert(0, str(repo))
-        from sam2.build_sam import build_sam2
-        from sam2.sam2_image_predictor import SAM2ImagePredictor
+        with self._load_lock:
+            if self.dino is not None and self.sam is not None:
+                return
+            # Build into locals so a failed SAM initialization cannot leave a
+            # half-ready runtime that skips the next readiness retry.
+            processor = AutoProcessor.from_pretrained(
+                "IDEA-Research/grounding-dino-base", local_files_only=True
+            )
+            dino = AutoModelForZeroShotObjectDetection.from_pretrained(
+                "IDEA-Research/grounding-dino-base", local_files_only=True
+            ).to(self.device).eval()
+            configured_root = os.environ.get("BUILD_SEG_ROOT", "").strip()
+            if not configured_root:
+                raise RuntimeError("BUILD_SEG_ROOT is not configured")
+            root = Path(configured_root)
+            repo = root / "repos" / "sam2"
+            if str(repo) not in sys.path:
+                sys.path.insert(0, str(repo))
+            from sam2.build_sam import build_sam2
+            from sam2.sam2_image_predictor import SAM2ImagePredictor
 
-        checkpoint = Path(os.environ.get("SAM2_CHECKPOINT", root / "checkpoints" / "sam2.1_hiera_large.pt"))
-        if not checkpoint.is_file():
-            raise FileNotFoundError(f"SAM2 checkpoint not found: {checkpoint}")
-        model = build_sam2("configs/sam2.1/sam2.1_hiera_l.yaml", str(checkpoint), device=self.device)
-        self.sam = SAM2ImagePredictor(model)
+            checkpoint = Path(os.environ.get(
+                "SAM2_CHECKPOINT", root / "checkpoints" / "sam2.1_hiera_large.pt"
+            ))
+            if not checkpoint.is_file():
+                raise FileNotFoundError(f"SAM2 checkpoint not found: {checkpoint}")
+            model = build_sam2(
+                "configs/sam2.1/sam2.1_hiera_l.yaml", str(checkpoint), device=self.device
+            )
+            sam = SAM2ImagePredictor(model)
+            self.processor, self.dino, self.sam = processor, dino, sam
+
+    def ready(self) -> dict[str, object]:
+        self._load()
+        if self.dino is None or self.sam is None:
+            raise RuntimeError("FACADE_MODELS_NOT_LOADED")
+        return {"status": "ready", "service": "rural-facade-ml", "device": self.device}
 
     def _detect(self, rgb: np.ndarray, prompt: str, box_threshold: float, text_threshold: float):
         pil = Image.fromarray(rgb)
@@ -260,7 +274,15 @@ def build_handler(runtime: FacadeMLRuntime):
             self.wfile.write(data)
 
         def do_GET(self):
-            self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device}) if self.path == "/health" else self._json(404, {"error": "not found"})
+            if self.path == "/health":
+                self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device})
+            elif self.path == "/ready":
+                try:
+                    self._json(200, runtime.ready())
+                except Exception as exc:
+                    self._json(503, {"status": "not_ready", "error": str(exc)})
+            else:
+                self._json(404, {"error": "not found"})
 
         def do_POST(self):
             if self.path != "/process":

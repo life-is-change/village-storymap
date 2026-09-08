@@ -10,6 +10,8 @@ class FacadeRun:
     space_id: str
     status: str
     generation_revision: int
+    source_photo_path: str | None = None
+    source_photo_url: str | None = None
     crop_top: float | None = None
     roof_type: str | None = None
     building_width: float | None = None
@@ -25,6 +27,8 @@ class FacadeRun:
             space_id=str(row["space_id"]),
             status=str(row["status"]),
             generation_revision=int(row.get("generation_revision") or 0),
+            source_photo_path=str(row["source_photo_path"]) if row.get("source_photo_path") else None,
+            source_photo_url=str(row["source_photo_url"]) if row.get("source_photo_url") else None,
             crop_top=_optional_float(row.get("crop_top")),
             roof_type=str(row["roof_type"]) if row.get("roof_type") else None,
             building_width=_optional_float(row.get("building_width")),
@@ -42,4 +46,3 @@ class FacadeRun:
 
 def _optional_float(value) -> float | None:
     return float(value) if value is not None else None
-

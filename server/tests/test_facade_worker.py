@@ -2,8 +2,10 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 from village_processing.facade.models import FacadeRun
-from village_processing.facade.pipeline import FacadePipeline
+from village_processing.facade.pipeline import FacadeCancelRequested, FacadePipeline
 from village_processing.facade.worker import FacadeWorker
 
 
@@ -16,6 +18,7 @@ def facade_run(status="claimed_rectification", revision=0):
         "space_id": "current",
         "status": status,
         "generation_revision": revision,
+        "source_photo_path": "project/village/current/building/front.jpg",
         "crop_top": 0.18,
         "roof_type": "gable",
         "building_width": 10,
@@ -91,7 +94,7 @@ class FakeGateway:
         value, self.run = self.run, None
         return value
 
-    def download_photo(self, photo_id, destination):
+    def download_photo(self, run, destination):
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(b"\xff\xd8\xffphoto")
         self.events.append("download_photo")
@@ -124,8 +127,15 @@ class FakeGateway:
     def renew(self, run_id, worker_id):
         self.renew_count += 1
 
+    def assert_lease(self, run_id):
+        return None
+
     def fail(self, run_id, worker_id, code, message):
         self.events.append(f"fail:{code}")
+
+    def retry_or_fail(self, run_id, worker_id, code, message):
+        self.events.append(f"retry:{code}")
+        return "queued_generation"
 
     def cancel(self, run_id, worker_id):
         self.events.append("canceled")
@@ -175,7 +185,16 @@ def test_regeneration_failure_preserves_previous_glb_record(tmp_path):
     assert asyncio.run(worker.run_once()) is True
     assert gateway.previous_glb.endswith("generation-r1/building.glb")
     assert "publish_generation" not in gateway.events
-    assert "fail:BLENDER_FAILED" in gateway.events
+    assert "retry:BLENDER_FAILED" in gateway.events
+
+
+def test_busy_worker_emits_heartbeat_during_processing(tmp_path):
+    gateway = FakeGateway(run=facade_run())
+    pipeline = FacadePipeline(gateway, FakeProcessor(), tmp_path, "linux-4090-01")
+    worker = FacadeWorker(gateway, pipeline, "linux-4090-01", heartbeat_seconds=0.001)
+
+    assert asyncio.run(worker.run_once()) is True
+    assert "heartbeat" in gateway.events
 
 
 def test_expired_claim_can_resume_with_deterministic_paths(tmp_path):
@@ -207,3 +226,12 @@ def test_cancel_requested_stops_before_blender(tmp_path):
         raise AssertionError("canceled generation reached Blender")
     assert "blender" not in processor.events
 
+
+def test_cancel_request_wins_over_a_concurrent_lost_lease(tmp_path):
+    gateway = FakeGateway()
+    gateway.cancel_requested = True
+    gateway.assert_lease = lambda _run_id: (_ for _ in ()).throw(RuntimeError("FACADE_LEASE_LOST"))
+    pipeline = FacadePipeline(gateway, FakeProcessor(), tmp_path, "linux-4090-01")
+
+    with pytest.raises(FacadeCancelRequested):
+        pipeline._check_canceled(facade_run())

@@ -287,7 +287,12 @@ async function initializeFacadeQueue(context) {
     return;
   }
   state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient);
-  state.photoServiceStatus = 'online';
+  try {
+    const availability = await state.facadeQueue.getWorkerAvailability();
+    state.photoServiceStatus = availability?.available ? 'online' : 'offline';
+  } catch (_error) {
+    state.photoServiceStatus = 'offline';
+  }
   renderPhotoServiceState();
   try {
     const latest = await state.facadeQueue.findLatestRun({
@@ -336,6 +341,7 @@ async function attachFacadeRun(run) {
   state.currentFacadeRun = run;
   state.photoJobId = String(run?.id || '');
   state.photoWorkflowState = String(run?.status || 'idle');
+  renderPhotoServiceState();
   state.facadeUnsubscribe?.();
   state.facadeUnsubscribe = state.facadeQueue.subscribe(state.photoJobId, (event) => {
     if (event?.new) void applyFacadeRun(event.new);
@@ -357,6 +363,7 @@ async function applyFacadeRun(run) {
   if (run?.status === 'completed') {
     await loadCompletedFacadeModel(run);
   }
+  els.photoFallbackActions.hidden = run?.status !== 'failed';
   if (presentation.terminal) clearFacadePollTimer();
 }
 
@@ -642,19 +649,23 @@ function scheduleFacadePoll(delay = state.facadePollDelay) {
 
 function renderPhotoServiceState() {
   const online = state.photoServiceStatus === 'online';
+  const failed = state.currentFacadeRun?.status === 'failed';
   els.photoServiceState.dataset.tone = online ? 'online' : 'offline';
   els.photoServiceMessage.textContent = online
     ? '4090 远程生成队列已连接。'
     : '等待平台登录会话或 4090 队列连接。';
-  els.recoverPhotoBtn.hidden = online;
+  els.recoverPhotoBtn.hidden = online && !failed;
 }
 
 async function pollFacadeRun() {
   clearFacadePollTimer();
   if (!state.facadeQueue || !state.photoJobId || document.hidden) return;
   try {
-    const run = await state.facadeQueue.getRun(state.photoJobId);
-    state.photoServiceStatus = 'online';
+    const [run, availability] = await Promise.all([
+      state.facadeQueue.getRun(state.photoJobId),
+      state.facadeQueue.getWorkerAvailability()
+    ]);
+    state.photoServiceStatus = availability?.available ? 'online' : 'offline';
     state.facadePollDelay = 2000;
     await applyFacadeRun(run);
   } catch (error) {
@@ -670,6 +681,9 @@ async function pollFacadeRun() {
 
 async function recoverCurrentPhoto() {
   if (state.currentFacadeRun) {
+    if (state.currentFacadeRun.status === 'failed') {
+      await state.facadeQueue.retryFailed(state.currentFacadeRun.id);
+    }
     state.facadePollDelay = 2000;
     await pollFacadeRun();
   } else {
@@ -678,7 +692,9 @@ async function recoverCurrentPhoto() {
 }
 
 async function useOriginalPhoto() {
-  setStatus('远程流程会保留原照片，请重新选择照片后提交。', true);
+  setStatus('原照片仍保留。请从上方历史照片中选择另一张，或重新上传后提交。', true);
+  els.photoInput.value = '';
+  els.photoInput.click();
 }
 
 function setPhotoStep(activeStep, isError = false) {

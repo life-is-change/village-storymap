@@ -14,7 +14,10 @@ function fakeSupabase() {
     removed: null,
     rpc(name, args) {
       this.rpcCalls.push({ name, args });
-      return Promise.resolve({ data: name === 'submit_facade_run' ? 'run-1' : true, error: null });
+      const data = name === 'submit_facade_run' ? 'run-1'
+        : name === 'get_facade_worker_availability' ? { available: true, last_seen_at: 'now' }
+        : true;
+      return Promise.resolve({ data, error: null });
     },
     from(table) {
       const call = { table, filters: [], order: null, limit: null };
@@ -79,6 +82,22 @@ test('confirm crop sends only whitelisted geometry values', async () => {
       p_run_id: 'run-1', p_crop_top: 0.18, p_roof_type: 'gable',
       p_building_width: 10, p_building_depth: 8
     }
+  });
+});
+
+test('worker availability comes from heartbeat rpc', async () => {
+  const fake = fakeSupabase();
+  const value = await createFacadeQueueClient(fake).getWorkerAvailability();
+
+  assert.equal(value.available, true);
+  assert.equal(fake.rpcCalls[0].name, 'get_facade_worker_availability');
+});
+
+test('failed run retry uses an owner-authorized rpc', async () => {
+  const fake = fakeSupabase();
+  await createFacadeQueueClient(fake).retryFailed('run-1');
+  assert.deepEqual(fake.rpcCalls[0], {
+    name: 'retry_failed_facade_run', args: { p_run_id: 'run-1' }
   });
 });
 
