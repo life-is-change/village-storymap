@@ -14,6 +14,7 @@ from .processors.contours import generate_contours
 from .contracts import ProcessingRequest
 from .pipeline import NativeProcessors, resolve_run_request, run_pipeline
 from .preview import generate_preview
+from .health import run_facade_health_checks
 
 
 def _geometry_from_file(path: Path) -> dict:
@@ -55,7 +56,40 @@ def build_parser() -> argparse.ArgumentParser:
     health = subparsers.add_parser("health")
     health.add_argument("--local", action="store_true")
     subparsers.add_parser("worker")
+    subparsers.add_parser("facade-worker")
     return parser
+
+
+def run_facade_worker() -> None:
+    from supabase import create_client
+
+    from rural_house_generator.backend.app.blender_service import BlenderService
+    from rural_house_generator.backend.app.facade.full_pipeline import (
+        FullLocalFacadeRectifier,
+    )
+    from rural_house_generator.backend.app.facade.job_processor import (
+        FacadeJobProcessor,
+    )
+
+    from .facade.gateway import FacadeGateway
+    from .facade.pipeline import FacadePipeline
+    from .facade.worker import FacadeWorker
+
+    work_root = Path(os.environ.get("FACADE_WORK_ROOT", "/work")).resolve()
+    worker_id = os.environ.get("WORKER_ID", "linux-facade-worker")
+    gateway = FacadeGateway(
+        create_client(
+            os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+        )
+    )
+    processor = FacadeJobProcessor(
+        rectifier=FullLocalFacadeRectifier(),
+        blender=BlenderService(
+            executable=Path(os.environ.get("BLENDER_EXECUTABLE", "/usr/bin/blender"))
+        ),
+    )
+    pipeline = FacadePipeline(gateway, processor, work_root, worker_id)
+    asyncio.run(FacadeWorker(gateway, pipeline, worker_id).run_forever())
 
 
 def main(argv=None) -> int:
@@ -63,9 +97,20 @@ def main(argv=None) -> int:
     load_dotenv(server_root / ".env")
     args = build_parser().parse_args(argv)
     if args.command == "health":
-        from .health import run_health_checks
-
         return run_health_checks(check_remote=not args.local)
+    if args.command == "facade-worker":
+        if not os.environ.get("SUPABASE_URL"):
+            raise SystemExit("SUPABASE_URL is required")
+        if not os.environ.get("SUPABASE_SERVICE_ROLE_KEY"):
+            raise SystemExit("SUPABASE_SERVICE_ROLE_KEY is required")
+        if run_facade_health_checks() != 0:
+            raise SystemExit("Facade worker health checks failed")
+        logging.basicConfig(
+            level=os.environ.get("PLATFORM_LOG_LEVEL", "INFO"),
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )
+        run_facade_worker()
+        return 0
     data_root = os.environ.get("PLATFORM_DATA_ROOT")
     if not data_root:
         raise SystemExit("PLATFORM_DATA_ROOT is required")
