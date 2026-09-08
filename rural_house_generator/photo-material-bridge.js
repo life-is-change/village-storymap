@@ -15,6 +15,7 @@
       .map((item) => ({
         id: String(item?.id ?? '').trim(),
         url: String(item?.url || item?.photo_url || '').trim(),
+        hasPhotoPath: Boolean(item?.hasPhotoPath || item?.photo_path),
         uploadedAt: String(item?.uploadedAt || item?.uploaded_at || item?.created_at || '').trim(),
         uploadedBy: String(item?.uploadedBy || item?.uploaded_by || '').trim()
       }))

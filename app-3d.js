@@ -43,6 +43,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const HOUSE_GENERATOR_MESSAGE_TYPE = "village-house-generator:model-ready";
   const HOUSE_GENERATOR_PHOTO_REQUEST_TYPE = "village-house-generator:request-photo-materials";
   const HOUSE_GENERATOR_PHOTO_RESPONSE_TYPE = "village-house-generator:photo-materials";
+  const HOUSE_GENERATOR_FACADE_CONTEXT_TYPE = "village-house-generator:facade-context";
+  const HOUSE_GENERATOR_PHOTO_UPLOAD_REQUEST_TYPE = "village-house-generator:upload-photo";
+  const HOUSE_GENERATOR_PHOTO_UPLOAD_RESPONSE_TYPE = "village-house-generator:photo-uploaded";
   const HOUSE_GENERATOR_DEFAULT_SCALE = 10;
 
   const BASE_COLOR = Cesium.Color.WHITE.withAlpha(0.92);
@@ -3308,6 +3311,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       .map((item) => ({
         id: String(item?.id ?? "").trim(),
         url: String(item?.photo_url || "").trim(),
+        hasPhotoPath: Boolean(item?.photo_path),
         uploadedAt: String(item?.uploaded_at || "").trim(),
         uploadedBy: ""
       }))
@@ -3347,12 +3351,111 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }, origin && origin !== "null" ? origin : "*");
   }
 
+  async function handleHouseGeneratorFacadeContextRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_FACADE_CONTEXT_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+
+    const payload = message.payload || {};
+    const context = getActiveVillage3DContext();
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || getActualLinkedSpaceIdFor3D() || "current").trim() || "current";
+    let hasAuthenticatedSession = false;
+    try {
+      const sessionResult = await supabaseClient?.auth?.getSession?.();
+      hasAuthenticatedSession = Boolean(sessionResult?.data?.session);
+    } catch (_) {}
+
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_FACADE_CONTEXT_TYPE,
+      payload: {
+        supabaseUrl: SUPABASE_URL,
+        publishableKey: SUPABASE_PUBLISHABLE_KEY,
+        courseId: String(context.courseId || window.CourseModelModule?.DEFAULT_COURSE?.id || ""),
+        teachingProjectId: String(context.teachingProjectId || ""),
+        villageId: String(context.villageId || ""),
+        sourceCode,
+        spaceId,
+        hasAuthenticatedSession
+      }
+    }, window.location.origin);
+  }
+
+  async function uploadHouseGeneratorPhoto(file, sourceCode, spaceId) {
+    if (!supabaseClient) throw new Error("当前未配置 Supabase。");
+    if (!(file instanceof Blob) || !sourceCode) throw new Error("照片或建筑编码无效。");
+    const context = getActiveVillage3DContext();
+    if (!context.teachingProjectId || !context.villageId) throw new Error("课程村庄上下文不完整。");
+    const extension = String(file.name || "photo.jpg").split(".").pop().toLowerCase();
+    const safeExtension = ["jpg", "jpeg", "png"].includes(extension) ? extension : "jpg";
+    const safeCode = normalizeCode(sourceCode).replace(/[^a-zA-Z0-9_-]/g, "-") || "building";
+    const storagePath = `${context.teachingProjectId}/${context.villageId}/${spaceId}/building/${safeCode}_${Date.now()}.${safeExtension}`;
+    const bucket = supabaseClient.storage.from("house-photos");
+    const { error: uploadError } = await bucket.upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+    if (uploadError) throw uploadError;
+    const publicUrl = bucket.getPublicUrl(storagePath)?.data?.publicUrl || "";
+    const insert = await supabaseClient
+      .from(OBJECT_PHOTOS_TABLE)
+      .insert({
+        object_code: sourceCode,
+        object_type: "building",
+        photo_url: publicUrl,
+        photo_path: storagePath,
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
+        space_id: spaceId
+      })
+      .select("*")
+      .single();
+    if (insert.error) {
+      await bucket.remove([storagePath]);
+      throw insert.error;
+    }
+    return {
+      id: String(insert.data?.id ?? ""),
+      url: String(insert.data?.photo_url || publicUrl),
+      hasPhotoPath: Boolean(insert.data?.photo_path || storagePath),
+      uploadedAt: String(insert.data?.uploaded_at || new Date().toISOString()),
+      uploadedBy: ""
+    };
+  }
+
+  async function handleHouseGeneratorPhotoUploadRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_PHOTO_UPLOAD_REQUEST_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+    const payload = message.payload || {};
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || getActualLinkedSpaceIdFor3D() || "current").trim() || "current";
+    let photo = null;
+    let errorMessage = "";
+    try {
+      photo = await uploadHouseGeneratorPhoto(payload.file, sourceCode, spaceId);
+    } catch (error) {
+      console.warn("生成器照片上传失败：", error);
+      errorMessage = String(error?.message || "照片上传失败");
+    }
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_PHOTO_UPLOAD_RESPONSE_TYPE,
+      payload: { sourceCode, spaceId, photo, error: errorMessage }
+    }, window.location.origin);
+  }
+
   function bindHouseGeneratorMessageBridge() {
     if (houseGeneratorMessageBound) return;
     houseGeneratorMessageBound = true;
     houseGeneratorMessageHandler = (event) => {
       void handleHouseGeneratorModelMessage(event);
       void handleHouseGeneratorPhotoRequest(event);
+      void handleHouseGeneratorFacadeContextRequest(event);
+      void handleHouseGeneratorPhotoUploadRequest(event);
     };
     window.addEventListener("message", houseGeneratorMessageHandler);
   }

@@ -266,6 +266,10 @@ async function useExistingPhotoMaterial(photo, button) {
 
 async function initializeFacadeQueue(context) {
   if (String(context.sourceCode || '').trim() !== state.targetCode) return;
+  if (!context.hasAuthenticatedSession) {
+    setStatus('登录会话已失效，请重新登录平台后再打开生成器。', true);
+    return;
+  }
   const openerClient = window.opener?.VillageSupabaseClient;
   if (!openerClient) {
     state.photoServiceStatus = 'offline';

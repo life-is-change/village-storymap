@@ -102,7 +102,8 @@ begin
     into v_object_code, v_object_type, v_teaching_project_id, v_village_id, v_space_id
   from public.object_photos where id = p_photo_id;
   if not found then raise exception 'PHOTO_NOT_FOUND'; end if;
-  if v_object_code <> p_object_code or v_object_type <> 'building'
+  if v_object_code <> p_object_code
+     or v_object_type not in ('building', 'building__' || p_space_id)
   then raise exception 'PHOTO_BUILDING_MISMATCH'; end if;
   if v_teaching_project_id is null or v_village_id is null or v_space_id is null
      or not public.context_space_accessible(v_teaching_project_id, v_village_id, v_space_id)
@@ -470,4 +471,3 @@ do $$ begin
   alter publication supabase_realtime add table public.facade_generation_runs;
 exception when duplicate_object then null;
 end $$;
-

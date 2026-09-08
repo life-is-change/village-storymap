@@ -27,12 +27,14 @@ test('normalizes and deduplicates existing building photos newest first', () => 
     {
       id: '7',
       url: 'https://example.test/newer.png',
+      hasPhotoPath: false,
       uploadedAt: '2026-08-11T08:00:00Z',
       uploadedBy: '管理员'
     },
     {
       id: '4',
       url: 'https://example.test/older.jpg',
+      hasPhotoPath: false,
       uploadedAt: '2026-08-10T08:00:00Z',
       uploadedBy: ''
     }
