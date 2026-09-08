@@ -43,6 +43,49 @@
         communityTask: 180
       };
       const featureZIndex = layerRenderZIndex[layerKey] ?? 60;
+      const isFarSurveyZoom = Number.isFinite(resolution) && resolution > 0.00012;
+
+      function decorateSurveyStyles(baseStyle, geometry) {
+        const geometryState = String(surveyReviewVisual.geometryState || "none");
+        const configuredBadges = Array.isArray(surveyReviewVisual.badges) ? surveyReviewVisual.badges : [];
+        const badges = isFarSurveyZoom
+          ? configuredBadges.filter((badge) => badge?.key === "issue")
+          : configuredBadges;
+        if (geometryState === "none" && !badges.length && !surveyReviewVisual.lockEditorName) return baseStyle;
+
+        const styles = [baseStyle];
+        if (!isActive && geometryState !== "none") {
+          const outline = {
+            pending: { color: "rgba(100,116,139,0.62)", width: 1.15, lineDash: [4, 4] },
+            reviewed: { color: "rgba(46,125,50,0.58)", width: 1.15, lineDash: undefined },
+            editing: { color: "rgba(37,99,235,0.72)", width: 1.55, lineDash: [5, 3] }
+          }[geometryState];
+          if (outline) {
+            styles.push(new Style({
+              zIndex: featureZIndex + 2,
+              geometry: geometry || undefined,
+              stroke: new Stroke(outline)
+            }));
+          }
+        }
+
+        const labels = badges.map((badge) => String(badge?.label || "")).filter(Boolean);
+        if (surveyReviewVisual.lockEditorName && !isFarSurveyZoom) labels.unshift("🔒");
+        if (labels.length && typeof Text === "function") {
+          styles.push(new Style({
+            zIndex: featureZIndex + 3,
+            text: new Text({
+              text: labels.join("  "),
+              font: "600 10px 'Microsoft YaHei', 'PingFang SC', sans-serif",
+              offsetY: -11,
+              fill: new Fill({ color: badges.some((badge) => badge?.key === "issue") ? "rgba(176,32,32,0.86)" : "rgba(36,58,48,0.72)" }),
+              stroke: new Stroke({ color: "rgba(255,255,255,0.9)", width: 2 }),
+              overflow: true
+            })
+          }));
+        }
+        return styles;
+      }
 
       let fill = "rgba(160,160,160,0.25)";
       let stroke = "rgba(90,90,90,0.95)";
@@ -199,7 +242,7 @@
         }
         strokeColor = applyColorOpacity(strokeColor, visualOpacity);
 
-        return new Style({
+        return decorateSurveyStyles(new Style({
           zIndex: featureZIndex,
           geometry: smoothGeometry || undefined,
           stroke: new Stroke({
@@ -208,7 +251,7 @@
             lineCap: "round",
             lineJoin: "round"
           })
-        });
+        }), smoothGeometry);
       }
 
       if (isActive) {
@@ -221,18 +264,10 @@
         strokeWidth = 2.8;
       }
 
-      if (surveyReviewVisual.lockOutline === "blue" && !isActive) {
-        stroke = "#1565c0";
-        strokeWidth = Math.max(strokeWidth, 3);
-      } else if (surveyReviewVisual.issueMarker === "red" && !isActive) {
-        stroke = "#d32f2f";
-        strokeWidth = Math.max(strokeWidth, 3);
-        strokeLineDash = [5, 3];
-      }
       fill = applyColorOpacity(fill, visualOpacity);
       stroke = applyColorOpacity(stroke, visualOpacity);
 
-      return new Style({
+      return decorateSurveyStyles(new Style({
         zIndex: featureZIndex,
         fill: new Fill({ color: fill }),
         stroke: new Stroke({
@@ -258,7 +293,7 @@
                 repeat: 520
               })
             : undefined
-      });
+      }));
     }
   };
 

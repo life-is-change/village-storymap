@@ -43,6 +43,16 @@ test('space selector owns the flexible grid track without a fixed cap', () => {
   assert.doesNotMatch(css, /workspace-discussion-margin-left/);
 });
 
+test('managed village top bar reserves one track for every visible control', () => {
+  const baseRule = css.match(/\.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
+  const managedRule = css.match(/\.workspace-context-bar\.is-managed-village\s*\{[^}]+\}/)?.[0] || '';
+  const managedExpandedRule = css.match(/\.main-layout\.mode-map\.course-task-expanded:not\(\.mode-map-left-collapsed\) \.workspace-context-bar\.is-managed-village\s*\{[^}]+\}/)?.[0] || '';
+
+  assert.match(baseRule, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(managedRule, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(managedExpandedRule, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+});
+
 test('top bar defines all four semantic side-panel states', () => {
   const leftOnly = css.match(/\.main-layout\.mode-map\.course-task-expanded:not\(\.mode-map-left-collapsed\)\.mode-map-right-collapsed \.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
   const rightOnly = css.match(/\.main-layout\.mode-map\.mode-map-left-collapsed:not\(\.mode-map-right-collapsed\) \.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
@@ -50,19 +60,19 @@ test('top bar defines all four semantic side-panel states', () => {
   const bothClosed = css.match(/\.main-layout\.mode-map\.mode-map-left-collapsed\.mode-map-right-collapsed \.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
 
   assert.match(leftOnly, /--workspace-identity-display:\s*none/);
-  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
   assert.match(leftOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(rightOnly, /--workspace-identity-display:\s*flex/);
-  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
   assert.match(rightOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(bothOpen, /--workspace-identity-display:\s*none/);
-  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
   assert.match(bothOpen, /--workspace-action-label-display:\s*none/);
 
   assert.match(bothClosed, /--workspace-identity-display:\s*flex/);
-  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(92px,\s*110px\)\s+minmax\(130px,\s*180px\)\s+minmax\(160px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
   assert.match(bothClosed, /--workspace-action-label-display:\s*inline-flex/);
 });
 

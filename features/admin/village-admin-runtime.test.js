@@ -14,6 +14,9 @@ test("管理员页面保持本地处理和后台发布的职责边界", () => {
 });
 
 test("村庄后台呈现三步式V0流程和独立的中期3D模型区", () => {
+  assert.match(html, /data-teaching-project-card/);
+  assert.match(html, /data-teaching-project-create-form/);
+  assert.match(html, /结束并归档本学期/);
   assert.match(html, /data-village-step="create"/);
   assert.match(html, /data-village-step="import"/);
   assert.match(html, /data-village-step="publish"/);

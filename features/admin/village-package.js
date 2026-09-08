@@ -111,11 +111,16 @@
     const uploaded = [];
     try {
       for (const [name, file] of selection.files) {
-        const contentType = file.type || (name.endsWith(".geojson")
+        const contentType = name.endsWith(".geojson")
           ? "application/geo+json"
-          : name.endsWith(".json") ? "application/json" : name.endsWith(".webp") ? "image/webp" : undefined);
+          : name.endsWith(".json")
+            ? "application/json"
+            : name.endsWith(".webp")
+              ? "image/webp"
+              : file.type || undefined;
         const path = `${prefix}/${name}`;
-        const { error } = await storage.upload(path, file, { upsert: false, contentType });
+        const body = await file.arrayBuffer();
+        const { error } = await storage.upload(path, body, { upsert: false, contentType });
         if (error) throw error;
         uploaded.push(path);
       }

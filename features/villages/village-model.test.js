@@ -191,6 +191,11 @@ test("首页只公开当前教学项目中已发布的练习村庄和正式村�
         boundary: { type: "Polygon", coordinates: [[[113, 23], [114, 23], [114, 24], [113, 24], [113, 23]]] }
       },
       {
+        id: "practice-2", name: "红星村", isPractice: true, status: "published",
+        boundary: { type: "Polygon", coordinates: [[[115, 24], [116, 24], [116, 25], [115, 25], [115, 24]]] }
+      },
+      { id: "practice-archived", name: "旧练习村", isPractice: true, status: "archived" },
+      {
         id: "formal-1", name: "南溪村", status: "published",
         boundary: { type: "Polygon", coordinates: [[[110, 20], [112, 20], [112, 22], [110, 22], [110, 20]]] }
       },
@@ -198,9 +203,25 @@ test("首页只公开当前教学项目中已发布的练习村庄和正式村�
     ]
   });
 
-  assert.deepEqual(villages.map((village) => village.id), ["practice-1", "formal-1"]);
-  assert.deepEqual([villages[1].longitude, villages[1].latitude], [111, 21]);
-  assert.equal(villages[1].role, "formal");
+  assert.deepEqual(villages.map((village) => village.id), ["practice-1", "practice-2", "formal-1"]);
+  assert.deepEqual([villages[2].longitude, villages[2].latitude], [111, 21]);
+  assert.equal(villages[2].role, "formal");
+});
+
+test("工作区包含全部已发布练习村但仍排除归档和草稿村", () => {
+  const entries = buildProjectEntries({
+    project: {
+      id: "p1", practiceVillageId: "mibu", formalVillageId: "formal", formalProjectOpen: true
+    },
+    villages: [
+      { id: "mibu", name: "米埗村", isPractice: true, status: "published" },
+      { id: "red", name: "红星村", isPractice: true, status: "published" },
+      { id: "old", name: "旧练习村", isPractice: true, status: "archived" },
+      { id: "draft", name: "草稿练习村", isPractice: true, status: "draft" },
+      { id: "formal", name: "正式村", isPractice: false, status: "published" }
+    ]
+  });
+  assert.deepEqual(entries.map((entry) => entry.villageName), ["正式村", "米埗村", "红星村"]);
 });
 
 test("首页命令只允许管理员进入后台并拒绝进入项目外村庄", () => {

@@ -23,6 +23,12 @@ function makeDeps(overrides = {}) {
     createDraft: async (input) => (calls.push({ name: "createDraft", input }), village),
     publishDataset: async (input) => (calls.push({ name: "publishDataset", input }), dataset),
     bindFormalVillage: async (input) => (calls.push({ name: "bindFormalVillage", input }), {}),
+    createTeachingProject: async (input) => (calls.push({ name: "createTeachingProject", input }), {}),
+    archiveTeachingProject: async (input) => (calls.push({ name: "archiveTeachingProject", input }), {}),
+    getVillageRemovalPreview: async (input) => (calls.push({ name: "getVillageRemovalPreview", input }), overrides.removalPreview || { action: "archive", storage_paths: [] }),
+    archiveVillage: async (input) => (calls.push({ name: "archiveVillage", input }), {}),
+    restoreVillage: async (input) => (calls.push({ name: "restoreVillage", input }), {}),
+    deleteUnusedVillage: async (input) => (calls.push({ name: "deleteUnusedVillage", input }), {}),
     saveRealityDraft: async (input) => (calls.push({ name: "saveRealityDraft", input }), {}),
     publishRealityModel: async (input) => (calls.push({ name: "publishRealityModel", input }), {})
   };
@@ -83,4 +89,83 @@ test("村庄操作状态只允许发布ready成果，并只允许已发布的正
   }, { ...project, formalVillageId: "v1" }), {
     readyDatasetId: null, canPublish: false, canBind: false, isBound: true
   });
+});
+
+test("结束当前教学项目后可用同一课程模板创建下一学期", async () => {
+  const calls = [];
+  const controller = createVillageAdminController(makeDeps({ calls }));
+  await controller.refresh();
+  await controller.archiveTeachingProject("p1");
+  assert.deepEqual(calls.find((call) => call.name === "archiveTeachingProject"), {
+    name: "archiveTeachingProject", input: { teachingProjectId: "p1" }
+  });
+
+  const noProjectClient = {
+    ...makeDeps({ calls }).client,
+    getActiveContext: async () => null
+  };
+  const next = createVillageAdminController(makeDeps({ calls, client: noProjectClient }));
+  await next.refresh();
+  await next.createTeachingProject({
+    name: "2027 春季村庄规划课程", courseId: "mibu-village-planning", practiceVillageId: "v1"
+  });
+  assert.deepEqual(calls.find((call) => call.name === "createTeachingProject"), {
+    name: "createTeachingProject",
+    input: { name: "2027 春季村庄规划课程", courseId: "mibu-village-planning", practiceVillageId: "v1" }
+  });
+});
+
+test("存在当前教学项目时拒绝重复创建，取消归档不调用RPC", async () => {
+  const calls = [];
+  const controller = createVillageAdminController(makeDeps({ calls, confirm: async () => false }));
+  await controller.refresh();
+  await assert.rejects(() => controller.createTeachingProject({
+    name: "重复项目", courseId: "c1", practiceVillageId: "v1"
+  }), /ACTIVE_PROJECT_EXISTS/);
+  assert.equal(await controller.archiveTeachingProject("p1"), false);
+  assert.equal(calls.some((call) => call.name === "archiveTeachingProject"), false);
+});
+
+test("未使用村庄先清理服务端给出的精确路径再删除数据库记录", async () => {
+  const events = [];
+  const deps = makeDeps({
+    removalPreview: { action: "delete", storage_paths: ["v1/pkg/boundary.geojson"] }
+  });
+  deps.client.getVillageRemovalPreview = async () => ({ action: "delete", storage_paths: ["v1/pkg/boundary.geojson"] });
+  deps.client.deleteUnusedVillage = async (input) => (events.push(["deleteUnusedVillage", input]), {});
+  deps.supabaseClient = { storage: { from: (bucket) => ({
+    remove: async (paths) => (events.push([`storage.remove:${bucket}`, paths]), { error: null })
+  }) } };
+  const controller = createVillageAdminController(deps);
+  await controller.refresh();
+  await controller.deleteVillage("v1");
+  assert.deepEqual(events, [
+    ["storage.remove:village-datasets", ["v1/pkg/boundary.geojson"]],
+    ["deleteUnusedVillage", { villageId: "v1" }]
+  ]);
+});
+
+test("Storage清理失败时不删除数据库村庄", async () => {
+  let databaseDeleted = false;
+  const deps = makeDeps();
+  deps.client.getVillageRemovalPreview = async () => ({ action: "delete", storage_paths: ["v1/pkg/boundary.geojson"] });
+  deps.client.deleteUnusedVillage = async () => { databaseDeleted = true; };
+  deps.supabaseClient = { storage: { from: () => ({ remove: async () => ({ error: new Error("denied") }) }) } };
+  const controller = createVillageAdminController(deps);
+  await controller.refresh();
+  await assert.rejects(() => controller.deleteVillage("v1"), /STORAGE_CLEANUP_FAILED/);
+  assert.equal(databaseDeleted, false);
+});
+
+test("村庄使用状态变化时遵循最新预览执行归档，并支持恢复", async () => {
+  const calls = [];
+  const deps = makeDeps({ calls });
+  deps.client.getVillageRemovalPreview = async () => ({ action: "archive", reason: "VILLAGE_IN_USE" });
+  const controller = createVillageAdminController(deps);
+  await controller.refresh();
+  await controller.deleteVillage("v1");
+  await controller.restoreVillage("v1");
+  assert.equal(calls.some((call) => call.name === "deleteUnusedVillage"), false);
+  assert.equal(calls.some((call) => call.name === "archiveVillage"), true);
+  assert.equal(calls.some((call) => call.name === "restoreVillage"), true);
 });

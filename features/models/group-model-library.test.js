@@ -33,6 +33,19 @@ test('spaces without a group resolve to the authenticated user private scope', (
   assert.throws(() => resolveLibraryScope({ space: { id: 'personal-a' }, user: null }), /请先登录/);
 });
 
+test('shared current spaces resolve to a village-wide shared scope', () => {
+  assert.deepEqual(resolveLibraryScope({
+    space: { id: 'formal-shared-1', courseId: 'course-a', spaceType: 'formal_shared' },
+    user: { authUserId: 'admin-a' }
+  }), {
+    kind: 'shared', groupId: null, ownerId: 'admin-a', courseId: 'course-a', spaceId: 'formal-shared-1'
+  });
+  assert.equal(
+    buildStoragePath({ kind: 'shared', spaceId: 'formal shared 1' }, { name: 'demo.glb' }, 'asset-id'),
+    'shared/formal-shared-1/asset-id-demo.glb'
+  );
+});
+
 test('GLB validation rejects wrong extensions and files over 50 MB', () => {
   assert.equal(validateGlbFile({ name: 'house.GLB', size: MAX_MODEL_BYTES }).valid, true);
   assert.deepEqual(validateGlbFile({ name: 'house.fbx', size: 20 }), {

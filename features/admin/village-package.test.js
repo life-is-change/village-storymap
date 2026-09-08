@@ -8,12 +8,12 @@ const {
   uploadVillagePackage
 } = require("./village-package.js");
 
-function fakeFile(name, content, root = "demo-v0") {
+function fakeFile(name, content, root = "demo-v0", type) {
   const bytes = Buffer.from(content);
   return {
     name,
     webkitRelativePath: `${root}/${name}`,
-    type: name.endsWith(".geojson") ? "application/geo+json" : "application/octet-stream",
+    type: type ?? (name.endsWith(".geojson") ? "application/geo+json" : "application/octet-stream"),
     size: bytes.length,
     text: async () => bytes.toString("utf8"),
     arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
@@ -98,6 +98,41 @@ test("上传后返回只含私有存储路径的RPC输入", async () => {
     "village-1/demo-v0/contours.geojson"
   ]);
   assert.equal(JSON.stringify(result).includes("http"), false);
+});
+
+test("上传使用文件扩展名的规范 MIME 而不信任浏览器的通用类型", async () => {
+  const uploads = [];
+  const storage = {
+    from() {
+      return {
+        upload: async (path, body, options) => {
+          uploads.push({ path, body, contentType: options.contentType });
+          return { data: { path }, error: null };
+        }
+      };
+    }
+  };
+  const files = await validSelection();
+  for (const file of files) file.type = "application/octet-stream";
+  await uploadVillagePackage({
+    supabaseClient: { storage },
+    villageId: "village-1",
+    selection: await validatePackageSelection(files),
+    packageId: "mime-v0"
+  });
+  assert.equal(uploads.every((item) => item.body instanceof ArrayBuffer), true);
+  assert.deepEqual(Object.fromEntries(uploads.map((item) => [item.path.split("/").at(-1), item.contentType])), {
+    "boundary.geojson": "application/geo+json",
+    "imagery.webp": "image/webp",
+    "buildings.geojson": "application/geo+json",
+    "roads.geojson": "application/geo+json",
+    "waterways.geojson": "application/geo+json",
+    "water_areas.geojson": "application/geo+json",
+    "water.geojson": "application/geo+json",
+    "contours.geojson": "application/geo+json",
+    "manifest.json": "application/json",
+    "validation.json": "application/json"
+  });
 });
 
 test("中途上传失败会清理已经写入的残片", async () => {

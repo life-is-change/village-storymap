@@ -245,7 +245,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function getBasemapGeoref() {
-    return activeBasemapGeoref || normalizeBasemapGeoref(window.__BASEMAP_GEOREF) || { ...FALLBACK_BASEMAP_GEOREF };
+    return normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
+      || activeBasemapGeoref
+      || { ...FALLBACK_BASEMAP_GEOREF };
   }
 
   function getContextBasemapGeoref() {
@@ -265,6 +267,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
   function getActualLinkedSpaceIdFor3D() {
     const space = getLinked2DSpaceFor3D();
     return String(space?.actualSpaceId || space?.id || getLinked2DSpaceIdFor3D());
+  }
+
+  function get3DEditPolicy() {
+    const space = getLinked2DSpaceFor3D();
+    return window.ThreeDEditPolicyModule?.resolve3DEditPolicy({
+      space,
+      isAdmin: Boolean(window.__isAdmin3DActor?.()),
+      canManage: Boolean(window.__canManageActive3DSpace?.())
+    }) || {
+      actualSpaceId: getActualLinkedSpaceIdFor3D(),
+      canEditModel: false
+    };
   }
 
   function getActiveVillage3DContext() {
@@ -293,8 +307,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function getCurrentModelLibraryScope() {
+    const space = getLinked2DSpaceFor3D();
     return window.GroupModelLibraryModule.resolveLibraryScope({
-      space: getLinked2DSpaceFor3D(),
+      space: { ...space, id: getActualLinkedSpaceIdFor3D() },
       user: window.VillageAuth?.getCurrentUser?.() || null
     });
   }
@@ -369,6 +384,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
       props["道路编码"] ??
       props["ROAD_CODE"] ??
       props["road_code"] ??
+      props["osm_id"] ??
+      props["id"] ??
+      props["ID"] ??
       props["NAME"] ??
       props["name"] ??
       props["Code"] ??
@@ -2217,8 +2235,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchCurrentSpaceAllEdits() {
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    const objectType = linkedSpaceId === 'current' ? null : `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}`;
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType || !supabaseClient) return [];
 
     const { data, error } = await supabaseClient
@@ -2235,8 +2253,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchSingle3DEdit(sourceCode) {
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    const objectType = linkedSpaceId === 'current' ? null : `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}`;
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType || !supabaseClient || !sourceCode) return null;
 
     const { data, error } = await supabaseClient
@@ -2255,8 +2273,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function saveSingle3DEdit(sourceCode, payload) {
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    const objectType = linkedSpaceId === 'current' ? null : `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}`;
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType) {
       throw new Error("Current base space is read-only and cannot be saved.");
     }
@@ -2802,8 +2820,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function applyCurrent3DSpaceToScene() {
     resetSceneToBaseHeights();
 
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    if (linkedSpaceId !== "current") {
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    if (linkedSpaceId) {
       const edits = await fetchCurrentSpaceAllEdits();
       for (const item of edits) {
         const code = normalizeCode(item.object_code);
@@ -3027,7 +3045,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const linkedSpace = getLinked2DSpaceFor3D();
     const geojsonText = await loadText(buildingUrl);
-    const baseCollection = JSON.parse(geojsonText);
+    let baseCollection = JSON.parse(geojsonText);
+    if (window.VillageDatasetResolverModule?.normalizeFeatureCollection) {
+      baseCollection = window.VillageDatasetResolverModule.normalizeFeatureCollection(baseCollection, "building");
+    }
     const resolver = window.EffectiveBuildingFeaturesModule;
     if (!resolver) throw new Error("EFFECTIVE_BUILDING_FEATURES_MODULE_REQUIRED");
 
@@ -3102,9 +3123,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!infoPanel || !entity) return;
 
     const sourceCode = entity.__sourceCode || "";
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
-    // 规划空间允许编辑，现状空间只读
-    const allowEdit = linkedSpaceId !== 'current';
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const allowEdit = get3DEditPolicy().canEditModel;
 
     const baseRow = buildBase3DRow(entity);
 
@@ -3113,13 +3133,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
     try {
       // Fetch shared fields from 2D namespace
       const fetchObjectEdits = window.__fetchObjectEdits;
-      const objectType2D = linkedSpaceId === 'current' ? 'building' : `building__${linkedSpaceId}`;
-      const sharedEditData = allowEdit && fetchObjectEdits
+      const objectType2D = `building__${linkedSpaceId}`;
+      const sharedEditData = fetchObjectEdits
         ? await fetchObjectEdits(sourceCode, objectType2D)
         : null;
 
       // Fetch 3D-specific fields (建筑高度, model state)
-      const editData3D = allowEdit ? await fetchSingle3DEdit(sourceCode) : null;
+      const editData3D = await fetchSingle3DEdit(sourceCode);
 
       // Merge: 3D-specific data first, then shared fields override (for synchronization)
       mergedRow = mergeRow(baseRow, { ...editData3D, ...sharedEditData });
@@ -3133,7 +3153,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       mergedRow = mergeRow(mergedRow, runtimeGeneratedState);
     }
 
-    if (allowEdit) {
+    {
       try {
         const { library, binding } = await refreshCurrentModelLibrary(sourceCode);
         if (binding?.group_model_assets) {
@@ -3160,9 +3180,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
         currentLibraryAssets = [];
         currentLibraryBinding = null;
       }
-    } else {
-      currentLibraryAssets = [];
-      currentLibraryBinding = null;
     }
 
     currentSelectedEntityCode = sourceCode;
@@ -3186,7 +3203,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   function openHouseGeneratorForEntity(entity, statusEl) {
     const sourceCode = String(entity?.__photoSourceCode || entity?.__sourceCode || "").trim();
     const sourceName = String(entity?.__displayName || sourceCode || "").trim();
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
 
     const generatorUrl = new URL("rural_house_generator/index.html", window.location.href);
     generatorUrl.searchParams.set("mode", "photo");
@@ -3216,7 +3233,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (origin && origin !== "null" && origin !== window.location.origin) return;
 
     const payload = message.payload || {};
-    const linkedSpaceId = getLinked2DSpaceIdFor3D();
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const targetSpaceId = String(payload.spaceId || linkedSpaceId || "current").trim() || "current";
     const fallbackCode = activeEntity?.__sourceCode || currentSelectedEntityCode;
     const sourceCode = normalizeCode(payload.sourceCode || fallbackCode);
@@ -3370,10 +3387,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     let applyTimer = 0;
 
     const getCurrentMergedRow = async () => {
-      const linkedSpaceId = getLinked2DSpaceIdFor3D();
-      const existingEditData = linkedSpaceId !== "current"
-        ? (await fetchSingle3DEdit(entity.__sourceCode)) || {}
-        : {};
+      const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+      const existingEditData = (await fetchSingle3DEdit(entity.__sourceCode)) || {};
       const baseMerged = { ...(baseRow || {}), ...existingEditData };
       const runtimeState = getRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
       return {
@@ -4024,7 +4039,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     const savedSelectedCode = selectCode || activeEntity?.__sourceCode;
-    
+
+    activeBasemapGeoref = normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
+      || { ...FALLBACK_BASEMAP_GEOREF };
+    basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
+    const canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
+    await addViewerImageryLayers(canUseIonServices);
     await loadBuildings();
     
     if (savedSelectedCode && entityMap.has(normalizeCode(savedSelectedCode))) {

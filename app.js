@@ -231,6 +231,8 @@ let surveyReviewPanel = null;
 let surveyReviewRows = [];
 let surveyReviewByKey = new Map();
 let surveyFocusPending = false;
+let surveyActivityByKey = new Map();
+let surveyActivityFilter = "all";
 let surveyRealtimeController = null;
 let surveyRealtimeContextKey = "";
 let surveyRealtimeState = "disconnected";
@@ -1815,6 +1817,11 @@ async function prepareVillageContext(entry) {
     villageId: entry.villageId,
     villageRole: entry.villageRole || entry.role
   };
+  const village = activeVillageContext?.villages?.find((item) => item.id === context.villageId)
+    || { id: context.villageId, name: entry.villageName || "村庄" };
+  const datasetPromise = village.publishedDataset && window.VillageDatasetResolverModule
+    ? window.VillageDatasetResolverModule.createSignedUrlMap(supabaseClient, village.publishedDataset)
+    : Promise.resolve(null);
   await villageClient.ensurePersonalSpace(context);
   const allSpaces = await villageClient.listSpaces(context);
   const actor = {
@@ -1828,23 +1835,17 @@ async function prepareVillageContext(entry) {
   const preferred = workspaceSpaces.find((space) => space.spaceType === sharedType)
     || workspaceSpaces.find((space) => isDualTrackPersonalSpace(space));
   if (!preferred) throw new Error("CONTEXT_SPACE_REQUIRED");
-  const village = activeVillageContext?.villages?.find((item) => item.id === context.villageId)
-    || { id: context.villageId, name: entry.villageName || "村庄" };
   let datasetResources = null;
   if (village.publishedDataset && window.VillageDatasetResolverModule) {
     try {
-      const signedUrls = await window.VillageDatasetResolverModule.createSignedUrlMap(
-        supabaseClient,
-        village.publishedDataset
-      );
+      const signedUrls = await datasetPromise;
       datasetResources = window.VillageDatasetResolverModule.resolveDatasetResources({
         village,
         dataset: village.publishedDataset,
         signedUrls
       });
     } catch (error) {
-      if (context.villageRole === "formal") throw error;
-      console.warn("练习村庄继续使用内置米埗数据：", error);
+      throw error;
     }
   }
   return {
@@ -1875,6 +1876,46 @@ async function unloadVillageContext() {
   invalidateWaterDbCache();
 }
 
+async function applyVillageDatasetToPlanMap(resources) {
+  const resolver = window.VillageDatasetResolverModule;
+  activeBasemapGeoref = resolver?.resolveBasemapGeoref
+    ? resolver.resolveBasemapGeoref(resources || {}, BASEMAP_GEOREF)
+    : { ...BASEMAP_GEOREF };
+  window.__BASEMAP_GEOREF = { ...activeBasemapGeoref };
+  basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
+
+  if (!planMap) return;
+  const OL = await (olReady || window.__olReady);
+  const ImageStatic = OL?.ImageStatic;
+  const extent = Array.isArray(resources?.initialExtent)
+    ? resources.initialExtent.map(Number)
+    : getBasemapRenderExtent(activeBasemapGeoref);
+
+  if (planHighResLayer && ImageStatic) {
+    const georef = activeBasemapGeoref;
+    planHighResLayer.setSource(new ImageStatic({
+      url: georef.imageUrl,
+      imageExtent: [georef.minX, georef.minY, georef.maxX, georef.maxY],
+      projection: "EPSG:4326",
+      crossOrigin: "anonymous"
+    }));
+  }
+  planVectorLayer?.setExtent?.(getBasemapRenderExtent(activeBasemapGeoref) || undefined);
+
+  if (extent.length === 4 && extent.every(Number.isFinite)
+      && extent[0] < extent[2] && extent[1] < extent[3]) {
+    const view = planMap.getView();
+    view.fit(extent, {
+      size: planMap.getSize?.(),
+      padding: [40, 40, 40, 40],
+      maxZoom: 18,
+      duration: 0
+    });
+    window.__hasInitialZoomed = true;
+  }
+  syncBasemapUIBySpace(currentSpaceId);
+}
+
 async function commitVillageContext(prepared) {
   activeVillageContext = { ...activeVillageContext, ...prepared };
   window.__activeVillageContext = activeVillageContext;
@@ -1889,6 +1930,7 @@ async function commitVillageContext(prepared) {
       spaceId: prepared.spaceId
     }));
   } catch (_) { /* optional local preference */ }
+  await applyVillageDatasetToPlanMap(prepared.datasetResources);
   sync2DSpaceStateTo3D();
   renderSpaceList();
   if (planMap && plan2dView?.classList.contains("active")) {
@@ -2102,7 +2144,7 @@ async function ensureCourseWorkbenchInitialized() {
       coursePersonalSpace = await personalSpaceClient.ensure({
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
         teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-        villageId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
+        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
         spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
         title: `${user.name || "学生"} · 个人图底空间`
       });
@@ -2179,13 +2221,13 @@ async function ensureCourseWorkbenchInitialized() {
         client,
         aoiController: geoprocessingAoiController,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.teachingProjectId : null,
-        villageId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
-        datasetId: activeVillageContext?.villageRole === "formal" ? activeVillageContext.datasetId : null,
+        teachingProjectId: activeVillageContext?.teachingProjectId || null,
+        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+        datasetId: activeVillageContext?.datasetId || null,
         availability,
         onStartAoi: async () => {
           const entry = await villagePreviewController.show(
-            activeVillageContext?.villageRole === "formal" ? activeVillageContext.villageId : "mibu",
+            activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
             activeVillageContext?.datasetResources
           );
           geoprocessingAoiController.setVillageBounds(entry.bounds);
@@ -2317,6 +2359,8 @@ function canEditCurrentSpace() {
 function sync2DSpaceStateTo3D() {
   window.__active2DSpaceId = currentSpaceId || BASE_SPACE_ID;
   window.__get2DSpaces = () => spaces.map((s) => ({ ...s }));
+  window.__canManageActive3DSpace = () => canManageSpace(getCurrentSpace());
+  window.__isAdmin3DActor = () => isAdminIdentity(currentUserName);
   window.__saveObjectEdits = saveObjectEdits;
   window.__fetchObjectEdits = fetchObjectEdits;
   window.__active2DSelectedCode = currentSelectedObject?.sourceCode || null;
@@ -2848,8 +2892,8 @@ async function ensureVillage3DLoaded() {
     }
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
-    await loadScriptOnce("features/models/group-model-library.js?v=20260813-model-card-ui", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20260901-reality-instant-focus", "village-3d-script");
+    await loadScriptOnce("features/models/group-model-library.js?v=20260908-shared-admin-3d", "group-model-library-script");
+    await loadScriptOnce("app-3d.js?v=20260908-shared-admin-3d", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3005,7 +3049,10 @@ function applyCurrentSurveyReviewOverlay() {
     reviews: surveyReviewByKey,
     locks,
     issues: new Map(),
-    focusPending: surveyFocusPending
+    activities: surveyActivityByKey,
+    focusPending: surveyFocusPending,
+    activityFilter: surveyActivityFilter,
+    showGeometryStatus: getCurrentSpace()?.spaceType === "formal_shared"
   });
 }
 
@@ -3017,6 +3064,10 @@ function ensureSurveyReviewPanel() {
     root: surveyReviewPanelRoot,
     onToggleFocus: async (focusPending) => {
       surveyFocusPending = focusPending;
+      applyCurrentSurveyReviewOverlay();
+    },
+    onFilterChange: async (filter) => {
+      surveyActivityFilter = filter || "all";
       applyCurrentSurveyReviewOverlay();
     }
   });
@@ -3063,23 +3114,62 @@ async function syncSurveyRealtimeSubscription() {
 async function refreshSurveyReviewState() {
   const space = getCurrentSpace();
   const panel = ensureSurveyReviewPanel();
-  if (!panel || space?.spaceType !== "formal_shared") {
+  const isShared = ["formal_shared", "practice_shared"].includes(space?.spaceType);
+  if (!isShared) {
     panel?.hide();
     surveyReviewRows = [];
     surveyReviewByKey = new Map();
+    surveyActivityByKey = new Map();
     surveyFocusPending = false;
+    surveyActivityFilter = "all";
     applyCurrentSurveyReviewOverlay();
     return;
   }
   try {
-    surveyReviewRows = await getSurveyReviewClient().listReviews();
+    const context = {
+      teachingProjectId: activeVillageContext?.teachingProjectId,
+      villageId: activeVillageContext?.villageId,
+      spaceId: space.actualSpaceId || currentSpaceId
+    };
+    const scoped = (table, columns) => supabaseClient
+      .from(table).select(columns)
+      .eq("teaching_project_id", context.teachingProjectId)
+      .eq("village_id", context.villageId)
+      .eq("space_id", context.spaceId);
+    const activityQueries = supabaseClient && window.SurveyActivityModelModule
+      ? Promise.allSettled([
+          scoped(OBJECT_EDITS_TABLE, "survey_layer_key,object_type,object_code"),
+          scoped(OBJECT_PHOTOS_TABLE, "survey_layer_key,object_type,object_code"),
+          scoped(OBJECT_COMMENTS_TABLE, "survey_layer_key,object_type,object_code"),
+          scoped(COMMUNITY_TASKS_TABLE, "target_layer_key,target_object_code,status")
+        ])
+      : Promise.resolve([]);
+    const [reviews, activityResults] = await Promise.all([
+      space.spaceType === "formal_shared" ? getSurveyReviewClient().listReviews() : Promise.resolve([]),
+      activityQueries
+    ]);
+    surveyReviewRows = reviews;
     surveyReviewByKey = new Map(surveyReviewRows.map((row) => [
       surveyReviewKey(row.layer_key, row.object_code), row
     ]));
-    panel.setProgress(
-      window.SurveyReviewModelModule.buildSurveyProgress(surveyReviewRows),
-      surveyFocusPending
-    );
+    const rows = activityResults.map((result) => result.status === "fulfilled" && !result.value?.error
+      ? (result.value?.data || [])
+      : []);
+    surveyActivityByKey = window.SurveyActivityModelModule?.buildActivityFlags({
+      reviews: surveyReviewRows,
+      edits: rows[0],
+      photos: rows[1],
+      comments: rows[2],
+      tasks: rows[3]
+    }) || new Map();
+    if (space.spaceType === "formal_shared") {
+      panel?.setProgress(
+        window.SurveyReviewModelModule.buildSurveyProgress(surveyReviewRows),
+        surveyFocusPending
+      );
+    } else {
+      panel?.setActivityOnly(surveyActivityFilter);
+    }
     applyCurrentSurveyReviewOverlay();
   } catch (error) {
     console.warn("刷新几何校核进度失败：", error);
@@ -5827,7 +5917,7 @@ async function ensureLayerLoaded(layerKey) {
   }
 
   const dynamicResources = activeVillageContext?.datasetResources;
-  const usesDynamicDataset = activeVillageContext?.villageRole === "formal" && Boolean(dynamicResources);
+  const usesDynamicDataset = Boolean(dynamicResources?.storageBacked);
   const dynamicGeojsonUrl = dynamicResources?.layers?.[layerKey] || null;
   if (usesDynamicDataset && !dynamicGeojsonUrl) {
     const result = { features: [], rows: [], rowIndex: new Map() };
@@ -5841,7 +5931,10 @@ async function ensureLayerLoaded(layerKey) {
     tableUrl ? fetchText(tableUrl).catch(() => "") : Promise.resolve("")
   ]);
 
-  const features = getGeoJSONFeatures(geojson);
+  const normalizedGeojson = window.VillageDatasetResolverModule?.normalizeFeatureCollection
+    ? window.VillageDatasetResolverModule.normalizeFeatureCollection(geojson, layerKey)
+    : geojson;
+  const features = getGeoJSONFeatures(normalizedGeojson);
   const rows = csvText ? parseCSV(csvText) : [];
   const rowIndex = buildRowIndex(rows, layerKey);
 
@@ -7600,9 +7693,6 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   sync2DSpaceStateTo3D();
   renderSpaceList();
 
-  if (window.VillageAuth?.getCurrentUser?.()) {
-    await ensureCourseWorkbenchInitialized();
-  }
   if (plan2dView?.classList.contains("active") && planMap) {
     await refresh2DOverlay({ forceFullRebuild: true });
   }
@@ -7624,6 +7714,8 @@ async function init() {
 
   let adminGroupPlanApplied = false;
   try {
+    bindHomepageLandingBridge();
+    showVillageOverview();
     await window.VillageAuth?.ready;
 
     // 清空旧账号信息（与新系统保持一致）
@@ -7682,7 +7774,6 @@ async function init() {
     sync2DSpaceStateTo3D();
 
     renderSpaceList();
-    await ensureCourseWorkbenchInitialized();
     syncSidebarExpansionUI();
     bindHomeButton();
     bindAuthLoginButton();
@@ -7730,17 +7821,6 @@ async function init() {
         setCurrentUser(user.name);
       }
     }
-
-    // 首页阶段不再提前初始化 2D 地图和大体量图层；用户进入 2D/3D 时再按需加载。
-    setTimeout(async () => {
-      try {
-        await seedBuildingsForCopySpace(BASE_SPACE_ID);
-        await seedRoadsForCopySpace(BASE_SPACE_ID);
-        await seedWaterForCopySpace(BASE_SPACE_ID);
-      } catch (seedError) {
-        console.warn("现状空间数据初始化到云端失败（不影响正常使用）：", seedError);
-      }
-    }, 1200);
 
     window.addEventListener("resize", () => {
       if (plan2dView.classList.contains("active")) {
@@ -7958,6 +8038,21 @@ function initRealtimeSubscriptions() {
     )
     .subscribe((status) => {
       console.log("[Realtime] message-edits channel:", status);
+    });
+
+  // 照片、属性、讨论和问题状态统一刷新为地图上的轻量活动徽标。
+  const refreshSurveyActivity = () => {
+    if (!["formal_shared", "practice_shared"].includes(getCurrentSpace()?.spaceType)) return;
+    scheduleRealtimeRefresh(refreshSurveyReviewState);
+  };
+  supabaseClient
+    .channel("survey-activity-badges-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: OBJECT_EDITS_TABLE }, refreshSurveyActivity)
+    .on("postgres_changes", { event: "*", schema: "public", table: OBJECT_PHOTOS_TABLE }, refreshSurveyActivity)
+    .on("postgres_changes", { event: "*", schema: "public", table: OBJECT_COMMENTS_TABLE }, refreshSurveyActivity)
+    .on("postgres_changes", { event: "*", schema: "public", table: COMMUNITY_TASKS_TABLE }, refreshSurveyActivity)
+    .subscribe((status) => {
+      console.log("[Realtime] survey activity badges channel:", status);
     });
 }
 
@@ -8398,6 +8493,16 @@ function bindRecenterButton() {
 function recenterMapToVillage() {
   if (!planMap) return;
   const view = planMap.getView();
+  const extent = activeVillageContext?.datasetResources?.initialExtent;
+  if (Array.isArray(extent) && extent.length === 4 && extent.every(Number.isFinite)) {
+    view.fit(extent, {
+      size: planMap.getSize?.(),
+      padding: [40, 40, 40, 40],
+      maxZoom: 18,
+      duration: 400
+    });
+    return;
+  }
   const georef = activeBasemapGeoref || BASEMAP_GEOREF;
   const center = [
     (georef.minX + georef.maxX) / 2,

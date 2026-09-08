@@ -23,8 +23,10 @@
     if (!ownerId) throw new Error('请先登录后使用模型库。');
 
     const groupId = String(space?.courseGroupId || space?.groupId || '').trim();
+    const spaceType = String(space?.spaceType || space?.space_type || '').trim();
+    const shared = ['practice_shared', 'formal_shared'].includes(spaceType);
     return {
-      kind: groupId ? 'group' : 'personal',
+      kind: shared ? 'shared' : (groupId ? 'group' : 'personal'),
       groupId: groupId || null,
       ownerId,
       courseId: String(space?.courseId || '').trim(),
@@ -46,9 +48,11 @@
   }
 
   function buildStoragePath(scope, file, assetId) {
-    const prefix = scope?.kind === 'group'
-      ? `groups/${cleanSegment(scope.groupId, 'unknown-group')}`
-      : `users/${cleanSegment(scope?.ownerId, 'unknown-user')}`;
+    const prefix = scope?.kind === 'shared'
+      ? `shared/${cleanSegment(scope?.spaceId, 'unknown-space')}`
+      : (scope?.kind === 'group'
+        ? `groups/${cleanSegment(scope.groupId, 'unknown-group')}`
+        : `users/${cleanSegment(scope?.ownerId, 'unknown-user')}`);
     const originalBase = String(file?.name || 'model.glb').replace(/\.glb$/i, '');
     const safeName = cleanSegment(originalBase, 'model');
     return `${prefix}/${cleanSegment(assetId, 'model')}-${safeName}.glb`;
@@ -78,9 +82,11 @@
       let query = client
         .from(ASSET_TABLE)
         .select('*')
-        .eq('scope_kind', scope.kind)
-        .eq(scope.kind === 'group' ? 'group_id' : 'owner_id', scope.kind === 'group' ? scope.groupId : scope.ownerId)
-        .order('created_at', { ascending: false });
+        .eq('scope_kind', scope.kind);
+      query = scope.kind === 'shared'
+        ? query.eq('source_space_id', scope.spaceId)
+        : query.eq(scope.kind === 'group' ? 'group_id' : 'owner_id', scope.kind === 'group' ? scope.groupId : scope.ownerId);
+      query = query.order('created_at', { ascending: false });
       const { data, error } = await query;
       throwIfError(error, '读取模型库失败。');
       return Array.isArray(data) ? data : [];

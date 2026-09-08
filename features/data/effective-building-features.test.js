@@ -7,6 +7,8 @@ const {
   shouldReloadBuildingSpace
 } = require("./effective-building-features.js");
 
+const datasetResolver = require("./village-dataset-resolver.js");
+
 const feature = (code, x = 0) => ({
   type: "Feature",
   properties: { code },
@@ -74,4 +76,21 @@ test("3D building loads are serialized", async () => {
   releaseFirst();
   await Promise.all([first, second]);
   assert.deepEqual(events, ["start-1", "end-1", "start-2", "end-2"]);
+});
+
+test("三维合并保留由数据集解析器补号的本地建筑", () => {
+  const normalized = datasetResolver.normalizeFeatureCollection({
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { score: 0.9 },
+      geometry: feature("x", 30).geometry
+    }]
+  }, "building");
+  const result = resolveEffectiveBuildingFeatureCollection({
+    baseFeatures: normalized.features,
+    getBaseCode: (item) => item.properties.id
+  });
+  assert.equal(result.features.length, 1);
+  assert.equal(result.features[0].properties.id, "AUTO_BUILDING_000001");
 });

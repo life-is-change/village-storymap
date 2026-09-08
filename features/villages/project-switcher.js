@@ -15,6 +15,10 @@
   } = {}) {
     let entries = [];
     let changing = false;
+    let queuedEntry = null;
+    let queuedPromise = null;
+    let resolveQueued = null;
+    let rejectQueued = null;
 
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -67,7 +71,15 @@
         render();
       },
       async switchTo(entry) {
-        if (changing || !entry) return false;
+        if (!entry) return false;
+        if (changing) {
+          queuedEntry = entry;
+          if (!queuedPromise) queuedPromise = new Promise((resolve, reject) => {
+            resolveQueued = resolve;
+            rejectQueued = reject;
+          });
+          return queuedPromise;
+        }
         const previous = getContext();
         if (entry.villageId === previous?.villageId && entry.teachingProjectId === previous?.teachingProjectId) return true;
         if (hasUnsavedChanges()) {
@@ -87,6 +99,16 @@
           throw error;
         } finally {
           changing = false;
+          if (queuedEntry) {
+            const next = queuedEntry;
+            const resolve = resolveQueued;
+            const reject = rejectQueued;
+            queuedEntry = null;
+            queuedPromise = null;
+            resolveQueued = null;
+            rejectQueued = null;
+            api.switchTo(next).then(resolve, reject);
+          }
         }
       }
     };

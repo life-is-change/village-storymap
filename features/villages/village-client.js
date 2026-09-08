@@ -93,8 +93,20 @@
         const raw = await rpc("get_active_project_context", {});
         if (!raw?.project) return null;
         const project = normalizeTeachingProject(raw.project);
-        const allowedVillageIds = new Set([project.practiceVillageId, project.formalVillageId].filter(Boolean));
-        const villages = (await listVillages()).filter((village) => allowedVillageIds.has(village.id));
+        const allVillages = await listVillages();
+        const detailsById = new Map(allVillages.map((village) => [village.id, village]));
+        const villages = Array.isArray(raw.villages)
+          ? raw.villages.map((row) => {
+            const scoped = mapVillage(row);
+            const details = detailsById.get(scoped.id);
+            return details ? { ...details, ...scoped,
+              datasets: details.datasets,
+              publishedDatasetId: details.publishedDatasetId,
+              publishedDataset: details.publishedDataset,
+              realityModel: details.realityModel
+            } : scoped;
+          })
+          : allVillages;
         const activeVillageId = project.formalProjectOpen && project.formalVillageId
           ? project.formalVillageId
           : project.practiceVillageId;
@@ -144,6 +156,31 @@
           p_name: required(input.name, "PROJECT_NAME_REQUIRED"),
           p_course_id: required(input.courseId, "COURSE_REQUIRED"),
           p_practice_village_id: required(input.practiceVillageId, "PRACTICE_VILLAGE_REQUIRED")
+        });
+      },
+      archiveTeachingProject(input = {}) {
+        return rpc("archive_teaching_project", {
+          p_project_id: required(input.teachingProjectId, "PROJECT_REQUIRED")
+        });
+      },
+      getVillageRemovalPreview(input = {}) {
+        return rpc("get_village_removal_preview", {
+          p_village_id: required(input.villageId, "VILLAGE_REQUIRED")
+        });
+      },
+      archiveVillage(input = {}) {
+        return rpc("archive_village", {
+          p_village_id: required(input.villageId, "VILLAGE_REQUIRED")
+        });
+      },
+      restoreVillage(input = {}) {
+        return rpc("restore_village", {
+          p_village_id: required(input.villageId, "VILLAGE_REQUIRED")
+        });
+      },
+      deleteUnusedVillage(input = {}) {
+        return rpc("delete_unused_village", {
+          p_village_id: required(input.villageId, "VILLAGE_REQUIRED")
         });
       },
       saveDatasetDraft(input = {}) {

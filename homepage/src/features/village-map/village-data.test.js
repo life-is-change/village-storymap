@@ -34,12 +34,17 @@ test('runtime project villages replace the static practice record and add the fo
       location: '广州市从化区良口镇', longitude: 113.7, latitude: 23.7, zoom: 14,
     },
     {
+      id: 'red-practice-uuid', name: '红星村', isPractice: true,
+      location: '课程练习村庄', longitude: 113.9, latitude: 22.7, zoom: 14,
+    },
+    {
       id: 'formal-uuid', name: '南溪村', role: 'formal',
       location: '本学期正式规划村庄', longitude: 111, latitude: 21, zoom: 14,
     },
   ]);
 
-  assert.deepEqual(runtime.map((village) => village.id), ['practice-uuid', 'formal-uuid']);
+  assert.deepEqual(runtime.map((village) => village.id), ['practice-uuid', 'red-practice-uuid', 'formal-uuid']);
+  assert.equal(getVillageById('red-practice-uuid', runtime).name, '红星村');
   assert.equal(getVillageById('formal-uuid', runtime).name, '南溪村');
   assert.ok(getVillageById('formal-uuid', runtime).statusItems.length > 0);
   assert.ok(getVillageById('formal-uuid', runtime).issueItems.length > 0);

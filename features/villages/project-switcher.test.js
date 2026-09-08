@@ -41,3 +41,24 @@ test("目标加载完成后才卸载并提交新上下文", async () => {
   assert.deepEqual(order, ["load", "unload", "commit"]);
   assert.equal(active.spaceId, "formal-shared");
 });
+
+test("快速连续切换时自动提交最后一次选择", async () => {
+  let releaseFirst;
+  let active = { villageId: "mibu" };
+  const committed = [];
+  const switcher = createProjectSwitcher({
+    getContext: () => active,
+    loadTarget: async (entry) => {
+      if (entry.villageId === "v2") await new Promise((resolve) => { releaseFirst = resolve; });
+      return entry;
+    },
+    commitContext: (next) => { active = next; committed.push(next.villageId); }
+  });
+  const first = switcher.switchTo({ villageId: "v2" });
+  await Promise.resolve();
+  const last = switcher.switchTo({ villageId: "v3" });
+  releaseFirst();
+  await Promise.all([first, last]);
+  assert.deepEqual(committed, ["v2", "v3"]);
+  assert.equal(active.villageId, "v3");
+});

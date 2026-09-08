@@ -95,10 +95,16 @@
       entries.push(buildProjectEntry(normalizedProject, formalVillage, "formal"));
     }
 
-    const practiceVillage = villageById.get(normalizedProject.practiceVillageId);
-    if (practiceVillage && practiceVillage.status === VILLAGE_STATUSES.PUBLISHED) {
-      entries.push(buildProjectEntry(normalizedProject, practiceVillage, "practice"));
-    }
+    const practiceVillages = Array.from(villageById.values())
+      .filter((village) => village.isPractice && village.status === VILLAGE_STATUSES.PUBLISHED)
+      .sort((left, right) => {
+        const leftDefault = left.id === normalizedProject.practiceVillageId ? 0 : 1;
+        const rightDefault = right.id === normalizedProject.practiceVillageId ? 0 : 1;
+        return leftDefault - rightDefault;
+      });
+    practiceVillages.forEach((village) => {
+      entries.push(buildProjectEntry(normalizedProject, village, "practice"));
+    });
 
     return entries;
   }
@@ -203,8 +209,17 @@
         .filter(({ normalized }) => normalized.id)
         .map((item) => [item.normalized.id, item])
     );
+    const practiceVillages = Array.from(villageById.values())
+      .filter(({ normalized }) => (
+        normalized.isPractice && normalized.status === VILLAGE_STATUSES.PUBLISHED
+      ))
+      .sort((left, right) => {
+        const leftDefault = left.normalized.id === normalizedProject.practiceVillageId ? 0 : 1;
+        const rightDefault = right.normalized.id === normalizedProject.practiceVillageId ? 0 : 1;
+        return leftDefault - rightDefault;
+      });
     const requested = [
-      { id: normalizedProject.practiceVillageId, role: "practice" },
+      ...practiceVillages.map(({ normalized }) => ({ id: normalized.id, role: "practice" })),
       ...(normalizedProject.formalProjectOpen && normalizedProject.formalVillageId
         ? [{ id: normalizedProject.formalVillageId, role: "formal" }]
         : [])

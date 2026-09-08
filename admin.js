@@ -37,6 +37,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let villageAdminController = null;
   let surveyAdminController = null;
   let groupPlanAdminController = null;
+  let villageAdminClient = null;
+  let latestVillageAdminState = null;
+  const adminTabPromises = new Map();
   let courseGroupRows = [];
   let courseActivityRows = [];
 
@@ -1302,6 +1305,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const root = $("adminVillageRoot");
     if (!root) return;
     const client = window.VillageClientModule.createVillageClient({ supabaseClient });
+    villageAdminClient = client;
     const boundary = window.VillageBoundaryModule.createBoundaryController();
     const geoprocessing = window.GeoprocessingClientModule?.createGeoprocessingClient({ supabaseClient }) || null;
     villageAdminController = window.VillageAdminModule.createVillageAdminController({
@@ -1311,12 +1315,44 @@ const ENABLE_SUPABASE_SYNC = (() => {
       geoprocessing,
       supabaseClient,
       notify: showAdminNotice,
-      confirm: (message) => adminConfirm(message, { title: "发布确认", okText: "确认发布", isDanger: false })
+      confirm: (message) => adminConfirm(message, { title: "操作确认", okText: "确认", isDanger: false })
     });
     await villageAdminController.mount();
-    const villageState = villageAdminController.getState();
-    await initializeSurveyAdmin(client, villageState);
-    await initializeGroupPlanAdmin(villageState);
+    latestVillageAdminState = villageAdminController.getState();
+  }
+
+  function ensureAdminTabInitialized(tab) {
+    const cacheKey = tab === "courseGroups" || tab === "activity" ? "course" : tab;
+    if (adminTabPromises.has(cacheKey)) return adminTabPromises.get(cacheKey);
+    const task = (async () => {
+      if (tab === "users") {
+        bindTableEvents();
+        await renderTable();
+      } else if (tab === "photos") {
+        bindPhotoEvents();
+        await renderPhotos();
+      } else if (tab === "messages") {
+        bindMessageEvents();
+        await renderMessages();
+      } else if (tab === "villages") {
+        await initializeVillageAdmin();
+      } else if (tab === "surveyReview") {
+        await initializeVillageAdmin();
+        await initializeSurveyAdmin(villageAdminClient, latestVillageAdminState);
+      } else if (tab === "groupPlans") {
+        await initializeVillageAdmin();
+        await initializeGroupPlanAdmin(latestVillageAdminState);
+      } else if (tab === "courseGroups" || tab === "activity") {
+        await initializeCourseAdmin();
+      }
+    })().catch((error) => {
+      adminTabPromises.delete(cacheKey);
+      console.warn(`后台页签 ${tab} 初始化失败：`, error);
+      showAdminNotice(error?.message || "当前管理模块暂时无法加载。", "warning");
+      throw error;
+    });
+    adminTabPromises.set(cacheKey, task);
+    return task;
   }
 
   async function initializeGroupPlanAdmin(villageState) {
@@ -1384,6 +1420,24 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const target = targetByTab[tab];
       if (target) target.classList.add("active");
       if (tab === "groupPlans") history.replaceState(null, "", "#group-plans");
+      void ensureAdminTabInitialized(tab);
+    });
+  }
+
+  function bindReturnToPlatform() {
+    document.querySelectorAll("[data-return-platform]").forEach((link) => {
+      if (link.dataset.bound) return;
+      link.dataset.bound = "1";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        let cameFromPlatform = false;
+        try {
+          const referrer = document.referrer ? new URL(document.referrer) : null;
+          cameFromPlatform = Boolean(referrer && referrer.origin === location.origin && /\/index\.html$/.test(referrer.pathname));
+        } catch (_) { /* use fallback below */ }
+        if (cameFromPlatform && history.length > 1) history.back();
+        else location.replace("./index.html?returnFromAdmin=1");
+      });
     });
   }
 
@@ -1405,23 +1459,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (content) content.style.display = "";
     document.title = "后台管理 - 村庄规划互动平台";
     bindAdminTabs();
+    bindReturnToPlatform();
     if (location.hash === "#group-plans") {
       document.querySelector('[data-admin-tab="groupPlans"]')?.click();
+    } else {
+      void ensureAdminTabInitialized("users");
     }
-    bindTableEvents();
-    renderTable();
-    bindPhotoEvents();
-    renderPhotos();
-    bindMessageEvents();
-    renderMessages();
-    initializeCourseAdmin().catch((error) => {
-      console.warn("课程管理模块初始化失败：", error);
-      showAdminNotice("课程小组或操作记录暂时无法加载。", "warning");
-    });
-    initializeVillageAdmin().catch((error) => {
-      console.warn("村庄与项目模块初始化失败：", error);
-      showAdminNotice(error?.message || "村庄与项目暂时无法加载。", "warning");
-    });
   }
 
   document.addEventListener("DOMContentLoaded", init);

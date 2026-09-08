@@ -1,4 +1,4 @@
--- 小组/个人私有 GLB 模型库、建筑绑定与只追加操作日志。
+-- 小组、个人及管理员共享现状 GLB 模型库、建筑绑定与只追加操作日志。
 -- 可重复执行；依赖 profiles、group_memberships、planning_spaces 及身份辅助函数。
 
 create table if not exists public.group_model_assets (
@@ -7,7 +7,7 @@ create table if not exists public.group_model_assets (
   storage_path text not null unique,
   file_size bigint not null check (file_size > 0 and file_size <= 52428800),
   mime_type text not null default 'model/gltf-binary' check (mime_type = 'model/gltf-binary'),
-  scope_kind text not null check (scope_kind in ('group', 'personal')),
+  scope_kind text not null check (scope_kind in ('group', 'personal', 'shared')),
   course_id text,
   group_id text references public.course_groups(id) on delete cascade,
   owner_id uuid not null references auth.users(id) on delete cascade,
@@ -16,7 +16,7 @@ create table if not exists public.group_model_assets (
   created_at timestamptz not null default now(),
   check (
     (scope_kind = 'group' and group_id is not null)
-    or (scope_kind = 'personal' and group_id is null and owner_id = created_by)
+    or (scope_kind in ('personal', 'shared') and group_id is null and owner_id = created_by)
   )
 );
 
@@ -25,7 +25,7 @@ create table if not exists public.building_model_bindings (
   space_id text not null,
   object_code text not null,
   asset_id uuid not null references public.group_model_assets(id) on delete restrict,
-  scope_kind text not null check (scope_kind in ('group', 'personal')),
+  scope_kind text not null check (scope_kind in ('group', 'personal', 'shared')),
   group_id text references public.course_groups(id) on delete cascade,
   owner_id uuid not null references auth.users(id) on delete cascade,
   transform jsonb not null default '{}'::jsonb,
@@ -42,7 +42,7 @@ create table if not exists public.model_operation_events (
   actor_name text not null default '',
   action text not null check (action in ('upload', 'replace', 'restore_white', 'delete')),
   result text not null default 'success',
-  scope_kind text not null check (scope_kind in ('group', 'personal')),
+  scope_kind text not null check (scope_kind in ('group', 'personal', 'shared')),
   course_id text,
   group_id text,
   owner_id uuid not null references auth.users(id),
@@ -52,6 +52,23 @@ create table if not exists public.model_operation_events (
   asset_name text,
   metadata jsonb not null default '{}'::jsonb
 );
+
+-- 兼容已部署的旧表约束；本文件可重复执行。
+alter table public.group_model_assets drop constraint if exists group_model_assets_scope_kind_check;
+alter table public.group_model_assets add constraint group_model_assets_scope_kind_check
+  check (scope_kind in ('group', 'personal', 'shared'));
+alter table public.group_model_assets drop constraint if exists group_model_assets_check;
+alter table public.group_model_assets add constraint group_model_assets_check
+  check (
+    (scope_kind = 'group' and group_id is not null)
+    or (scope_kind in ('personal', 'shared') and group_id is null and owner_id = created_by)
+  );
+alter table public.building_model_bindings drop constraint if exists building_model_bindings_scope_kind_check;
+alter table public.building_model_bindings add constraint building_model_bindings_scope_kind_check
+  check (scope_kind in ('group', 'personal', 'shared'));
+alter table public.model_operation_events drop constraint if exists model_operation_events_scope_kind_check;
+alter table public.model_operation_events add constraint model_operation_events_scope_kind_check
+  check (scope_kind in ('group', 'personal', 'shared'));
 
 create index if not exists idx_group_model_assets_group_created
   on public.group_model_assets(group_id, created_at desc);
@@ -75,6 +92,7 @@ set search_path = public, pg_temp
 as $$
   select auth.uid() is not null and (
     public.current_profile_role() = 'admin'
+    or p_scope_kind = 'shared'
     or (p_scope_kind = 'personal' and p_owner_id = auth.uid())
     or (
       p_scope_kind = 'group'
@@ -158,10 +176,20 @@ declare
   v_name text := left(trim(coalesce(p_name, '')), 100);
 begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
-  if p_scope_kind not in ('group', 'personal') then raise exception 'INVALID_SCOPE'; end if;
+  if p_scope_kind not in ('group', 'personal', 'shared') then raise exception 'INVALID_SCOPE'; end if;
   if p_file_size <= 0 or p_file_size > 52428800 then raise exception 'INVALID_FILE_SIZE'; end if;
   if p_storage_path !~ '\.glb$' then raise exception 'GLB_REQUIRED'; end if;
   if v_name = '' then raise exception 'MODEL_NAME_REQUIRED'; end if;
+  if p_scope_kind = 'shared' and public.current_profile_role() <> 'admin' then
+    raise exception 'ADMIN_REQUIRED';
+  end if;
+  if p_scope_kind = 'shared' and not exists (
+    select 1 from public.planning_spaces shared_space
+    where shared_space.id = p_space_id
+      and shared_space.space_type in ('practice_shared', 'formal_shared')
+  ) then
+    raise exception 'MODEL_SPACE_FORBIDDEN';
+  end if;
   if not public.can_access_model_scope(p_scope_kind, p_group_id, auth.uid()) then
     raise exception 'MODEL_SCOPE_FORBIDDEN';
   end if;
@@ -227,6 +255,17 @@ begin
   ) then
     raise exception 'MODEL_SPACE_FORBIDDEN';
   end if;
+  if v_asset.scope_kind = 'shared' and (
+    public.current_profile_role() <> 'admin'
+    or v_asset.source_space_id is distinct from p_space_id
+    or not exists (
+      select 1 from public.planning_spaces shared_space
+      where shared_space.id = p_space_id
+        and shared_space.space_type in ('practice_shared', 'formal_shared')
+    )
+  ) then
+    raise exception 'MODEL_SPACE_FORBIDDEN';
+  end if;
 
   insert into public.building_model_bindings(
     space_id, object_code, asset_id, scope_kind, group_id, owner_id, transform, updated_by
@@ -278,6 +317,9 @@ begin
   for update;
 
   if found then
+    if v_binding.scope_kind = 'shared' and public.current_profile_role() <> 'admin' then
+      raise exception 'ADMIN_REQUIRED';
+    end if;
     if not public.can_access_model_scope(v_binding.scope_kind, v_binding.group_id, v_binding.owner_id) then
       raise exception 'MODEL_SCOPE_FORBIDDEN';
     end if;
@@ -299,6 +341,13 @@ begin
       select group_space.group_id into v_binding.group_id
       from public.planning_spaces group_space where group_space.id = p_space_id;
       v_binding.scope_kind := 'group';
+      v_binding.owner_id := auth.uid();
+    elsif public.current_profile_role() = 'admin' and exists (
+      select 1 from public.planning_spaces shared_space
+      where shared_space.id = p_space_id
+        and shared_space.space_type in ('practice_shared', 'formal_shared')
+    ) then
+      v_binding.scope_kind := 'shared';
       v_binding.owner_id := auth.uid();
     else
       raise exception 'MODEL_SPACE_FORBIDDEN';
@@ -331,6 +380,9 @@ begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
   select * into v_asset from public.group_model_assets where id = p_asset_id for update;
   if not found then raise exception 'MODEL_NOT_FOUND'; end if;
+  if v_asset.scope_kind = 'shared' and public.current_profile_role() <> 'admin' then
+    raise exception 'ADMIN_REQUIRED';
+  end if;
   if not public.can_access_model_scope(v_asset.scope_kind, v_asset.group_id, v_asset.owner_id) then
     raise exception 'MODEL_SCOPE_FORBIDDEN';
   end if;
@@ -378,6 +430,7 @@ using (
   bucket_id = 'group-models'
   and (
     public.current_profile_role() = 'admin'
+    or split_part(name, '/', 1) = 'shared'
     or (split_part(name, '/', 1) = 'users' and split_part(name, '/', 2) = auth.uid()::text)
     or (
       split_part(name, '/', 1) = 'groups'

@@ -1,7 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { collectStoragePaths, createSignedUrlMap, resolveDatasetResources, requireWriteContext } = require("./village-dataset-resolver.js");
+const {
+  collectStoragePaths,
+  createSignedUrlMap,
+  normalizeFeatureCollection,
+  resolveBasemapGeoref,
+  resolveDatasetResources,
+  requireWriteContext
+} = require("./village-dataset-resolver.js");
 
 const polygon = { type: "Polygon", coordinates: [[[110, 20], [112, 20], [112, 22], [110, 20]]] };
 
@@ -63,4 +70,58 @@ test("数据清单中的图层和影像路径统一生成短时签名地址", as
   assert.deepEqual(calls, [
     ["v1/buildings.geojson", 120], ["v1/roads.geojson", 120], ["v1/preview.webp", 120]
   ]);
+});
+
+test("旧米埗清单的复数图层名兼容为规范单数名且继续使用静态资源", () => {
+  const resources = resolveDatasetResources({
+    village: { boundary: polygon },
+    dataset: {
+      layer_manifest: { layers: [
+        { type: "buildings", featureCount: 210 },
+        { type: "roads" },
+        { type: "water" },
+        { type: "contours" }
+      ] },
+      imagery_config: { kind: "legacy_mibu_imagery" }
+    },
+    signedUrls: {}
+  });
+  assert.equal(resources.storageBacked, false);
+  assert.deepEqual(resources.layers, {});
+  assert.equal(resources.imagery, null);
+  assert.deepEqual(resources.initialExtent, [110, 20, 112, 22]);
+});
+
+test("本地成果缺少对象编号时按文件顺序补充稳定编号", () => {
+  const source = {
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", properties: { score: 0.9 }, geometry: polygon },
+      { type: "Feature", properties: { id: "existing" }, geometry: polygon }
+    ]
+  };
+  const normalized = normalizeFeatureCollection(source, "building");
+  assert.equal(normalized.features[0].properties.id, "AUTO_BUILDING_000001");
+  assert.equal(normalized.features[1].properties.id, "existing");
+  assert.equal(source.features[0].properties.id, undefined);
+});
+
+test("OSM 对象编号会映射为平台统一编号", () => {
+  const normalized = normalizeFeatureCollection({
+    type: "FeatureCollection",
+    features: [{ type: "Feature", properties: { osm_id: 12345 }, geometry: polygon }]
+  }, "road");
+  assert.equal(normalized.features[0].properties.id, "12345");
+});
+
+test("动态村庄影像范围覆盖默认米埗范围，旧数据继续使用默认范围", () => {
+  const fallback = { imageUrl: "mibu.webp", minX: 1, minY: 2, maxX: 3, maxY: 4 };
+  assert.deepEqual(resolveBasemapGeoref({
+    storageBacked: true,
+    imagery: "signed-red.webp",
+    initialExtent: [113.8, 22.7, 113.9, 22.8]
+  }, fallback), {
+    imageUrl: "signed-red.webp", minX: 113.8, minY: 22.7, maxX: 113.9, maxY: 22.8, crs: "EPSG:4326"
+  });
+  assert.deepEqual(resolveBasemapGeoref({ storageBacked: false }, fallback), fallback);
 });

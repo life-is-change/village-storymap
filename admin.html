@@ -524,6 +524,16 @@
     .village-list li strong { margin-right: auto; color: #1f3552; }
     .village-midterm { margin-top: 24px; border-top: 1px dashed rgba(31,53,82,.2); padding-top: 24px; }
     .village-midterm-label { display: inline-block; margin-bottom: 10px; padding: 5px 10px; border-radius: 999px; color: #7b5b11; background: #fff4cf; font-size: 12px; font-weight: 800; }
+    .teaching-project-card { margin-top: 16px; padding: 20px 24px; border: 1px solid rgba(31,53,82,.09); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: 0 10px 30px rgba(31,53,82,.07); }
+    .teaching-project-card h2 { margin: 0 0 6px; font-size: 19px; color: #1f3552; }
+    .teaching-project-card > p { margin: 0 0 16px; color: #718095; line-height: 1.6; }
+    .teaching-project-active { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg,#f2f8f2,#f7fafc); }
+    .teaching-project-details { display: grid; gap: 5px; }
+    .teaching-project-details strong { color: #1f3552; font-size: 16px; }
+    .teaching-project-details span { color: #718095; font-size: 13px; }
+    .teaching-project-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; gap: 12px; }
+    .village-status { padding: 4px 8px; border-radius: 999px; background: #eaf2eb; color: #4f6855; font-size: 12px; }
+    .village-lifecycle-note { color: #8b98a8; font-size: 12px; }
     .survey-admin-context { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:22px 28px; background:linear-gradient(125deg,#155c37,#2f7a2a); color:#fff; }
     .survey-admin-context div { display:grid; gap:5px; padding:13px 15px; border:1px solid rgba(255,255,255,.2); border-radius:13px; background:rgba(255,255,255,.08); }
     .survey-admin-context span { color:rgba(255,255,255,.72); font-size:12px; }
@@ -551,6 +561,8 @@
       .village-field-wide { grid-column: auto; }
       .village-step-body { padding: 0 18px 20px; }
       .village-step-head { padding: 18px; }
+      .teaching-project-form { grid-template-columns: 1fr; }
+      .teaching-project-active { align-items: flex-start; flex-direction: column; }
       .survey-admin-context, .admin-stat-grid { grid-template-columns:1fr 1fr; }
       .group-plan-admin-context { grid-template-columns:1fr; }
     }
@@ -559,7 +571,7 @@
 <body class="admin-page">
   <main class="admin-shell">
     <header class="admin-topbar">
-      <a class="admin-brand" href="./index.html" aria-label="返回平台首页">
+      <a class="admin-brand" href="./index.html" data-return-platform aria-label="返回平台首页">
         <span class="admin-brand-mark">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -568,13 +580,13 @@
         </span>
         <span>村庄规划互动平台 · 后台管理</span>
       </a>
-      <a class="admin-link-btn" href="./index.html">返回平台首页</a>
+      <a class="admin-link-btn" href="./index.html" data-return-platform>返回平台首页</a>
     </header>
 
     <section id="adminLocked" class="admin-locked" style="display:none;">
       <h1>权限不足</h1>
       <p>只有管理员账号才能访问后台管理平台。</p>
-      <a class="admin-btn admin-btn-primary" href="./index.html">返回平台首页</a>
+      <a class="admin-btn admin-btn-primary" href="./index.html" data-return-platform>返回平台首页</a>
     </section>
 
     <section id="adminContent" style="display:none;">
@@ -739,6 +751,20 @@
                 <p>本地工具负责生成标准 V0 数据包；后台只负责校验、上传、发布和教学项目绑定。</p>
                 <div class="village-admin-project">当前项目：<strong data-village-active-project>加载中…</strong></div>
               </div>
+              <section class="teaching-project-card" data-teaching-project-card>
+                <h2>教学项目</h2>
+                <p>一个项目代表一个学期。归档本学期后，可复用同一课程模板创建下学期项目；练习村庄会自动开放。</p>
+                <div class="teaching-project-active" data-teaching-project-active hidden>
+                  <div class="teaching-project-details" data-teaching-project-details></div>
+                  <button class="admin-btn admin-btn-danger" type="button" data-teaching-project-archive>结束并归档本学期</button>
+                </div>
+                <form class="teaching-project-form" data-teaching-project-create-form hidden>
+                  <label class="village-field">新学期项目名称<input class="admin-course-input" name="projectName" placeholder="例如：2027 春季村庄规划课程" required /></label>
+                  <label class="village-field">课程模板 ID<input class="admin-course-input" name="courseId" value="mibu-village-planning" required /></label>
+                  <label class="village-field">默认练习村庄<select class="admin-course-select" name="practiceVillageId" data-practice-village-select required><option value="">选择练习村庄</option></select></label>
+                  <button class="admin-btn admin-btn-primary" type="submit">创建新学期</button>
+                </form>
+              </section>
               <div class="village-workflow">
                 <section class="village-step" data-village-step="create">
                   <div class="village-step-head"><span class="village-step-number">1</span><div><h2>创建村庄</h2><p>先登记名称和大致边界。边界同时决定首页地图范围及本地处理范围。</p></div></div>
@@ -856,15 +882,15 @@
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js"></script>
-  <script defer src="features/villages/village-model.js?v=20260903-home-guide"></script>
-  <script defer src="features/villages/village-client.js"></script>
+  <script defer src="features/villages/village-model.js?v=20260907-practice-catalog"></script>
+  <script defer src="features/villages/village-client.js?v=20260907-practice-catalog"></script>
   <script defer src="features/villages/village-boundary.js"></script>
   <script defer src="features/geoprocessing/geoprocessing-client.js"></script>
-  <script defer src="features/admin/village-package.js"></script>
-  <script defer src="features/admin/village-admin.js"></script>
+  <script defer src="features/admin/village-package.js?v=20260907-arraybuffer"></script>
+  <script defer src="features/admin/village-admin.js?v=20260907-project-lifecycle"></script>
   <script defer src="features/admin/survey-admin.js"></script>
   <script defer src="features/admin/group-plan-admin.js?v=20260906-group-plan"></script>
   <script defer src="features/admin/course-admin.js"></script>
-  <script defer src="admin.js"></script>
+  <script defer src="admin.js?v=20260907-project-lifecycle"></script>
 </body>
 </html>

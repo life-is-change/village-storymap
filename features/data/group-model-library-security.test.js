@@ -57,3 +57,12 @@ test('placing or restoring a personal model verifies ownership of the target per
   assert.match(sql, /model_space_scope_mismatch/);
   assert.match(sql, /model_space_forbidden/);
 });
+
+test('shared-space models are readable by students but mutable only by administrators', () => {
+  const sql = readSql();
+  assert.match(sql, /scope_kind\s+in\s*\('group',\s*'personal',\s*'shared'\)/);
+  assert.match(sql, /p_scope_kind\s*=\s*'shared'/);
+  assert.match(sql, /space_type\s+in\s*\('practice_shared',\s*'formal_shared'\)/);
+  assert.match(sql, /current_profile_role\(\)\s*<>\s*'admin'/);
+  assert.match(sql, /split_part\(name,\s*'\/',\s*1\)\s*=\s*'shared'/);
+});

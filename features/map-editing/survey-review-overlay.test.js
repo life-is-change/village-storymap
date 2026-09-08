@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const overlay = require("./survey-review-overlay.js");
 
-test("review overlay keeps reviewed features visible and preserves alerts", () => {
+test("review overlay maps geometry to only reviewed, pending or editing", () => {
   const state = overlay.buildSurveyOverlayState({
     review: { geometryStatus: "modified" },
     lock: { editorName: "学生甲" },
@@ -13,8 +13,8 @@ test("review overlay keeps reviewed features visible and preserves alerts", () =
     focusPending: true
   });
   assert.equal(state.opacity, 0.18);
-  assert.equal(state.lockOutline, "blue");
-  assert.equal(state.issueMarker, "red");
+  assert.equal(state.geometryState, "editing");
+  assert.equal(state.badges.some((item) => item.key === "issue"), true);
   assert.equal(state.hidden, false);
 });
 
@@ -25,6 +25,7 @@ test("pending features remain fully visible in focus mode", () => {
   });
   assert.equal(state.opacity, 1);
   assert.equal(state.emphasis, "pending");
+  assert.equal(state.geometryState, "pending");
 });
 
 test("the OpenLayers style consumes the 18 percent review visual", () => {
@@ -32,6 +33,9 @@ test("the OpenLayers style consumes the 18 percent review visual", () => {
   assert.match(source, /surveyReviewVisual/);
   assert.match(source, /visualOpacity/);
   assert.match(source, /applyColorOpacity/);
+  assert.match(source, /geometryState/);
+  assert.match(source, /surveyReviewVisual\.badges/);
+  assert.match(source, /isFarSurveyZoom/);
 });
 
 test("geometry saves attach the held lock and current review revision", () => {

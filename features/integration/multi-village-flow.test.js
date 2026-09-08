@@ -14,10 +14,11 @@ test("正式村庄与米埗练习村庄共享同一教学项目但保持空间�
     },
     villages: [
       { id: "mibu", name: "米埗村", is_practice: true, status: "published" },
+      { id: "red", name: "红星村", is_practice: true, status: "published" },
       { id: "formal-1", name: "正式村", is_practice: false, status: "published" }
     ]
   });
-  assert.deepEqual(entries.map((entry) => entry.villageId), ["formal-1", "mibu"]);
+  assert.deepEqual(entries.map((entry) => entry.villageId), ["formal-1", "mibu", "red"]);
 
   const spaces = [
     { id: "m-personal", teaching_project_id: "p1", village_id: "mibu", space_type: "practice_personal", owner_id: "u1" },

@@ -8,6 +8,7 @@
 2. `Multi-Village Dual-Track Repair.sql`：初始化米埗村、迁移旧上下文、重建 RPC/RLS/索引/触发器。
 3. `Multi-Village Dual-Track Repair Follow-up.sql`：修补迁移后的兼容性和访问边界。
 4. `Village Dataset Package Storage.sql`：建立私有 V0 数据包存储桶及访问策略。
+5. `Teaching Project Practice Catalog and Village Lifecycle.sql`：一个教学项目对应一个学期，开放全部练习村庄目录，并提供村庄归档/删除生命周期。
 
 以上脚本应按迁移历史保留，不要因为“已经执行”就删除。
 
@@ -23,6 +24,7 @@
 
 ## 运维/诊断脚本
 
+- `Normalize Legacy Village Dataset Layer Types.sql`：把历史数据集清单中的 `buildings/roads` 一次性规范为 `building/road`；已规范的记录不会重复改动。
 - SQL Editor 中的队列暂停、恢复、心跳和计数查询属于运维片段，不是迁移；名称应以 `OPS -` 或 `DIAG -` 开头。
 - 带 `ROLLBACK` 的模型注册查询只用于手工测试，不应作为生产迁移执行。
 
