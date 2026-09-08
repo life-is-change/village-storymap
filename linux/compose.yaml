@@ -1,0 +1,111 @@
+name: village-platform
+
+services:
+  building:
+    image: "village-building-worker:${IMAGE_TAG:?set IMAGE_TAG to the full Git commit}"
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.building
+    command:
+      - python3
+      - -m
+      - uvicorn
+      - village_processing.building.service:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8021"
+    user: "10001:10001"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PLATFORM_WORK_ROOT: /work
+      PLATFORM_MODEL_DEVICE: cuda:0
+      PLATFORM_MODEL_CONFIG: /data/建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.py
+      PLATFORM_MODEL_CHECKPOINT: /data/建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.pth
+    volumes:
+      - type: bind
+        source: /srv/village-platform/data
+        target: /data
+        read_only: true
+      - type: bind
+        source: /var/lib/village-platform/runtime
+        target: /work
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8021/ready', timeout=170)
+      interval: 15s
+      timeout: 180s
+      retries: 5
+      start_period: 180s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+    networks:
+      - backend
+
+  geo-worker:
+    image: "village-geo-worker:${IMAGE_TAG:?set IMAGE_TAG to the full Git commit}"
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.geo
+    command:
+      - python
+      - -m
+      - village_processing
+      - worker
+    user: "10001:10001"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    env_file:
+      - /etc/village-platform/worker.env
+    volumes:
+      - type: bind
+        source: /srv/village-platform/data
+        target: /data
+        read_only: true
+      - type: bind
+        source: /var/lib/village-platform/runtime
+        target: /work
+    depends_on:
+      building:
+        condition: service_healthy
+        restart: true
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+    networks:
+      - backend
+      - egress
+
+networks:
+  backend:
+    internal: true
+  egress: {}
