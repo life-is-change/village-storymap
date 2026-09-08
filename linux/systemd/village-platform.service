@@ -1,5 +1,5 @@
 [Unit]
-Description=Village geoprocessing worker containers
+Description=Village geoprocessing and facade worker containers
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -8,6 +8,7 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/village-storymap/linux
+ExecStartPre=/usr/bin/bash /opt/village-storymap/linux/scripts/check-host.sh
 ExecStart=/usr/bin/docker compose --env-file /etc/village-platform/worker.env up -d --remove-orphans
 ExecStop=/usr/bin/docker compose --env-file /etc/village-platform/worker.env stop
 TimeoutStartSec=0

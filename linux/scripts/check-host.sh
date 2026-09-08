@@ -4,6 +4,7 @@ set -Eeuo pipefail
 REPO_ROOT=/opt/village-storymap
 DATA_ROOT=/srv/village-platform/data
 WORK_ROOT=/var/lib/village-platform/runtime
+MODEL_ROOT=/srv/village-platform/models
 ENV_FILE=/etc/village-platform/worker.env
 COMPOSE_FILE=${REPO_ROOT}/linux/compose.yaml
 CUDA_PROBE_IMAGE=nvidia/cuda:11.8.0-base-ubuntu22.04
@@ -26,11 +27,14 @@ require_command nvidia-smi
 require_command stat
 require_command grep
 require_command git
+require_command jq
 
 docker version >/dev/null 2>&1 || die "Docker daemon is unavailable"
 docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is unavailable"
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader \
   || die "NVIDIA driver cannot enumerate the GPU"
+nvidia-smi --query-gpu=name --format=csv,noheader | grep -F "RTX 4090" >/dev/null \
+  || die "RTX 4090 is not visible"
 
 docker run --rm --gpus all "${CUDA_PROBE_IMAGE}" nvidia-smi >/dev/null \
   || die "NVIDIA Container Toolkit cannot expose the GPU to ${CUDA_PROBE_IMAGE}"
@@ -39,6 +43,12 @@ require_file "${COMPOSE_FILE}"
 require_file "${ENV_FILE}"
 [[ -d "${DATA_ROOT}" ]] || die "data root not found: ${DATA_ROOT}"
 [[ -d "${WORK_ROOT}" ]] || die "runtime root not found: ${WORK_ROOT}"
+[[ -d "${MODEL_ROOT}" ]] || die "model root not found: ${MODEL_ROOT}"
+[[ -d "${MODEL_ROOT}/building-seg/repos/sam2" ]] \
+  || die "SAM2 repository not found under ${MODEL_ROOT}"
+require_file "${MODEL_ROOT}/building-seg/checkpoints/sam2.1_hiera_large.pt"
+[[ -d "${MODEL_ROOT}/huggingface" ]] || die "Grounding DINO cache not found"
+[[ -d "${MODEL_ROOT}/torch" ]] || die "LaMa torch cache not found"
 
 required_data=(
   "建筑矢量/input_tif/米埗村（洛一洛二洛三）.tif"
@@ -86,6 +96,9 @@ docker run --rm --user 10001:10001 \
 
 docker compose --env-file "${ENV_FILE}" --file "${COMPOSE_FILE}" config --quiet \
   || die "Compose configuration is invalid"
+published_facade_ports=$(docker compose --env-file "${ENV_FILE}" --file "${COMPOSE_FILE}" config --format json \
+  | jq -r '.services | [."facade-worker", ."facade-ml", ."facade-lama"] | map(.ports // []) | flatten | length')
+[[ "${published_facade_ports}" == "0" ]] || die "facade services must not publish host ports"
 
-printf 'PRECHECK_OK: host, GPU, data, runtime, and secret file are ready\n'
-printf 'REMOTE_CHECK_PENDING: Supabase private bucket geoprocessing-results is checked after startup\n'
+printf 'PRECHECK_OK: host, RTX 4090, data, facade models, runtime, and secret file are ready\n'
+printf 'REMOTE_CHECK_PENDING: Supabase private buckets geoprocessing-results, facade-generation, and house-photos are checked after startup\n'

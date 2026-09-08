@@ -52,6 +52,24 @@ sudo docker run --rm --gpus all \
 两个 `nvidia-smi` 都必须显示 RTX 4090。Docker 用户组等同于 root 权限，不要把
 不受信任的学生账号加入该组；本文命令默认使用 `sudo docker`。
 
+### Facade worker first install
+
+立面生成固定从专用分支安装，不能切换或提交到 `learning`：
+
+```bash
+sudo git clone --branch codex/facade-linux-worker https://github.com/life-is-change/village-storymap.git /opt/village-storymap
+sudo install -d -m 0750 /srv/village-platform/models /var/lib/village-platform/runtime
+sudo install -d -m 0750 /etc/village-platform
+sudo install -m 0600 /opt/village-storymap/linux/.env.example /etc/village-platform/worker.env
+cd /opt/village-storymap
+sudo docker compose --env-file /etc/village-platform/worker.env -f linux/compose.yaml build
+sudo docker compose --env-file /etc/village-platform/worker.env -f linux/compose.yaml up -d
+```
+
+在启动 Worker 前，先通过受控 Supabase SQL 流程执行
+`supabase_SQL/Facade Generation Worker Queue.sql`，确认 `facade-generation` 为私有桶，
+并确认 `facade_generation_runs` 已加入 Realtime。不得把 service-role 写入仓库。
+
 安装基础工具并取得仓库：
 
 ```bash
@@ -345,6 +363,44 @@ Linux canary 或上线后任务失败时：
 
 网页、Supabase 表、RPC 和 artifact 路径没有改变，因此不需要数据库回滚。若只需回滚
 Linux 镜像，也可以 checkout 记录的旧 commit、重建旧标签、验证后重新启动。
+
+## Facade Model Assets and Acceptance
+
+立面模型资源只存在服务器的 `/srv/village-platform/models`，不得经 GitHub 传输。至少准备：
+
+```text
+/srv/village-platform/models/building-seg/repos/sam2/
+/srv/village-platform/models/building-seg/checkpoints/sam2.1_hiera_large.pt
+/srv/village-platform/models/huggingface/       # Grounding DINO 离线缓存
+/srv/village-platform/models/torch/             # LaMa 离线缓存
+```
+
+`/var/lib/village-platform/runtime` 必须由 UID/GID `10001:10001` 写入；真实密钥只放在
+`/etc/village-platform/worker.env`。构建后的 `facade-worker` 必须报告 Blender 3.0.1，
+`facade-ml` 和 `facade-lama` 不发布宿主机端口。
+
+首次验收使用一张已有建筑历史照片：学生选择照片后，观察
+`queued_rectification -> rectifying -> awaiting_crop`；只有到 `awaiting_crop` 后才拖动屋顶线。
+确认后观察 `queued_generation -> generating -> completed`，在生成器和 Cesium 中分别加载
+GLB。随后再次调整屋顶线，确认第二版成功替换第一版；故意失败的新版不得覆盖上次成功 GLB。
+
+升级时固定到审核过的提交：
+
+```bash
+cd /opt/village-storymap
+git fetch origin
+git switch codex/facade-linux-worker
+git pull --ff-only
+git rev-parse HEAD
+sudoedit /etc/village-platform/worker.env
+sudo ./linux/scripts/check-host.sh
+sudo docker compose --env-file /etc/village-platform/worker.env -f linux/compose.yaml build
+sudo docker compose --env-file /etc/village-platform/worker.env -f linux/compose.yaml up -d --remove-orphans
+sudo ./linux/scripts/verify-deployment.sh
+```
+
+若验收失败，立即停止新立面任务，记录 run ID 和旧提交，执行 rollback：检出旧提交、把
+`IMAGE_TAG` 改回对应旧镜像标签、重新 `up -d`，并保留失败 run 用于诊断。GIS 队列不受影响。
 
 ## Troubleshooting
 

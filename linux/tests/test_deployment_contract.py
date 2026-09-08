@@ -320,7 +320,7 @@ def test_readme_covers_install_cutover_operations_and_rollback():
     assert "canary" in readme.lower()
     assert "select public.set_geoprocessing_queue_paused(true);" in readme
     assert "select public.set_geoprocessing_queue_paused(false);" in readme
-    assert "sudo git clone" not in readme
+    assert "sudo git clone --branch codex/facade-linux-worker" in readme
     assert "IMAGE_TAG" in readme
     assert "--env-file /etc/village-platform/worker.env" in readme
     build_section = readme.split("## Build and Start", 1)[1].split("## Verify the Deployment", 1)[0]
@@ -331,6 +331,36 @@ def test_readme_covers_install_cutover_operations_and_rollback():
     canary_section = readme.split("## Supabase Canary", 1)[1].split("## Zero-Loss Cutover", 1)[0]
     assert canary_section.index("set_geoprocessing_queue_paused(true)") < canary_section.index(
         "where status in")
+
+
+def test_facade_operations_are_installable_verifiable_and_reversible():
+    combined = "\n".join([
+        read("README.md"),
+        read("scripts/check-host.sh"),
+        read("scripts/verify-deployment.sh"),
+        (ROOT / "server/docs/supabase-worker-operations.md").read_text("utf-8"),
+    ])
+    for required in (
+        "codex/facade-linux-worker",
+        "/srv/village-platform/models",
+        "/var/lib/village-platform/runtime",
+        "/etc/village-platform/worker.env",
+        "Facade Generation Worker Queue.sql",
+        "docker compose",
+        "build",
+        "up -d",
+        "Blender 3.0.1",
+        "awaiting_crop",
+        "rollback",
+    ):
+        assert required in combined
+
+    check_host = read("scripts/check-host.sh")
+    for required in ("RTX 4090", "facade-generation", "house-photos", "sam2.1_hiera_large.pt"):
+        assert required in check_host
+    verify = read("scripts/verify-deployment.sh")
+    for required in ("facade-worker", "facade-ml", "facade-lama", "Blender 3.0.1"):
+        assert required in verify
 
 
 def test_deployment_sources_contain_no_embedded_secret_or_windows_path():
