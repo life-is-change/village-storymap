@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
 const PhotoMaterialBridge = window.PhotoMaterialBridge;
+const FacadeQueueClient = window.FacadeQueueClient;
 
 const els = {
   presetList: document.getElementById('presetList'),
@@ -67,7 +68,6 @@ const state = {
   currentUrl: null,
   currentModelInfo: null,
   mode: 'preset',
-  apiBase: 'http://127.0.0.1:8011',
   photoFile: null,
   photoUrl: null,
   rectifiedUrl: null,
@@ -91,7 +91,14 @@ const state = {
   targetName: '',
   targetDimensions: null,
   photoMaterials: [],
-  photoMaterialsStatus: 'loading'
+  photoMaterialsStatus: 'loading',
+  selectedPhotoId: '',
+  facadeContext: null,
+  facadeQueue: null,
+  currentFacadeRun: null,
+  facadeUnsubscribe: null,
+  facadePollTimer: null,
+  facadePollDelay: 2000
 };
 
 init();
@@ -99,6 +106,7 @@ init();
 async function init() {
   if (!PhotoWorkflow) throw new Error('photo-workflow.js 加载失败');
   if (!PhotoMaterialBridge) throw new Error('photo-material-bridge.js 加载失败');
+  if (!FacadeQueueClient) throw new Error('facade-queue-client.js 加载失败');
   parseTargetParams();
   initThree();
   bindEvents();
@@ -114,7 +122,6 @@ function parseTargetParams() {
   state.targetSpace = String(params.get('targetSpace') || 'current').trim() || 'current';
   state.targetName = String(params.get('targetName') || '').trim();
   state.targetDimensions = PhotoWorkflow.readTargetDimensions(params);
-  state.apiBase = String(params.get('apiBase') || state.apiBase).replace(/\/$/, '');
 }
 
 function bindEvents() {
@@ -122,7 +129,7 @@ function bindEvents() {
   els.presetModeBtn.addEventListener('click', () => setMode('preset'));
   els.photoModeBtn.addEventListener('click', () => setMode('photo'));
   els.photoInput.addEventListener('change', handlePhotoFiles);
-  window.addEventListener('message', handleExistingPhotoMaterialsMessage);
+  window.addEventListener('message', handleFacadeBridgeMessage);
   els.copyPromptBtn.addEventListener('click', copyCorrectionPrompt);
   els.roofCropHandle.addEventListener('pointerdown', startRoofCropDrag);
   els.roofCropHandle.addEventListener('pointermove', moveRoofCropDrag);
@@ -140,8 +147,8 @@ function bindEvents() {
   });
   els.recoverPhotoBtn.addEventListener('click', recoverCurrentPhoto);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || state.mode !== 'photo') clearPhotoServiceTimer();
-    else checkPhotoService();
+    if (document.hidden || state.mode !== 'photo') clearFacadePollTimer();
+    else if (state.currentFacadeRun) scheduleFacadePoll(0);
   });
   els.generateBtn.addEventListener('click', () => {
     if (state.mode === 'photo') generatePhotoModel();
@@ -168,12 +175,25 @@ function requestExistingPhotoMaterials() {
     type: PhotoMaterialBridge.REQUEST_TYPE,
     payload: { sourceCode: state.targetCode, spaceId: state.targetSpace }
   }, window.location.origin);
+  window.opener.postMessage({
+    type: PhotoMaterialBridge.CONTEXT_TYPE,
+    payload: { sourceCode: state.targetCode, spaceId: state.targetSpace }
+  }, window.location.origin);
 }
 
-function handleExistingPhotoMaterialsMessage(event) {
+function handleFacadeBridgeMessage(event) {
   if (event.origin !== window.location.origin || event.source !== window.opener) return;
   const message = event.data;
-  if (!message || message.type !== PhotoMaterialBridge.RESPONSE_TYPE) return;
+  if (!message) return;
+  if (message.type === PhotoMaterialBridge.CONTEXT_TYPE) {
+    void initializeFacadeQueue(message.payload || {});
+    return;
+  }
+  if (message.type === PhotoMaterialBridge.UPLOAD_RESPONSE_TYPE) {
+    void handleUploadedPhotoRecord(message.payload || {});
+    return;
+  }
+  if (message.type !== PhotoMaterialBridge.RESPONSE_TYPE) return;
   const payload = message.payload || {};
   if (String(payload.sourceCode || '').trim() !== state.targetCode) return;
   if (payload.error) {
@@ -182,6 +202,11 @@ function handleExistingPhotoMaterialsMessage(event) {
     return;
   }
   state.photoMaterials = PhotoMaterialBridge.normalizePhotoMaterials(payload.photos);
+  const selected = PhotoWorkflow.chooseDefaultHistoricalPhoto(
+    state.photoMaterials,
+    state.selectedPhotoId
+  );
+  state.selectedPhotoId = selected?.id || '';
   state.photoMaterialsStatus = state.photoMaterials.length ? 'ready' : 'empty';
   renderExistingPhotoMaterials(state.photoMaterials.length
     ? `找到 ${state.photoMaterials.length} 张，可直接选用`
@@ -199,7 +224,7 @@ function renderExistingPhotoMaterials(message, isError = false) {
 
   state.photoMaterials.forEach((photo) => {
     const card = document.createElement('article');
-    card.className = 'existing-photo-card';
+    card.className = `existing-photo-card ${photo.id === state.selectedPhotoId ? 'is-selected' : ''}`;
     const image = document.createElement('img');
     image.src = photo.url;
     image.alt = '已有建筑照片';
@@ -222,25 +247,188 @@ function renderExistingPhotoMaterials(message, isError = false) {
 async function useExistingPhotoMaterial(photo, button) {
   button.disabled = true;
   button.classList.add('is-loading');
-  button.textContent = '读取中…';
-  setStatus('正在读取已有建筑照片…');
+  button.textContent = '提交中…';
+  setStatus('正在把已有建筑照片提交到 4090 队列…');
   try {
-    const response = await fetch(photo.url, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`图片请求失败（${response.status}）`);
-    const blob = await response.blob();
-    const metadata = PhotoMaterialBridge.getPhotoFileMetadata(photo, blob.type);
-    const file = new File([blob], metadata.name, { type: metadata.type, lastModified: Date.now() });
-    const validation = PhotoWorkflow.validateStandardFacadeFiles([file]);
-    if (!validation.ok) throw new Error(validation.message);
-    await setPhotoFile(file);
+    if (!PhotoMaterialBridge.isQueueablePhoto(photo)) throw new Error('该历史照片缺少稳定的数据库 ID');
+    state.selectedPhotoId = photo.id;
+    renderExistingPhotoMaterials(`已选择照片 ${photo.id}`);
+    await submitFacadePhoto(photo);
   } catch (error) {
-    console.error('读取已有建筑照片失败：', error);
-    setStatus(`已有照片读取失败：${error.message}。你仍可上传本地照片。`, true);
+    console.error('提交已有建筑照片失败：', error);
+    setStatus(`已有照片提交失败：${error.message}`, true);
   } finally {
     button.disabled = false;
     button.classList.remove('is-loading');
     button.textContent = '使用这张';
   }
+}
+
+async function initializeFacadeQueue(context) {
+  if (String(context.sourceCode || '').trim() !== state.targetCode) return;
+  const openerClient = window.opener?.VillageSupabaseClient;
+  if (!openerClient) {
+    state.photoServiceStatus = 'offline';
+    renderPhotoServiceState();
+    setStatus('未取得平台登录会话，请从已登录的平台重新打开生成器。', true);
+    return;
+  }
+  state.facadeContext = {
+    courseId: String(context.courseId || ''),
+    spaceId: String(context.spaceId || state.targetSpace),
+    sourceCode: state.targetCode
+  };
+  if (!state.facadeContext.courseId) {
+    setStatus('当前课程上下文不完整，暂时不能提交生成任务。', true);
+    return;
+  }
+  state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient);
+  state.photoServiceStatus = 'online';
+  renderPhotoServiceState();
+  try {
+    const latest = await state.facadeQueue.findLatestRun({
+      spaceId: state.facadeContext.spaceId,
+      objectCode: state.targetCode
+    });
+    if (PhotoWorkflow.shouldRestoreFacadeRun(latest)) await attachFacadeRun(latest);
+  } catch (error) {
+    console.warn('恢复正立面任务失败：', error);
+  }
+}
+
+async function handleUploadedPhotoRecord(payload) {
+  if (String(payload.sourceCode || '').trim() !== state.targetCode) return;
+  if (payload.error) {
+    setStatus(`照片上传失败：${payload.error}`, true);
+    return;
+  }
+  const [photo] = PhotoMaterialBridge.normalizePhotoMaterials([payload.photo]);
+  if (!PhotoMaterialBridge.isQueueablePhoto(photo)) {
+    setStatus('照片已上传，但未返回可排队的数据库 ID。', true);
+    return;
+  }
+  state.photoMaterials = PhotoMaterialBridge.normalizePhotoMaterials([photo, ...state.photoMaterials]);
+  state.selectedPhotoId = photo.id;
+  state.photoFile = null;
+  renderExistingPhotoMaterials('新照片已保存，正在提交预处理');
+  await submitFacadePhoto(photo);
+}
+
+async function submitFacadePhoto(photo) {
+  if (!state.facadeQueue || !state.facadeContext) {
+    throw new Error('平台登录上下文尚未就绪');
+  }
+  const runId = await state.facadeQueue.submit({
+    courseId: state.facadeContext.courseId,
+    spaceId: state.facadeContext.spaceId,
+    objectCode: state.targetCode,
+    photoId: Number(photo.id)
+  });
+  const run = await state.facadeQueue.getRun(runId);
+  await attachFacadeRun(run);
+}
+
+async function attachFacadeRun(run) {
+  state.currentFacadeRun = run;
+  state.photoJobId = String(run?.id || '');
+  state.photoWorkflowState = String(run?.status || 'idle');
+  state.facadeUnsubscribe?.();
+  state.facadeUnsubscribe = state.facadeQueue.subscribe(state.photoJobId, (event) => {
+    if (event?.new) void applyFacadeRun(event.new);
+  });
+  await applyFacadeRun(run);
+  scheduleFacadePoll();
+}
+
+async function applyFacadeRun(run) {
+  state.currentFacadeRun = run;
+  state.photoWorkflowState = String(run?.status || 'idle');
+  const presentation = PhotoWorkflow.facadeStatusPresentation(run, state.photoServiceStatus);
+  setProgress(presentation.progress, presentation.message);
+  setStatus(presentation.message, run?.status === 'failed');
+  renderFacadeStep(run?.status);
+  if (PhotoWorkflow.canConfirmCrop(run)) {
+    await loadRectifiedPreview(run);
+  }
+  if (run?.status === 'completed') {
+    await loadCompletedFacadeModel(run);
+  }
+  if (presentation.terminal) clearFacadePollTimer();
+}
+
+function renderFacadeStep(status) {
+  if (['queued_rectification', 'claimed_rectification'].includes(status)) setPhotoStep('identify');
+  else if (status === 'rectifying') setPhotoStep('rectify');
+  else if (status === 'awaiting_crop') setPhotoStep('crop');
+  else if (['queued_generation', 'claimed_generation', 'generating', 'completed'].includes(status)) setPhotoStep('generate');
+  else if (status === 'failed') setPhotoStep('rectify', true);
+}
+
+async function facadeArtifact(runId, artifactType) {
+  const artifacts = await state.facadeQueue.listArtifacts(runId);
+  return [...(artifacts || [])]
+    .reverse()
+    .find((item) => item.artifact_type === artifactType) || null;
+}
+
+async function loadRectifiedPreview(run) {
+  const artifact = await facadeArtifact(run.id, 'rectified_preview');
+  if (!artifact) throw new Error('正立面预处理未返回预览图');
+  const url = await state.facadeQueue.createArtifactUrl(artifact.storage_path);
+  state.rectifiedUrl = url;
+  state.photoImage = await loadImage(url);
+  els.photoPreview.src = url;
+  els.photoPreview.hidden = false;
+  els.photoPreviewEmpty.hidden = true;
+  els.roofCropShade.hidden = false;
+  els.roofCropHandle.hidden = false;
+  els.photoFallbackActions.hidden = true;
+  updateCropOverlay();
+  state.roofAnalysisStatus = 'fallback';
+  state.roofAnalysis = PhotoWorkflow.normalizeRoofAnalysis({
+    type: { value: els.roofTypeInput.value, confidence: 0, source: 'manual' },
+    material: { value: els.roofMaterialInput.value, confidence: 0, source: 'manual' },
+    pitch: { value: els.roofPitchInput.value, confidence: 0, source: 'manual' },
+    crop_top: state.cropTop,
+    revision: Number(run.generation_revision || 0),
+    warnings: ['请确认屋顶线']
+  });
+  renderRoofAnalysis();
+  els.activeLabel.textContent = '规范正立面：等待确认屋顶线';
+}
+
+async function loadCompletedFacadeModel(run) {
+  const artifact = await facadeArtifact(run.id, 'building_glb');
+  if (!artifact) throw new Error('任务已完成，但未找到 GLB');
+  const url = await state.facadeQueue.createArtifactUrl(artifact.storage_path);
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`GLB 下载失败（${response.status}）`);
+  const blob = await response.blob();
+  const arrayBuffer = await blob.arrayBuffer();
+  const group = await parseGlb(arrayBuffer);
+  replaceModel(group);
+  frameModel(group);
+  state.currentBlob = blob;
+  state.currentUrl = URL.createObjectURL(blob);
+  const building = artifact.source?.building || {
+    wall_height: Number(els.lengthInput.value),
+    roof_height: 0,
+    width: Number(els.lengthInput.value),
+    depth: Number(els.widthInput.value)
+  };
+  state.currentModelInfo = {
+    id: `photo-${run.id}`,
+    metrics: PhotoWorkflow.photoModelMetrics(building)
+  };
+  els.downloadBtn.disabled = false;
+  els.sendBtn.disabled = false;
+  const link = document.createElement('a');
+  link.href = state.currentUrl;
+  link.download = `${state.currentModelInfo.id}.glb`;
+  link.textContent = '下载标准正立面贴图建筑 GLB';
+  els.downloadLink.replaceChildren(link);
+  setProgress(100, '标准正立面贴图建筑生成完成');
+  setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
 }
 
 function setMode(mode) {
@@ -257,7 +445,7 @@ function setMode(mode) {
     ? '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面宽高比自动计算。'
     : '默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。';
   if (isPhoto) {
-    checkPhotoService();
+    renderPhotoServiceState();
     els.activeLabel.textContent = state.photoFile
       ? `建筑实拍图：${state.photoFile.name}`
       : '建筑实拍图：未选择';
@@ -267,7 +455,7 @@ function setMode(mode) {
       els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
     }
   } else {
-    clearPhotoServiceTimer();
+    clearFacadePollTimer();
     els.activeLabel.textContent = `当前：${state.selected?.id || '-'}`;
     setProgress(state.presets.length ? 20 : 0, state.presets.length ? '预设已就绪' : '等待加载预设');
     setStatus('预设模式保持原有四立面生成流程。');
@@ -302,7 +490,6 @@ async function setPhotoFile(file) {
   state.photoFile = file;
   state.photoUrl = URL.createObjectURL(file);
   state.rectifiedUrl = null;
-  state.photoJobId = '';
   state.cropTop = 0.12;
   state.photoWorkflowState = 'idle';
   resetRoofAnalysis();
@@ -318,9 +505,19 @@ async function setPhotoFile(file) {
     els.roofCropHandle.hidden = true;
     els.photoGenerateBtn.disabled = true;
     updateCropOverlay();
-    els.activeLabel.textContent = `建筑实拍图：${file.name}`;
-    setStatus('原始照片已就绪，正在预处理成规范正立面；完成后才会显示屋顶裁剪线。');
-    await rectifyUploadedPhoto();
+    els.activeLabel.textContent = `待保存实拍图：${file.name}`;
+    setStatus('正在把照片保存到当前建筑的素材库…');
+    if (!window.opener || window.opener.closed) {
+      throw new Error('请从平台建筑详情打开生成器后再上传');
+    }
+    window.opener.postMessage({
+      type: PhotoMaterialBridge.UPLOAD_REQUEST_TYPE,
+      payload: {
+        sourceCode: state.targetCode,
+        spaceId: state.targetSpace,
+        file
+      }
+    }, window.location.origin);
   } catch (error) {
     console.error(error);
     state.photoFile = null;
@@ -389,7 +586,7 @@ function renderRoofAnalysis() {
     els.roofAnalysisSummary.textContent = message;
   }
   const analysisReady = ['ready', 'fallback'].includes(state.roofAnalysisStatus);
-  els.photoGenerateBtn.disabled = state.photoWorkflowState !== 'rectified' || !analysisReady;
+  els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun) || !analysisReady;
 }
 
 function syncRoofInputs() {
@@ -406,233 +603,78 @@ function setRoofOverride(field, value) {
 }
 
 function scheduleRoofAnalysis(delay = 350) {
-  if (!state.photoJobId || state.photoWorkflowState !== 'rectified') return;
+  if (!state.photoJobId || !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun)) return;
   clearRoofAnalysisTimer();
-  state.roofAnalysisAbortController?.abort();
-  state.roofAnalysisAbortController = null;
-  const next = PhotoWorkflow.nextRoofAnalysisState({
-    cropTop: state.cropTop,
-    revision: state.roofAnalysisRevision,
-    status: state.roofAnalysisStatus,
-    analysis: state.roofAnalysis,
-    overrides: state.roofOverrides
-  }, { cropTop: state.cropTop });
-  state.roofAnalysis = next.analysis;
-  state.roofAnalysisStatus = next.status;
-  state.roofAnalysisRevision = next.revision;
+  state.roofAnalysisStatus = 'pending';
   renderRoofAnalysis();
-  const revision = state.roofAnalysisRevision;
-  state.roofAnalysisTimer = window.setTimeout(
-    () => requestRoofAnalysis(revision),
-    delay
-  );
-}
-
-async function requestRoofAnalysis(revision) {
-  state.roofAnalysisTimer = null;
-  const controller = new AbortController();
-  state.roofAnalysisAbortController = controller;
-  try {
-    const formData = PhotoWorkflow.buildRoofAnalysisForm({
-      cropTop: state.cropTop,
-      revision,
-      overrides: state.roofOverrides
+  state.roofAnalysisTimer = window.setTimeout(() => {
+    state.roofAnalysisTimer = null;
+    state.roofAnalysisRevision += 1;
+    state.roofAnalysis = PhotoWorkflow.normalizeRoofAnalysis({
+      type: { value: els.roofTypeInput.value, confidence: 1, source: 'manual' },
+      material: { value: els.roofMaterialInput.value, confidence: 1, source: 'manual' },
+      pitch: { value: els.roofPitchInput.value, confidence: 1, source: 'manual' },
+      crop_top: state.cropTop,
+      revision: state.roofAnalysisRevision,
+      warnings: []
     });
-    const job = await apiRequest(
-      PhotoWorkflow.buildRoofAnalysisPath(state.photoJobId),
-      { method: 'POST', body: formData, signal: controller.signal }
-    );
-    if (revision !== state.roofAnalysisRevision) return;
-    state.roofAnalysis = PhotoWorkflow.normalizeRoofAnalysis(job.roof_analysis);
-    state.roofAnalysisStatus = ['type', 'material', 'pitch']
-      .some((key) => state.roofAnalysis[key].source === 'fallback')
-      ? 'fallback'
-      : 'ready';
-    syncRoofInputs();
-  } catch (error) {
-    if (error?.name === 'AbortError' || revision !== state.roofAnalysisRevision) return;
-    console.error(error);
-    state.roofAnalysis = null;
-    state.roofAnalysisStatus = 'error';
-  } finally {
-    if (state.roofAnalysisAbortController === controller) {
-      state.roofAnalysisAbortController = null;
-    }
+    state.roofAnalysisStatus = 'ready';
     renderRoofAnalysis();
+  }, delay);
+}
+
+function clearFacadePollTimer() {
+  if (state.facadePollTimer !== null) {
+    window.clearTimeout(state.facadePollTimer);
+    state.facadePollTimer = null;
   }
 }
 
-function clearPhotoServiceTimer() {
-  if (state.photoServiceTimer !== null) {
-    window.clearTimeout(state.photoServiceTimer);
-    state.photoServiceTimer = null;
-  }
-}
-
-function schedulePhotoServiceCheck() {
-  clearPhotoServiceTimer();
-  if (state.mode !== 'photo' || document.hidden) return;
-  state.photoServiceTimer = window.setTimeout(checkPhotoService, 3000);
+function scheduleFacadePoll(delay = state.facadePollDelay) {
+  clearFacadePollTimer();
+  if (!state.facadeQueue || !state.photoJobId || state.mode !== 'photo' || document.hidden) return;
+  state.facadePollTimer = window.setTimeout(pollFacadeRun, delay);
 }
 
 function renderPhotoServiceState() {
-  const presentation = PhotoWorkflow.serviceStatusPresentation(state.photoServiceStatus);
-  els.photoServiceState.dataset.tone = presentation.tone;
-  els.photoServiceMessage.textContent = presentation.message;
-  els.recoverPhotoBtn.hidden = !presentation.canRecover;
+  const online = state.photoServiceStatus === 'online';
+  els.photoServiceState.dataset.tone = online ? 'online' : 'offline';
+  els.photoServiceMessage.textContent = online
+    ? '4090 远程生成队列已连接。'
+    : '等待平台登录会话或 4090 队列连接。';
+  els.recoverPhotoBtn.hidden = online;
 }
 
-async function checkPhotoService() {
-  clearPhotoServiceTimer();
-  if (state.mode !== 'photo' || document.hidden) return;
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 1500);
+async function pollFacadeRun() {
+  clearFacadePollTimer();
+  if (!state.facadeQueue || !state.photoJobId || document.hidden) return;
   try {
-    const response = await fetch(`${state.apiBase}/health`, {
-      cache: 'no-store',
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error(`health ${response.status}`);
-    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
-      state.photoServiceStatus,
-      'success',
-      state.photoServicePendingPhoto && Boolean(state.photoFile)
-    );
-  } catch (_) {
-    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
-      state.photoServiceStatus,
-      'failure',
-      state.photoServicePendingPhoto && Boolean(state.photoFile)
-    );
-    schedulePhotoServiceCheck();
-  } finally {
-    window.clearTimeout(timeout);
+    const run = await state.facadeQueue.getRun(state.photoJobId);
+    state.photoServiceStatus = 'online';
+    state.facadePollDelay = 2000;
+    await applyFacadeRun(run);
+  } catch (error) {
+    console.warn('轮询正立面任务失败：', error);
+    state.photoServiceStatus = 'offline';
+    state.facadePollDelay = Math.min(15000, Math.max(2000, state.facadePollDelay * 1.6));
     renderPhotoServiceState();
+  }
+  if (!['completed', 'failed', 'canceled'].includes(state.currentFacadeRun?.status)) {
+    scheduleFacadePoll();
   }
 }
 
 async function recoverCurrentPhoto() {
-  if (state.photoRecoveryPromise) return state.photoRecoveryPromise;
-  if (!state.photoFile) {
-    els.photoInput.value = '';
-    els.photoInput.click();
-    return;
+  if (state.currentFacadeRun) {
+    state.facadePollDelay = 2000;
+    await pollFacadeRun();
+  } else {
+    requestExistingPhotoMaterials();
   }
-  state.photoRecoveryPromise = (async () => {
-    els.recoverPhotoBtn.disabled = true;
-    state.photoJobId = '';
-    state.photoWorkflowState = 'idle';
-    state.photoServicePendingPhoto = false;
-    state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
-      state.photoServiceStatus,
-      'retry',
-      true
-    );
-    renderPhotoServiceState();
-    await rectifyUploadedPhoto();
-  })();
-  try {
-    await state.photoRecoveryPromise;
-  } finally {
-    state.photoRecoveryPromise = null;
-    els.recoverPhotoBtn.disabled = false;
-  }
-}
-
-async function rectifyUploadedPhoto() {
-  if (!state.photoFile) return;
-  try {
-    await apiRequest('/health');
-    state.photoServicePendingPhoto = false;
-    state.photoServiceStatus = 'online';
-    renderPhotoServiceState();
-    const fields = PhotoWorkflow.buildBuildingFields(readPhotoBuildingConfig());
-    const formData = new FormData();
-    Object.entries(fields).forEach(([key, value]) => formData.append(key, value));
-    formData.append('photos', state.photoFile, state.photoFile.name);
-
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'upload');
-    setPhotoStep('upload');
-    setProgress(12, '上传建筑实拍图...');
-    const created = await apiRequest('/api/jobs', { method: 'POST', body: formData });
-    state.photoJobId = created.id;
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'uploaded');
-    setPhotoStep('identify');
-    setProgress(34, 'DINO＋SAM2.1 识别建筑和杂物，LaMa 清理后进行 H0 网格正立面化...');
-    const rectified = await apiRequest(PhotoWorkflow.buildRectifyPath(created.id), { method: 'POST' });
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'rectified');
-    await applyRectifiedJob(rectified, false);
-  } catch (error) {
-    console.error(error);
-    try {
-      state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'failed');
-    } catch (_) {
-      state.photoWorkflowState = 'error';
-    }
-    els.roofCropShade.hidden = true;
-    els.roofCropHandle.hidden = true;
-    els.photoGenerateBtn.disabled = true;
-    const serviceOffline = PhotoWorkflow.isLocalServiceNetworkError(error);
-    els.photoFallbackActions.hidden = serviceOffline;
-    if (serviceOffline) {
-      state.photoServicePendingPhoto = Boolean(state.photoFile);
-      state.photoServiceStatus = PhotoWorkflow.transitionServiceState(
-        state.photoServiceStatus,
-        'failure',
-        state.photoServicePendingPhoto
-      );
-      renderPhotoServiceState();
-      schedulePhotoServiceCheck();
-    }
-    setPhotoStep('rectify', true);
-    setProgress(34, '自动正立面校正未完成');
-    setStatus(`正立面预处理未完成：${PhotoWorkflow.friendlyServiceError(error)}`, true);
-  }
-}
-
-async function applyRectifiedJob(rectified, originalFallback) {
-    const previewName = String(rectified.artifacts?.rectified_preview || '').split('/').pop();
-    if (!previewName) throw new Error('正立面预处理未返回预览图');
-    const response = await fetch(`${state.apiBase}/api/jobs/${rectified.id}/artifacts/${previewName}`, { cache: 'no-store' });
-    if (!response.ok) throw await responseError(response);
-    const blob = await response.blob();
-    state.rectifiedUrl = URL.createObjectURL(blob);
-    state.photoImage = await loadImage(state.rectifiedUrl);
-    els.photoPreview.src = state.rectifiedUrl;
-    els.activeLabel.textContent = originalFallback
-      ? `原图继续：${state.photoFile.name}`
-      : `标准正立面：${state.photoFile.name}`;
-    els.roofCropShade.hidden = false;
-    els.roofCropHandle.hidden = false;
-    els.photoGenerateBtn.disabled = true;
-    els.photoFallbackActions.hidden = true;
-    updateCropOverlay();
-    setPhotoStep('crop');
-    setProgress(48, '规范正立面已就绪');
-    setStatus(originalFallback
-      ? '已按你的选择保留原图。现在请把青色分界线拖到屋顶下沿，再生成模型。'
-      : '正立面预处理完成。现在请把青色分界线拖到屋顶下沿，再生成模型。');
-    scheduleRoofAnalysis(0);
 }
 
 async function useOriginalPhoto() {
-  if (!state.photoJobId || state.photoWorkflowState !== 'error') return;
-  els.useOriginalBtn.disabled = true;
-  els.retryPhotoBtn.disabled = true;
-  try {
-    setProgress(38, '正在保留原图…');
-    const result = await apiRequest(
-      PhotoWorkflow.buildOriginalFallbackPath(state.photoJobId),
-      { method: 'POST' }
-    );
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'use_original');
-    await applyRectifiedJob(result, true);
-  } catch (error) {
-    setStatus(`使用原图继续失败：${PhotoWorkflow.friendlyServiceError(error)}`, true);
-  } finally {
-    els.useOriginalBtn.disabled = false;
-    els.retryPhotoBtn.disabled = false;
-  }
+  setStatus('远程流程会保留原照片，请重新选择照片后提交。', true);
 }
 
 function setPhotoStep(activeStep, isError = false) {
@@ -826,7 +868,7 @@ async function generateModel() {
 }
 
 async function generatePhotoModel() {
-  if (!state.photoJobId || state.photoWorkflowState !== 'rectified') {
+  if (!state.facadeQueue || !state.photoJobId || !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun)) {
     setStatus('请先等待原始照片完成正立面预处理。', true);
     return;
   }
@@ -843,82 +885,25 @@ async function generatePhotoModel() {
     els.sendBtn.disabled = true;
     clearCurrentUrl();
 
-    await apiRequest('/health');
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'prepare');
-    setProgress(58, '按正立面结果切除屋顶...');
-    const prepared = await apiRequest(
-      PhotoWorkflow.buildDirectPreparePath(state.photoJobId, state.cropTop),
-      { method: 'POST' }
-    );
-    els.photoHeightSummary.querySelector('strong').textContent = PhotoWorkflow.photoHeightSummary(prepared.building);
-
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'prepared');
-    setProgress(70, 'Blender 正在生成贴图建筑...');
-    const generated = await apiRequest(`/api/jobs/${prepared.id}/generate`, { method: 'POST' });
-
-    const artifactUrl = `${state.apiBase}/api/jobs/${generated.id}/artifacts/building.glb`;
-    const artifactResponse = await fetch(artifactUrl, { cache: 'no-store' });
-    if (!artifactResponse.ok) throw await responseError(artifactResponse);
-    const blob = await artifactResponse.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-    const group = await parseGlb(arrayBuffer);
-    replaceModel(group);
-    frameModel(group);
-
-    state.currentBlob = blob;
-    state.currentUrl = URL.createObjectURL(blob);
-    state.currentModelInfo = {
-      id: `photo-${generated.id}`,
-      metrics: PhotoWorkflow.photoModelMetrics(generated.building)
-    };
-    state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'generated');
-    els.downloadBtn.disabled = false;
-    els.sendBtn.disabled = false;
-    const link = document.createElement('a');
-    link.href = state.currentUrl;
-    link.download = `${state.currentModelInfo.id}.glb`;
-    link.textContent = '下载标准正立面贴图建筑 GLB';
-    els.downloadLink.replaceChildren(link);
-    setProgress(100, '标准正立面贴图建筑生成完成');
-    setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
+    await state.facadeQueue.confirmCrop(state.photoJobId, {
+      cropTop: state.cropTop,
+      roofType: els.roofTypeInput.value,
+      buildingWidth: Number(els.lengthInput.value),
+      buildingDepth: Number(els.widthInput.value)
+    });
+    state.photoWorkflowState = 'queued_generation';
+    setProgress(55, '已确认屋顶线，等待 4090 生成模型…');
+    const run = await state.facadeQueue.getRun(state.photoJobId);
+    await applyFacadeRun(run);
+    scheduleFacadePoll(0);
   } catch (error) {
     console.error(error);
-    if (state.photoWorkflowState !== 'error') {
-      try {
-        state.photoWorkflowState = PhotoWorkflow.transitionJobState(state.photoWorkflowState, 'failed');
-      } catch (_) {
-        state.photoWorkflowState = 'error';
-      }
-    }
     setProgress(0, '生成失败');
-    setStatus(`标准正立面贴图生成失败：${PhotoWorkflow.friendlyServiceError(error)}`, true);
+    setStatus(`提交生成失败：${String(error?.message || error)}`, true);
   } finally {
     els.generateBtn.disabled = false;
     renderRoofAnalysis();
   }
-}
-
-async function apiRequest(path, options = {}) {
-  let response;
-  try {
-    response = await fetch(`${state.apiBase}${path}`, { cache: 'no-store', ...options });
-  } catch (error) {
-    if (error?.name === 'AbortError') throw error;
-    const serviceError = new Error(PhotoWorkflow.friendlyServiceError(error));
-    serviceError.code = 'LOCAL_SERVICE_UNREACHABLE';
-    throw serviceError;
-  }
-  if (!response.ok) throw await responseError(response);
-  return response.json();
-}
-
-async function responseError(response) {
-  let detail = '';
-  try {
-    const payload = await response.json();
-    detail = typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail);
-  } catch (_) {}
-  return new Error(detail || `本地处理服务返回 ${response.status}`);
 }
 
 function parseGlb(arrayBuffer) {

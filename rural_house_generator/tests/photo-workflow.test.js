@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   CORRECTION_PROMPT,
@@ -30,8 +32,54 @@ const {
   transitionJobState,
   transitionServiceState,
   friendlyServiceError,
-  validateStandardFacadeFiles
+  validateStandardFacadeFiles,
+  normalizeFacadeRun,
+  transitionFacadeState,
+  facadeStatusPresentation,
+  chooseDefaultHistoricalPhoto,
+  canConfirmCrop,
+  shouldRestoreFacadeRun
 } = require('../photo-workflow.js');
+
+test('remote facade flow pauses at awaiting_crop', () => {
+  assert.equal(transitionFacadeState('queued_rectification', 'claimed'), 'rectifying');
+  assert.equal(transitionFacadeState('rectifying', 'rectified'), 'awaiting_crop');
+  assert.equal(canConfirmCrop({ status: 'awaiting_crop' }), true);
+});
+
+test('completed run may regenerate without rectifying again', () => {
+  assert.equal(transitionFacadeState('completed', 'confirm_crop'), 'queued_generation');
+  assert.equal(canConfirmCrop({ status: 'completed' }), true);
+});
+
+test('historical photos default to newest but preserve manual selection', () => {
+  const photos = [{ id: '9' }, { id: '7' }];
+  assert.equal(chooseDefaultHistoricalPhoto(photos)?.id, '9');
+  assert.equal(chooseDefaultHistoricalPhoto(photos, '7')?.id, '7');
+  assert.equal(chooseDefaultHistoricalPhoto(photos, 'missing')?.id, '9');
+});
+
+test('reload restores the newest active or completed run for the building', () => {
+  assert.equal(shouldRestoreFacadeRun({ status: 'rectifying' }), true);
+  assert.equal(shouldRestoreFacadeRun({ status: 'completed' }), true);
+  assert.equal(shouldRestoreFacadeRun({ status: 'failed' }), false);
+  assert.deepEqual(normalizeFacadeRun({ id: 'r1', current_stage: 'mesh', progress: 72 }), {
+    id: 'r1', status: '', stage: 'mesh', progress: 72, errorCode: '', errorMessage: ''
+  });
+  assert.match(facadeStatusPresentation({ status: 'awaiting_crop', progress: 50 }).message, /拖动屋顶线/);
+});
+
+test('photo mode uses the Supabase queue instead of direct localhost job APIs', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(source, /FacadeQueueClient\.createFacadeQueueClient/);
+  assert.match(source, /findLatestRun/);
+  assert.match(source, /confirmCrop/);
+  assert.match(source, /createArtifactUrl/);
+  assert.doesNotMatch(source, /apiRequest\(['"`]\/health/);
+  assert.doesNotMatch(source, /apiRequest\(['"`]\/api\/jobs/);
+  assert.doesNotMatch(source, /buildDirectPreparePath\(/);
+  assert.doesNotMatch(source, /buildRectifyPath\(/);
+});
 
 test('automatic roof summary keeps the normal workflow to one compact line', () => {
   const analysis = {

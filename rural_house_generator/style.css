@@ -169,6 +169,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .existing-photo-heading span[data-tone="error"]{color:#b42318}
 .existing-photo-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .existing-photo-card{min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff}
+.existing-photo-card.is-selected{border-color:#28c7d9;box-shadow:0 0 0 2px rgba(40,199,217,.2)}
 .existing-photo-card img{display:block;width:100%;height:104px;object-fit:cover;background:#edf2f5}
 .existing-photo-card footer{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px}
 .existing-photo-card small{min-width:0;overflow:hidden;color:var(--muted);font-size:11px;text-overflow:ellipsis;white-space:nowrap}

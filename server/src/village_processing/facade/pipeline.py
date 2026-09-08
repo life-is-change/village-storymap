@@ -132,7 +132,10 @@ class FacadePipeline:
             run,
             self.worker_id,
             generated.glb,
-            {"phase": "generation", "generation_revision": run.generation_revision},
+            {
+                "phase": "generation",
+                "generation_revision": run.generation_revision,
+                "building": generated.building,
+            },
         )
         return generated
-

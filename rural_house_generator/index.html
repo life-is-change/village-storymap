@@ -78,13 +78,13 @@
           </div>
           <div id="photoServiceState" class="photo-service-state" data-tone="checking">
             <span class="photo-service-dot" aria-hidden="true"></span>
-            <p id="photoServiceMessage">正在检测本地生成服务…</p>
+            <p id="photoServiceMessage">正在连接 4090 远程生成队列…</p>
             <button id="recoverPhotoBtn" type="button" class="secondary" hidden>
               重新处理当前照片
             </button>
           </div>
           <div class="external-correction">
-            <p>系统会先在本地自动处理；豆包仅作为效果不理想时的备用入口。</p>
+            <p>系统会在 4090 工作站自动处理；豆包仅作为效果不理想时的备用入口。</p>
             <textarea id="correctionPrompt" rows="4" readonly></textarea>
             <div class="external-correction-actions">
               <a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包</a>
@@ -100,7 +100,7 @@
           </section>
           <label class="upload-box" for="photoInput">
             <strong>上传建筑实拍图</strong>
-            <span>仅一张 JPG / PNG，不超过 10 MB；系统先生成正立面，完成后才显示屋顶裁剪线</span>
+            <span>仅一张 JPG / PNG，不超过 10 MB；照片会先存入当前建筑素材库，再交给 4090 处理</span>
             <input id="photoInput" type="file" accept="image/jpeg,image/png" />
           </label>
           <ol id="photoSteps" class="photo-steps" aria-label="照片处理步骤">

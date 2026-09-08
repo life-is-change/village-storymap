@@ -9,6 +9,9 @@ test('photo material bridge exports the generator message contract', () => {
   const bridge = require('./photo-material-bridge.js');
   assert.equal(bridge.REQUEST_TYPE, 'village-house-generator:request-photo-materials');
   assert.equal(bridge.RESPONSE_TYPE, 'village-house-generator:photo-materials');
+  assert.equal(bridge.CONTEXT_TYPE, 'village-house-generator:facade-context');
+  assert.equal(bridge.UPLOAD_REQUEST_TYPE, 'village-house-generator:upload-photo');
+  assert.equal(bridge.UPLOAD_RESPONSE_TYPE, 'village-house-generator:photo-uploaded');
 });
 
 test('normalizes and deduplicates existing building photos newest first', () => {
@@ -59,11 +62,22 @@ test('generator page includes an existing-photo selector before local upload', (
   assert.match(html, /app\.js\?v=20260812-existing-photos/);
 });
 
-test('generator requests materials and routes a selected card through setPhotoFile', () => {
+test('generator requests materials and submits a selected stable photo id', () => {
   const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 
   assert.match(source, /requestExistingPhotoMaterials\s*\(/);
   assert.match(source, /PhotoMaterialBridge\.REQUEST_TYPE/);
   assert.match(source, /PhotoMaterialBridge\.RESPONSE_TYPE/);
-  assert.match(source, /await\s+setPhotoFile\(file\)/);
+  assert.match(source, /await\s+submitFacadePhoto\(photo\)/);
+});
+
+test('historical photo messages retain stable database ids for queued work', () => {
+  const bridge = require('./photo-material-bridge.js');
+  const [photo] = bridge.normalizePhotoMaterials([
+    { id: 42, photo_url: 'https://example.test/front.jpg', created_at: '2026-08-11T08:00:00Z' }
+  ]);
+
+  assert.equal(photo.id, '42');
+  assert.equal(bridge.isQueueablePhoto(photo), true);
+  assert.equal(bridge.isQueueablePhoto({ id: '', url: 'blob:test' }), false);
 });
