@@ -14,6 +14,12 @@ EXPECTED_FILES = {
     "Dockerfile.building",
     "Dockerfile.building.dockerignore",
     "requirements-building.txt",
+    "Dockerfile.facade-worker",
+    "Dockerfile.facade-ml",
+    "Dockerfile.facade-lama",
+    "requirements-facade-worker.txt",
+    "requirements-facade-ml.txt",
+    "requirements-facade-lama.txt",
     ".env.example",
     "scripts/check-host.sh",
     "scripts/verify-deployment.sh",
@@ -43,7 +49,9 @@ def test_compose_keeps_building_private_and_worker_outbound_only():
     building = compose["services"]["building"]
     worker = compose["services"]["geo-worker"]
 
-    assert set(compose["services"]) == {"building", "geo-worker"}
+    assert set(compose["services"]) == {
+        "building", "geo-worker", "facade-worker", "facade-ml", "facade-lama"
+    }
     assert compose["services"]["building"]["image"].startswith(
         "village-building-worker:${IMAGE_TAG:?")
     assert compose["services"]["geo-worker"]["image"].startswith(
@@ -62,6 +70,57 @@ def test_compose_keeps_building_private_and_worker_outbound_only():
     assert building["healthcheck"]["timeout"] == "180s"
     assert "env_file" not in building
     assert worker["env_file"] == ["/etc/village-platform/worker.env"]
+
+
+def test_facade_services_are_private_least_privilege_and_share_work():
+    compose = load_compose()
+    services = compose["services"]
+    worker = services["facade-worker"]
+    model = services["facade-ml"]
+    lama = services["facade-lama"]
+
+    assert "ports" not in worker
+    assert "ports" not in model
+    assert "ports" not in lama
+    assert worker["environment"]["BLENDER_EXECUTABLE"] == "/usr/bin/blender"
+    assert worker["environment"]["PLATFORM_GPU_LOCK_PATH"] == "/work/.locks/gpu-0.lock"
+    assert model["environment"]["PLATFORM_GPU_LOCK_PATH"] == "/work/.locks/gpu-0.lock"
+    assert worker["networks"] == ["facade-internal", "egress"]
+    assert model["networks"] == ["facade-internal"]
+    assert lama["networks"] == ["facade-internal"]
+    assert compose["networks"]["facade-internal"]["internal"] is True
+    assert worker["depends_on"]["facade-ml"]["condition"] == "service_healthy"
+    assert worker["depends_on"]["facade-lama"]["condition"] == "service_healthy"
+
+    mounts = [volume_map(service) for service in (worker, model, lama)]
+    assert all(item["/work"]["source"] == "/var/lib/village-platform/runtime" for item in mounts)
+    assert mounts[1]["/models"]["read_only"] is True
+    assert mounts[2]["/models"]["read_only"] is True
+    assert "SUPABASE_SERVICE_ROLE_KEY" not in str(model)
+    assert "SUPABASE_SERVICE_ROLE_KEY" not in str(lama)
+    assert worker["env_file"] == ["/etc/village-platform/worker.env"]
+    assert "env_file" not in model
+    assert "env_file" not in lama
+    assert "network_mode" not in worker
+    assert "network_mode" not in model
+    assert "network_mode" not in lama
+
+
+def test_facade_images_pin_blender_and_model_runtimes():
+    worker = read("Dockerfile.facade-worker")
+    model = read("Dockerfile.facade-ml")
+    lama = read("Dockerfile.facade-lama")
+
+    assert "blender=3.0.1+dfsg-7" in worker
+    assert "BLENDER_EXECUTABLE=/usr/bin/blender" in worker
+    assert "python -m village_processing facade-worker" in worker
+    assert "torch==2.5.1" in read("requirements-facade-ml.txt")
+    assert "torchvision==0.20.1" in read("requirements-facade-ml.txt")
+    assert "simple-lama-inpainting==0.1.2" in read("requirements-facade-lama.txt")
+    for dockerfile in (worker, model, lama):
+        assert "USER 10001:10001" in dockerfile
+        assert "COPY . " not in dockerfile
+        assert "COPY server/.env" not in dockerfile
 
 
 def test_compose_uses_identical_work_mounts_and_read_only_data_mounts():

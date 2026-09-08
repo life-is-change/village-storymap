@@ -1,0 +1,40 @@
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG APP_UID=10001
+ARG APP_GID=10001
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONNOUSERSITE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HOME=/tmp/village-home \
+    XDG_CACHE_HOME=/models/huggingface
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates libgl1 libglib2.0-0 libgomp1 python3 python3-pip \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY linux/requirements-facade-ml.txt /tmp/requirements.txt
+RUN python3 -m pip install --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
+    && python3 -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124 \
+    && grep -v -E '^torch(vision)?==' /tmp/requirements.txt >/tmp/requirements-rest.txt \
+    && python3 -m pip install --requirement /tmp/requirements-rest.txt \
+    && python3 -m pip check \
+    && rm -f /tmp/requirements.txt /tmp/requirements-rest.txt
+
+COPY server/pyproject.toml /app/server/pyproject.toml
+COPY server/src /app/server/src
+COPY rural_house_generator /app/rural_house_generator
+RUN python3 -m pip install /app/server
+
+RUN groupadd --gid "${APP_GID}" village \
+    && useradd --uid "${APP_UID}" --gid "${APP_GID}" --no-create-home --shell /usr/sbin/nologin village \
+    && install -d -o "${APP_UID}" -g "${APP_GID}" /work
+
+WORKDIR /app
+USER 10001:10001
+
+CMD ["python", "-m", "rural_house_generator.backend.ml_worker", "--host", "0.0.0.0", "--port", "8012"]
+
