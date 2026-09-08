@@ -15,6 +15,12 @@ import torchvision
 from PIL import Image
 from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
+try:
+    from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server" / "src"))
+    from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
+
 
 BUILDING_PROMPT = "building. house. residential building. building facade. roof."
 OCCLUSION_PROMPT = "car. automobile. motorcycle. scooter. electric bicycle. bicycle. person. tree. shrub. plant. clothes. canopy."
@@ -117,13 +123,7 @@ class FacadeMLRuntime:
         envelope[[1, 3]] = np.clip(envelope[[1, 3]], 0, height - 1)
         return envelope
 
-    def process(self, source_path: Path, output_dir: Path) -> dict[str, object]:
-        self._load()
-        source = _read(source_path)
-        original_shape = source.shape[:2]
-        scale = min(1.0, 1600.0 / max(original_shape))
-        working = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else source.copy()
-        rgb = cv2.cvtColor(working, cv2.COLOR_BGR2RGB)
+    def _infer_masks(self, rgb: np.ndarray):
         boxes, scores, _ = self._detect(rgb, BUILDING_PROMPT, .20, .16)
         envelope = self._building_envelope(boxes, scores, rgb.shape[:2])
         self.sam.set_image(rgb)
@@ -133,7 +133,6 @@ class FacadeMLRuntime:
             masks = masks[0]
         best = int(np.argmax(np.asarray(sam_scores).reshape(-1)))
         building = masks[best].astype(np.uint8) * 255
-        building = cv2.morphologyEx(building, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
 
         occ_boxes, occ_scores, labels = self._detect(rgb, OCCLUSION_PROMPT, .17, .14)
         detected_labels = list(labels)
@@ -145,7 +144,7 @@ class FacadeMLRuntime:
             labels = [label for label, accepted in zip(labels, keep, strict=True) if accepted]
         if len(occ_boxes):
             indices = torchvision.ops.nms(torch.as_tensor(occ_boxes), torch.as_tensor(occ_scores), .62).cpu().numpy()[:35]
-            occ_boxes, occ_scores = occ_boxes[indices], occ_scores[indices]
+            occ_boxes = occ_boxes[indices]
             labels = [labels[int(index)] for index in indices]
             masks, _, _ = self.sam.predict(box=occ_boxes.astype(np.float32), multimask_output=False)
             masks = np.asarray(masks)
@@ -153,6 +152,19 @@ class FacadeMLRuntime:
                 masks = masks[:, 0]
         else:
             masks = np.zeros((0, *rgb.shape[:2]), bool)
+        return envelope, building, occ_boxes, labels, masks, detected_labels
+
+    def process(self, source_path: Path, output_dir: Path) -> dict[str, object]:
+        source = _read(source_path)
+        original_shape = source.shape[:2]
+        scale = min(1.0, 1600.0 / max(original_shape))
+        working = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else source.copy()
+        rgb = cv2.cvtColor(working, cv2.COLOR_BGR2RGB)
+        lock_path = Path(os.environ.get("PLATFORM_GPU_LOCK_PATH") or default_gpu_lock_path())
+        with gpu_lock(lock_path):
+            self._load()
+            envelope, building, occ_boxes, labels, masks, detected_labels = self._infer_masks(rgb)
+        building = cv2.morphologyEx(building, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
         expanded = cv2.dilate(building, np.ones((31, 31), np.uint8)) > 0
         accepted = []
         accepted_labels = []
