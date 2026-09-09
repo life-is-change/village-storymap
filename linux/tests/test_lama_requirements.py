@@ -17,6 +17,10 @@ class LamaRequirementsTest(unittest.TestCase):
     def test_lama_uses_pinned_cpu_torch_with_resumable_downloads(self):
         dockerfile = DOCKERFILE.read_text("utf-8")
 
+        self.assertIn(
+            "pip install --retries 20 --timeout 120 --upgrade pip==25.1.1",
+            dockerfile,
+        )
         self.assertIn("torch==2.5.1 torchvision==0.20.1", dockerfile)
         self.assertIn("https://download.pytorch.org/whl/cpu", dockerfile)
         self.assertIn("--resume-retries 20", dockerfile)
