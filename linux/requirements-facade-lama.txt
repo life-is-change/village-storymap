@@ -1,3 +1,2 @@
-Pillow==11.0.0
+Pillow==9.5.0
 simple-lama-inpainting==0.1.2
-
