@@ -26,8 +26,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY linux/requirements-facade-worker.txt /tmp/requirements.txt
-RUN python3 -m pip install --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
-    && python3 -m pip install --requirement /tmp/requirements.txt \
+RUN python3 -m pip install --retries 20 --timeout 120 --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
+    && python3 -m pip install --resume-retries 20 --timeout 120 --requirement /tmp/requirements.txt \
     && python3 -m pip check \
     && rm -f /tmp/requirements.txt
 
@@ -36,7 +36,7 @@ COPY server/src /app/server/src
 COPY server/config /app/server/config
 COPY rural_house_generator /app/rural_house_generator
 COPY experiments /app/experiments
-RUN python3 -m pip install /app/server
+RUN python3 -m pip install --resume-retries 20 --timeout 120 /app/server
 
 RUN groupadd --gid "${APP_GID}" village \
     && useradd --uid "${APP_UID}" --gid "${APP_GID}" --no-create-home --shell /usr/sbin/nologin village \
