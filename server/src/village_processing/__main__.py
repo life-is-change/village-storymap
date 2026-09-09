@@ -7,14 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .catalog import load_catalog
-from .raster import crop_imagery
-from .processors.osm import extract_osm_layers
-from .processors.contours import generate_contours
-from .contracts import ProcessingRequest
-from .pipeline import NativeProcessors, resolve_run_request, run_pipeline
-from .preview import generate_preview
-from .health import run_facade_health_checks
+from .health import run_facade_health_checks, run_health_checks
 
 
 def _geometry_from_file(path: Path) -> dict:
@@ -116,6 +109,14 @@ def main(argv=None) -> int:
         )
         run_facade_worker()
         return 0
+    from .catalog import load_catalog
+    from .contracts import ProcessingRequest
+    from .pipeline import NativeProcessors, resolve_run_request, run_pipeline
+    from .preview import generate_preview
+    from .processors.contours import generate_contours
+    from .processors.osm import extract_osm_layers
+    from .raster import crop_imagery
+
     data_root = os.environ.get("PLATFORM_DATA_ROOT")
     if not data_root:
         raise SystemExit("PLATFORM_DATA_ROOT is required")
