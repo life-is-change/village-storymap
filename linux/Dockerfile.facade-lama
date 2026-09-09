@@ -18,8 +18,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY linux/requirements-facade-lama.txt /tmp/requirements.txt
-RUN python3 -m pip install --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
-    && python3 -m pip install --requirement /tmp/requirements.txt \
+RUN python3 -m pip install --resume-retries 20 --timeout 120 --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
+    && python3 -m pip install --resume-retries 20 --timeout 120 torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu \
+    && python3 -m pip install --resume-retries 20 --timeout 120 --requirement /tmp/requirements.txt \
     && python3 -m pip check \
     && rm -f /tmp/requirements.txt
 
@@ -33,4 +34,3 @@ WORKDIR /app
 USER 10001:10001
 
 CMD ["python", "-m", "rural_house_generator.backend.lama_server", "--host", "0.0.0.0", "--port", "8013"]
-
