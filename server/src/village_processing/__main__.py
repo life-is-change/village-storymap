@@ -22,6 +22,10 @@ def _geometry_from_file(path: Path) -> dict:
     return payload["geometry"] if payload.get("type") == "Feature" else payload
 
 
+def _building_service_url() -> str:
+    return os.environ.get("BUILDING_SERVICE_URL", "http://127.0.0.1:8021")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="village_processing")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -124,9 +128,7 @@ def main(argv=None) -> int:
         work_root = Path(os.environ.get("PLATFORM_WORK_ROOT", "server/runtime")).resolve()
         catalog_path = Path(os.environ.get("PLATFORM_CATALOG", "server/config/villages.yaml"))
         catalog = load_catalog(catalog_path, Path(data_root))
-        processors = NativeProcessors(
-            work_root, os.environ.get("BUILDING_SERVICE_URL", "http://127.0.0.1:8021")
-        )
+        processors = NativeProcessors(work_root, _building_service_url())
         gateway = SupabaseGateway(create_client(
             os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
         ))
@@ -145,7 +147,9 @@ def main(argv=None) -> int:
     if args.command == "run":
         work_root = Path(os.environ.get("PLATFORM_WORK_ROOT", "server/runtime"))
         request = resolve_run_request(ProcessingRequest.from_json(args.request), work_root)
-        manifest = run_pipeline(request, catalog, NativeProcessors(work_root))
+        manifest = run_pipeline(
+            request, catalog, NativeProcessors(work_root, _building_service_url())
+        )
         print(json.dumps({
             "run_ok": True,
             "run_id": manifest.run_id,
