@@ -16,6 +16,8 @@ import torchvision
 from PIL import Image
 from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
+from .grounding_dino_compat import post_process_grounding_dino
+
 try:
     from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
 except ModuleNotFoundError:
@@ -96,13 +98,17 @@ class FacadeMLRuntime:
         inputs = self.processor(images=pil, text=prompt, return_tensors="pt").to(self.device)
         with torch.inference_mode():
             outputs = self.dino(**inputs)
-        result = self.processor.post_process_grounded_object_detection(
-            outputs, inputs.input_ids, threshold=box_threshold,
-            text_threshold=text_threshold, target_sizes=[pil.size[::-1]],
-        )[0]
+        result = post_process_grounding_dino(
+            self.processor,
+            outputs,
+            inputs.input_ids,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
+            target_sizes=[pil.size[::-1]],
+        )
         boxes = result["boxes"].detach().cpu().numpy().astype(np.float32)
         scores = result["scores"].detach().cpu().numpy().astype(np.float32)
-        labels = list(result.get("text_labels", [""] * len(boxes)))
+        labels = list(result.get("text_labels") or [""] * len(boxes))
         return boxes, scores, labels
 
     @staticmethod
