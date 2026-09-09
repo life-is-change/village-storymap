@@ -17,17 +17,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY linux/requirements-facade-ml.txt /tmp/requirements.txt
-RUN python3 -m pip install --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
-    && python3 -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124 \
+RUN python3 -m pip install --retries 20 --timeout 120 --upgrade pip==25.1.1 setuptools==80.9.0 wheel==0.45.1 \
+    && python3 -m pip install --resume-retries 20 --timeout 120 torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124 \
     && grep -v -E '^torch(vision)?==' /tmp/requirements.txt >/tmp/requirements-rest.txt \
-    && python3 -m pip install --requirement /tmp/requirements-rest.txt \
+    && python3 -m pip install --resume-retries 20 --timeout 120 --requirement /tmp/requirements-rest.txt \
     && python3 -m pip check \
     && rm -f /tmp/requirements.txt /tmp/requirements-rest.txt
 
 COPY server/pyproject.toml /app/server/pyproject.toml
 COPY server/src /app/server/src
 COPY rural_house_generator /app/rural_house_generator
-RUN python3 -m pip install /app/server
+RUN python3 -m pip install --resume-retries 20 --timeout 120 /app/server
 
 RUN groupadd --gid "${APP_GID}" village \
     && useradd --uid "${APP_UID}" --gid "${APP_GID}" --no-create-home --shell /usr/sbin/nologin village \
@@ -37,4 +37,3 @@ WORKDIR /app
 USER 10001:10001
 
 CMD ["python", "-m", "rural_house_generator.backend.ml_worker", "--host", "0.0.0.0", "--port", "8012"]
-
