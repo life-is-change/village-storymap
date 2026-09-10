@@ -11,8 +11,9 @@ BUCKET = "geoprocessing-results"
 
 
 def safe_message(message: str) -> str:
-    text = re.sub(r"(?i)\b[a-z]:\\[^\r\n,;]+", "[local path]", str(message))
-    text = re.sub(r"https?://\S+", "[remote service]", text)
+    text = re.sub(r"https?://\S+", "[remote service]", str(message))
+    text = re.sub(r"(?i)\b[a-z]:\\[^\r\n,;]+", "[local path]", text)
+    text = re.sub(r"(?<![\w:])/[^\s,;]+", "[local path]", text)
     text = re.sub(r"\beyJ[A-Za-z0-9_.-]{20,}\b", "[credential]", text)
     text = text.replace("Traceback (most recent call last):", "")
     return " ".join(text.split())[:300]

@@ -15,6 +15,7 @@
 ## 当前功能迁移
 
 - `Geoprocessing Worker Queue.sql`：地理处理任务队列。
+- `Facade Generation Worker Queue.sql`：历史建筑照片的两阶段立面校正、人工屋顶线确认与 GLB 生成队列；须在对象照片和多村庄上下文迁移之后执行。
 - `Group Model Library.sql`：小组 3D 模型资源库。
 - `Enable Personal Contour Delete.sql`：个人空间等高线删除权限。
 - `Secure Planning Space Visibility.sql`：空间可见性收紧。

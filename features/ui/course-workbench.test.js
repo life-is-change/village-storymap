@@ -13,6 +13,14 @@ const {
 
 const student = { name: "张三", student_id: "2026001" };
 
+test("3d facade generator remains an authenticated same-origin course workflow", () => {
+  const source = fs.readFileSync(path.resolve(__dirname, "..", "..", "app-3d.js"), "utf8");
+  assert.match(source, /village-house-generator:facade-context/);
+  assert.match(source, /courseId/);
+  assert.match(source, /window\.location\.origin/);
+  assert.doesNotMatch(source, /SUPABASE_SERVICE_ROLE_KEY/);
+});
+
 test("task drawer renders only the active stage guidance without a standalone platform card", () => {
   const html = renderDashboard({
     course: DEFAULT_COURSE,

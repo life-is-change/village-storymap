@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -14,6 +15,14 @@ import torch
 import torchvision
 from PIL import Image
 from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
+
+from .grounding_dino_compat import post_process_grounding_dino
+
+try:
+    from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "server" / "src"))
+    from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
 
 
 BUILDING_PROMPT = "building. house. residential building. building facade. roof."
@@ -41,48 +50,65 @@ class FacadeMLRuntime:
         self.processor = None
         self.dino = None
         self.sam = None
+        self._load_lock = threading.Lock()
 
     def _load(self):
-        if self.dino is not None:
+        if self.dino is not None and self.sam is not None:
             return
-        # This worker is deliberately local-only.  Avoid Hugging Face opening a
-        # short-lived network client on the first inference request; the model
-        # is installed in the environment cache by the setup workflow.
-        self.processor = AutoProcessor.from_pretrained(
-            "IDEA-Research/grounding-dino-base", local_files_only=True
-        )
-        self.dino = AutoModelForZeroShotObjectDetection.from_pretrained(
-            "IDEA-Research/grounding-dino-base", local_files_only=True
-        ).to(self.device).eval()
-        root = Path(os.environ.get("BUILD_SEG_ROOT", r"E:\建筑分割"))
-        configured_root = os.environ.get("BUILD_SEG_ROOT", "").strip()
-        if not configured_root:
-            raise RuntimeError("BUILD_SEG_ROOT is not configured")
-        root = Path(configured_root)
-        repo = root / "repos" / "sam2"
-        if str(repo) not in sys.path:
-            sys.path.insert(0, str(repo))
-        from sam2.build_sam import build_sam2
-        from sam2.sam2_image_predictor import SAM2ImagePredictor
+        with self._load_lock:
+            if self.dino is not None and self.sam is not None:
+                return
+            # Build into locals so a failed SAM initialization cannot leave a
+            # half-ready runtime that skips the next readiness retry.
+            processor = AutoProcessor.from_pretrained(
+                "IDEA-Research/grounding-dino-base", local_files_only=True
+            )
+            dino = AutoModelForZeroShotObjectDetection.from_pretrained(
+                "IDEA-Research/grounding-dino-base", local_files_only=True
+            ).to(self.device).eval()
+            configured_root = os.environ.get("BUILD_SEG_ROOT", "").strip()
+            if not configured_root:
+                raise RuntimeError("BUILD_SEG_ROOT is not configured")
+            root = Path(configured_root)
+            repo = root / "repos" / "sam2"
+            if str(repo) not in sys.path:
+                sys.path.insert(0, str(repo))
+            from sam2.build_sam import build_sam2
+            from sam2.sam2_image_predictor import SAM2ImagePredictor
 
-        checkpoint = Path(os.environ.get("SAM2_CHECKPOINT", root / "checkpoints" / "sam2.1_hiera_large.pt"))
-        if not checkpoint.is_file():
-            raise FileNotFoundError(f"SAM2 checkpoint not found: {checkpoint}")
-        model = build_sam2("configs/sam2.1/sam2.1_hiera_l.yaml", str(checkpoint), device=self.device)
-        self.sam = SAM2ImagePredictor(model)
+            checkpoint = Path(os.environ.get(
+                "SAM2_CHECKPOINT", root / "checkpoints" / "sam2.1_hiera_large.pt"
+            ))
+            if not checkpoint.is_file():
+                raise FileNotFoundError(f"SAM2 checkpoint not found: {checkpoint}")
+            model = build_sam2(
+                "configs/sam2.1/sam2.1_hiera_l.yaml", str(checkpoint), device=self.device
+            )
+            sam = SAM2ImagePredictor(model)
+            self.processor, self.dino, self.sam = processor, dino, sam
+
+    def ready(self) -> dict[str, object]:
+        self._load()
+        if self.dino is None or self.sam is None:
+            raise RuntimeError("FACADE_MODELS_NOT_LOADED")
+        return {"status": "ready", "service": "rural-facade-ml", "device": self.device}
 
     def _detect(self, rgb: np.ndarray, prompt: str, box_threshold: float, text_threshold: float):
         pil = Image.fromarray(rgb)
         inputs = self.processor(images=pil, text=prompt, return_tensors="pt").to(self.device)
         with torch.inference_mode():
             outputs = self.dino(**inputs)
-        result = self.processor.post_process_grounded_object_detection(
-            outputs, inputs.input_ids, threshold=box_threshold,
-            text_threshold=text_threshold, target_sizes=[pil.size[::-1]],
-        )[0]
+        result = post_process_grounding_dino(
+            self.processor,
+            outputs,
+            inputs.input_ids,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
+            target_sizes=[pil.size[::-1]],
+        )
         boxes = result["boxes"].detach().cpu().numpy().astype(np.float32)
         scores = result["scores"].detach().cpu().numpy().astype(np.float32)
-        labels = list(result.get("text_labels", [""] * len(boxes)))
+        labels = list(result.get("text_labels") or [""] * len(boxes))
         return boxes, scores, labels
 
     @staticmethod
@@ -117,13 +143,7 @@ class FacadeMLRuntime:
         envelope[[1, 3]] = np.clip(envelope[[1, 3]], 0, height - 1)
         return envelope
 
-    def process(self, source_path: Path, output_dir: Path) -> dict[str, object]:
-        self._load()
-        source = _read(source_path)
-        original_shape = source.shape[:2]
-        scale = min(1.0, 1600.0 / max(original_shape))
-        working = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else source.copy()
-        rgb = cv2.cvtColor(working, cv2.COLOR_BGR2RGB)
+    def _infer_masks(self, rgb: np.ndarray):
         boxes, scores, _ = self._detect(rgb, BUILDING_PROMPT, .20, .16)
         envelope = self._building_envelope(boxes, scores, rgb.shape[:2])
         self.sam.set_image(rgb)
@@ -133,7 +153,6 @@ class FacadeMLRuntime:
             masks = masks[0]
         best = int(np.argmax(np.asarray(sam_scores).reshape(-1)))
         building = masks[best].astype(np.uint8) * 255
-        building = cv2.morphologyEx(building, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
 
         occ_boxes, occ_scores, labels = self._detect(rgb, OCCLUSION_PROMPT, .17, .14)
         detected_labels = list(labels)
@@ -145,7 +164,7 @@ class FacadeMLRuntime:
             labels = [label for label, accepted in zip(labels, keep, strict=True) if accepted]
         if len(occ_boxes):
             indices = torchvision.ops.nms(torch.as_tensor(occ_boxes), torch.as_tensor(occ_scores), .62).cpu().numpy()[:35]
-            occ_boxes, occ_scores = occ_boxes[indices], occ_scores[indices]
+            occ_boxes = occ_boxes[indices]
             labels = [labels[int(index)] for index in indices]
             masks, _, _ = self.sam.predict(box=occ_boxes.astype(np.float32), multimask_output=False)
             masks = np.asarray(masks)
@@ -153,6 +172,19 @@ class FacadeMLRuntime:
                 masks = masks[:, 0]
         else:
             masks = np.zeros((0, *rgb.shape[:2]), bool)
+        return envelope, building, occ_boxes, labels, masks, detected_labels
+
+    def process(self, source_path: Path, output_dir: Path) -> dict[str, object]:
+        source = _read(source_path)
+        original_shape = source.shape[:2]
+        scale = min(1.0, 1600.0 / max(original_shape))
+        working = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else source.copy()
+        rgb = cv2.cvtColor(working, cv2.COLOR_BGR2RGB)
+        lock_path = Path(os.environ.get("PLATFORM_GPU_LOCK_PATH") or default_gpu_lock_path())
+        with gpu_lock(lock_path):
+            self._load()
+            envelope, building, occ_boxes, labels, masks, detected_labels = self._infer_masks(rgb)
+        building = cv2.morphologyEx(building, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
         expanded = cv2.dilate(building, np.ones((31, 31), np.uint8)) > 0
         accepted = []
         accepted_labels = []
@@ -248,7 +280,15 @@ def build_handler(runtime: FacadeMLRuntime):
             self.wfile.write(data)
 
         def do_GET(self):
-            self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device}) if self.path == "/health" else self._json(404, {"error": "not found"})
+            if self.path == "/health":
+                self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device})
+            elif self.path == "/ready":
+                try:
+                    self._json(200, runtime.ready())
+                except Exception as exc:
+                    self._json(503, {"status": "not_ready", "error": str(exc)})
+            else:
+                self._json(404, {"error": "not found"})
 
         def do_POST(self):
             if self.path != "/process":

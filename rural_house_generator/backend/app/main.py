@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import os
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -27,13 +26,12 @@ from .facade.perspective import (
     rectify_facade,
 )
 from .facade.image_io import read_image, write_image
-from .facade.direct_crop import crop_facade_body
 from .facade.auto_rectify import (
     AutoFacadeRectifier,
     FacadeRectificationError,
-    RectificationResult,
 )
 from .facade.full_pipeline import FullLocalFacadeRectifier
+from .facade.job_processor import FacadeJobProcessor
 from .job_store import DiskJobStore, JobNotFoundError
 from .schemas import (
     BuildingSpec,
@@ -43,7 +41,6 @@ from .schemas import (
     RoofAnalysis,
 )
 from .roof_analysis import analyze_roof, fallback_roof_analysis
-from .roof_profile import resolve_roof_profile
 
 
 def _safe_stem(filename: str | None) -> str:
@@ -79,6 +76,8 @@ def create_app(
     else:
         selected_rectifier = AutoFacadeRectifier()
     application.state.facade_rectifier = selected_rectifier
+    processor = FacadeJobProcessor(rectifier=selected_rectifier, blender=blender)
+    application.state.facade_job_processor = processor
 
     @application.get("/health")
     def health() -> dict[str, str]:
@@ -182,54 +181,29 @@ def create_app(
             raise HTTPException(status_code=422, detail="Rectification requires exactly one image")
         photo_record = record["photos"][0]
         photo_path = store.job_dir(job_id) / "inputs" / photo_record["filename"]
-        image = read_image(photo_path)
-        if image is None:
+        if read_image(photo_path) is None:
             raise HTTPException(status_code=422, detail="Uploaded image cannot be decoded")
-        if use_original:
-            result = RectificationResult(
-                image=np.ascontiguousarray(image),
-                diagnostics={
-                    "method": "user_original_fallback",
-                    "resample_passes": 0,
-                    "warning": "Automatic rectification was skipped by explicit user choice",
-                },
+        try:
+            result = processor.rectify(
+                photo_path,
+                store.job_dir(job_id),
+                use_original=use_original,
             )
-        else:
-            try:
-                rectifier = application.state.facade_rectifier
-                if hasattr(rectifier, "rectify_file"):
-                    result = rectifier.rectify_file(photo_path, store.job_dir(job_id) / "artifacts")
-                else:
-                    result = rectifier.rectify(image)
-            except FacadeRectificationError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-        artifact_dir = store.job_dir(job_id) / "artifacts"
-        artifact_dir.mkdir(exist_ok=True)
-        source_path = artifact_dir / "rectified_source.png"
-        if not write_image(source_path, result.image, ".png"):
-            raise HTTPException(status_code=500, detail="Failed to save rectified facade")
-        preview = result.image
-        if preview.shape[1] > 900:
-            preview_height = max(1, round(preview.shape[0] * 900 / preview.shape[1]))
-            preview = cv2.resize(preview, (900, preview_height), cv2.INTER_AREA)
-        preview_path = artifact_dir / "rectified_preview.jpg"
-        if not write_image(preview_path, preview, ".jpg", [cv2.IMWRITE_JPEG_QUALITY, 90]):
-            raise HTTPException(status_code=500, detail="Failed to save rectified preview")
-        diagnostics_path = artifact_dir / "rectification_diagnostics.json"
-        diagnostics_path.write_text(
-            json.dumps(result.diagnostics, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        except FacadeRectificationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
         record["status"] = "rectified"
         record["roof_analysis"] = None
         record["updated_at"] = datetime.now(UTC).isoformat()
         for downstream in ("rectified_facade", "building_glb", "model_manifest"):
             record["artifacts"].pop(downstream, None)
         record["artifacts"].update({
-            "rectified_source": "artifacts/rectified_source.png",
-            "rectified_preview": "artifacts/rectified_preview.jpg",
-            "rectification_diagnostics": "artifacts/rectification_diagnostics.json",
+            "rectified_source": result.source.relative_to(store.job_dir(job_id)).as_posix(),
+            "rectified_preview": result.preview.relative_to(store.job_dir(job_id)).as_posix(),
+            "rectification_diagnostics": result.diagnostics.relative_to(store.job_dir(job_id)).as_posix(),
         })
+        artifact_dir = result.source.parent
         for name in (
             "building_mask_source.png",
             "building_mask_rectified.png",
@@ -347,45 +321,23 @@ def create_app(
         if record["status"] != "rectified" or not relative_rectified:
             raise HTTPException(status_code=409, detail="Job must be rectified before roof cropping")
         photo_path = store.job_dir(job_id) / relative_rectified
-        image = read_image(photo_path)
-        if image is None:
+        if read_image(photo_path) is None:
             raise HTTPException(
                 status_code=422, detail="Uploaded image cannot be decoded"
             )
-
-        artifact_dir = store.job_dir(job_id) / "artifacts"
-        artifact_dir.mkdir(exist_ok=True)
-        texture_path = artifact_dir / "facade_texture.png"
-        content_mask = None
         relative_mask = record["artifacts"].get("building_mask_rectified")
-        if relative_mask:
-            mask_path = store.job_dir(job_id) / relative_mask
-            content_mask = cv2.imdecode(
-                np.fromfile(mask_path, np.uint8), cv2.IMREAD_GRAYSCALE
-            ) if mask_path.is_file() else None
-        facade_body = crop_facade_body(image, crop_top, content_mask=content_mask)
-        if not write_image(texture_path, facade_body, ".png"):
-            raise HTTPException(
-                status_code=500, detail="Failed to save facade texture"
+        mask_path = store.job_dir(job_id) / relative_mask if relative_mask else None
+        try:
+            texture_path, resolved_building = processor.prepare_texture(
+                photo_path,
+                mask_path,
+                store.job_dir(job_id),
+                crop_top=crop_top,
+                building=record["building"],
             )
-
-        front_length = float(record["building"]["width"])
-        wall_height = round(
-            min(100.0, front_length * facade_body.shape[0] / facade_body.shape[1]),
-            3,
-        )
-        roof = resolve_roof_profile(
-            width=float(record["building"]["width"]),
-            depth=float(record["building"]["depth"]),
-            wall_height=wall_height,
-            roof_type=str(record["building"]["roof_type"]),
-            roof_pitch=str(record["building"].get("roof_pitch", "standard")),
-            roof_material=str(
-                record["building"].get("roof_material", "gray_tile")
-            ),
-        )
-        record["building"]["wall_height"] = wall_height
-        record["building"]["roof_height"] = round(float(roof["height"]), 3)
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        record["building"].update(resolved_building)
         record["status"] = "prepared"
         record["updated_at"] = datetime.now(UTC).isoformat()
         record["artifacts"]["rectified_facade"] = "artifacts/facade_texture.png"
@@ -461,10 +413,10 @@ def create_app(
             raise HTTPException(status_code=409, detail="Job must be prepared first")
         texture_path = store.job_dir(job_id) / relative_texture
         try:
-            blender.generate(
-                job_dir=store.job_dir(job_id),
-                building=record["building"],
-                texture_path=texture_path,
+            result = processor.generate_prepared(
+                texture_path,
+                store.job_dir(job_id),
+                record["building"],
                 roof_analysis=record.get("roof_analysis"),
             )
         except (BlenderUnavailableError, MissingTextureError) as exc:
@@ -479,7 +431,7 @@ def create_app(
         record["status"] = "generated"
         record["updated_at"] = datetime.now(UTC).isoformat()
         record["artifacts"]["building_glb"] = "artifacts/building.glb"
-        manifest_path = store.job_dir(job_id) / "artifacts" / "model_manifest.json"
+        manifest_path = result.manifest
         if manifest_path.is_file():
             record["artifacts"]["model_manifest"] = "artifacts/model_manifest.json"
         record["error"] = None

@@ -12,11 +12,14 @@ class LamaRuntime:
     def __init__(self):
         self._model = None
 
-    def process(self, source_path: Path, mask_path: Path, output_path: Path) -> dict[str, object]:
+    def ready(self) -> dict[str, object]:
         if self._model is None:
             from simple_lama_inpainting import SimpleLama
-
             self._model = SimpleLama()
+        return {"status": "ready", "service": "rural-facade-lama"}
+
+    def process(self, source_path: Path, mask_path: Path, output_path: Path) -> dict[str, object]:
+        self.ready()
         image = Image.open(source_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
         if image.size != mask.size:
@@ -42,6 +45,11 @@ def build_handler(runtime: LamaRuntime):
         def do_GET(self):
             if self.path == "/health":
                 self._json(200, {"status": "ok", "service": "rural-facade-lama", "loaded": runtime._model is not None})
+            elif self.path == "/ready":
+                try:
+                    self._json(200, runtime.ready())
+                except Exception as exc:
+                    self._json(503, {"status": "not_ready", "error": str(exc)})
             else:
                 self._json(404, {"error": "not found"})
 

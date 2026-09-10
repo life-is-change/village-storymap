@@ -1,9 +1,11 @@
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from typing import Any, Callable
 
 from village_processing.contracts import ArtifactSummary
+from village_processing.gpu_lock import default_gpu_lock_path, gpu_lock
 from .legacy_pipeline import process_tif
 
 
@@ -51,17 +53,19 @@ class BuildingEngine:
         output_geojson = Path(output_geojson)
         output_geojson.parent.mkdir(parents=True, exist_ok=True)
         try:
-            result_path = Path(
-                self.runner(
-                    model=self.model,
-                    tif_path=Path(tif_path),
-                    output_geojson=output_geojson,
-                    score_threshold=score_threshold,
-                    batch_size=1,
-                    tile_size=1536,
-                    overlap=384,
+            lock_path = Path(os.environ.get("PLATFORM_GPU_LOCK_PATH") or default_gpu_lock_path())
+            with gpu_lock(lock_path):
+                result_path = Path(
+                    self.runner(
+                        model=self.model,
+                        tif_path=Path(tif_path),
+                        output_geojson=output_geojson,
+                        score_threshold=score_threshold,
+                        batch_size=1,
+                        tile_size=1536,
+                        overlap=384,
+                    )
                 )
-            )
             payload = json.loads(result_path.read_text("utf-8"))
             if payload.get("type") != "FeatureCollection" or not isinstance(payload.get("features"), list):
                 raise ValueError("INVALID_BUILDING_OUTPUT")

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from village_processing.queue.gateway import SupabaseGateway
+from village_processing.queue.gateway import SupabaseGateway, safe_message
 
 
 RUN_ID = str(uuid4())
@@ -63,3 +63,13 @@ def test_fail_redacts_local_paths_and_urls():
     assert name == "set_geoprocessing_run_state"
     assert "E:\\" not in payload["p_error_message"]
     assert "https://" not in payload["p_error_message"]
+
+
+def test_safe_message_redacts_posix_paths_without_hiding_ordinary_slashes():
+    message = "cannot read /srv/village-platform/data/input.tif; ratio 1/2"
+
+    result = safe_message(message)
+
+    assert "/srv/" not in result
+    assert "[local path]" in result
+    assert "1/2" in result

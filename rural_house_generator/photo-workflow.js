@@ -270,6 +270,78 @@
     return nextState;
   }
 
+  const facadeTransitions = {
+    queued_rectification: { claimed: 'rectifying', failed: 'failed', cancel: 'canceled' },
+    claimed_rectification: { started: 'rectifying', failed: 'failed', cancel: 'canceled' },
+    rectifying: { rectified: 'awaiting_crop', failed: 'failed', cancel: 'canceled' },
+    awaiting_crop: { confirm_crop: 'queued_generation', cancel: 'canceled' },
+    queued_generation: { claimed: 'generating', failed: 'failed', cancel: 'canceled' },
+    claimed_generation: { started: 'generating', failed: 'failed', cancel: 'canceled' },
+    generating: { generated: 'completed', failed: 'failed', cancel: 'canceled' },
+    completed: { confirm_crop: 'queued_generation' },
+    failed: { retry: 'queued_rectification' }
+  };
+
+  function normalizeFacadeRun(run) {
+    return {
+      id: String(run?.id || ''),
+      status: String(run?.status || ''),
+      stage: String(run?.current_stage || run?.stage || ''),
+      progress: clamp(run?.progress, 0, 100),
+      errorCode: String(run?.error_code || run?.errorCode || ''),
+      errorMessage: String(run?.error_message || run?.errorMessage || '')
+    };
+  }
+
+  function transitionFacadeState(currentState, event) {
+    const nextState = facadeTransitions[currentState]?.[event];
+    if (!nextState) {
+      throw new Error(`Invalid facade workflow transition: ${currentState} -> ${event}`);
+    }
+    return nextState;
+  }
+
+  function canConfirmCrop(run) {
+    return run?.status === 'awaiting_crop' || run?.status === 'completed';
+  }
+
+  function shouldRestoreFacadeRun(run) {
+    return [
+      'queued_rectification', 'claimed_rectification', 'rectifying', 'awaiting_crop',
+      'queued_generation', 'claimed_generation', 'generating', 'completed', 'cancel_requested'
+    ].includes(String(run?.status || ''));
+  }
+
+  function facadeStatusPresentation(run, workerAvailability = 'online') {
+    const normalized = normalizeFacadeRun(run);
+    const messages = {
+      queued_rectification: '正立面预处理已排队，等待 4090 工作站。',
+      claimed_rectification: '4090 工作站已领取任务，正在准备模型。',
+      rectifying: '正在识别、清理并生成规范正立面。',
+      awaiting_crop: '正立面已完成，请拖动屋顶线后生成。',
+      queued_generation: '模型生成已排队。',
+      claimed_generation: '4090 工作站已领取生成任务。',
+      generating: 'Blender 正在生成贴图建筑。',
+      completed: '标准正立面贴图建筑已生成。',
+      cancel_requested: '正在取消任务。',
+      canceled: '任务已取消。',
+      failed: normalized.errorMessage || '处理失败，请重新提交。'
+    };
+    const offline = workerAvailability === 'offline' && !['completed', 'failed', 'canceled'].includes(normalized.status);
+    return {
+      tone: offline ? 'offline' : normalized.status || 'idle',
+      message: offline ? '4090 工作站暂时离线，任务会保留在队列中。' : (messages[normalized.status] || '等待选择建筑照片。'),
+      progress: normalized.progress,
+      canConfirm: canConfirmCrop(normalized),
+      terminal: ['completed', 'failed', 'canceled'].includes(normalized.status)
+    };
+  }
+
+  function chooseDefaultHistoricalPhoto(photos, selectedId = '') {
+    const items = Array.isArray(photos) ? photos : [];
+    return items.find((item) => String(item?.id || '') === String(selectedId || '')) || items[0] || null;
+  }
+
   const serviceTransitions = {
     checking: { success: 'online', failure: 'offline' },
     online: { success: 'online', failure: 'offline' },
@@ -370,6 +442,12 @@
     photoHeightSummary,
     photoModelMetrics,
     friendlyServiceError,
+    normalizeFacadeRun,
+    transitionFacadeState,
+    facadeStatusPresentation,
+    chooseDefaultHistoricalPhoto,
+    canConfirmCrop,
+    shouldRestoreFacadeRun,
     isLocalServiceNetworkError,
     nextRoofAnalysisState,
     normalizeRoofAnalysis,

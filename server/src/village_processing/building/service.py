@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from threading import Lock
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -29,22 +30,38 @@ class ProcessBody(BaseModel):
 
 app = FastAPI(title="Village Building Inference", docs_url=None, redoc_url=None)
 _engine: BuildingEngine | None = None
+_engine_lock = Lock()
 
 
 def _get_engine() -> BuildingEngine:
     global _engine
     if _engine is None:
-        config = os.environ.get("PLATFORM_MODEL_CONFIG")
-        checkpoint = os.environ.get("PLATFORM_MODEL_CHECKPOINT")
-        if not config or not checkpoint:
-            raise RuntimeError("MODEL_ENV_REQUIRED")
-        _engine = BuildingEngine(Path(config), Path(checkpoint), os.environ.get("PLATFORM_MODEL_DEVICE", "cuda:0"))
+        with _engine_lock:
+            if _engine is None:
+                config = os.environ.get("PLATFORM_MODEL_CONFIG")
+                checkpoint = os.environ.get("PLATFORM_MODEL_CHECKPOINT")
+                if not config or not checkpoint:
+                    raise RuntimeError("MODEL_ENV_REQUIRED")
+                _engine = BuildingEngine(
+                    Path(config),
+                    Path(checkpoint),
+                    os.environ.get("PLATFORM_MODEL_DEVICE", "cuda:0"),
+                )
     return _engine
 
 
 @app.get("/health")
 def health():
     return {"ok": True, "model_loaded": _engine is not None}
+
+
+@app.get("/ready")
+def ready():
+    try:
+        engine = _get_engine()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="MODEL_NOT_READY") from exc
+    return {"ok": True, "model_loaded": True, "device": engine.device}
 
 
 @app.post("/process")

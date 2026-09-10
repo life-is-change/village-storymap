@@ -5,6 +5,9 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createPhotoMaterialBridge() {
   const REQUEST_TYPE = 'village-house-generator:request-photo-materials';
   const RESPONSE_TYPE = 'village-house-generator:photo-materials';
+  const CONTEXT_TYPE = 'village-house-generator:facade-context';
+  const UPLOAD_REQUEST_TYPE = 'village-house-generator:upload-photo';
+  const UPLOAD_RESPONSE_TYPE = 'village-house-generator:photo-uploaded';
 
   function normalizePhotoMaterials(items) {
     const seen = new Set();
@@ -12,6 +15,7 @@
       .map((item) => ({
         id: String(item?.id ?? '').trim(),
         url: String(item?.url || item?.photo_url || '').trim(),
+        hasPhotoPath: Boolean(item?.hasPhotoPath || item?.photo_path),
         uploadedAt: String(item?.uploadedAt || item?.uploaded_at || item?.created_at || '').trim(),
         uploadedBy: String(item?.uploadedBy || item?.uploaded_by || '').trim()
       }))
@@ -47,5 +51,18 @@
     return { name: baseName, type };
   }
 
-  return { REQUEST_TYPE, RESPONSE_TYPE, normalizePhotoMaterials, getPhotoFileMetadata };
+  function isQueueablePhoto(photo) {
+    return /^\d+$/.test(String(photo?.id || '').trim());
+  }
+
+  return {
+    REQUEST_TYPE,
+    RESPONSE_TYPE,
+    CONTEXT_TYPE,
+    UPLOAD_REQUEST_TYPE,
+    UPLOAD_RESPONSE_TYPE,
+    normalizePhotoMaterials,
+    getPhotoFileMetadata,
+    isQueueablePhoto
+  };
 });
