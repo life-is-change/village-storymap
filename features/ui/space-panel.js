@@ -332,7 +332,6 @@
           </div>
         </div>
         <div class="menu-tree-footer">
-          <div id="communityScoreBadge" class="community-score-badge">贡献值：--</div>
         </div>
       `;
 
@@ -379,7 +378,6 @@
       deps.ensureBuildingEditorToolbar();
       deps.ensureCommunityBuildPanel();
       deps.updateBuildingEditorToolbarState();
-      deps.refreshCommunityScoreBadge?.();
       deps.refreshVersionManagerPanel?.({ quiet: true });
     }
   };

@@ -42,8 +42,19 @@ test("homepage platform entry refreshes course context and opens the map workspa
     /function bindStatusBadgeClick\(\)[\s\S]*?(?=\nfunction bindResizeObserver)/
   )?.[0] || "";
 
-  assert.match(handler, /showDashboard/);
-  assert.match(handler, /openCoursePlanningWorkspace\("2d"/);
+  assert.match(handler, /enterCoursePlatform\(\)/);
+  assert.doesNotMatch(handler, /await ensureCourseWorkbenchInitialized/);
+});
+
+test("platform entry uses the initialized course context and defers activity logging", () => {
+  const entry = appSource.match(
+    /function ensurePlatformEntryController\(\)[\s\S]*?(?=\nfunction bindStatusBadgeClick)/
+  )?.[0] || "";
+
+  assert.match(entry, /PlatformEntryControllerModule\.createPlatformEntryController/);
+  assert.match(entry, /workbench\.getContext\(\)\s*\|\|\s*await workbench\.showDashboard\(\)/);
+  assert.match(entry, /recordActivity:\s*\(\)\s*=>\s*recordCourseActivity/);
+  assert.match(entry, /openWorkspace:\s*openCoursePlanningWorkspace/);
 });
 
 test("homepage bridge waits for the iframe document root before binding", () => {

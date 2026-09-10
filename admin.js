@@ -138,47 +138,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       .replace(/'/g, "&#39;");
   }
 
-  function formatContribution(stats) {
-    const points = Number(stats?.total_points || 0);
-    const level = Number(stats?.level || 1);
-    return `${Number.isFinite(points) ? points : 0} | Lv.${Number.isFinite(level) && level > 0 ? level : 1}`;
-  }
-
-  function ensureContributionHeader() {
-    const headerRow = document.querySelector(".admin-table thead tr");
-    if (!headerRow || headerRow.querySelector("[data-contribution-header]")) return;
-    const th = document.createElement("th");
-    th.dataset.contributionHeader = "1";
-    th.textContent = "贡献值";
-    const actionHeader = headerRow.lastElementChild;
-    const registeredAtHeader = actionHeader?.previousElementSibling;
-    headerRow.insertBefore(th, registeredAtHeader || actionHeader);
-  }
-
-  async function fetchUserStatsMap(userNames) {
-    const names = Array.from(new Set((userNames || []).map((name) => String(name || "").trim()).filter(Boolean)));
-    const statsMap = {};
-    if (!supabaseClient || names.length === 0) return statsMap;
-
-    const { data, error } = await supabaseClient
-      .from(USER_STATS_TABLE)
-      .select("user_name, total_points, level")
-      .in("user_name", names);
-
-    if (error) {
-      if (!isQueryMissingTableError(error)) {
-        console.warn("读取贡献值失败：", error);
-      }
-      return statsMap;
-    }
-
-    (data || []).forEach((row) => {
-      const key = String(row?.user_name || "").trim();
-      if (key) statsMap[key] = row;
-    });
-    return statsMap;
-  }
-
   function showAdminNotice(message, type = "info") {
     const existing = document.querySelector(".admin-inline-notice");
     if (existing) existing.remove();
@@ -236,7 +195,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function renderTable() {
-    ensureContributionHeader();
     const tbody = $("adminTableBody");
     const countEl = $("adminUserCount");
     const users = await getAllUsers();
@@ -246,7 +204,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!tbody) return;
 
     if (users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">暂无注册账号</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="admin-empty">暂无注册账号</td></tr>`;
       return;
     }
 
@@ -256,8 +214,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return tb - ta;
     });
 
-    const statsMap = await fetchUserStatsMap(sorted.map((u) => u.name));
-
     tbody.innerHTML = sorted.map((u) => {
       const rawName = String(u.name || "").trim();
       const rawStudentId = String(u.studentId || "").trim();
@@ -266,7 +222,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const gender = escapeHtml(u.gender || "—");
       const className = escapeHtml(u.className || "—");
       const grade = escapeHtml(u.grade || "—");
-      const contribution = escapeHtml(formatContribution(statsMap[rawName]));
       const createdAt = formatDate(u.createdAt);
       const actionHtml = window.AccessControlModule?.isAdminUser(u)
         ? `<span class="admin-action-muted">管理员账号</span>`
@@ -279,7 +234,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
           <td class="${u.gender ? "" : "cell-muted"}">${gender}</td>
           <td class="${u.className ? "" : "cell-muted"}">${className}</td>
           <td class="${u.grade ? "" : "cell-muted"}">${grade}</td>
-          <td><span class="admin-contribution-badge">${contribution}</span></td>
           <td class="cell-muted">${createdAt}</td>
           <td>${actionHtml}</td>
         </tr>
@@ -344,13 +298,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function deleteObjectPhotosByRows(photoRows) {
     if (!supabaseClient || !Array.isArray(photoRows) || photoRows.length === 0) return;
 
+    const deletedPaths = [];
     for (const row of photoRows) {
-      if (row?.id !== null && row?.id !== undefined && window.SurveyAdminModule?.assertPhotoDeletable) {
-        await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, row.id);
-      }
+      if (row?.id === null || row?.id === undefined) continue;
+      const { data, error } = await supabaseClient.rpc("delete_object_photo_safely", {
+        p_photo_id: Number(row.id)
+      });
+      if (error) throw error;
+      const path = data?.photoPath || data?.photo_path || row?.photo_path;
+      if (path) deletedPaths.push(path);
     }
 
-    const photoPaths = Array.from(new Set(photoRows.map((row) => row?.photo_path).filter(Boolean)));
+    const photoPaths = Array.from(new Set(deletedPaths));
     if (photoPaths.length > 0) {
       await ignoreMissingTable("照片文件", async () => {
         const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove(photoPaths);
@@ -361,12 +320,60 @@ const ENABLE_SUPABASE_SYNC = (() => {
       });
     }
 
-    const photoIds = Array.from(new Set(photoRows.map((row) => row?.id).filter((id) => id !== null && id !== undefined)));
-    if (photoIds.length > 0) {
-      await runDeleteQuery("对象照片", () =>
-        supabaseClient.from(OBJECT_PHOTOS_TABLE).delete().in("id", photoIds)
-      );
+  }
+
+  function getPhotoDisplayUrl(photo = {}) {
+    const photoPath = String(photo.photo_path || "").trim();
+    if (photoPath) {
+      const result = supabaseClient.storage.from(PHOTO_BUCKET).getPublicUrl(photoPath);
+      const publicUrl = result?.data?.publicUrl || result?.publicURL || "";
+      if (publicUrl) return publicUrl;
     }
+    return String(photo.photo_url || "").trim();
+  }
+
+  async function replaceMissingPhotoFile(button) {
+    const item = button?.closest?.(".admin-photo-item");
+    const photoId = item?.dataset?.photoId;
+    const photoPath = item?.dataset?.photoPath;
+    if (!photoId || !photoPath) {
+      showAdminNotice("该记录缺少存储路径，无法原位修复。", "error");
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      button.disabled = true;
+      try {
+        const { error: uploadError } = await supabaseClient.storage
+          .from(PHOTO_BUCKET)
+          .upload(photoPath, file, { upsert: true, contentType: file.type || "image/jpeg" });
+        if (uploadError) throw uploadError;
+        const publicUrl = getPhotoDisplayUrl({ photo_path: photoPath });
+        const { error: updateError } = await supabaseClient
+          .from(OBJECT_PHOTOS_TABLE)
+          .update({ photo_url: publicUrl })
+          .eq("id", photoId);
+        if (updateError) throw updateError;
+        const image = item.querySelector("img");
+        const missing = item.querySelector(".admin-photo-missing");
+        if (image) {
+          image.src = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}repaired=${Date.now()}`;
+          image.style.display = "";
+        }
+        if (missing) missing.style.display = "none";
+        showAdminNotice("原图已补回，照片记录及 3D 立面引用保持不变。", "success");
+        await renderPhotos();
+      } catch (error) {
+        console.error("修复照片失败：", error);
+        showAdminNotice(error?.message || "修复照片失败，请稍后重试。", "error");
+        button.disabled = false;
+      }
+    }, { once: true });
+    input.click();
   }
 
   async function cleanupRemoteUserData(userName, removedSpaceIds) {
@@ -573,9 +580,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const code = escapeHtml(p.object_code || "—");
       const uploader = escapeHtml(p.uploaded_by || "—");
       const time = formatDate(p.created_at || p.uploaded_at);
+      const displayUrl = getPhotoDisplayUrl(p);
       return `
         <div class="admin-photo-item" data-photo-id="${escapeHtml(String(p.id))}" data-photo-path="${escapeHtml(p.photo_path || "")}">
-          <a class="admin-photo-download" href="${escapeHtml(p.photo_url || "")}" download title="下载原图" data-download-src="${escapeHtml(p.photo_url || "")}">
+          <a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
@@ -588,8 +596,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
           </button>
-          <img src="${escapeHtml(p.photo_url || "")}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div style="display:none;align-items:center;justify-content:center;height:140px;color:#9aa9b8;font-size:12px;">图片加载失败</div>
+          <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="admin-photo-missing" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
+            <span>原图文件已丢失</span>
+            <button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>
+          </div>
           <div class="admin-photo-meta">
             <div class="photo-type">${typeLabel} · ${code}</div>
             <div>上传者：${uploader}</div>
@@ -614,18 +625,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!confirmed) return;
 
     try {
-      if (window.SurveyAdminModule?.assertPhotoDeletable) {
-        await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, photoId);
-      }
-      if (photoPath) {
+      const { data: deletedPhoto, error: deleteError } = await supabaseClient.rpc("delete_object_photo_safely", {
+        p_photo_id: Number(photoId)
+      });
+      if (deleteError) throw deleteError;
+      const deletedPhotoPath = deletedPhoto?.photoPath || deletedPhoto?.photo_path || photoPath;
+      if (deletedPhotoPath) {
         await ignoreMissingTable("照片文件", async () => {
-          const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([photoPath]);
+          const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([deletedPhotoPath]);
           if (error) throw error;
         });
       }
-      await runDeleteQuery("对象照片", () =>
-        supabaseClient.from(OBJECT_PHOTOS_TABLE).delete().eq("id", photoId)
-      );
       item.remove();
       const countEl = $("adminPhotoCount");
       if (countEl) {
@@ -666,6 +676,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const button = event.target.closest("[data-delete-photo]");
       if (button) {
         handlePhotoDelete(button);
+        return;
+      }
+      const repairButton = event.target.closest("[data-repair-photo]");
+      if (repairButton) {
+        replaceMissingPhotoFile(repairButton);
         return;
       }
       const downloadLink = event.target.closest("[data-download-src]");
@@ -905,9 +920,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const photoHtml = photos.length
       ? `<div class="admin-photo-grid" style="margin-top:12px;">
-          ${photos.map((p) => `
+          ${photos.map((p) => {
+            const displayUrl = getPhotoDisplayUrl(p);
+            return `
             <div class="admin-photo-item" data-photo-id="${escapeHtml(String(p.id))}" data-photo-path="${escapeHtml(p.photo_path || "")}">
-              <a class="admin-photo-download" href="${escapeHtml(p.photo_url || "")}" download title="下载原图" data-download-src="${escapeHtml(p.photo_url || "")}">
+              <a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
@@ -920,15 +937,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
               </button>
-              <img src="${escapeHtml(p.photo_url || "")}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div style="display:none;align-items:center;justify-content:center;height:140px;color:#9aa9b8;font-size:12px;">图片加载失败</div>
+              <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="admin-photo-missing" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
+                <span>原图文件已丢失</span>
+                ${p.photo_path ? '<button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>' : ''}
+              </div>
               <div class="admin-photo-meta">
                 <div class="photo-type">留言照片</div>
                 <div>上传者：${escapeHtml(p.uploaded_by || "—")}</div>
                 <div class="cell-muted">${formatDate(p.created_at)}</div>
               </div>
-            </div>
-          `).join("")}
+            </div>`;
+          }).join("")}
         </div>`
       : '<div style="margin-top:12px;padding:16px;border-radius:12px;background:rgba(31,53,82,0.04);color:#5f7385;text-align:center;font-size:14px;">暂无照片</div>';
 
@@ -980,18 +1000,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
         if (!confirmed) return;
 
         try {
-          if (window.SurveyAdminModule?.assertPhotoDeletable) {
-            await window.SurveyAdminModule.assertPhotoDeletable(supabaseClient, photoId);
-          }
-          if (photoPath) {
+          const { data: deletedPhoto, error: deleteError } = await supabaseClient.rpc("delete_object_photo_safely", {
+            p_photo_id: Number(photoId)
+          });
+          if (deleteError) throw deleteError;
+          const approvedPath = deletedPhoto?.photoPath || deletedPhoto?.photo_path || photoPath;
+          if (approvedPath) {
             await ignoreMissingTable("照片文件", async () => {
-              const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([photoPath]);
+              const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([approvedPath]);
               if (error) throw error;
             });
           }
-          await runDeleteQuery("对象照片", () =>
-            supabaseClient.from(OBJECT_PHOTOS_TABLE).delete().eq("id", photoId)
-          );
           item.remove();
           // 更新照片计数文字
           const countLabel = body.querySelector("[data-photo-count-label]");
@@ -1012,6 +1031,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
         e.preventDefault();
         downloadPhoto(link.dataset.downloadSrc);
       });
+    });
+    body.querySelectorAll("[data-repair-photo]").forEach((button) => {
+      button.addEventListener("click", () => replaceMissingPhotoFile(button));
     });
   }
 

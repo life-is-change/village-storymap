@@ -237,11 +237,40 @@
         return [];
       }
 
-      return (data || [])
+      const rows = data || [];
+      const photoIds = rows
+        .map((item) => Number(item?.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      const facadePhotoIds = new Set();
+      if (photoIds.length && typeof supabaseClient.rpc === "function") {
+        const { data: usageRows, error: usageError } = await supabaseClient.rpc(
+          "list_object_photo_facade_usage",
+          { p_photo_ids: photoIds }
+        );
+        if (usageError) {
+          console.warn("读取照片 3D 立面使用状态失败：", usageError);
+        } else {
+          (usageRows || []).forEach((row) => {
+            const id = Number(row?.photo_id);
+            if (Number.isFinite(id)) facadePhotoIds.add(id);
+          });
+        }
+      }
+
+      return rows
         .map((item) => ({
           ...item,
+          photo_url: (() => {
+            const path = String(item?.photo_path || "").trim();
+            if (!path) return item?.photo_url || "";
+            const publicUrlResult = supabaseClient.storage
+              .from(deps.PHOTO_BUCKET)
+              .getPublicUrl(path);
+            return publicUrlResult?.data?.publicUrl || publicUrlResult?.publicURL || item?.photo_url || "";
+          })(),
           uploaded_at: item.uploaded_at || item.created_at || "",
-          uploaded_by: resolvePhotoUploader(item)
+          uploaded_by: resolvePhotoUploader(item),
+          used_for_facade_generation: facadePhotoIds.has(Number(item?.id))
         }))
         .sort((a, b) => {
           const ta = Date.parse(a.uploaded_at || "") || 0;
@@ -333,25 +362,24 @@
         throw new Error("当前未配置 Supabase。");
       }
 
-      if (photoRecord.photo_path) {
-        const { error: storageError } = await supabaseClient.storage
-          .from(deps.PHOTO_BUCKET)
-          .remove([photoRecord.photo_path]);
-
-        if (storageError) {
-          console.warn("删除存储文件失败：", storageError);
-        }
-      }
-
-      const { error: deleteError } = await supabaseClient
-        .from(deps.OBJECT_PHOTOS_TABLE)
-        .delete()
-        .eq("id", photoRecord.id)
-        .eq("teaching_project_id", context.teachingProjectId)
-        .eq("village_id", context.villageId)
-        .eq("space_id", context.spaceId);
+      const { data: deleteResult, error: deleteError } = await supabaseClient.rpc(
+        "delete_object_photo_safely",
+        { p_photo_id: Number(photoRecord.id) }
+      );
 
       if (deleteError) throw deleteError;
+      if (!deleteResult?.deleted) throw new Error("PHOTO_DELETE_NOT_COMPLETED");
+
+      const storedPath = String(deleteResult.photoPath || photoRecord.photo_path || "").trim();
+      if (storedPath) {
+        const { error: storageError } = await supabaseClient.storage
+          .from(deps.PHOTO_BUCKET)
+          .remove([storedPath]);
+
+        if (storageError) {
+          console.warn("照片记录已删除，但存储文件清理失败：", storageError);
+        }
+      }
       forgetPhotoUploader(photoRecord.photo_path, photoRecord.photo_url);
     },
 

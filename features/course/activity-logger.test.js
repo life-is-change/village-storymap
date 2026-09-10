@@ -1,7 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createActivityLogger } = require("./activity-logger.js");
+const {
+  createActivityLogger,
+  purgeLegacyAdminEventsOnce,
+  ADMIN_HISTORY_CLEANUP_MARKER
+} = require("./activity-logger.js");
 
 function createMemoryStorage() {
   const values = new Map();
@@ -99,4 +103,25 @@ test("local event filters support research queries", async () => {
 
   assert.equal(logger.listLocalEvents({ action: "view_switched" }).length, 1);
   assert.equal(logger.listLocalEvents({ groupId: "other-group" }).length, 0);
+});
+
+test("legacy administrator events are purged from local cache only once", () => {
+  const storage = createMemoryStorage();
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "admin-old", studentName: "管理员", syncStatus: "pending" },
+    { clientEventId: "student-old", studentName: "张三", syncStatus: "synced" }
+  ]));
+
+  assert.equal(purgeLegacyAdminEventsOnce(storage), 1);
+  assert.deepEqual(
+    JSON.parse(storage.getItem("village_activity_events_v1")).map((event) => event.clientEventId),
+    ["student-old"]
+  );
+  assert.equal(storage.getItem(ADMIN_HISTORY_CLEANUP_MARKER), "1");
+
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "admin-new", studentName: "管理员", syncStatus: "pending" }
+  ]));
+  assert.equal(purgeLegacyAdminEventsOnce(storage), 0);
+  assert.equal(JSON.parse(storage.getItem("village_activity_events_v1")).length, 1);
 });

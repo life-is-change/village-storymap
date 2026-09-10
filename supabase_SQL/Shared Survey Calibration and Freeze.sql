@@ -144,10 +144,10 @@ begin
   where space.id = p_space_id
     and space.teaching_project_id = p_teaching_project_id
     and space.village_id = p_village_id
-    and space.space_type = 'formal_shared';
+    and space.space_type in ('practice_shared', 'formal_shared');
 
   if not found then
-    raise exception 'FORMAL_SHARED_SPACE_REQUIRED';
+    raise exception 'SHARED_SURVEY_SPACE_REQUIRED';
   end if;
 
   if not public.context_space_accessible(
@@ -185,8 +185,8 @@ begin
     p_teaching_project_id, p_village_id, p_space_id
   );
 
-  if v_space.space_type <> 'formal_shared' then
-    raise exception 'FORMAL_SHARED_SPACE_REQUIRED';
+  if v_space.space_type not in ('practice_shared', 'formal_shared') then
+    raise exception 'SHARED_SURVEY_SPACE_REQUIRED';
   end if;
 
   if public.current_profile_role() not in ('teacher', 'admin') then
@@ -231,6 +231,10 @@ begin
   ) then
     raise exception 'BUILDING_REVIEW_ITEMS_REQUIRED';
   end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(concat_ws(
+    ':', 'survey-review-init', p_teaching_project_id, p_village_id, p_space_id
+  ), 0));
 
   select count(*) into v_existing_count
   from public.survey_feature_reviews review
@@ -481,7 +485,7 @@ begin
     change_layer_key := btrim(change_row->>'layerKey');
     v_client_object_code := btrim(change_row->>'objectCode');
     change_object_code := v_client_object_code;
-    v_is_survey_change := v_space.space_type = 'formal_shared'
+    v_is_survey_change := v_space.space_type in ('practice_shared', 'formal_shared')
       and change_layer_key in ('building', 'road', 'water');
 
     if change_action not in ('add', 'update', 'delete') then
@@ -849,8 +853,10 @@ declare
   v_version_number integer;
   v_stats jsonb;
   v_group_spaces jsonb;
+  v_space public.planning_spaces;
 begin
-  perform public.assert_survey_review_context(p_teaching_project_id, p_village_id, p_space_id);
+  v_space := public.assert_survey_review_context(p_teaching_project_id, p_village_id, p_space_id);
+  if v_space.space_type <> 'formal_shared' then raise exception 'FORMAL_SHARED_SPACE_REQUIRED'; end if;
   if public.current_profile_role() not in ('teacher', 'admin') then raise exception 'STAFF_REQUIRED'; end if;
   if nullif(btrim(p_version_name), '') is null then raise exception 'SNAPSHOT_NAME_REQUIRED'; end if;
   if exists (
@@ -1021,6 +1027,17 @@ begin
   else
     v_layer_key := new.survey_layer_key;
     v_object_code := new.object_code;
+  end if;
+
+  -- 正式共享空间的新照片必须声明其来源图层，不能通过空值绕开校核门禁。
+  -- 对旧记录的无关字段维护保持兼容，避免迁移回填被历史空值阻断。
+  if tg_table_name = 'object_photos' and v_layer_key is null then
+    if tg_op = 'INSERT'
+       or new.object_code is distinct from old.object_code
+       or new.survey_layer_key is distinct from old.survey_layer_key then
+      raise exception 'SURVEY_LAYER_KEY_REQUIRED';
+    end if;
+    return new;
   end if;
 
   -- 普通地图留言、互动元数据以及非三类图层没有对象级校核语义。

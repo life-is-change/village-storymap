@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createSurveyReviewClient } = require("./survey-review-client.js");
+const { createSurveyReviewClient, requireSharedContext } = require("./survey-review-client.js");
 
 function createQuery(rows, calls) {
   const query = {
@@ -22,6 +22,38 @@ function context(overrides = {}) {
     ...overrides
   };
 }
+
+test("practice shared space can use the same review client", () => {
+  assert.deepEqual(requireSharedContext(() => context({ spaceType: "practice_shared" })), {
+    teachingProjectId: "p1", villageId: "v1", spaceId: "s1"
+  });
+});
+
+test("practice review initialization removes duplicate and invalid feature identities", async () => {
+  const calls = [];
+  const supabaseClient = {
+    async rpc(name, args) {
+      calls.push({ name, args });
+      return { data: 2, error: null };
+    }
+  };
+  const client = createSurveyReviewClient({
+    supabaseClient,
+    getContext: () => context({ spaceType: "practice_shared" })
+  });
+
+  assert.equal(await client.initializeReviews("dataset-1", [
+    { layerKey: "building", objectCode: "B1" },
+    { layerKey: "building", objectCode: " B1 " },
+    { layerKey: "road", objectCode: "R1" },
+    { layerKey: "contours", objectCode: "C1" },
+    { layerKey: "water", objectCode: "" }
+  ]), 2);
+  assert.deepEqual(calls[0].args.p_items, [
+    { layerKey: "building", objectCode: "B1" },
+    { layerKey: "road", objectCode: "R1" }
+  ]);
+});
 
 test("lists only review rows from the active project village and space", async () => {
   const calls = [];
@@ -90,7 +122,7 @@ test("confirmGeometry sends context revision and lock token without caller ident
   assert.equal("p_editor_name" in calls[0].args, false);
 });
 
-test("rejects personal and practice spaces before querying Supabase", async () => {
+test("rejects personal spaces before querying Supabase", async () => {
   let touched = false;
   const supabaseClient = {
     from() { touched = true; },
@@ -101,8 +133,8 @@ test("rejects personal and practice spaces before querying Supabase", async () =
     getContext: () => context({ spaceType: "formal_personal" })
   });
 
-  await assert.rejects(() => client.listReviews(), /FORMAL_SHARED_SPACE_REQUIRED/);
-  await assert.rejects(() => client.confirmGeometry({}), /FORMAL_SHARED_SPACE_REQUIRED/);
+  await assert.rejects(() => client.listReviews(), /SHARED_SURVEY_SPACE_REQUIRED/);
+  await assert.rejects(() => client.confirmGeometry({}), /SHARED_SURVEY_SPACE_REQUIRED/);
   assert.equal(touched, false);
 });
 
@@ -117,4 +149,3 @@ test("surfaces Supabase errors without returning stale success", async () => {
     failure
   );
 });
-

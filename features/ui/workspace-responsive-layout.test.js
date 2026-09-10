@@ -95,3 +95,15 @@ test('discussion and settings controls provide icon and text variants', () => {
   assert.match(html, /id="classDiscussionBtn"[\s\S]*?<svg[\s\S]*?<span>班级讨论<\/span>/);
   assert.match(html, /id="projectSettingsBtn"[\s\S]*?<svg[\s\S]*?<span>图层与项目设置<\/span>/);
 });
+
+test('survey marker control keeps its label inside a reserved top-bar track', () => {
+  const rootRule = css.match(/\.survey-review-panel-root\s*\{[^}]+\}/)?.[0] || '';
+  const activityRule = css.match(/\.survey-activity-only\s*\{[^}]+\}/)?.[0] || '';
+  const summaryRule = css.match(/\.survey-activity-only\s+summary\s*\{[^}]+\}/)?.[0] || '';
+
+  assert.match(rootRule, /min-width:\s*72px/);
+  assert.match(activityRule, /width:\s*100%/);
+  assert.match(activityRule, /box-sizing:\s*border-box/);
+  assert.match(summaryRule, /overflow:\s*hidden/);
+  assert.match(summaryRule, /text-overflow:\s*ellipsis/);
+});

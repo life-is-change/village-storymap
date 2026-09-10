@@ -3321,7 +3321,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         url: String(item?.photo_url || "").trim(),
         hasPhotoPath: Boolean(item?.photo_path),
         uploadedAt: String(item?.uploaded_at || "").trim(),
-        uploadedBy: ""
+        uploadedBy: String(item?.uploaded_by || "").trim()
       }))
       .filter((item) => {
         if (!item.url) return false;
@@ -3396,6 +3396,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!(file instanceof Blob) || !sourceCode) throw new Error("照片或建筑编码无效。");
     const context = getActiveVillage3DContext();
     if (!context.teachingProjectId || !context.villageId) throw new Error("课程村庄上下文不完整。");
+    const authenticatedName = String(
+      window.VillageAuth?.getCurrentDisplayName?.()
+      || window.VillageAuth?.getCurrentUser?.()?.name
+      || ""
+    ).trim();
+    if (!authenticatedName) throw new Error("当前登录用户缺少显示名称，请重新登录后再上传。");
     const extension = String(file.name || "photo.jpg").split(".").pop().toLowerCase();
     const safeExtension = ["jpg", "jpeg", "png"].includes(extension) ? extension : "jpg";
     const safeCode = normalizeCode(sourceCode).replace(/[^a-zA-Z0-9_-]/g, "-") || "building";
@@ -3414,6 +3420,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
         object_type: "building",
         photo_url: publicUrl,
         photo_path: storagePath,
+        uploaded_by: authenticatedName,
+        survey_layer_key: "building",
         teaching_project_id: context.teachingProjectId,
         village_id: context.villageId,
         space_id: spaceId
@@ -3429,7 +3437,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       url: String(insert.data?.photo_url || publicUrl),
       hasPhotoPath: Boolean(insert.data?.photo_path || storagePath),
       uploadedAt: String(insert.data?.uploaded_at || new Date().toISOString()),
-      uploadedBy: ""
+      uploadedBy: String(insert.data?.uploaded_by || authenticatedName)
     };
   }
 

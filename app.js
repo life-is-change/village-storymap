@@ -220,11 +220,14 @@ let activeWorkspaceAccountKey = "";
 let courseService = null;
 let activityLogger = null;
 let courseWorkbench = null;
+let platformEntryController = null;
 let geoprocessingPanel = null;
 let geoprocessingAoiController = null;
 let geoprocessingResultPreview = null;
 let villagePreviewController = null;
 let personalSpaceClient = null;
+let coursePersonalSpace = null;
+let coursePersonalSpaceReady = null;
 let villageClient = null;
 let surveyReviewClient = null;
 let surveyReviewPanel = null;
@@ -1500,8 +1503,7 @@ function bindHomepageLandingBridge() {
       if (homepageCommand?.type === "enter_village") {
         const entry = homepageEntries.find((item) => item.villageId === homepageCommand.villageId);
         if (!entry || !projectSwitcher) return;
-        await projectSwitcher.switchTo(entry);
-        statusBadge?.click();
+        await enterCoursePlatform({ entry });
         return;
       }
 
@@ -1933,7 +1935,8 @@ async function commitVillageContext(prepared) {
   await applyVillageDatasetToPlanMap(prepared.datasetResources);
   sync2DSpaceStateTo3D();
   renderSpaceList();
-  if (planMap && plan2dView?.classList.contains("active")) {
+  if (planMap && plan2dView?.classList.contains("active")
+      && !platformEntryController?.isEntering()) {
     await refresh2DOverlay({ forceFullRebuild: true });
   }
   if (document.getElementById("model3dView")?.classList.contains("active")
@@ -2096,6 +2099,37 @@ async function openCoursePlanningWorkspace(viewMode, group) {
   await handleSpaceSelect(space.id);
 }
 
+async function initializeCoursePersonalSpace() {
+  if (!supabaseClient) return null;
+  personalSpaceClient = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
+  const user = getCourseUser();
+  coursePersonalSpace = await personalSpaceClient.ensure({
+    courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+    teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+    villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+    spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
+    title: `${user.name || "学生"} · 个人图底空间`
+  });
+  const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
+  const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
+  const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
+    personalSpace: coursePersonalSpace,
+    user,
+    existingSpace: existingPersonalWorkspace,
+    selections,
+    courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+    teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+    villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+    spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal"
+  });
+  const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
+  if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
+  else spaces.push(workspaceSpace);
+  saveSpacesToStorage({ syncRemote: false });
+  renderSpaceList();
+  return coursePersonalSpace;
+}
+
 async function ensureCourseWorkbenchInitialized() {
   if (courseWorkbench) return courseWorkbench;
   if (
@@ -2136,39 +2170,10 @@ async function ensureCourseWorkbenchInitialized() {
       };
     }
   });
-  let coursePersonalSpace = null;
-  if (supabaseClient) {
-    personalSpaceClient = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
-    try {
-      const user = getCourseUser();
-      coursePersonalSpace = await personalSpaceClient.ensure({
-        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
-        title: `${user.name || "学生"} · 个人图底空间`
-      });
-      const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
-      const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
-      const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
-        personalSpace: coursePersonalSpace,
-        user,
-        existingSpace: existingPersonalWorkspace,
-        selections,
-        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal"
-      });
-      const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
-      if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
-      else spaces.push(workspaceSpace);
-      saveSpacesToStorage({ syncRemote: false });
-      renderSpaceList();
-    } catch (error) {
-      console.warn("个人图底空间暂时无法初始化：", error);
-    }
-  }
+  coursePersonalSpaceReady = initializeCoursePersonalSpace().catch((error) => {
+    console.warn("个人图底空间暂时无法初始化：", error);
+    return null;
+  });
   courseWorkbench = window.CourseWorkbenchModule.createCourseWorkbench({
     container: courseWorkbenchContent,
     navContainer: courseTaskNav,
@@ -2187,6 +2192,7 @@ async function ensureCourseWorkbenchInitialized() {
       geoprocessingResultPreview = null;
       villagePreviewController = null;
       if (!container || !planMap || !supabaseClient) return;
+      await coursePersonalSpaceReady;
       if (!window.GeoprocessingClientModule || !window.GeoprocessingAoiModule
           || !window.VillagePreviewModule
           || !window.GeoprocessingResultLayersModule || !window.GeoprocessingPanelModule) return;
@@ -2268,7 +2274,6 @@ async function ensureCourseWorkbenchInitialized() {
     }
   });
   await courseWorkbench.init();
-  await syncSpacesFromSupabase();
   return courseWorkbench;
 }
 
@@ -2893,7 +2898,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20260908-shared-admin-3d", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20260908-shared-admin-3d", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20260911-photo-security", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3020,7 +3025,7 @@ function surveyReviewKey(layerKey, objectCode) {
 }
 
 function usesSharedSurveyGeometryWorkflow(layerKey) {
-  return getCurrentSpace()?.spaceType === "formal_shared"
+  return ["practice_shared", "formal_shared"].includes(getCurrentSpace()?.spaceType)
     && ["building", "road", "water"].includes(String(layerKey || ""));
 }
 
@@ -3052,7 +3057,7 @@ function applyCurrentSurveyReviewOverlay() {
     activities: surveyActivityByKey,
     focusPending: surveyFocusPending,
     activityFilter: surveyActivityFilter,
-    showGeometryStatus: getCurrentSpace()?.spaceType === "formal_shared"
+    showGeometryStatus: ["practice_shared", "formal_shared"].includes(getCurrentSpace()?.spaceType)
   });
 }
 
@@ -3084,15 +3089,17 @@ function setSurveyRealtimeState(state) {
 }
 
 function isSharedSurveyConnectionReady() {
-  return getCurrentSpace()?.spaceType !== "formal_shared" || surveyRealtimeState === "connected";
+  return !["practice_shared", "formal_shared"].includes(getCurrentSpace()?.spaceType)
+    || surveyRealtimeState === "connected";
 }
 
 async function syncSurveyRealtimeSubscription() {
   const space = getCurrentSpace();
-  if (space?.spaceType !== "formal_shared" || !supabaseClient || !window.SurveyRealtimeControllerModule) {
+  const isSharedSurvey = ["practice_shared", "formal_shared"].includes(space?.spaceType);
+  if (!isSharedSurvey || !supabaseClient || !window.SurveyRealtimeControllerModule) {
     surveyRealtimeContextKey = "";
     await surveyRealtimeController?.stop?.();
-    setSurveyRealtimeState(space?.spaceType === "formal_shared" ? "disconnected" : "connected");
+    setSurveyRealtimeState(isSharedSurvey ? "disconnected" : "connected");
     return;
   }
   const context = {
@@ -3144,10 +3151,28 @@ async function refreshSurveyReviewState() {
           scoped(COMMUNITY_TASKS_TABLE, "target_layer_key,target_object_code,status")
         ])
       : Promise.resolve([]);
-    const [reviews, activityResults] = await Promise.all([
-      space.spaceType === "formal_shared" ? getSurveyReviewClient().listReviews() : Promise.resolve([]),
+    let [reviews, activityResults] = await Promise.all([
+      getSurveyReviewClient().listReviews(),
       activityQueries
     ]);
+    if (
+      space.spaceType === "practice_shared"
+      && reviews.length === 0
+      && ["teacher", "admin"].includes(getCurrentUserRole())
+    ) {
+      const datasetId = activeVillageContext?.datasetId || space.baseDatasetId || space.base_dataset_id;
+      const caches = await Promise.all(["building", "road", "water"].map(async (layerKey) => ({
+        layerKey,
+        cache: await ensureLayerLoaded(layerKey)
+      })));
+      const items = caches.flatMap(({ layerKey, cache }) => (cache?.features || [])
+        .map((feature) => ({ layerKey, objectCode: String(getFeatureCode(feature, layerKey) || "").trim() }))
+        .filter((item) => item.objectCode));
+      if (datasetId && items.length > 0) {
+        await getSurveyReviewClient().initializeReviews(datasetId, items);
+        reviews = await getSurveyReviewClient().listReviews();
+      }
+    }
     surveyReviewRows = reviews;
     surveyReviewByKey = new Map(surveyReviewRows.map((row) => [
       surveyReviewKey(row.layer_key, row.object_code), row
@@ -3162,17 +3187,19 @@ async function refreshSurveyReviewState() {
       comments: rows[2],
       tasks: rows[3]
     }) || new Map();
-    if (space.spaceType === "formal_shared") {
-      panel?.setProgress(
-        window.SurveyReviewModelModule.buildSurveyProgress(surveyReviewRows),
-        surveyFocusPending
-      );
-    } else {
-      panel?.setActivityOnly(surveyActivityFilter);
-    }
+    const progress = window.SurveyReviewModelModule.buildSurveyProgress(surveyReviewRows);
+    progress.photoCount = rows[1]?.length || 0;
+    progress.discussionCount = rows[2]?.length || 0;
+    progress.unresolvedIssueCount = (rows[3] || []).filter((row) => row?.status === "pending").length;
+    panel?.setProgress(progress, surveyFocusPending);
     applyCurrentSurveyReviewOverlay();
   } catch (error) {
-    console.warn("刷新几何校核进度失败：", error);
+    console.warn(
+      `刷新几何校核进度失败：${error?.message || error?.code || "UNKNOWN_ERROR"}`,
+      error?.code || "",
+      error?.details || "",
+      error?.hint || ""
+    );
     panel.hide();
   }
 }
@@ -3452,7 +3479,8 @@ async function requestFeatureSaveNote(summary) {
 }
 
 function canFreezeCurrentSnapshot() {
-  return getFeatureEditSessionModule().canFreezeSnapshot(getCurrentUserRole());
+  return getCurrentSpace()?.spaceType === "formal_shared"
+    && getFeatureEditSessionModule().canFreezeSnapshot(getCurrentUserRole());
 }
 
 async function refreshVersionManagerPanel(options = {}) {
@@ -3683,14 +3711,11 @@ async function freezeCurrentSnapshot() {
   );
   if (description === null) return;
   try {
-    const items = await collectCompleteCurrentVersionItems();
-    await getFeatureEditSessionModule().freezeSnapshot(buildFeatureEditSessionDeps(), {
-      spaceId: BASE_SPACE_ID,
+    await getFeatureEditSessionModule().freezeSurveySnapshot(buildFeatureEditSessionDeps(), {
+      spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
       versionName,
       description,
-      createdBy: currentUserName,
-      versionType: "published",
-      items
+      recommendedForGroups: true
     });
     showToast(`已冻结正式版本“${versionName.trim()}”`, "success");
     await refreshVersionManagerPanel();
@@ -5734,15 +5759,41 @@ function canEditLayer(layerKey, editableByIdentity) {
   return !!editableByIdentity && getEditableFields(layerKey).length > 0;
 }
 
-function canDeletePhotoByUploader(uploadedBy, actorName = currentUserName) {
+function canDeletePhotoByUploader(
+  uploadedBy,
+  actorName = currentUserName,
+  uploadedByUserId = "",
+  actorUserId = ""
+) {
   const uploader = normalizeIdentityName(uploadedBy);
   const actor = normalizeIdentityName(actorName);
   if (!actor) return false;
+  if (isAdminIdentity(actor)) return true;
+  const currentAuthUser = typeof window !== "undefined"
+    ? window.VillageAuth?.getCurrentUser?.()
+    : null;
+  const effectiveActorUserId = String(
+    actorUserId || currentAuthUser?.authUserId || currentAuthUser?.id || ""
+  ).trim();
+  const ownerUserId = String(uploadedByUserId || "").trim();
+  if (ownerUserId) return Boolean(effectiveActorUserId) && ownerUserId === effectiveActorUserId;
   const isUnknownUploader = !uploader || uploader === "未知" || uploader.toLowerCase() === "unknown";
-  if (isUnknownUploader) {
-    return isAdminIdentity(actor);
-  }
+  if (isUnknownUploader) return false;
   return uploader === actor;
+}
+
+function getPhotoDeleteErrorMessage(error) {
+  const message = String(error?.message || error || "");
+  if (message.includes("FACADE_PHOTO_IN_USE")) {
+    return "该照片已用于 3D 立面生成，需保留为生成记录，不能直接删除。";
+  }
+  if (message.includes("SNAPSHOT_PHOTO_IMMUTABLE")) {
+    return "该照片已进入冻结版本，不能直接删除。";
+  }
+  if (message.includes("PHOTO_DELETE_FORBIDDEN")) {
+    return "仅照片上传者本人或管理员可以删除。";
+  }
+  return message || "删除照片失败。";
 }
 
 function isCommunityGameTableMissingError(error) {
@@ -6657,16 +6708,7 @@ async function migrateObjectEdits(oldCode, newCode, objectType) {
 }
 
 async function refreshCommunityScoreBadge() {
-  const el = document.getElementById("communityScoreBadge");
-  if (!el) return;
-  if (!currentUserName) {
-    el.textContent = "贡献值：请先登录";
-    return;
-  }
-  const stats = await getCurrentUserStats(currentUserName);
-  const points = Number(stats?.total_points || 0);
-  const level = Number(stats?.level || 1);
-  el.textContent = `贡献值：${points} ｜ Lv.${level}`;
+  // Gamification UI was retired; retain a no-op hook for older modules.
 }
 
 async function renameBuildingCodeInDb(spaceId, oldCode, newCode) {
@@ -6753,10 +6795,6 @@ async function transitionCommunityTaskStatus({ taskRow, operatorName, nextStatus
     operatorName,
     nextStatus
   });
-}
-
-async function getCurrentUserStats(userName) {
-  return getCommunityTasksModule().getCurrentUserStats(buildCommunityTaskDeps(), userName);
 }
 
 async function fetchObjectPhotos(sourceCode, objectType) {
@@ -6921,7 +6959,11 @@ async function handlePhotoUpload(context) {
 }
 
 async function handlePhotoDelete(photoRecord, context) {
-  if (!canDeletePhotoByUploader(photoRecord?.uploaded_by, currentUserName)) {
+  if (!canDeletePhotoByUploader(
+    photoRecord?.uploaded_by,
+    currentUserName,
+    photoRecord?.uploaded_by_user_id
+  )) {
     showToast("仅上传者可删除该照片。", "error");
     return;
   }
@@ -6937,7 +6979,7 @@ async function handlePhotoDelete(photoRecord, context) {
     await showObjectInfo(context.baseRow, context.layerKey, context.sourceCode);
   } catch (error) {
     console.error("删除照片失败：", error);
-    window.alert(`删除失败：${error.message}`);
+    window.alert(`删除失败：${getPhotoDeleteErrorMessage(error)}`);
   }
 }
 
@@ -7128,17 +7170,21 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
 
   renderObjectInfoLoadingState(layerKey, sourceCode, config);
 
+  const surveyReviewApplies = ["practice_shared", "formal_shared"].includes(currentSpace?.spaceType)
+    && ["building", "road", "water"].includes(layerKey);
   const surveyGateApplies = currentSpace?.spaceType === "formal_shared"
     && ["building", "road", "water"].includes(layerKey);
   let surveyDownstreamReady = true;
   let surveyReview = null;
-  if (surveyGateApplies) {
+  if (surveyReviewApplies) {
     try {
       surveyReview = await getSurveyReviewClient().getReview(layerKey, sourceCode);
-      surveyDownstreamReady = window.SurveyReviewModelModule.canUseDownstreamActions(surveyReview);
+      surveyDownstreamReady = surveyGateApplies
+        ? window.SurveyReviewModelModule.canUseDownstreamActions(surveyReview)
+        : true;
     } catch (error) {
       console.warn("读取几何校核状态失败：", error);
-      surveyDownstreamReady = false;
+      surveyDownstreamReady = !surveyGateApplies;
     }
   }
   if (requestSerial !== objectInfoRequestSerial) return;
@@ -7255,7 +7301,9 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       src: item.photo_url,
       photo_path: item.photo_path,
       uploaded_by: item.uploaded_by || "",
+      uploaded_by_user_id: item.uploaded_by_user_id || "",
       uploaded_at: item.uploaded_at || "",
+      used_for_facade_generation: Boolean(item.used_for_facade_generation),
       source: "db"
     }))
   ];
@@ -7264,7 +7312,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const saveStatusHtml = options.flashSaved
     ? `<div id="saveStatus" class="save-status success-inline">保存成功。</div>`
     : `<div id="saveStatus" class="save-status"></div>`;
-  const surveyReviewHtml = surveyGateApplies && surveyReview
+  const surveyReviewHtml = surveyReviewApplies && surveyReview
     ? window.SurveyReviewPanelModule.renderObjectReview(surveyReview)
     : "";
 
@@ -7279,7 +7327,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
                   class="house-photo"
                   src="${item.src}"
                   alt="${escapeHtml(objectName)}-${index + 1}"
-                  onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>图片加载失败</div>')"
+                  onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;img-error&quot;>原图文件已丢失，请联系管理员在后台修复</div>')"
                 >
                 <div class="photo-actions">
                   <a class="download-photo-btn" href="${item.src}" download title="下载原图" data-photo-src="${item.src}">
@@ -7290,7 +7338,11 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
                     </svg>
                   </a>
                   ${
-                    item.source === "db" && canDeletePhotoByUploader(item.uploaded_by, currentUserName)
+                    item.source === "db" && canDeletePhotoByUploader(
+                      item.uploaded_by,
+                      currentUserName,
+                      item.uploaded_by_user_id
+                    )
                       ? `<button class="delete-photo-btn space-icon-btn space-delete-icon-btn" type="button" data-photo-id="${item.id}" title="删除照片">
                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                              <polyline points="3 6 5 6 21 6"></polyline>
@@ -7300,6 +7352,11 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
                       : ""
                   }
                 </div>
+                ${
+                  item.source === "db" && item.used_for_facade_generation
+                    ? `<div class="photo-facade-usage-badge">已用于 3D 立面生成</div>`
+                    : ""
+                }
                 ${
                   item.source === "db" && item.uploaded_by
                     ? `<div class="photo-uploader-info">上传者：${escapeHtml(item.uploaded_by)}</div>`
@@ -7567,28 +7624,59 @@ function bindHomeButton() {
   }
 }
 
+function ensurePlatformEntryController() {
+  if (platformEntryController) return platformEntryController;
+  if (!window.PlatformEntryControllerModule) {
+    throw new Error("平台入口控制模块未加载。");
+  }
+
+  platformEntryController = window.PlatformEntryControllerModule.createPlatformEntryController({
+    showShell: () => {
+      clearTheoryPracticeContext();
+      switchMainView("plan2d");
+    },
+    setLoading: (isLoading, message) => setPlanMapLoadingState(isLoading, message),
+    prepare: async ({ entry } = {}) => {
+      if (entry && projectSwitcher) {
+        await projectSwitcher.switchTo(entry);
+      }
+      const workbench = await ensureCourseWorkbenchInitialized();
+      return workbench.getContext() || await workbench.showDashboard();
+    },
+    openWorkspace: openCoursePlanningWorkspace,
+    recordActivity: () => recordCourseActivity("course_entered", {
+      type: "course",
+      id: window.CourseModelModule.DEFAULT_COURSE.id
+    }),
+    onActivityError: (error) => console.warn("课程进入记录失败：", error),
+    onEntered: () => {
+      shouldApplyInitialPlatformDefaults = false;
+    }
+  });
+  return platformEntryController;
+}
+
+function enterCoursePlatform(request = {}) {
+  if (!currentUserName) {
+    showToast("请先登录", "error");
+    return Promise.resolve(null);
+  }
+  return ensurePlatformEntryController().enter(request).catch((error) => {
+    console.error("进入课程工作台失败：", error);
+    showToast(error?.message || "课程工作台加载失败", "error");
+    throw error;
+  });
+}
+
 function bindStatusBadgeClick() {
   if (!statusBadge) return;
-  statusBadge.addEventListener("click", async () => {
+  statusBadge.addEventListener("click", () => {
     if (!statusBadge.classList.contains("is-enter-btn")) return;
     if (!currentUserName) {
       showToast("请先登录", "error");
       return;
     }
-    try {
-      clearTheoryPracticeContext();
-      const workbench = await ensureCourseWorkbenchInitialized();
-      const context = await workbench.showDashboard();
-      await openCoursePlanningWorkspace("2d", context?.group || null);
-      await recordCourseActivity("course_entered", {
-        type: "course",
-        id: window.CourseModelModule.DEFAULT_COURSE.id
-      });
-      shouldApplyInitialPlatformDefaults = false;
-    } catch (error) {
-      console.error("进入课程工作台失败：", error);
-      showToast(error?.message || "课程工作台加载失败", "error");
-    }
+    enterCoursePlatform().catch(() => {});
   });
 }
 
@@ -7679,6 +7767,8 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   courseService = null;
   activityLogger = null;
   personalSpaceClient = null;
+  coursePersonalSpace = null;
+  coursePersonalSpaceReady = null;
 
   resetWorkspaceStateDefaults();
   spaces = loadSpacesFromStorage();

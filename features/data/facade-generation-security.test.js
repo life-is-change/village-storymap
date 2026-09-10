@@ -44,3 +44,26 @@ test("completed facade generation publishes the browser building_glb contract", 
   assert.match(sql, /p_artifact_type\s+not\s+in\s*\([^)]*'building_glb'/i);
   assert.doesNotMatch(sql, /p_run_id,\s*'glb',\s*p_storage_path/i);
 });
+
+test("photo usage and deletion stay server-authorized without cascading facade history", () => {
+  const displayNameColumn = sql.search(/add\s+column\s+if\s+not\s+exists\s+uploaded_by\s+text/i);
+  const displayNameBackfill = sql.search(/btrim\(photo\.uploaded_by\)/i);
+  assert.ok(displayNameColumn >= 0, "migration must add the optional uploader display-name column");
+  assert.ok(
+    displayNameColumn < displayNameBackfill,
+    "uploader display-name column must exist before the legacy backfill reads it",
+  );
+  assert.match(sql, /add\s+column\s+if\s+not\s+exists\s+uploaded_by_user_id\s+uuid/i);
+  assert.match(sql, /create\s+or\s+replace\s+function\s+public\.list_object_photo_facade_usage/i);
+  assert.match(sql, /create\s+or\s+replace\s+function\s+public\.delete_object_photo_safely/i);
+  assert.match(sql, /uploaded_by_user_id\s*=\s*auth\.uid\(\)/i);
+  assert.match(sql, /before\s+insert\s+or\s+update\s+of\s+uploaded_by\s*,\s*uploaded_by_user_id\s+on\s+public\.object_photos/i);
+  assert.match(sql, /tg_op\s*=\s*'UPDATE'[\s\S]*?new\.uploaded_by_user_id\s*:=\s*old\.uploaded_by_user_id[\s\S]*?new\.uploaded_by\s*:=\s*old\.uploaded_by/i);
+  assert.match(sql, /public\.current_profile_role\(\)\s*=\s*'admin'/i);
+  assert.match(sql, /FACADE_PHOTO_IN_USE/i);
+  assert.match(sql, /SNAPSHOT_PHOTO_IMMUTABLE/i);
+  assert.match(sql, /drop\s+policy\s+if\s+exists\s+"allow public delete from house-photos"/i);
+  assert.match(sql, /house_photos_delete_owner_admin/i);
+  assert.match(sql, /owner_id::text\s*=\s*auth\.uid\(\)::text/i);
+  assert.doesNotMatch(sql, /photo_id[\s\S]{0,80}on\s+delete\s+cascade/i);
+});

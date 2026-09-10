@@ -4,13 +4,18 @@ const assert = require("node:assert/strict");
 const panel = require("./survey-review-panel.js");
 
 test("renders compact progress and low-noise activity filters", () => {
-  const html = panel.renderSurveyProgress({ baselineTotal: 380, reviewedBaseline: 126 }, false);
+  const html = panel.renderSurveyProgress({ baselineTotal: 380, reviewedBaseline: 126, confirmedUnchanged: 90, modified: 30, deleted: 6, added: 4, photoCount: 18, discussionCount: 9, unresolvedIssueCount: 3 }, false);
   assert.match(html, /现状进度/);
   assert.match(html, /126\s*\/\s*380/);
   assert.match(html, /聚焦未校核/);
   assert.match(html, /data-survey-filter="geometry"/);
   assert.match(html, /data-survey-filter="photo"/);
   assert.match(html, /data-survey-filter="discussion"/);
+  assert.match(html, /确认无误\s*90/);
+  assert.match(html, /已修改\s*30/);
+  assert.match(html, /照片\s*18/);
+  assert.match(html, /讨论\s*9/);
+  assert.match(html, /待处理\s*3/);
 });
 
 test("object review action is primary only while pending", () => {
@@ -22,14 +27,10 @@ test("object review action is primary only while pending", () => {
   assert.match(modified, /已修改/);
 });
 
-test("练习村显示可发现的活动标记入口但不冒充正式校核进度", () => {
-  const html = panel.renderSurveyActivityOnly("photo");
-
-  assert.match(html, /现状标记/);
+test("练习村与正式村共用可校核的进度面板", () => {
+  const html = panel.renderSurveyProgress({ baselineTotal: 12, reviewedBaseline: 3 }, false, "photo");
+  assert.match(html, /现状进度/);
+  assert.match(html, /3\s*\/\s*12/);
   assert.match(html, /data-survey-filter="photo" aria-pressed="true"/);
-  assert.match(html, /几何变化/);
-  assert.match(html, /照片/);
-  assert.match(html, /讨论/);
-  assert.doesNotMatch(html, /聚焦未校核/);
-  assert.doesNotMatch(html, /\d+\s*\/\s*\d+/);
+  assert.match(html, /聚焦未校核/);
 });

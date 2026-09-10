@@ -634,3 +634,173 @@ do $$ begin
   alter publication supabase_realtime add table public.facade_generation_runs;
 exception when duplicate_object then null;
 end $$;
+
+-- Object photo ownership, facade usage badges, and safe deletion.
+alter table public.object_photos
+  add column if not exists uploaded_by text;
+
+alter table public.object_photos
+  add column if not exists uploaded_by_user_id uuid references auth.users(id) on delete set null;
+
+alter table public.object_photos
+  alter column uploaded_by_user_id set default auth.uid();
+
+create index if not exists object_photos_uploaded_by_user_idx
+  on public.object_photos(uploaded_by_user_id, uploaded_at desc);
+
+-- Backfill only unambiguous legacy display names. Duplicate names stay admin-only.
+update public.object_photos photo
+set uploaded_by_user_id = profile.id
+from public.profiles profile
+where photo.uploaded_by_user_id is null
+  and nullif(btrim(photo.uploaded_by), '') is not null
+  and lower(btrim(profile.display_name)) = lower(btrim(photo.uploaded_by))
+  and 1 = (
+    select count(*)
+    from public.profiles candidate
+    where lower(btrim(candidate.display_name)) = lower(btrim(photo.uploaded_by))
+  );
+
+create or replace function public.set_object_photo_uploader_identity()
+returns trigger
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  v_name text;
+begin
+  if tg_op = 'UPDATE' then
+    new.uploaded_by_user_id := old.uploaded_by_user_id;
+    new.uploaded_by := old.uploaded_by;
+    return new;
+  end if;
+
+  if auth.uid() is not null then
+    new.uploaded_by_user_id := auth.uid();
+    v_name := public.current_profile_display_name();
+    if nullif(btrim(v_name), '') is not null then
+      new.uploaded_by := v_name;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists object_photos_set_uploader_identity on public.object_photos;
+create trigger object_photos_set_uploader_identity
+before insert or update of uploaded_by, uploaded_by_user_id on public.object_photos
+for each row execute function public.set_object_photo_uploader_identity();
+
+revoke all on function public.set_object_photo_uploader_identity() from public, anon, authenticated;
+
+create or replace function public.list_object_photo_facade_usage(p_photo_ids bigint[])
+returns table(photo_id bigint)
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select distinct run.photo_id
+  from public.facade_generation_runs run
+  join public.object_photos photo on photo.id = run.photo_id
+  where run.photo_id = any(coalesce(p_photo_ids, array[]::bigint[]))
+    and (
+      public.current_profile_role() = 'admin'
+      or public.context_space_accessible(
+        photo.teaching_project_id,
+        photo.village_id,
+        photo.space_id
+      )
+    );
+$$;
+
+create or replace function public.delete_object_photo_safely(p_photo_id bigint)
+returns jsonb
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  v_photo public.object_photos%rowtype;
+  v_current_name text;
+  v_legacy_name_count integer := 0;
+  v_snapshot_referenced boolean := false;
+begin
+  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
+
+  select * into v_photo
+  from public.object_photos
+  where id = p_photo_id
+  for update;
+  if not found then raise exception 'PHOTO_NOT_FOUND'; end if;
+
+  if v_photo.teaching_project_id is not null
+     and v_photo.village_id is not null
+     and v_photo.space_id is not null
+     and not public.context_space_accessible(
+       v_photo.teaching_project_id,
+       v_photo.village_id,
+       v_photo.space_id
+     )
+  then raise exception 'PROJECT_ACCESS_REQUIRED'; end if;
+
+  v_current_name := public.current_profile_display_name();
+  if v_photo.uploaded_by_user_id is null and nullif(btrim(v_current_name), '') is not null then
+    select count(*) into v_legacy_name_count
+    from public.profiles
+    where lower(btrim(display_name)) = lower(btrim(v_current_name));
+  end if;
+
+  if coalesce(public.current_profile_role(), '') <> 'admin'
+     and coalesce(v_photo.uploaded_by_user_id = auth.uid(), false) is not true
+     and not (
+       v_photo.uploaded_by_user_id is null
+       and v_legacy_name_count = 1
+       and lower(btrim(coalesce(v_photo.uploaded_by, ''))) = lower(btrim(v_current_name))
+     )
+  then raise exception 'PHOTO_DELETE_FORBIDDEN'; end if;
+
+  if exists (
+    select 1 from public.facade_generation_runs run where run.photo_id = p_photo_id
+  ) then raise exception 'FACADE_PHOTO_IN_USE'; end if;
+
+  if to_regclass('public.survey_snapshot_photo_refs') is not null then
+    execute 'select exists (select 1 from public.survey_snapshot_photo_refs where photo_id = $1)'
+      into v_snapshot_referenced using p_photo_id;
+  end if;
+  if v_snapshot_referenced then raise exception 'SNAPSHOT_PHOTO_IMMUTABLE'; end if;
+
+  delete from public.object_photos where id = p_photo_id;
+  return jsonb_build_object(
+    'deleted', true,
+    'photoPath', v_photo.photo_path,
+    'photoUrl', v_photo.photo_url
+  );
+end;
+$$;
+
+-- Direct browser deletion cannot enforce owner identity or return a safe reason.
+drop policy if exists "allow delete object_photos" on public.object_photos;
+drop policy if exists context_rows_delete on public.object_photos;
+revoke delete on table public.object_photos from public, anon, authenticated;
+
+drop policy if exists "allow public delete from house-photos" on storage.objects;
+drop policy if exists "public can delete from house-photos" on storage.objects;
+drop policy if exists house_photos_delete_owner_admin on storage.objects;
+create policy house_photos_delete_owner_admin on storage.objects
+for delete to authenticated using (
+  bucket_id = 'house-photos'
+  and (
+    owner_id::text = auth.uid()::text
+    or public.current_profile_role() = 'admin'
+  )
+);
+
+drop policy if exists house_photos_update_admin on storage.objects;
+create policy house_photos_update_admin on storage.objects
+for update to authenticated using (
+  bucket_id = 'house-photos'
+  and public.current_profile_role() = 'admin'
+) with check (
+  bucket_id = 'house-photos'
+  and public.current_profile_role() = 'admin'
+);
+
+revoke all on function public.list_object_photo_facade_usage(bigint[]) from public, anon;
+grant execute on function public.list_object_photo_facade_usage(bigint[]) to authenticated;
+revoke all on function public.delete_object_photo_safely(bigint) from public, anon;
+grant execute on function public.delete_object_photo_safely(bigint) to authenticated;

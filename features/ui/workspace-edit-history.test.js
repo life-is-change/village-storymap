@@ -49,6 +49,19 @@ test("published snapshots merge original vectors with current database overrides
   assert.match(sqlSource, /jsonb_array_elements\(p_items\)/);
 });
 
+test("only formal shared spaces expose freeze and they use the survey evidence RPC", () => {
+  const permission = appSource.match(
+    /function canFreezeCurrentSnapshot\([\s\S]*?(?=\nasync function refreshVersionManagerPanel)/
+  )?.[0] || "";
+  const freeze = appSource.match(
+    /async function freezeCurrentSnapshot\([\s\S]*?(?=\nasync function collectCompleteCurrentVersionItems)/
+  )?.[0] || "";
+  assert.match(permission, /spaceType\s*===\s*["']formal_shared["']/);
+  assert.match(freeze, /freezeSurveySnapshot/);
+  assert.doesNotMatch(freeze, /freezeSnapshot\(/);
+  assert.doesNotMatch(freeze, /collectCompleteCurrentVersionItems/);
+});
+
 test("database migration defines feature locks, edit history and snapshots", () => {
   for (const name of [
     "feature_edit_locks",

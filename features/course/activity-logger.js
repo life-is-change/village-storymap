@@ -8,6 +8,7 @@
   }
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   const STORAGE_KEY = "village_activity_events_v1";
+  const ADMIN_HISTORY_CLEANUP_MARKER = "village_admin_activity_cleanup_20260911";
 
   function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -27,8 +28,26 @@
     storage?.setItem?.(STORAGE_KEY, JSON.stringify(events));
   }
 
+  function purgeLegacyAdminEventsOnce(storage) {
+    try {
+      if (!storage?.getItem || !storage?.setItem) return 0;
+      if (storage.getItem(ADMIN_HISTORY_CLEANUP_MARKER) === "1") return 0;
+      const events = readEvents(storage);
+      const retained = events.filter((event) => {
+        const name = String(event?.studentName || event?.student_name || "").trim();
+        return name !== "管理员";
+      });
+      if (retained.length !== events.length) writeEvents(storage, retained);
+      storage.setItem(ADMIN_HISTORY_CLEANUP_MARKER, "1");
+      return events.length - retained.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   function createActivityLogger(deps = {}) {
     const storage = deps.storage || root?.localStorage;
+    purgeLegacyAdminEventsOnce(storage);
     const now = deps.now || (() => new Date().toISOString());
     const uuid =
       deps.uuid ||
@@ -143,6 +162,8 @@
 
   return {
     createActivityLogger,
-    STORAGE_KEY
+    purgeLegacyAdminEventsOnce,
+    STORAGE_KEY,
+    ADMIN_HISTORY_CLEANUP_MARKER
   };
 });

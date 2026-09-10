@@ -37,12 +37,15 @@ test("migration creates contextual review state with immutable identity", () => 
   assert.match(source, /commit\s*;\s*$/i);
 });
 
-test("staff initializes the formal shared review index from one published V0 dataset", () => {
+test("shared review index supports practice and formal spaces while initialization remains staff controlled and serialized", () => {
   const source = migrationSource();
   const body = functionBody(source, "initialize_shared_survey_reviews");
   assert.match(body, /p_dataset_id\s+uuid/i);
   assert.match(body, /p_items\s+jsonb/i);
-  assert.match(body, /space_type\s*<>\s*'formal_shared'[\s\S]*?FORMAL_SHARED_SPACE_REQUIRED/i);
+  assert.match(body, /space_type\s+not\s+in\s*\(\s*'practice_shared'\s*,\s*'formal_shared'\s*\)/i);
+  assert.doesNotMatch(body, /space_type\s*=\s*'formal_shared'[\s\S]*?current_profile_role\(\)/i);
+  assert.match(body, /current_profile_role\(\)\s+not\s+in\s*\(\s*'teacher'\s*,\s*'admin'\s*\)[\s\S]*?STAFF_REQUIRED/i);
+  assert.match(body, /pg_advisory_xact_lock\s*\(\s*hashtextextended[\s\S]*?survey-review-init/i);
   assert.match(body, /status\s*=\s*'published'/i);
   assert.match(body, /current_profile_role\(\)[\s\S]*?'teacher'[\s\S]*?'admin'/i);
   assert.match(body, /layer_key\s+in\s*\(\s*'building'\s*,\s*'road'\s*,\s*'water'\s*\)/i);
@@ -68,14 +71,14 @@ test("review rows and frozen evidence are readable only through contextual RLS",
   assert.match(source, /context_space_accessible/i);
 });
 
-test("review context helper accepts only the requested formal shared space", () => {
+test("review context helper accepts practice and formal shared spaces", () => {
   const source = migrationSource();
   const body = functionBody(source, "assert_survey_review_context");
   assert.match(body, /p_teaching_project_id/i);
   assert.match(body, /p_village_id/i);
   assert.match(body, /p_space_id/i);
-  assert.match(body, /space_type\s*=\s*'formal_shared'/i);
-  assert.match(body, /FORMAL_SHARED_SPACE_REQUIRED/i);
+  assert.match(body, /space_type\s+in\s*\(\s*'practice_shared'\s*,\s*'formal_shared'\s*\)/i);
+  assert.match(body, /SHARED_SURVEY_SPACE_REQUIRED/i);
   assert.match(body, /context_space_accessible/i);
 });
 
@@ -109,7 +112,7 @@ test("only authenticated callers can execute geometry confirmation", () => {
 test("shared geometry saves atomically validate locks revisions and review state", () => {
   const source = migrationSource();
   const body = functionBody(source, "save_feature_edit_batch");
-  assert.match(body, /space_type\s*=\s*'formal_shared'/i);
+  assert.match(body, /space_type\s+in\s*\(\s*'practice_shared'\s*,\s*'formal_shared'\s*\)/i);
   assert.match(body, /expectedGeometryRevision/i);
   assert.match(body, /lockToken/i);
   assert.match(body, /editor_user_id\s*=\s*v_user_id[\s\S]*?expires_at\s*>\s*now\(\)/i);
@@ -134,6 +137,7 @@ test("database gates downstream survey writes and ignores non-survey contexts", 
   assert.match(body, /space_type\s*<>\s*'formal_shared'/i);
   assert.match(body, /survey_feature_downstream_ready/i);
   assert.match(body, /GEOMETRY_REVIEW_REQUIRED/i);
+  assert.match(body, /tg_table_name\s*=\s*'object_photos'[\s\S]*?SURVEY_LAYER_KEY_REQUIRED/i);
   for (const table of [
     "object_attribute_edits",
     "object_photos",

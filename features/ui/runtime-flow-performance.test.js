@@ -23,3 +23,32 @@ test("首页不预热课程工作台或大体量基础数据", () => {
   assert.doesNotMatch(init, /seedBuildingsForCopySpace\(BASE_SPACE_ID\)/);
   assert.match(init, /showVillageOverview\(\)/);
 });
+
+test("进入平台不重复等待启动阶段已经完成的空间同步", () => {
+  const app = read("app.js");
+  const start = app.indexOf("async function ensureCourseWorkbenchInitialized()");
+  const end = app.indexOf("async function recordCourseActivity", start);
+  const initializer = app.slice(start, end);
+
+  assert.doesNotMatch(initializer, /await syncSpacesFromSupabase\(\)/);
+});
+
+test("进入平台切换村庄时不在正式打开工作区前重复重建二维图层", () => {
+  const app = read("app.js");
+  const start = app.indexOf("async function commitVillageContext");
+  const end = app.indexOf("async function initializeVillageProjectSwitcher", start);
+  const commit = app.slice(start, end);
+
+  assert.match(commit, /!platformEntryController\?\.isEntering\(\)/);
+});
+
+test("个人图底空间初始化不阻塞首次打开共享地图", () => {
+  const app = read("app.js");
+  const start = app.indexOf("async function ensureCourseWorkbenchInitialized()");
+  const end = app.indexOf("async function recordCourseActivity", start);
+  const initializer = app.slice(start, end);
+
+  assert.match(initializer, /coursePersonalSpaceReady\s*=\s*initializeCoursePersonalSpace\(\)/);
+  assert.doesNotMatch(initializer, /await personalSpaceClient\.ensure\(/);
+  assert.match(initializer, /await courseWorkbench\.init\(\)/);
+});

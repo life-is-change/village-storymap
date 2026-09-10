@@ -41,8 +41,24 @@
   function renderSurveyProgress(progress = {}, focusPending = false, activityFilter = "all") {
     const reviewed = Number(progress.reviewedBaseline || 0);
     const total = Number(progress.baselineTotal || 0);
+    const confirmed = Number(progress.confirmedUnchanged || 0);
+    const modified = Number(progress.modified || 0);
+    const added = Number(progress.added || 0);
+    const deleted = Number(progress.deleted || 0);
+    const photos = Number(progress.photoCount || 0);
+    const discussions = Number(progress.discussionCount || 0);
+    const pending = Number(progress.unresolvedIssueCount ?? progress.pendingCount ?? Math.max(0, total - reviewed));
     return `<div class="survey-review-progress" role="status">
       <details class="survey-progress-menu"><summary>现状进度 <strong>${reviewed} / ${total}</strong></summary>
+        <div class="survey-progress-summary" aria-label="现状校核统计">
+          <span>确认无误 ${confirmed}</span>
+          <span>已修改 ${modified}</span>
+          <span>新增 ${added}</span>
+          <span>已删除 ${deleted}</span>
+          <span>照片 ${photos}</span>
+          <span>讨论 ${discussions}</span>
+          <span>待处理 ${pending}</span>
+        </div>
         ${renderActivityFilters(activityFilter)}
       </details>
       <button type="button" data-survey-focus aria-pressed="${focusPending}">${focusPending ? "退出聚焦" : "聚焦未校核"}</button>

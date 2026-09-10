@@ -11,8 +11,8 @@
 
   function requireSharedContext(getContext) {
     const context = getContext?.() || {};
-    if (normalize(context.spaceType) !== "formal_shared") {
-      throw new Error("FORMAL_SHARED_SPACE_REQUIRED");
+    if (!["practice_shared", "formal_shared"].includes(normalize(context.spaceType))) {
+      throw new Error("SHARED_SURVEY_SPACE_REQUIRED");
     }
     const teachingProjectId = normalize(context.teachingProjectId);
     const villageId = normalize(context.villageId);
@@ -52,6 +52,31 @@
     }
 
     return {
+      async initializeReviews(datasetId, items) {
+        const context = requireSharedContext(getContext);
+        const normalizedDatasetId = normalize(datasetId);
+        if (!normalizedDatasetId) throw new Error("DATASET_REQUIRED");
+        if (!Array.isArray(items) || items.length === 0) throw new Error("SURVEY_REVIEW_ITEMS_REQUIRED");
+        const seen = new Set();
+        const normalizedItems = items.reduce((result, item) => {
+          const layerKey = normalize(item?.layerKey);
+          const objectCode = normalize(item?.objectCode);
+          const key = `${layerKey}\u0000${objectCode}`;
+          if (!SURVEY_LAYERS.has(layerKey) || !objectCode || seen.has(key)) return result;
+          seen.add(key);
+          result.push({ layerKey, objectCode });
+          return result;
+        }, []);
+        if (!normalizedItems.length) throw new Error("SURVEY_REVIEW_ITEMS_REQUIRED");
+        return dataOrThrow(await supabaseClient.rpc("initialize_shared_survey_reviews", {
+          p_teaching_project_id: context.teachingProjectId,
+          p_village_id: context.villageId,
+          p_space_id: context.spaceId,
+          p_dataset_id: normalizedDatasetId,
+          p_items: normalizedItems
+        }));
+      },
+
       async listReviews() {
         const { query } = contextualQuery();
         return dataOrThrow(await query.order("layer_key", { ascending: true })) || [];

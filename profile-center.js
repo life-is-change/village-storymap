@@ -46,7 +46,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       "profileFieldGender",
       "profileFieldClassName",
       "profileFieldGrade",
-      "profileFieldContribution",
       "profileGenderInput",
       "profileClassNameInput",
       "profileGradeInput",
@@ -178,33 +177,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
   }
 
-  function formatContribution(stats) {
-    const points = Number(stats?.total_points || 0);
-    const level = Number(stats?.level || 1);
-    return `${Number.isFinite(points) ? points : 0} | Lv.${Number.isFinite(level) && level > 0 ? level : 1}`;
-  }
-
-  async function refreshContribution(userName) {
-    setText(els.profileFieldContribution, "0 | Lv.1");
-    const safeName = String(userName || "").trim();
-    if (!supabaseClient || !safeName) return;
-
-    const { data, error } = await supabaseClient
-      .from(USER_STATS_TABLE)
-      .select("total_points, level")
-      .eq("user_name", safeName)
-      .maybeSingle();
-
-    if (error) {
-      if (!isStatsTableMissingError(error)) {
-        console.warn("读取贡献值失败：", error);
-      }
-      return;
-    }
-
-    setText(els.profileFieldContribution, formatContribution(data));
-  }
-
   function renderProfile() {
     const user = getCurrentUser();
     const hasUser = !!user;
@@ -243,7 +215,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     setText(els.profileFieldGender, displayValue(gender));
     setText(els.profileFieldClassName, displayValue(className));
     setText(els.profileFieldGrade, displayValue(grade));
-    refreshContribution(user.name);
 
     // 预填充输入框
     if (els.profileGenderInput) els.profileGenderInput.value = gender;
