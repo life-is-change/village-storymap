@@ -9,7 +9,7 @@ create table if not exists public.facade_generation_runs (
   course_id text not null,
   space_id text not null,
   object_code text not null,
-  photo_id bigint not null references public.object_photos(id) on delete restrict,
+  photo_id bigint references public.object_photos(id) on delete set null,
   source_photo_path text,
   source_photo_url text,
   status text not null default 'queued_rectification' check (status in (
@@ -36,6 +36,15 @@ create table if not exists public.facade_generation_runs (
   completed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+alter table public.facade_generation_runs
+  alter column photo_id drop not null;
+
+alter table public.facade_generation_runs
+  drop constraint if exists facade_generation_runs_photo_id_fkey;
+alter table public.facade_generation_runs
+  add constraint facade_generation_runs_photo_id_fkey
+  foreign key (photo_id) references public.object_photos(id) on delete set null;
 
 alter table public.facade_generation_runs
   add column if not exists source_photo_path text,
@@ -755,8 +764,15 @@ begin
   then raise exception 'PHOTO_DELETE_FORBIDDEN'; end if;
 
   if exists (
-    select 1 from public.facade_generation_runs run where run.photo_id = p_photo_id
-  ) then raise exception 'FACADE_PHOTO_IN_USE'; end if;
+    select 1
+    from public.facade_generation_runs run
+    where run.photo_id = p_photo_id
+      and run.status in (
+        'queued_rectification', 'claimed_rectification', 'rectifying',
+        'awaiting_crop', 'queued_generation', 'claimed_generation',
+        'generating', 'cancel_requested'
+      )
+  ) then raise exception 'FACADE_PHOTO_PROCESSING'; end if;
 
   if to_regclass('public.survey_snapshot_photo_refs') is not null then
     execute 'select exists (select 1 from public.survey_snapshot_photo_refs where photo_id = $1)'

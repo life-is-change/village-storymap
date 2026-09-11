@@ -49,26 +49,28 @@
     const discussions = Number(progress.discussionCount || 0);
     const pending = Number(progress.unresolvedIssueCount ?? progress.pendingCount ?? Math.max(0, total - reviewed));
     return `<div class="survey-review-progress" role="status">
-      <details class="survey-progress-menu"><summary>现状进度 <strong>${reviewed} / ${total}</strong></summary>
-        <div class="survey-progress-summary" aria-label="现状校核统计">
-          <span>确认无误 ${confirmed}</span>
-          <span>已修改 ${modified}</span>
-          <span>新增 ${added}</span>
-          <span>已删除 ${deleted}</span>
-          <span>照片 ${photos}</span>
-          <span>讨论 ${discussions}</span>
-          <span>待处理 ${pending}</span>
+      <details class="survey-progress-menu"><summary aria-label="现状进度 ${reviewed} / ${total}"><span>现状</span> <strong>${reviewed} / ${total}</strong></summary>
+        <div class="survey-progress-popover">
+          <div class="survey-progress-summary" aria-label="现状校核统计">
+            <span>确认无误 ${confirmed}</span>
+            <span>已修改 ${modified}</span>
+            <span>新增 ${added}</span>
+            <span>已删除 ${deleted}</span>
+            <span>照片 ${photos}</span>
+            <span>讨论 ${discussions}</span>
+            <span>待处理 ${pending}</span>
+          </div>
+          <button class="survey-focus-toggle" type="button" data-survey-focus aria-pressed="${focusPending}">${focusPending ? "显示全部要素" : "仅显示未校核"}</button>
+          ${renderActivityFilters(activityFilter)}
         </div>
-        ${renderActivityFilters(activityFilter)}
       </details>
-      <button type="button" data-survey-focus aria-pressed="${focusPending}">${focusPending ? "退出聚焦" : "聚焦未校核"}</button>
     </div>`;
   }
 
   function renderSurveyActivityOnly(activityFilter = "all") {
     return `<div class="survey-review-progress survey-activity-only" role="status">
       <details class="survey-progress-menu"><summary>现状标记</summary>
-        ${renderActivityFilters(activityFilter)}
+        <div class="survey-progress-popover survey-activity-popover">${renderActivityFilters(activityFilter)}</div>
       </details>
     </div>`;
   }

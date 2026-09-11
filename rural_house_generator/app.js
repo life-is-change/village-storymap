@@ -236,6 +236,13 @@ function renderExistingPhotoMaterials(message, isError = false) {
     button.type = 'button';
     button.textContent = '使用这张';
     button.addEventListener('click', () => useExistingPhotoMaterial(photo, button));
+    image.addEventListener('error', () => {
+      card.classList.add('is-missing');
+      image.hidden = true;
+      button.disabled = true;
+      button.textContent = '原图已丢失';
+      meta.textContent = '原图文件已丢失，请返回平台重新上传或删除该记录';
+    }, { once: true });
     footer.append(meta, button);
     card.append(image, footer);
     els.existingPhotoMaterialList.append(card);

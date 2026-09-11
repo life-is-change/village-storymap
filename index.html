@@ -8,7 +8,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260911-survey-photo-security" />
+  <link rel="stylesheet" href="style.css?v=20260911-selection-speed" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -364,7 +364,7 @@
   <script defer src="features/survey/survey-review-model.js"></script>
   <script defer src="features/survey/survey-activity-model.js?v=20260908-survey-markers"></script>
   <script defer src="features/survey/survey-review-client.js?v=20260911-practice-review"></script>
-  <script defer src="features/survey/survey-review-panel.js?v=20260911-practice-review"></script>
+  <script defer src="features/survey/survey-review-panel.js?v=20260911-survey-layout-fix"></script>
   <script defer src="features/survey/survey-realtime-controller.js"></script>
   <script defer src="features/data/data-service.js?v=20260911-photo-security"></script>
   <script defer src="features/data/feature-edit-session.js"></script>
@@ -380,7 +380,7 @@
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
-  <script defer src="app.js?v=20260911-survey-photo-security"></script>
+  <script defer src="app.js?v=20260911-photo-lifecycle-fix"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

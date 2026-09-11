@@ -123,3 +123,38 @@ test('survey marker control keeps its label inside a reserved top-bar track', ()
   assert.match(summaryRule, /overflow:\s*hidden/);
   assert.match(summaryRule, /text-overflow:\s*ellipsis/);
 });
+
+test('survey progress stays within one compact top-bar grid cell', () => {
+  const rootRule = css.match(/\.survey-review-panel-root\s*\{[^}]+\}/)?.[0] || '';
+  const progressRule = css.match(/\.survey-review-progress\s*\{[^}]+\}/)?.[0] || '';
+  const popoverRule = css.match(/\.survey-progress-popover\s*\{[^}]+\}/)?.[0] || '';
+  const filterRule = css.match(/\.survey-progress-filters\s*\{[^}]+\}/)?.[0] || '';
+
+  assert.match(rootRule, /max-width:\s*128px/);
+  assert.match(progressRule, /width:\s*100%/);
+  assert.match(popoverRule, /width:\s*300px/);
+  assert.match(filterRule, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+});
+
+test('2D and 3D controls keep equal readable space beside survey progress', () => {
+  const mountRule = css.match(/\.workspace-view-mode-switch\s*\{[^}]+\}/)?.[0] || '';
+  const switchRule = css.match(/\.workspace-view-mode-switch \.view-mode-switch\s*\{[^}]+\}/)?.[0] || '';
+  const buttonRule = css.match(/\.workspace-view-mode-switch \.view-mode-btn\s*\{[^}]+\}/)?.[0] || '';
+
+  assert.match(mountRule, /width:\s*142px/);
+  assert.match(mountRule, /min-width:\s*142px/);
+  assert.match(switchRule, /width:\s*100%/);
+  assert.match(switchRule, /box-sizing:\s*border-box/);
+  assert.match(buttonRule, /min-width:\s*0/);
+});
+
+test('survey progress trigger and popover are centered on the reserved cell', () => {
+  const popoverRule = css.match(/\.survey-progress-popover\s*\{[^}]+\}/)?.[0] || '';
+  const summaryRule = css.match(/\.survey-progress-menu summary\s*\{[^}]+\}/)?.[0] || '';
+
+  assert.match(summaryRule, /align-items:\s*center/);
+  assert.match(summaryRule, /justify-content:\s*center/);
+  assert.match(popoverRule, /left:\s*50%/);
+  assert.match(popoverRule, /right:\s*auto/);
+  assert.match(popoverRule, /transform:\s*translateX\(-50%\)/);
+});

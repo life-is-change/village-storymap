@@ -65,7 +65,7 @@ test("photo list marks records that are referenced by a facade generation run", 
   assert.equal(photos.find((photo) => photo.id === 8).used_for_facade_generation, false);
 });
 
-test("protected deletion does not remove the storage object before database approval", async () => {
+test("a database rejection never removes the storage object first", async () => {
   const service = loadDataService();
   const events = [];
   const protectedError = new Error("FACADE_PHOTO_IN_USE");
@@ -94,6 +94,23 @@ test("protected deletion does not remove the storage object before database appr
     /FACADE_PHOTO_IN_USE/,
   );
   assert.deepEqual(events, ["database"]);
+});
+
+test("referenced facade photos can be deleted while generation records are retained", () => {
+  const migrationPath = path.join(root, "supabase_SQL", "Allow Referenced Object Photo Deletion.sql");
+  const migration = fs.readFileSync(migrationPath, "utf8");
+  const queueSchema = fs.readFileSync(
+    path.join(root, "supabase_SQL", "Facade Generation Worker Queue.sql"),
+    "utf8",
+  );
+
+  for (const sql of [migration, queueSchema]) {
+    assert.match(sql, /alter\s+column\s+photo_id\s+drop\s+not\s+null/i);
+    assert.match(sql, /foreign\s+key\s*\(photo_id\)[\s\S]*?on\s+delete\s+set\s+null/i);
+    assert.doesNotMatch(sql, /raise\s+exception\s+'FACADE_PHOTO_IN_USE'/i);
+    assert.match(sql, /PHOTO_DELETE_FORBIDDEN/i);
+    assert.match(sql, /SNAPSHOT_PHOTO_IMMUTABLE/i);
+  }
 });
 
 test("successful deletion removes the storage object only after the database record", async () => {
@@ -203,11 +220,12 @@ test("3D upload persists and returns the authenticated display name", async () =
   assert.equal(result.uploadedBy, "管理员");
 });
 
-test("2D photo cards show facade usage and explain protected deletion", () => {
+test("2D photo cards show facade usage without treating it as a deletion lock", () => {
   const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(source, /used_for_facade_generation/);
   assert.match(source, /已用于 3D 立面生成/);
-  assert.match(source, /该照片已用于 3D 立面生成，需保留为生成记录，不能直接删除/);
+  assert.match(source, /删除照片不会删除已生成的 3D 模型与生成记录/);
+  assert.doesNotMatch(source, /需保留为生成记录，不能直接删除/);
 });
 
 test("admin photo management can repair a missing storage object and never deletes storage first", () => {
@@ -220,6 +238,18 @@ test("admin photo management can repair a missing storage object and never delet
   assert.match(body, /delete_object_photo_safely/);
   assert.ok(body.indexOf("delete_object_photo_safely") < body.indexOf("storage.from(PHOTO_BUCKET).remove"));
   assert.doesNotMatch(body, /from\(OBJECT_PHOTOS_TABLE\)\.delete/);
+});
+
+test("admin photo deletion explains active processing and an unapplied lifecycle migration", () => {
+  const source = fs.readFileSync(path.join(root, "admin.js"), "utf8");
+  assert.match(source, /function getAdminPhotoDeleteErrorMessage\(/);
+  assert.match(source, /FACADE_PHOTO_PROCESSING/);
+  assert.match(source, /FACADE_PHOTO_IN_USE/);
+  assert.match(source, /数据库仍在使用旧版照片删除规则/);
+  assert.equal(
+    (source.match(/showAdminNotice\(getAdminPhotoDeleteErrorMessage\(error\), "error"\)/g) || []).length,
+    2,
+  );
 });
 
 test("message detail photos rebuild URLs, offer repair, and authorize deletion before storage removal", () => {
@@ -240,4 +270,12 @@ test("photo cards show an actionable missing-file state instead of staying blank
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(admin, /原图文件已丢失/);
   assert.match(app, /原图文件已丢失/);
+});
+
+test("the 3D generator disables a historical photo after its image fails to load", () => {
+  const generator = fs.readFileSync(path.join(root, "rural_house_generator", "app.js"), "utf8");
+  assert.match(generator, /image\.addEventListener\(['"]error['"]/);
+  assert.match(generator, /原图文件已丢失，请返回平台重新上传或删除该记录/);
+  assert.match(generator, /card\.classList\.add\(['"]is-missing['"]\)/);
+  assert.match(generator, /button\.disabled\s*=\s*true/);
 });

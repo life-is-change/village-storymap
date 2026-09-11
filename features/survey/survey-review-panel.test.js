@@ -7,7 +7,7 @@ test("renders compact progress and low-noise activity filters", () => {
   const html = panel.renderSurveyProgress({ baselineTotal: 380, reviewedBaseline: 126, confirmedUnchanged: 90, modified: 30, deleted: 6, added: 4, photoCount: 18, discussionCount: 9, unresolvedIssueCount: 3 }, false);
   assert.match(html, /现状进度/);
   assert.match(html, /126\s*\/\s*380/);
-  assert.match(html, /聚焦未校核/);
+  assert.match(html, /仅显示未校核/);
   assert.match(html, /data-survey-filter="geometry"/);
   assert.match(html, /data-survey-filter="photo"/);
   assert.match(html, /data-survey-filter="discussion"/);
@@ -16,6 +16,11 @@ test("renders compact progress and low-noise activity filters", () => {
   assert.match(html, /照片\s*18/);
   assert.match(html, /讨论\s*9/);
   assert.match(html, /待处理\s*3/);
+  assert.match(html, /survey-progress-popover/);
+  assert.ok(
+    html.indexOf('data-survey-focus') < html.indexOf('</details>'),
+    'the pending-only toggle should live inside the compact progress popover'
+  );
 });
 
 test("object review offers a direct geometry edit shortcut for editable states", () => {
@@ -37,5 +42,5 @@ test("练习村与正式村共用可校核的进度面板", () => {
   assert.match(html, /现状进度/);
   assert.match(html, /3\s*\/\s*12/);
   assert.match(html, /data-survey-filter="photo" aria-pressed="true"/);
-  assert.match(html, /聚焦未校核/);
+  assert.match(html, /仅显示未校核/);
 });

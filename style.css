@@ -7045,15 +7045,20 @@ body.map-view-active .workspace-context-bar {
 
 .workspace-view-mode-switch {
   flex: 0 0 auto;
+  width: 142px;
+  min-width: 142px;
 }
 
 .workspace-view-mode-switch .view-mode-switch {
+  width: 100%;
+  box-sizing: border-box;
   margin: 0;
   padding: 3px;
   min-width: 142px;
 }
 
 .workspace-view-mode-switch .view-mode-btn {
+  min-width: 0;
   padding: 7px 12px;
   white-space: nowrap;
 }
@@ -7258,6 +7263,11 @@ body.map-view-active .workspace-context-bar {
     padding: 2px;
   }
 
+  .workspace-view-mode-switch {
+    width: 108px;
+    min-width: 108px;
+  }
+
   .workspace-view-mode-switch .view-mode-btn {
     padding: 6px 7px;
     font-size: 12px;
@@ -7425,6 +7435,8 @@ body.map-view-active .workspace-context-bar {
 /* 正式共享现状：紧凑几何校核入口 */
 .survey-review-panel-root {
   min-width: 72px;
+  width: 100%;
+  max-width: 128px;
 }
 
 .survey-review-panel-root[data-connection-state="disconnected"]::after {
@@ -7439,10 +7451,10 @@ body.map-view-active .workspace-context-bar {
 
 .survey-review-progress {
   position: relative;
-  display: flex;
+  display: block;
   align-items: center;
-  gap: 8px;
-  padding: 6px 9px;
+  width: 100%;
+  padding: 0;
   border: 1px solid rgba(35, 108, 64, 0.2);
   border-radius: 10px;
   background: rgba(244, 251, 246, 0.94);
@@ -7453,30 +7465,44 @@ body.map-view-active .workspace-context-bar {
 
 .survey-progress-menu {
   position: relative;
+  width: 100%;
 }
 
-.survey-progress-summary {
+.survey-progress-popover {
   position: absolute;
   z-index: 21;
   top: calc(100% + 8px);
-  left: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(88px, 1fr));
-  width: 230px;
-  padding: 9px 9px 5px;
-  gap: 5px 10px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 300px;
+  box-sizing: border-box;
+  padding: 10px;
   border: 1px solid rgba(35, 108, 64, 0.16);
-  border-bottom: 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 12px;
   background: rgba(255,255,255,0.98);
-  color: #53675b;
-  font-size: 11px;
   box-shadow: 0 8px 24px rgba(20, 55, 34, 0.13);
 }
 
+.survey-progress-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 10px;
+  color: #53675b;
+  font-size: 11px;
+}
+
 .survey-progress-menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 0 9px;
   cursor: pointer;
   list-style: none;
+  overflow: hidden;
 }
 
 .survey-progress-menu summary::-webkit-details-marker {
@@ -7484,22 +7510,16 @@ body.map-view-active .workspace-context-bar {
 }
 
 .survey-progress-filters {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 80px);
-  left: 0;
   display: grid;
-  min-width: 230px;
-  padding: 7px;
-  gap: 4px;
-  border: 1px solid rgba(35, 108, 64, 0.16);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.98);
-  box-shadow: 0 8px 24px rgba(20, 55, 34, 0.13);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 8px;
+  gap: 5px;
+  border-top: 1px solid rgba(35, 108, 64, 0.12);
 }
 
 .survey-review-progress .survey-progress-filters button {
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 5px 8px;
   background: transparent;
   color: #315342;
   text-align: left;
@@ -7515,6 +7535,7 @@ body.map-view-active .workspace-context-bar {
 }
 
 .survey-marker-legend {
+  grid-column: 1 / -1;
   margin-top: 3px;
   padding: 6px 8px 2px;
   border-top: 1px solid rgba(35, 108, 64, 0.12);
@@ -7528,6 +7549,21 @@ body.map-view-active .workspace-context-bar {
   width: 100%;
   box-sizing: border-box;
   padding-right: 9px;
+}
+
+.survey-focus-toggle {
+  width: 100%;
+  margin: 9px 0 8px;
+}
+
+.survey-review-progress .survey-focus-toggle[aria-pressed="false"] {
+  border: 1px solid rgba(35, 108, 64, 0.24);
+  background: rgba(244, 251, 246, 0.92);
+  color: #276b42;
+}
+
+.survey-activity-popover {
+  width: 260px;
 }
 
 .survey-activity-only summary {
@@ -7548,6 +7584,11 @@ body.map-view-active .workspace-context-bar {
 
 .survey-review-progress button[aria-pressed="true"] {
   background: #174d2a;
+}
+
+[data-geometry-shortcut-target="true"] {
+  outline: 2px solid rgba(38, 114, 61, 0.36);
+  outline-offset: 2px;
 }
 
 .survey-object-review {

@@ -3094,20 +3094,26 @@ async function startSelectedSurveyGeometryEdit() {
     return false;
   }
 
-  const workbench = await ensureCourseWorkbenchInitialized();
-  setCourseTaskSidebarExpanded(true);
-  await workbench?.showTask?.("survey-collect");
+  focusGeometryWorkspace(layerKey);
+  showToast("已打开几何修改界面，请自行选择编辑工具。", "success");
+  return true;
+}
+
+function focusGeometryWorkspace(layerKey) {
+  isSpaceOptionsExpanded = true;
+  isToolboxExpanded = true;
+  saveAppState();
   setProjectSettingsOpen(true);
-  const editor = getGeometryEditorModule();
-  const editorDeps = buildGeometryEditorDeps();
-  if (!editor.activateGeometryEditLayer(editorDeps, layerKey)) return false;
-  const started = await getMapClickHandlerModule().startModifyFeature(
-    buildMapClickHandlerDeps(),
-    feature,
-    layerKey
-  );
-  if (started) showToast("已进入所选要素的顶点编辑，修改后请保存。", "success");
-  return started;
+
+  requestAnimationFrame(() => {
+    if (spaceList) spaceList.scrollTop = 0;
+    const layerButton = spaceList?.querySelector?.(`[data-layer="${layerKey}"]`);
+    if (!layerButton) return;
+    layerButton.dataset.geometryShortcutTarget = "true";
+    window.setTimeout(() => {
+      delete layerButton.dataset.geometryShortcutTarget;
+    }, 1800);
+  });
 }
 
 function setSurveyRealtimeState(state) {
@@ -5815,8 +5821,11 @@ function canDeletePhotoByUploader(
 
 function getPhotoDeleteErrorMessage(error) {
   const message = String(error?.message || error || "");
+  if (message.includes("FACADE_PHOTO_PROCESSING")) {
+    return "该照片正在用于 3D 立面处理，请等待任务完成或取消任务后再删除。";
+  }
   if (message.includes("FACADE_PHOTO_IN_USE")) {
-    return "该照片已用于 3D 立面生成，需保留为生成记录，不能直接删除。";
+    return "数据库仍在使用旧版照片删除规则，请先执行最新迁移后重试。";
   }
   if (message.includes("SNAPSHOT_PHOTO_IMMUTABLE")) {
     return "该照片已进入冻结版本，不能直接删除。";
@@ -6206,7 +6215,7 @@ async function ensurePlanMap() {
 
   getMapHoverHandlerModule().bindPlanMapHover(buildMapHoverHandlerDeps());
 
-  planMap.on("singleclick", async (evt) => {
+  planMap.on("click", async (evt) => {
     await getMapClickHandlerModule().handlePlanMapSingleClick(buildMapClickHandlerDeps(), evt);
   });
 
@@ -6999,7 +7008,10 @@ async function handlePhotoDelete(photoRecord, context) {
     return;
   }
 
-  const confirmed = await customConfirm("确定要删除这张照片吗？", {
+  const confirmMessage = photoRecord?.used_for_facade_generation
+    ? "该照片已用于 3D 立面生成。删除照片不会删除已生成的 3D 模型与生成记录，确定继续吗？"
+    : "确定要删除这张照片吗？";
+  const confirmed = await customConfirm(confirmMessage, {
     title: "删除照片",
     isDanger: true
   });
@@ -7183,12 +7195,20 @@ function bindInlineEdit(context) {
   });
 }
 
-function renderObjectInfoLoadingState(layerKey, sourceCode, config = layerConfigs[layerKey]) {
+function renderObjectInfoLoadingState(layerKey, sourceCode, config = layerConfigs[layerKey], baseRow = null) {
+  let previewRow = baseRow || buildFallbackObjectRow(sourceCode, layerKey, null);
+  if (layerKey === "building") {
+    previewRow = normalizeBuildingInfoRow(previewRow, sourceCode);
+  } else if (layerKey === "road") {
+    previewRow = normalizeRoadInfoRow(previewRow, sourceCode);
+  }
+  const detailHtml = buildEditableDetailHtml(previewRow, layerKey, false);
   infoPanel.classList.remove("empty");
   infoPanel.innerHTML = `
     <div class="info-card object-info-loading" aria-live="polite">
       <h3 class="house-title">${escapeHtml(config?.label || "对象")}信息</h3>
-      <div class="house-row">正在读取 ${escapeHtml(sourceCode || "该要素")} 的属性、照片与讨论…</div>
+      ${detailHtml}
+      <div class="house-row">照片与讨论正在加载…</div>
     </div>
   `;
 }
@@ -7199,31 +7219,15 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const config = layerConfigs[layerKey];
   const baseObjectType = config?.objectType || "";
 
-  renderObjectInfoLoadingState(layerKey, sourceCode, config);
+  renderObjectInfoLoadingState(layerKey, sourceCode, config, baseRow);
 
   const surveyReviewApplies = ["practice_shared", "formal_shared"].includes(currentSpace?.spaceType)
     && ["building", "road", "water"].includes(layerKey);
   const surveyGateApplies = currentSpace?.spaceType === "formal_shared"
     && ["building", "road", "water"].includes(layerKey);
-  let surveyDownstreamReady = true;
-  let surveyReview = null;
-  if (surveyReviewApplies) {
-    try {
-      surveyReview = await getSurveyReviewClient().getReview(layerKey, sourceCode);
-      surveyDownstreamReady = surveyGateApplies
-        ? window.SurveyReviewModelModule.canUseDownstreamActions(surveyReview)
-        : true;
-    } catch (error) {
-      console.warn("读取几何校核状态失败：", error);
-      surveyDownstreamReady = !surveyGateApplies;
-    }
-  }
-  if (requestSerial !== objectInfoRequestSerial) return;
-
   const showPhotoBlock = layerKey !== "road";
   const editableByIdentity = canManageSpace(currentSpace);
-  const allowLayerEdit = canEditLayer(layerKey, editableByIdentity) && surveyDownstreamReady;
-  const allowPhotoUpload = showPhotoBlock && !!currentUserName && surveyDownstreamReady;
+  const potentiallyEditable = canEditLayer(layerKey, editableByIdentity);
 
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
@@ -7239,7 +7243,10 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     assertSurveyDownstreamReady
   });
 
-  const editPromise = allowLayerEdit
+  const surveyReviewPromise = surveyReviewApplies
+    ? getSurveyReviewClient().getReview(layerKey, sourceCode)
+    : Promise.resolve(null);
+  const editPromise = potentiallyEditable
     ? fetchObjectEdits(sourceCode, editObjectType)
     : Promise.resolve(null);
   const photosPromise = (async () => {
@@ -7264,15 +7271,26 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     ? window.ObjectCommentsModule.list(objectCommentDeps, sourceCode, editObjectType)
     : Promise.resolve([]);
 
-  const [editResult, photosResult, commentsResult] = await Promise.allSettled([
+  const [surveyReviewResult, editResult, photosResult, commentsResult] = await Promise.allSettled([
+    surveyReviewPromise,
     editPromise,
     photosPromise,
     commentsPromise
   ]);
   if (requestSerial !== objectInfoRequestSerial) return;
+  if (surveyReviewResult.status === "rejected") console.warn("读取几何校核状态失败：", surveyReviewResult.reason);
   if (editResult.status === "rejected") console.warn("读取对象编辑失败：", editResult.reason);
   if (photosResult.status === "rejected") console.warn("读取对象照片失败：", photosResult.reason);
   if (commentsResult.status === "rejected") console.warn("读取对象留言失败：", commentsResult.reason);
+
+  const surveyReview = surveyReviewResult.status === "fulfilled" ? surveyReviewResult.value : null;
+  const surveyDownstreamReady = surveyReviewResult.status === "rejected"
+    ? !surveyGateApplies
+    : surveyGateApplies
+      ? window.SurveyReviewModelModule.canUseDownstreamActions(surveyReview)
+      : true;
+  const allowLayerEdit = potentiallyEditable && surveyDownstreamReady;
+  const allowPhotoUpload = showPhotoBlock && !!currentUserName && surveyDownstreamReady;
 
   const editData = editResult.status === "fulfilled" ? editResult.value : null;
 

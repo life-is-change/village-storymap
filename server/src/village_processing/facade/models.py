@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class FacadeRun:
     run_id: str
     owner_id: str
-    photo_id: int
+    photo_id: int | None
     object_code: str
     space_id: str
     status: str
@@ -22,7 +22,7 @@ class FacadeRun:
         return cls(
             run_id=str(row["id"]),
             owner_id=str(row["owner_id"]),
-            photo_id=int(row["photo_id"]),
+            photo_id=int(row["photo_id"]) if row.get("photo_id") is not None else None,
             object_code=str(row["object_code"]),
             space_id=str(row["space_id"]),
             status=str(row["status"]),

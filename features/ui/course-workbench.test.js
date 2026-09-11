@@ -190,7 +190,7 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260911-survey-photo-security/);
+  assert.match(html, /app\.js\?v=20260911-photo-lifecycle-fix/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -207,7 +207,7 @@ test("personal space reliability scripts share a cache-busting release version",
   }
 
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260911-survey-photo-security/);
+  assert.match(html, /app\.js\?v=20260911-photo-lifecycle-fix/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {
@@ -244,8 +244,21 @@ test("personal contours expose delete-only editing and an opt-in value label tog
 
 test("object selection renders feedback before optional remote details finish", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "..", "app.js"), "utf8");
-  assert.match(app, /renderObjectInfoLoadingState\(/);
-  assert.match(app, /Promise\.allSettled\(/);
+  const previewRenderer = app.match(/function renderObjectInfoLoadingState\([\s\S]*?\n\}/)?.[0] || "";
+  const objectInfoLoader = app.match(/async function showObjectInfo\([\s\S]*?\n\}/)?.[0] || "";
+
+  assert.match(previewRenderer, /buildEditableDetailHtml\([^,]+,\s*layerKey,\s*false\)/);
+  assert.match(previewRenderer, /照片与讨论正在加载/);
+  assert.match(objectInfoLoader, /renderObjectInfoLoadingState\(layerKey,\s*sourceCode,\s*config,\s*baseRow\)/);
+  assert.match(objectInfoLoader, /Promise\.allSettled\(\[\s*surveyReviewPromise,\s*editPromise,\s*photosPromise,\s*commentsPromise\s*\]\)/);
+});
+
+test("map object selection avoids the built-in single-click recognition delay", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "..", "app.js"), "utf8");
+  const mapBinding = app.match(/getMapHoverHandlerModule\(\)\.bindPlanMapHover[\s\S]*?planMap\.on\("moveend"/)?.[0] || "";
+
+  assert.match(mapBinding, /planMap\.on\("click"/);
+  assert.doesNotMatch(mapBinding, /planMap\.on\("singleclick"/);
 });
 
 test("personal overlay keeps object identity in the right-panel base row", () => {

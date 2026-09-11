@@ -151,6 +151,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
     window.setTimeout(() => notice.remove(), 3600);
   }
 
+  function getAdminPhotoDeleteErrorMessage(error) {
+    const message = String(error?.message || error || "");
+    if (message.includes("FACADE_PHOTO_PROCESSING")) {
+      return "该照片正在用于 3D 立面处理，请等待任务完成或取消任务后再删除。";
+    }
+    if (message.includes("FACADE_PHOTO_IN_USE")) {
+      return "数据库仍在使用旧版照片删除规则，请先执行照片生命周期迁移。";
+    }
+    if (message.includes("SNAPSHOT_PHOTO_IMMUTABLE")) {
+      return "该照片属于已冻结的正式版本，不能删除。";
+    }
+    if (message.includes("PHOTO_DELETE_FORBIDDEN")) {
+      return "只有照片上传者或管理员可以删除该照片。";
+    }
+    return message || "删除照片失败，请稍后重试。";
+  }
+
   function adminConfirm(message, options = {}) {
     return new Promise((resolve) => {
       const modal = $("adminConfirmModal");
@@ -645,7 +662,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       showAdminNotice("照片已删除", "success");
     } catch (error) {
       console.error("删除照片失败：", error);
-      showAdminNotice("删除照片失败，请稍后重试。", "error");
+      showAdminNotice(getAdminPhotoDeleteErrorMessage(error), "error");
     }
   }
 
@@ -1021,7 +1038,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           showAdminNotice("照片已删除", "success");
         } catch (error) {
           console.error("删除照片失败：", error);
-          showAdminNotice("删除照片失败，请稍后重试。", "error");
+          showAdminNotice(getAdminPhotoDeleteErrorMessage(error), "error");
         }
       });
     });
