@@ -3074,9 +3074,40 @@ function ensureSurveyReviewPanel() {
     onFilterChange: async (filter) => {
       surveyActivityFilter = filter || "all";
       applyCurrentSurveyReviewOverlay();
+    },
+    onEditGeometry: async () => {
+      await startSelectedSurveyGeometryEdit();
     }
   });
   return surveyReviewPanel;
+}
+
+async function startSelectedSurveyGeometryEdit() {
+  const feature = activeFeature;
+  const layerKey = feature?.get?.("layerKey") || currentSelectedObject?.layerKey;
+  if (!feature || !["building", "road", "water"].includes(layerKey)) {
+    showToast("请先在地图上选择一个可编辑要素", "info");
+    return false;
+  }
+  if (!canEditCurrentSpace()) {
+    showToast("当前空间没有几何编辑权限", "error");
+    return false;
+  }
+
+  const workbench = await ensureCourseWorkbenchInitialized();
+  setCourseTaskSidebarExpanded(true);
+  await workbench?.showTask?.("survey-collect");
+  setProjectSettingsOpen(true);
+  const editor = getGeometryEditorModule();
+  const editorDeps = buildGeometryEditorDeps();
+  if (!editor.activateGeometryEditLayer(editorDeps, layerKey)) return false;
+  const started = await getMapClickHandlerModule().startModifyFeature(
+    buildMapClickHandlerDeps(),
+    feature,
+    layerKey
+  );
+  if (started) showToast("已进入所选要素的顶点编辑，修改后请保存。", "success");
+  return started;
 }
 
 function setSurveyRealtimeState(state) {
@@ -7472,6 +7503,16 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       console.error("确认几何校核失败：", error);
       showToast(error?.message || "确认几何校核失败", "error");
       confirmSurveyButton.disabled = false;
+    }
+  });
+
+  const editSurveyGeometryButton = infoPanel.querySelector("[data-survey-edit-geometry]");
+  editSurveyGeometryButton?.addEventListener("click", async () => {
+    editSurveyGeometryButton.disabled = true;
+    try {
+      await startSelectedSurveyGeometryEdit();
+    } finally {
+      editSurveyGeometryButton.disabled = false;
     }
   });
 

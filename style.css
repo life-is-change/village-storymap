@@ -3898,7 +3898,7 @@ body.model3d-view-active .reality-3d-sidebar-mount {
 
 .model-3d-hint {
   position: absolute;
-  left: calc(var(--left-panel-width) + 14px);
+  left: calc(var(--workspace-left-occlusion) + 14px);
   bottom: 14px;
   z-index: 10;
   padding: 8px 12px;
@@ -6764,6 +6764,7 @@ body.map-view-active .course-task-sidebar {
   --course-task-width: 68px;
   --left-panel-width: 0px;
   --right-panel-width: 300px;
+  --workspace-left-occlusion: calc(var(--course-task-width) + var(--left-panel-width));
 }
 
 .main-layout.mode-map.course-task-expanded {
@@ -6866,7 +6867,7 @@ body.map-view-active .course-task-sidebar {
 
 .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(72px, 88px) minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto auto;
+  --workspace-grid-columns: auto minmax(64px, 82px) minmax(96px, 132px) minmax(118px, 1fr) auto auto minmax(72px, auto) auto auto;
   --workspace-action-label-display: inline-flex;
   display: none;
   position: fixed;
@@ -6892,6 +6893,10 @@ body.map-view-active .course-task-sidebar {
 
 body.map-view-active .workspace-context-bar {
   display: grid;
+}
+
+.workspace-context-bar > * {
+  min-width: 0;
 }
 
 .workspace-context-bar .map-floating-home-btn {
@@ -6943,6 +6948,9 @@ body.map-view-active .workspace-context-bar {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
   color: #193e2a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-space-select .space-select-dropdown {
@@ -6950,6 +6958,9 @@ body.map-view-active .workspace-context-bar {
   min-height: 36px;
   margin: 0;
   border-radius: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-space-actions {
@@ -7070,34 +7081,34 @@ body.map-view-active .workspace-context-bar {
 
 .main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed).mode-map-right-collapsed .workspace-context-bar {
   --workspace-identity-display: none;
-  --workspace-grid-columns: auto minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto auto;
+  --workspace-grid-columns: auto minmax(88px, 120px) minmax(112px, 1fr) auto auto minmax(68px, auto) auto auto;
   --workspace-action-label-display: inline-flex;
 }
 
 .main-layout.mode-map.mode-map-left-collapsed:not(.mode-map-right-collapsed) .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(72px, 88px) minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto auto;
+  --workspace-grid-columns: auto minmax(64px, 82px) minmax(96px, 132px) minmax(118px, 1fr) auto auto minmax(72px, auto) auto auto;
   --workspace-action-label-display: inline-flex;
 }
 
 .main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed):not(.mode-map-right-collapsed) .workspace-context-bar {
   --workspace-identity-display: none;
-  --workspace-grid-columns: auto minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto auto;
+  --workspace-grid-columns: auto minmax(88px, 112px) minmax(108px, 1fr) auto auto minmax(68px, auto) auto auto;
   --workspace-action-label-display: none;
 }
 
 .main-layout.mode-map.mode-map-left-collapsed.mode-map-right-collapsed .workspace-context-bar {
   --workspace-identity-display: flex;
-  --workspace-grid-columns: auto minmax(72px, 88px) minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto auto;
+  --workspace-grid-columns: auto minmax(64px, 82px) minmax(96px, 132px) minmax(118px, 1fr) auto auto minmax(72px, auto) auto auto;
   --workspace-action-label-display: inline-flex;
 }
 
 .workspace-context-bar.is-managed-village {
-  --workspace-grid-columns: auto minmax(72px, 88px) minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(64px, 82px) minmax(96px, 132px) minmax(118px, 1fr) auto minmax(72px, auto) auto auto;
 }
 
 .main-layout.mode-map.course-task-expanded:not(.mode-map-left-collapsed) .workspace-context-bar.is-managed-village {
-  --workspace-grid-columns: auto minmax(116px, 154px) minmax(150px, 1fr) auto auto auto auto;
+  --workspace-grid-columns: auto minmax(88px, 112px) minmax(108px, 1fr) auto minmax(68px, auto) auto auto;
 }
 
 .workspace-settings-btn:hover,
@@ -7557,6 +7568,18 @@ body.map-view-active .workspace-context-bar {
   margin: 5px 0 9px;
   color: #65766b;
   font-size: 12px;
+}
+
+.survey-object-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.survey-object-review-actions button.secondary {
+  border: 1px solid rgba(35, 108, 64, 0.28);
+  background: rgba(255, 255, 255, 0.82);
+  color: #276b42;
 }
 
 @media (max-width: 1100px) {

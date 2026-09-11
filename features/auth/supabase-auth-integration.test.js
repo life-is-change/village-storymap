@@ -50,7 +50,7 @@ test("the 3D application reuses the authenticated shared Supabase client", () =>
 test("the map application requests the authenticated 3D client release", () => {
   const source = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
-  assert.match(source, /app-3d\.js\?v=20260910-photo-lifecycle/);
+  assert.match(source, /app-3d\.js\?v=20260911-photo-security/);
 });
 
 test("the 3D generator bridge serves existing building photos from the shared client", () => {

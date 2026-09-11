@@ -151,6 +151,17 @@
   }
 
   const api = {
+    async startModifyFeature(deps, feature, layerKey) {
+      const resolvedLayerKey = layerKey || feature?.get?.("layerKey") || "building";
+      if (!feature || feature.get?.("layerKey") !== resolvedLayerKey) {
+        deps.showToast(`未找到可编辑的${deps.getLayerLabel(resolvedLayerKey)}要素`, "error");
+        return false;
+      }
+      if (!(await acquireSelectedFeatureLock(deps, feature, resolvedLayerKey))) return false;
+      await bindModifyInteraction(deps, feature, resolvedLayerKey);
+      return true;
+    },
+
     async handlePlanMapSingleClick(deps, evt) {
       if (typeof deps.is2DMeasureActive === "function" && deps.is2DMeasureActive()) {
         return;
@@ -206,8 +217,7 @@
           deps.showToast(`请选择一个${deps.getLayerLabel(editLayerKey)}要素`, "info");
           return;
         }
-        if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
-        await bindModifyInteraction(deps, clicked, editLayerKey);
+        await api.startModifyFeature(deps, clicked, editLayerKey);
         return;
       }
 

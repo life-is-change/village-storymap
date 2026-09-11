@@ -61,7 +61,7 @@ test('generator page includes an existing-photo selector before local upload', (
   assert.ok(existing >= 0, 'existing photo materials container should exist');
   assert.ok(upload > existing, 'existing materials should appear before local upload');
   assert.match(html, /photo-material-bridge\.js\?v=20260812-existing-photos/);
-  assert.match(html, /app\.js\?v=20260812-existing-photos/);
+  assert.match(html, /app\.js\?v=20260911-three-sources/);
 });
 
 test('generator requests materials and submits a selected stable photo id', () => {

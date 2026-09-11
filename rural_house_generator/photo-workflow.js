@@ -6,13 +6,7 @@
   const CORRECTION_PROMPT = '把带透视的建筑实拍图，转换成规整干净、轴线对齐、材质统一的标准建筑正立面投影';
 
   function resolveInitialMode(params) {
-    const requested = String(params?.get?.('mode') || '').trim().toLowerCase();
-    if (requested === 'photo' || requested === 'preset') return requested;
-    return String(params?.get?.('targetCode') || '').trim() ? 'photo' : 'preset';
-  }
-
-  function shouldApplyPresetAfterLoad(mode, hasPhoto) {
-    return mode === 'preset' && !hasPhoto;
+    return 'photo';
   }
 
   function readTargetDimensions(params) {
@@ -453,7 +447,6 @@
     normalizeRoofAnalysis,
     resolveInitialMode,
     readTargetDimensions,
-    shouldApplyPresetAfterLoad,
     serviceStatusPresentation,
     roofAnalysisChoices,
     roofAnalysisSummary,

@@ -1,19 +1,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
 const PhotoMaterialBridge = window.PhotoMaterialBridge;
 const FacadeQueueClient = window.FacadeQueueClient;
+const FacadeSourceMode = window.FacadeSourceMode;
+const FacadeCloudClient = window.FacadeCloudClient;
 
 const els = {
-  presetList: document.getElementById('presetList'),
-  presetCount: document.getElementById('presetCount'),
-  searchInput: document.getElementById('searchInput'),
-  presetModeBtn: document.getElementById('presetModeBtn'),
-  photoModeBtn: document.getElementById('photoModeBtn'),
-  presetSection: document.getElementById('presetSection'),
+  sourceButtons: document.querySelectorAll('[data-facade-source]'),
+  sourcePanels: document.querySelectorAll('[data-source-panel]'),
+  cloudCapabilityLabel: document.getElementById('cloudCapabilityLabel'),
+  cloudSourceMessage: document.getElementById('cloudSourceMessage'),
+  photoUploadHint: document.getElementById('photoUploadHint'),
   photoSection: document.getElementById('photoSection'),
   existingPhotoMaterials: document.getElementById('existingPhotoMaterials'),
   existingPhotoMaterialState: document.getElementById('existingPhotoMaterialState'),
@@ -41,10 +41,7 @@ const els = {
   configHint: document.getElementById('configHint'),
   lengthInput: document.getElementById('lengthInput'),
   widthInput: document.getElementById('widthInput'),
-  floorsInput: document.getElementById('floorsInput'),
-  floorHeightInput: document.getElementById('floorHeightInput'),
   photoHeightSummary: document.getElementById('photoHeightSummary'),
-  presetOnlyFields: document.querySelectorAll('[data-preset-only]'),
   generateBtn: document.getElementById('generateBtn'),
   downloadBtn: document.getElementById('downloadBtn'),
   sendBtn: document.getElementById('sendBtn'),
@@ -56,9 +53,6 @@ const els = {
 };
 
 const state = {
-  meta: null,
-  presets: [],
-  selected: null,
   scene: null,
   camera: null,
   renderer: null,
@@ -67,7 +61,7 @@ const state = {
   currentBlob: null,
   currentUrl: null,
   currentModelInfo: null,
-  mode: 'preset',
+  facadeSource: 'local_worker',
   photoFile: null,
   photoUrl: null,
   rectifiedUrl: null,
@@ -98,7 +92,12 @@ const state = {
   currentFacadeRun: null,
   facadeUnsubscribe: null,
   facadePollTimer: null,
-  facadePollDelay: 2000
+  facadePollDelay: 2000,
+  cloudClient: null,
+  cloudCapability: { available: false },
+  cloudRunId: '',
+  cloudPollTimer: null,
+  pendingCloudResultUpload: false
 };
 
 init();
@@ -107,13 +106,16 @@ async function init() {
   if (!PhotoWorkflow) throw new Error('photo-workflow.js 加载失败');
   if (!PhotoMaterialBridge) throw new Error('photo-material-bridge.js 加载失败');
   if (!FacadeQueueClient) throw new Error('facade-queue-client.js 加载失败');
+  if (!FacadeSourceMode) throw new Error('facade-source-mode.js 加载失败');
+  if (!FacadeCloudClient) throw new Error('facade-cloud-client.js 加载失败');
   parseTargetParams();
   initThree();
   bindEvents();
   els.correctionPrompt.value = PhotoWorkflow.CORRECTION_PROMPT;
-  setMode(PhotoWorkflow.resolveInitialMode(new URLSearchParams(window.location.search)));
+  setFacadeSource(FacadeSourceMode.sourceFromParams(new URLSearchParams(window.location.search)));
+  els.lengthInput.value = formatInputDimension(state.targetDimensions?.length || 10);
+  els.widthInput.value = formatInputDimension(state.targetDimensions?.depth || 7);
   requestExistingPhotoMaterials();
-  await loadMeta();
 }
 
 function parseTargetParams() {
@@ -125,9 +127,9 @@ function parseTargetParams() {
 }
 
 function bindEvents() {
-  els.searchInput.addEventListener('input', renderPresetList);
-  els.presetModeBtn.addEventListener('click', () => setMode('preset'));
-  els.photoModeBtn.addEventListener('click', () => setMode('photo'));
+  els.sourceButtons.forEach((button) => button.addEventListener('click', () => {
+    setFacadeSource(button.dataset.facadeSource);
+  }));
   els.photoInput.addEventListener('change', handlePhotoFiles);
   window.addEventListener('message', handleFacadeBridgeMessage);
   els.copyPromptBtn.addEventListener('click', copyCorrectionPrompt);
@@ -147,13 +149,10 @@ function bindEvents() {
   });
   els.recoverPhotoBtn.addEventListener('click', recoverCurrentPhoto);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || state.mode !== 'photo') clearFacadePollTimer();
+    if (document.hidden) clearFacadePollTimer();
     else if (state.currentFacadeRun) scheduleFacadePoll(0);
   });
-  els.generateBtn.addEventListener('click', () => {
-    if (state.mode === 'photo') generatePhotoModel();
-    else generateModel();
-  });
+  els.generateBtn.addEventListener('click', generatePhotoModel);
   els.downloadBtn.addEventListener('click', downloadGlb);
   els.sendBtn.addEventListener('click', replaceOriginalBuilding);
 }
@@ -253,7 +252,7 @@ async function useExistingPhotoMaterial(photo, button) {
     if (!PhotoMaterialBridge.isQueueablePhoto(photo)) throw new Error('该历史照片缺少稳定的数据库 ID');
     state.selectedPhotoId = photo.id;
     renderExistingPhotoMaterials(`已选择照片 ${photo.id}`);
-    await submitFacadePhoto(photo);
+    await processPhotoRecord(photo);
   } catch (error) {
     console.error('提交已有建筑照片失败：', error);
     setStatus(`已有照片提交失败：${error.message}`, true);
@@ -287,6 +286,8 @@ async function initializeFacadeQueue(context) {
     return;
   }
   state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient);
+  state.cloudClient = FacadeCloudClient.createFacadeCloudClient(openerClient);
+  await refreshCloudCapability();
   try {
     const availability = await state.facadeQueue.getWorkerAvailability();
     state.photoServiceStatus = availability?.available ? 'online' : 'offline';
@@ -319,8 +320,18 @@ async function handleUploadedPhotoRecord(payload) {
   state.photoMaterials = PhotoMaterialBridge.normalizePhotoMaterials([photo, ...state.photoMaterials]);
   state.selectedPhotoId = photo.id;
   state.photoFile = null;
-  renderExistingPhotoMaterials('新照片已保存，正在提交预处理');
-  await submitFacadePhoto(photo);
+  renderExistingPhotoMaterials('新照片已保存，正在提交处理');
+  if (state.pendingCloudResultUpload) {
+    state.pendingCloudResultUpload = false;
+    await submitFacadePhoto(photo);
+  } else {
+    await processPhotoRecord(photo);
+  }
+}
+
+async function processPhotoRecord(photo) {
+  if (state.facadeSource === 'cloud_api') return submitCloudFacade(photo);
+  return submitFacadePhoto(photo);
 }
 
 async function submitFacadePhoto(photo) {
@@ -442,35 +453,80 @@ async function loadCompletedFacadeModel(run) {
   setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
 }
 
-function setMode(mode) {
-  state.mode = mode === 'photo' ? 'photo' : 'preset';
-  const isPhoto = state.mode === 'photo';
-  els.presetModeBtn.classList.toggle('active', !isPhoto);
-  els.photoModeBtn.classList.toggle('active', isPhoto);
-  els.presetSection.hidden = isPhoto;
-  els.photoSection.hidden = !isPhoto;
-  els.presetOnlyFields.forEach((field) => { field.hidden = isPhoto; });
-  els.photoHeightSummary.hidden = !isPhoto;
-  els.generateBtn.textContent = isPhoto ? '生成正立面贴图建筑' : '生成 3D 建筑';
-  els.configHint.innerHTML = isPhoto
-    ? '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面宽高比自动计算。'
-    : '默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。';
-  if (isPhoto) {
-    renderPhotoServiceState();
-    els.activeLabel.textContent = state.photoFile
-      ? `建筑实拍图：${state.photoFile.name}`
-      : '建筑实拍图：未选择';
-    setProgress(0, '等待建筑实拍图');
-    setStatus('上传实拍图后，系统会先自动处理成正立面；完成后再显示屋顶裁剪线。');
-    if (!state.photoJobId) {
-      els.photoHeightSummary.querySelector('strong').textContent = '裁剪屋顶后，将按正立面比例自动计算';
-    }
-  } else {
-    clearFacadePollTimer();
-    els.activeLabel.textContent = `当前：${state.selected?.id || '-'}`;
-    setProgress(state.presets.length ? 20 : 0, state.presets.length ? '预设已就绪' : '等待加载预设');
-    setStatus('预设模式保持原有四立面生成流程。');
+function setFacadeSource(source) {
+  state.facadeSource = FacadeSourceMode.normalizeSource(source);
+  els.sourceButtons.forEach((button) => {
+    const active = button.dataset.facadeSource === state.facadeSource;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  els.sourcePanels.forEach((panel) => {
+    panel.hidden = panel.dataset.sourcePanel !== state.facadeSource;
+  });
+  const messages = {
+    local_worker: '上传原始实拍图后，4090 工作站会自动生成标准正立面。',
+    external_prompt: '先把原图交给豆包处理，再在下方上传返回的标准正立面。',
+    cloud_api: FacadeSourceMode.cloudUnavailableMessage(state.cloudCapability)
+      || '上传原始实拍图后，平台会通过服务端千问接口生成标准正立面。'
+  };
+  els.photoUploadHint.textContent = state.facadeSource === 'external_prompt'
+    ? '请上传豆包返回的标准正立面 JPG / PNG，不超过 10 MB'
+    : '请上传原始建筑实拍图 JPG / PNG，不超过 10 MB；照片会保存到当前建筑素材库';
+  els.photoInput.disabled = !FacadeSourceMode.canSubmit(state.facadeSource, state.cloudCapability);
+  els.generateBtn.textContent = '生成正立面贴图建筑';
+  els.configHint.textContent = '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面比例自动计算。';
+  els.activeLabel.textContent = FacadeSourceMode.SOURCES[state.facadeSource].label;
+  setStatus(messages[state.facadeSource]);
+  renderPhotoServiceState();
+}
+
+async function refreshCloudCapability() {
+  try {
+    state.cloudCapability = await state.cloudClient.getCapability();
+  } catch (error) {
+    state.cloudCapability = { available: false, reason: 'unreachable' };
+    console.warn('读取云端立面能力失败：', error);
   }
+  const message = FacadeSourceMode.cloudUnavailableMessage(state.cloudCapability);
+  els.cloudCapabilityLabel.textContent = state.cloudCapability.available ? '千问已配置' : '管理员尚未启用';
+  els.cloudSourceMessage.textContent = message || '千问已由管理员配置。每次重新生成都会产生一次新的图像调用费用。';
+  setFacadeSource(state.facadeSource);
+}
+
+async function submitCloudFacade(photo) {
+  if (!state.cloudClient || !state.cloudCapability.available) {
+    throw new Error(FacadeSourceMode.cloudUnavailableMessage(state.cloudCapability));
+  }
+  setProgress(12, '正在提交千问云端处理…');
+  const run = await state.cloudClient.submit({
+    photoId: Number(photo.id),
+    courseId: state.facadeContext?.courseId,
+    spaceId: state.facadeContext?.spaceId,
+    objectCode: state.targetCode
+  });
+  state.cloudRunId = String(run.runId || run.id || '');
+  if (!state.cloudRunId) throw new Error('云端任务未返回编号');
+  await pollCloudFacade();
+}
+
+async function pollCloudFacade() {
+  window.clearTimeout(state.cloudPollTimer);
+  const run = await state.cloudClient.poll(state.cloudRunId);
+  if (run.status === 'succeeded' && run.resultUrl) {
+    const response = await fetch(run.resultUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`云端结果下载失败（${response.status}）`);
+    const blob = await response.blob();
+    const file = new File([blob], `qwen-facade-${state.targetCode || Date.now()}.png`, { type: blob.type || 'image/png' });
+    state.pendingCloudResultUpload = true;
+    setProgress(38, '云端正立面已完成，正在保存到建筑素材库…');
+    await setPhotoFile(file);
+    return;
+  }
+  if (run.status === 'failed') throw new Error(run.errorMessage || '云端图像处理失败');
+  setProgress(Number(run.progress || 24), '千问正在生成标准正立面…');
+  state.cloudPollTimer = window.setTimeout(() => void pollCloudFacade().catch((error) => {
+    setStatus(error.message, true);
+  }), 5000);
 }
 
 async function copyCorrectionPrompt() {
@@ -643,7 +699,7 @@ function clearFacadePollTimer() {
 
 function scheduleFacadePoll(delay = state.facadePollDelay) {
   clearFacadePollTimer();
-  if (!state.facadeQueue || !state.photoJobId || state.mode !== 'photo' || document.hidden) return;
+  if (!state.facadeQueue || !state.photoJobId || document.hidden) return;
   state.facadePollTimer = window.setTimeout(pollFacadeRun, delay);
 }
 
@@ -748,145 +804,6 @@ function adjustRoofCropWithKeyboard(event) {
   scheduleRoofAnalysis();
 }
 
-async function loadMeta() {
-  try {
-    setProgress(8, '读取 normalization_meta.json ...');
-    const res = await fetch('./normalization_meta.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`normalization_meta.json 读取失败：${res.status}`);
-
-    state.meta = await res.json();
-    state.presets = [...(state.meta.presets || [])].sort(sortPreset);
-    if (!state.presets.length) throw new Error('normalization_meta.json 中没有 presets。');
-
-    state.selected = state.presets[0];
-    renderPresetList();
-    if (PhotoWorkflow.shouldApplyPresetAfterLoad(state.mode, Boolean(state.photoFile))) {
-      applyPresetToInputs(state.selected);
-      setProgress(20, `已载入 ${state.presets.length} 个建筑预设`);
-      setStatus('已载入预设。点击左侧样式后，基础参数会自动同步。');
-    } else if (!state.photoFile) {
-      if (state.targetDimensions) {
-        els.lengthInput.value = formatInputDimension(state.targetDimensions.length);
-        els.widthInput.value = formatInputDimension(state.targetDimensions.depth);
-      } else {
-        applyPresetDimensionsToInputs(state.selected);
-      }
-      setProgress(0, '等待建筑实拍图');
-      setStatus('上传实拍图后，系统会先自动处理成正立面；完成后再显示屋顶裁剪线。');
-    }
-  } catch (err) {
-    console.error(err);
-    setProgress(0, '加载失败');
-    setStatus(`加载失败：${err.message}\n请使用本地静态服务打开 index.html。`, true);
-  }
-}
-
-function sortPreset(a, b) {
-  const pa = String(a.id || '').split('-').map(Number);
-  const pb = String(b.id || '').split('-').map(Number);
-  return (pa[0] || 0) - (pb[0] || 0) || (pa[1] || 0) - (pb[1] || 0);
-}
-
-function renderPresetList() {
-  const q = els.searchInput.value.trim().toLowerCase();
-  const filtered = state.presets.filter((preset) => {
-    const text = `${preset.id} ${preset.name || ''} ${preset.floors}层 ${preset.dimensions?.length} ${preset.dimensions?.width}`.toLowerCase();
-    return !q || text.includes(q);
-  });
-
-  els.presetCount.textContent = `${filtered.length}/${state.presets.length}`;
-  els.presetList.innerHTML = '';
-
-  for (const preset of filtered) {
-    const card = document.createElement('article');
-    card.className = `preset-card ${state.selected?.id === preset.id ? 'active' : ''}`;
-    card.innerHTML = `
-      <img src="${preset.url}" alt="${preset.id}" loading="lazy" />
-      <div class="preset-info">
-        <div>
-          <h3>${preset.id}</h3>
-          <p>${preset.floors} 层建筑样式</p>
-          <p>L=${formatNum(preset.dimensions?.length)}m, W=${formatNum(preset.dimensions?.width)}m</p>
-        </div>
-        <button class="choose" type="button">${state.selected?.id === preset.id ? '当前样式' : '选择此样式'}</button>
-      </div>`;
-    card.addEventListener('click', () => selectPreset(preset));
-    els.presetList.appendChild(card);
-  }
-}
-
-function selectPreset(preset) {
-  state.selected = preset;
-  applyPresetToInputs(preset);
-  renderPresetList();
-  setStatus(`已选择 ${preset.id}，基础参数已同步更新。可直接生成，也可继续微调。`);
-}
-
-function applyPresetToInputs(preset) {
-  applyPresetDimensionsToInputs(preset);
-  els.activeLabel.textContent = `当前：${preset.id}`;
-}
-
-function applyPresetDimensionsToInputs(preset) {
-  els.lengthInput.value = formatInputDimension(preset.dimensions?.length ?? 10);
-  els.widthInput.value = formatInputDimension(preset.dimensions?.width ?? 7);
-  els.floorsInput.value = preset.floors ?? 2;
-  els.floorHeightInput.value = formatInputDimension(preset.dimensions?.floorHeight ?? 3);
-}
-
-async function generateModel() {
-  if (!state.selected) return;
-  const preset = state.selected;
-
-  try {
-    els.generateBtn.disabled = true;
-    els.downloadBtn.disabled = true;
-    els.sendBtn.disabled = true;
-    clearCurrentUrl();
-
-    setProgress(28, '读取四立面图片...');
-    setStatus(`正在处理 ${preset.id}：按 JSON 参数拆分 front/back/left/right。`);
-    const image = await loadImage(preset.url);
-
-    setProgress(45, '裁切立面贴图...');
-    const extracted = extractFacadeTextures(image, preset);
-
-    setProgress(62, '生成 3D 建筑...');
-    const config = readConfig(preset);
-    const group = createBuildingGroup(preset, config, extracted.textures);
-    replaceModel(group);
-    frameModel(group);
-
-    setProgress(82, '导出 GLB ...');
-    const { blob, url } = await exportGlb(group);
-    state.currentBlob = blob;
-    state.currentUrl = url;
-    const roofHeight = Math.max(
-      0.45,
-      Number(preset?.roof?.height || 0) || config.bodyHeight * Number(preset?.roof?.heightRatioToBody || 0.24)
-    );
-    state.currentModelInfo = {
-      id: preset.id,
-      metrics: {
-        totalHeight: config.bodyHeight + roofHeight,
-        length: config.length,
-        width: config.width
-      }
-    };
-    els.downloadBtn.disabled = false;
-    els.sendBtn.disabled = false;
-    els.downloadLink.innerHTML = `<a href="${url}" download="${preset.id}.glb">下载 ${preset.id}.glb</a>`;
-    setProgress(100, '生成完成');
-    setStatus(buildGenerateCompleteMessage(preset.id));
-  } catch (err) {
-    console.error(err);
-    setProgress(0, '生成失败');
-    setStatus(`生成失败：${err.message}`, true);
-  } finally {
-    els.generateBtn.disabled = false;
-  }
-}
-
 async function generatePhotoModel() {
   if (!state.facadeQueue || !state.photoJobId || !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun)) {
     setStatus('请先等待原始照片完成正立面预处理。', true);
@@ -933,303 +850,11 @@ function parseGlb(arrayBuffer) {
   });
 }
 
-function buildGenerateCompleteMessage(presetId) {
+function buildGenerateCompleteMessage(modelLabel) {
   if (state.targetCode && window.opener) {
-    return `生成完成：${presetId}\n可下载 GLB，也可点击“替换原建筑”同步到主平台。`;
+    return `生成完成：${modelLabel}\n可下载 GLB，也可点击“替换原建筑”同步到主平台。`;
   }
-  return `生成完成：${presetId}\n可下载 GLB。`;
-}
-
-function readConfig(preset) {
-  const floors = clamp(Number(els.floorsInput.value || preset.floors || 2), 1, 8);
-  const floorHeight = clamp(Number(els.floorHeightInput.value || preset.dimensions?.floorHeight || 3), 2.4, 6);
-
-  return {
-    length: clamp(Number(els.lengthInput.value || preset.dimensions?.length || 10), 3, 100),
-    width: clamp(Number(els.widthInput.value || preset.dimensions?.width || 7), 3, 100),
-    floors,
-    floorHeight,
-    bodyHeight: floors * floorHeight
-  };
-}
-
-function extractFacadeTextures(image, preset) {
-  const textures = {};
-
-  for (const side of ['front', 'back', 'left', 'right']) {
-    const facade = preset.facades?.[side];
-    if (!facade) throw new Error(`${preset.id} 缺少 ${side} 立面参数。`);
-
-    const rect = getPixelCrop(image, facade);
-    const canvas = cropToCanvas(image, rect, 1024);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(8, state.renderer.capabilities.getMaxAnisotropy?.() || 4);
-    texture.needsUpdate = true;
-    textures[side] = texture;
-  }
-
-  return { textures };
-}
-
-function getPixelCrop(image, facade) {
-  if (facade.pixelCrop) {
-    return {
-      x: facade.pixelCrop.x,
-      y: facade.pixelCrop.y,
-      w: facade.pixelCrop.w,
-      h: facade.pixelCrop.h
-    };
-  }
-
-  if (facade.sourceCrop) {
-    return {
-      x: facade.sourceCrop.x * image.width,
-      y: facade.sourceCrop.y * image.height,
-      w: facade.sourceCrop.w * image.width,
-      h: facade.sourceCrop.h * image.height
-    };
-  }
-
-  const quadrant = state.meta.imageLayout?.quadrants?.[facade.quadrant || 'front'];
-  if (!quadrant) throw new Error('找不到 crop 参数。');
-
-  return {
-    x: quadrant.x * image.width,
-    y: quadrant.y * image.height,
-    w: quadrant.w * image.width,
-    h: quadrant.h * image.height
-  };
-}
-
-function cropToCanvas(image, rect, longSide = 1024) {
-  const aspect = rect.w / rect.h;
-  let w;
-  let h;
-
-  if (aspect >= 1) {
-    w = longSide;
-    h = Math.max(64, Math.round(longSide / aspect));
-  } else {
-    h = longSide;
-    w = Math.max(64, Math.round(longSide * aspect));
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(image, rect.x, rect.y, rect.w, rect.h, 0, 0, w, h);
-  return canvas;
-}
-
-function createBuildingGroup(preset, config, textures) {
-  const group = new THREE.Group();
-  group.name = `rural_house_${preset.id}`;
-  group.userData = {
-    app: 'rural-house-front-end-generator',
-    presetId: preset.id,
-    floors: config.floors,
-    dimensions: {
-      length: config.length,
-      width: config.width,
-      height: config.bodyHeight
-    }
-  };
-
-  const coreMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92 });
-  const core = new THREE.Mesh(new THREE.BoxGeometry(config.length, config.bodyHeight, config.width), coreMat);
-  core.name = 'white_core_body';
-  core.position.y = config.bodyHeight / 2;
-  core.castShadow = true;
-  core.receiveShadow = true;
-  group.add(core);
-
-  group.add(createFacadePlanes(config, textures));
-  group.add(createRoof(preset.roof || {}, config));
-  group.add(createBase(config));
-  return group;
-}
-
-function createFacadePlanes(config, textures) {
-  const group = new THREE.Group();
-  group.name = 'facade_textures';
-  const eps = 0.018;
-  const createMat = (map) => new THREE.MeshStandardMaterial({ map, roughness: 0.88, side: THREE.FrontSide });
-
-  const front = new THREE.Mesh(new THREE.PlaneGeometry(config.length, config.bodyHeight), createMat(textures.front));
-  front.name = 'facade_front';
-  front.position.set(0, config.bodyHeight / 2, config.width / 2 + eps);
-  group.add(front);
-
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(config.length, config.bodyHeight), createMat(textures.back));
-  back.name = 'facade_back';
-  back.position.set(0, config.bodyHeight / 2, -config.width / 2 - eps);
-  back.rotation.y = Math.PI;
-  group.add(back);
-
-  const left = new THREE.Mesh(new THREE.PlaneGeometry(config.width, config.bodyHeight), createMat(textures.left));
-  left.name = 'facade_left';
-  left.position.set(-config.length / 2 - eps, config.bodyHeight / 2, 0);
-  left.rotation.y = -Math.PI / 2;
-  group.add(left);
-
-  const right = new THREE.Mesh(new THREE.PlaneGeometry(config.width, config.bodyHeight), createMat(textures.right));
-  right.name = 'facade_right';
-  right.position.set(config.length / 2 + eps, config.bodyHeight / 2, 0);
-  right.rotation.y = Math.PI / 2;
-  group.add(right);
-
-  return group;
-}
-
-function createBase(config) {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x8d9296, roughness: 0.9 });
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(config.length * 1.04, 0.16, config.width * 1.04), mat);
-  mesh.name = 'base_plinth';
-  mesh.position.y = 0.08;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function createRoof(roofInfo, config) {
-  const roofHeight = Math.max(0.45, Number(roofInfo.height || 0) || config.bodyHeight * Number(roofInfo.heightRatioToBody || 0.24));
-  const overhang = Math.max(0.08, config.width * Number(roofInfo.overhangRatioToWidth || 0.05));
-  const mat = createRoofMaterial(roofInfo.material || {});
-  const type = String(roofInfo.type || '').toLowerCase();
-
-  if (type.includes('hip')) return createHipRoof(config.length, config.width, config.bodyHeight, roofHeight, overhang, mat);
-  return createGableRoof(config.length, config.width, config.bodyHeight, roofHeight, overhang, mat, type.includes('front'));
-}
-
-function createGableRoof(length, width, y0, h, over, mat, ridgeAlongZ = false) {
-  const L = length / 2 + over;
-  const W = width / 2 + over;
-  const y1 = y0 + h;
-  let positions;
-  let uvs;
-  let indices;
-
-  if (!ridgeAlongZ) {
-    positions = new Float32Array([
-      -L, y0, W, L, y0, W, L, y1, 0, -L, y1, 0,
-      -L, y1, 0, L, y1, 0, L, y0, -W, -L, y0, -W,
-      L, y0, W, L, y0, -W, L, y1, 0,
-      -L, y0, -W, -L, y0, W, -L, y1, 0
-    ]);
-    uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0.5, 1, 0, 0, 1, 0, 0.5, 1]);
-    indices = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 11, 12, 13];
-  } else {
-    positions = new Float32Array([
-      -L, y0, -W, -L, y0, W, 0, y1, W, 0, y1, -W,
-      0, y1, -W, 0, y1, W, L, y0, W, L, y0, -W,
-      -L, y0, W, L, y0, W, 0, y1, W,
-      L, y0, -W, -L, y0, -W, 0, y1, -W
-    ]);
-    uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0.5, 1, 0, 0, 1, 0, 0.5, 1]);
-    indices = [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 11, 12, 13];
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.name = 'roof_gable';
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function createHipRoof(length, width, y0, h, over, mat) {
-  const L = length / 2 + over;
-  const W = width / 2 + over;
-  const y1 = y0 + h;
-  const ridge = Math.max(0.05, L * 0.42);
-  const vertices = [
-    [-L, y0, W], [L, y0, W], [L, y0, -W], [-L, y0, -W],
-    [-ridge, y1, 0], [ridge, y1, 0]
-  ];
-  const faces = [
-    [0, 1, 5, 4], [3, 4, 5, 2], [1, 2, 5], [3, 0, 4]
-  ];
-
-  const pos = [];
-  const uv = [];
-  const idx = [];
-
-  for (const face of faces) {
-    const start = pos.length / 3;
-    for (const vertexIndex of face) pos.push(...vertices[vertexIndex]);
-
-    if (face.length === 4) {
-      uv.push(0, 0, 1, 0, 1, 1, 0, 1);
-      idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
-    } else {
-      uv.push(0, 0, 1, 0, 0.5, 1);
-      idx.push(start, start + 1, start + 2);
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geo.setIndex(idx);
-  geo.computeVertexNormals();
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.name = 'roof_hip';
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function createRoofMaterial(info) {
-  const tex = proceduralRoofTexture(info);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 2);
-
-  return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(info.baseColor || '#2d2d30'),
-    map: tex,
-    roughness: Number(info.roughness ?? 0.86),
-    side: THREE.DoubleSide
-  });
-}
-
-function proceduralRoofTexture(info) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 128;
-
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = info.baseColor || '#303033';
-  ctx.fillRect(0, 0, 256, 128);
-  ctx.strokeStyle = info.tileColor || '#1f1f22';
-  ctx.lineWidth = 3;
-
-  for (let y = 10; y < 128; y += 18) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    for (let x = 0; x <= 256; x += 18) {
-      ctx.quadraticCurveTo(x + 9, y + 5, x + 18, y);
-    }
-    ctx.stroke();
-  }
-
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = '#fff';
-  for (let x = 0; x < 256; x += 30) ctx.fillRect(x, 0, 2, 128);
-  ctx.globalAlpha = 1;
-
-  return new THREE.CanvasTexture(canvas);
+  return `生成完成：${modelLabel}\n可下载 GLB。`;
 }
 
 function initThree() {
@@ -1348,21 +973,6 @@ function frameModel(group) {
   state.controls.update();
 }
 
-function exportGlb(group) {
-  const exporter = new GLTFExporter();
-  return new Promise((resolve, reject) => {
-    exporter.parse(
-      group,
-      (arrayBuffer) => {
-        const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' });
-        resolve({ blob, url: URL.createObjectURL(blob) });
-      },
-      reject,
-      { binary: true, embedImages: true, onlyVisible: true }
-    );
-  });
-}
-
 function downloadGlb() {
   if (!state.currentUrl || !state.currentModelInfo) return;
   const link = document.createElement('a');
@@ -1447,14 +1057,6 @@ function setStatus(msg, isError = false) {
   els.statusText.style.color = isError ? '#b42318' : '#50657f';
 }
 
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, Number.isFinite(v) ? v : min));
-}
-
 function formatInputDimension(v) {
   return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '0.0';
-}
-
-function formatNum(v) {
-  return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '-';
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>乡村建筑 3D 生成器</title>
-  <link rel="stylesheet" href="./style.css?v=20260805-proportional-facade" />
+  <link rel="stylesheet" href="./style.css?v=20260911-three-sources" />
   <script type="importmap">
   {
     "imports": {
@@ -19,7 +19,7 @@
     <header class="topbar">
       <div class="topbar-copy">
         <h1>乡村建筑 3D 生成器</h1>
-        <p>预设样式或实拍正立面，一步生成可下载、可替换的贴图白模建筑</p>
+        <p>从实拍图取得标准正立面，生成可下载、可替换的贴图白模建筑</p>
       </div>
       <div class="top-actions">
         <button id="generateBtn" class="primary">生成 3D 建筑</button>
@@ -30,9 +30,11 @@
 
     <main class="workspace">
       <aside class="sidebar">
-        <section class="card mode-card" aria-label="生成方式">
-          <button id="presetModeBtn" class="mode-button active" type="button">预设样式</button>
-          <button id="photoModeBtn" class="mode-button" type="button">实拍图贴图</button>
+        <section class="card source-card" aria-label="标准正立面获取方式">
+          <h2>选择处理方式</h2>
+          <button class="source-button active" type="button" data-facade-source="local_worker"><strong>工作站自动处理</strong><span>4090 自动校正与建模</span></button>
+          <button class="source-button" type="button" data-facade-source="external_prompt"><strong>外部 AI 辅助</strong><span>复制提示词，上传处理结果</span></button>
+          <button class="source-button" type="button" data-facade-source="cloud_api"><strong>云端 API</strong><span id="cloudCapabilityLabel">正在检查配置…</span></button>
         </section>
 
         <section class="card config-card">
@@ -46,50 +48,37 @@
               <span>建筑宽度 W</span>
               <input id="widthInput" type="number" min="3" step="0.1" />
             </label>
-            <label data-preset-only>
-              <span>楼层数</span>
-              <input id="floorsInput" type="number" min="1" max="8" step="1" />
-            </label>
-            <label data-preset-only>
-              <span>层高</span>
-              <input id="floorHeightInput" type="number" min="2.4" max="6" step="0.1" />
-            </label>
           </div>
           <div id="photoHeightSummary" class="photo-height-summary" hidden>
             <span>建筑高度</span>
             <strong>裁剪屋顶后，将按正立面比例自动计算</strong>
           </div>
-          <p id="configHint" class="hint">默认参数读取自 <code>normalization_meta.json</code>，点击样式后会自动同步，可手动微调后重新生成。</p>
+          <p id="configHint" class="hint">长度和进深读取自当前地图建筑，也可以在生成前手动调整。</p>
         </section>
 
-        <section id="presetSection" class="card list-card">
-          <div class="section-title">
-            <h2>样式选择</h2>
-            <span id="presetCount">读取中</span>
-          </div>
-          <input id="searchInput" class="search" placeholder="搜索，例如 4-1 / 3层" />
-          <div id="presetList" class="preset-list"></div>
-        </section>
-
-        <section id="photoSection" class="card photo-card" hidden>
+        <section id="photoSection" class="card photo-card">
           <div class="section-title">
             <h2>建筑实拍图</h2>
             <span>先正立面化，再裁屋顶并生成模型</span>
           </div>
-          <div id="photoServiceState" class="photo-service-state" data-tone="checking">
+          <div id="photoServiceState" class="photo-service-state" data-tone="checking" data-source-panel="local_worker">
             <span class="photo-service-dot" aria-hidden="true"></span>
             <p id="photoServiceMessage">正在连接 4090 远程生成队列…</p>
             <button id="recoverPhotoBtn" type="button" class="secondary" hidden>
               重新处理当前照片
             </button>
           </div>
-          <div class="external-correction">
-            <p>系统会在 4090 工作站自动处理；豆包仅作为效果不理想时的备用入口。</p>
+          <div class="external-correction" data-source-panel="external_prompt" hidden>
+            <p>把原图和下列提示词发送给豆包；完成后将返回的标准正立面上传到下方素材库。</p>
             <textarea id="correctionPrompt" rows="4" readonly></textarea>
             <div class="external-correction-actions">
               <a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包</a>
               <button id="copyPromptBtn" type="button">复制提示词</button>
             </div>
+          </div>
+          <div id="cloudSourcePanel" class="cloud-source-panel" data-source-panel="cloud_api" hidden>
+            <strong>千问云端标准化</strong>
+            <p id="cloudSourceMessage">正在检查管理员配置。密钥只保存在服务端，不会发送到浏览器。</p>
           </div>
           <section id="existingPhotoMaterials" class="existing-photo-materials" aria-live="polite">
             <div class="existing-photo-heading">
@@ -100,7 +89,7 @@
           </section>
           <label class="upload-box" for="photoInput">
             <strong>上传建筑实拍图</strong>
-            <span>仅一张 JPG / PNG，不超过 10 MB；照片会先存入当前建筑素材库，再交给 4090 处理</span>
+            <span id="photoUploadHint">仅一张 JPG / PNG，不超过 10 MB；照片会保存到当前建筑素材库</span>
             <input id="photoInput" type="file" accept="image/jpeg,image/png" />
           </label>
           <ol id="photoSteps" class="photo-steps" aria-label="照片处理步骤">
@@ -166,7 +155,7 @@
         <section class="card status-card">
           <h2>任务状态</h2>
           <div class="progress"><div id="progressFill"></div></div>
-          <div id="statusText" class="status-text">等待加载预设。</div>
+          <div id="statusText" class="status-text">等待选择建筑照片。</div>
           <div id="downloadLink" class="download-link"></div>
         </section>
       </aside>
@@ -183,6 +172,8 @@
   <script src="./photo-workflow.js?v=20260805-photo-upload-fix"></script>
   <script src="./photo-material-bridge.js?v=20260812-existing-photos"></script>
   <script src="./facade-queue-client.js?v=20260908-linux-worker"></script>
-  <script type="module" src="./app.js?v=20260812-existing-photos"></script>
+  <script src="./facade-source-mode.js?v=20260911-three-sources"></script>
+  <script src="./facade-cloud-client.js?v=20260911-qwen-adapter"></script>
+  <script type="module" src="./app.js?v=20260911-three-sources"></script>
 </body>
 </html>

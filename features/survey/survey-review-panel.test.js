@@ -18,13 +18,18 @@ test("renders compact progress and low-noise activity filters", () => {
   assert.match(html, /待处理\s*3/);
 });
 
-test("object review action is primary only while pending", () => {
+test("object review offers a direct geometry edit shortcut for editable states", () => {
   const pending = panel.renderObjectReview({ geometryStatus: "pending", geometryRevision: 2 });
   assert.match(pending, /确认几何无误/);
   assert.match(pending, /data-survey-confirm/);
+  assert.match(pending, /编辑几何/);
+  assert.match(pending, /data-survey-edit-geometry/);
   const modified = panel.renderObjectReview({ geometryStatus: "modified", geometryRevision: 3 });
   assert.doesNotMatch(modified, /data-survey-confirm/);
   assert.match(modified, /已修改/);
+  assert.match(modified, /data-survey-edit-geometry/);
+  const deleted = panel.renderObjectReview({ geometryStatus: "deleted", geometryRevision: 3 });
+  assert.doesNotMatch(deleted, /data-survey-edit-geometry/);
 });
 
 test("练习村与正式村共用可校核的进度面板", () => {

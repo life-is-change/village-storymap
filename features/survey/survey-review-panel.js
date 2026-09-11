@@ -79,13 +79,18 @@
     return `<section class="survey-object-review" data-survey-object-review>
       <div><span>几何状态</span><strong>${escapeHtml(label)}</strong></div>
       <div class="survey-object-review-meta">修订 ${normalized.geometryRevision}${normalized.latestModifiedBy ? ` · 最近处理 ${escapeHtml(normalized.latestModifiedBy)}` : ""}</div>
-      ${normalized.geometryStatus === "pending"
-        ? '<button type="button" data-survey-confirm>确认几何无误</button>'
-        : ""}
+      <div class="survey-object-review-actions">
+        ${normalized.geometryStatus === "pending"
+          ? '<button type="button" data-survey-confirm>确认几何无误</button>'
+          : ""}
+        ${normalized.geometryStatus !== "deleted"
+          ? '<button type="button" class="secondary" data-survey-edit-geometry>编辑几何</button>'
+          : ""}
+      </div>
     </section>`;
   }
 
-  function createSurveyReviewPanel({ root: panelRoot, onConfirm, onToggleFocus, onFilterChange } = {}) {
+  function createSurveyReviewPanel({ root: panelRoot, onConfirm, onEditGeometry, onToggleFocus, onFilterChange } = {}) {
     if (!panelRoot) throw new Error("SURVEY_REVIEW_PANEL_ROOT_REQUIRED");
     let progress = { reviewedBaseline: 0, baselineTotal: 0 };
     let focusPending = false;
@@ -112,6 +117,8 @@
         render();
       } else if (event.target?.closest?.("[data-survey-confirm]") && objectReview) {
         await onConfirm?.(objectReview);
+      } else if (event.target?.closest?.("[data-survey-edit-geometry]") && objectReview) {
+        await onEditGeometry?.(objectReview);
       }
     }
 

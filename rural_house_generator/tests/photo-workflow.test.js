@@ -28,7 +28,6 @@ const {
   serviceStatusPresentation,
   roofAnalysisChoices,
   roofAnalysisSummary,
-  shouldApplyPresetAfterLoad,
   transitionJobState,
   transitionServiceState,
   friendlyServiceError,
@@ -251,13 +250,7 @@ test('photo upload normalizes supported roof appearance choices', () => {
 test('platform-launched generator opens directly in photo mode', () => {
   assert.equal(resolveInitialMode(new URLSearchParams('mode=photo&targetCode=B-17')), 'photo');
   assert.equal(resolveInitialMode(new URLSearchParams('targetCode=B-17')), 'photo');
-  assert.equal(resolveInitialMode(new URLSearchParams('mode=preset')), 'preset');
-});
-
-test('late preset metadata cannot overwrite an active photo upload', () => {
-  assert.equal(shouldApplyPresetAfterLoad('photo', true), false);
-  assert.equal(shouldApplyPresetAfterLoad('photo', false), false);
-  assert.equal(shouldApplyPresetAfterLoad('preset', false), true);
+  assert.equal(resolveInitialMode(new URLSearchParams('mode=preset')), 'photo');
 });
 
 test('clamps the student roof boundary to the safe crop range', () => {

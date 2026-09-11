@@ -340,6 +340,22 @@
       api.updateBuildingEditorToolbarState(deps);
     },
 
+    activateGeometryEditLayer(deps, layerKey) {
+      const selectedLayers = deps.getSelectedLayersForCurrentSpace();
+      if (!deps.isEditableGeometryLayer(layerKey)) return false;
+      if (!selectedLayers.includes(layerKey)) {
+        deps.showToast(`请先在图层中开启“${deps.getLayerLabel(layerKey)}”`, "info");
+        return false;
+      }
+      if (deps.getCurrentGeometryEditLayer() !== layerKey) {
+        api.clearBuildingInteractions(deps);
+      }
+      deps.setCurrentGeometryEditLayer(layerKey);
+      getState(deps).editLayerKey = layerKey;
+      api.updateBuildingEditorToolbarState(deps);
+      return true;
+    },
+
     ensureBuildingEditorToolbar(deps) {
       const doc = deps.getDocument();
       const mount = doc.getElementById("toolboxToolbarMount");

@@ -48,9 +48,9 @@ test('managed village top bar reserves one track for every visible control', () 
   const managedRule = css.match(/\.workspace-context-bar\.is-managed-village\s*\{[^}]+\}/)?.[0] || '';
   const managedExpandedRule = css.match(/\.main-layout\.mode-map\.course-task-expanded:not\(\.mode-map-left-collapsed\) \.workspace-context-bar\.is-managed-village\s*\{[^}]+\}/)?.[0] || '';
 
-  assert.match(baseRule, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
-  assert.match(managedRule, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
-  assert.match(managedExpandedRule, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(baseRule, /--workspace-grid-columns:\s*auto\s+minmax\(64px,\s*82px\)\s+minmax\(96px,\s*132px\)\s+minmax\(118px,\s*1fr\)\s+auto\s+auto\s+minmax\(72px,\s*auto\)\s+auto\s+auto/);
+  assert.match(managedRule, /--workspace-grid-columns:\s*auto\s+minmax\(64px,\s*82px\)\s+minmax\(96px,\s*132px\)\s+minmax\(118px,\s*1fr\)\s+auto\s+minmax\(72px,\s*auto\)\s+auto\s+auto/);
+  assert.match(managedExpandedRule, /--workspace-grid-columns:\s*auto\s+minmax\(88px,\s*112px\)\s+minmax\(108px,\s*1fr\)\s+auto\s+minmax\(68px,\s*auto\)\s+auto\s+auto/);
 });
 
 test('top bar defines all four semantic side-panel states', () => {
@@ -60,20 +60,36 @@ test('top bar defines all four semantic side-panel states', () => {
   const bothClosed = css.match(/\.main-layout\.mode-map\.mode-map-left-collapsed\.mode-map-right-collapsed \.workspace-context-bar\s*\{[^}]+\}/)?.[0] || '';
 
   assert.match(leftOnly, /--workspace-identity-display:\s*none/);
-  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(leftOnly, /--workspace-grid-columns:\s*auto\s+minmax\(88px,\s*120px\)\s+minmax\(112px,\s*1fr\)\s+auto\s+auto\s+minmax\(68px,\s*auto\)\s+auto\s+auto/);
   assert.match(leftOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(rightOnly, /--workspace-identity-display:\s*flex/);
-  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(rightOnly, /--workspace-grid-columns:\s*auto\s+minmax\(64px,\s*82px\)\s+minmax\(96px,\s*132px\)\s+minmax\(118px,\s*1fr\)\s+auto\s+auto\s+minmax\(72px,\s*auto\)\s+auto\s+auto/);
   assert.match(rightOnly, /--workspace-action-label-display:\s*inline-flex/);
 
   assert.match(bothOpen, /--workspace-identity-display:\s*none/);
-  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothOpen, /--workspace-grid-columns:\s*auto\s+minmax\(88px,\s*112px\)\s+minmax\(108px,\s*1fr\)\s+auto\s+auto\s+minmax\(68px,\s*auto\)\s+auto\s+auto/);
   assert.match(bothOpen, /--workspace-action-label-display:\s*none/);
 
   assert.match(bothClosed, /--workspace-identity-display:\s*flex/);
-  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(72px,\s*88px\)\s+minmax\(116px,\s*154px\)\s+minmax\(150px,\s*1fr\)\s+auto\s+auto\s+auto\s+auto\s+auto/);
+  assert.match(bothClosed, /--workspace-grid-columns:\s*auto\s+minmax\(64px,\s*82px\)\s+minmax\(96px,\s*132px\)\s+minmax\(118px,\s*1fr\)\s+auto\s+auto\s+minmax\(72px,\s*auto\)\s+auto\s+auto/);
   assert.match(bothClosed, /--workspace-action-label-display:\s*inline-flex/);
+});
+
+test('top bar children are allowed to shrink without overlapping adjacent controls', () => {
+  const childRule = css.match(/\.workspace-context-bar\s*>\s*\*\s*\{[^}]+\}/)?.[0] || '';
+  const projectSelect = css.match(/\.workspace-project-select select\s*\{[^}]+\}/)?.[0] || '';
+  const spaceSelect = css.match(/\.workspace-space-select \.space-select-dropdown\s*\{[^}]+\}/)?.[0] || '';
+  assert.match(childRule, /min-width:\s*0/);
+  assert.match(projectSelect, /text-overflow:\s*ellipsis/);
+  assert.match(spaceSelect, /text-overflow:\s*ellipsis/);
+});
+
+test('3D interaction hint clears the persistent rail and expanded task panel', () => {
+  const layoutRules = css.match(/\.main-layout\.mode-map\s*\{[^}]+\}/g) || [];
+  const hintRule = css.match(/\.model-3d-hint\s*\{[^}]+\}/)?.[0] || '';
+  assert.ok(layoutRules.some((rule) => /--workspace-left-occlusion:\s*calc\(var\(--course-task-width\)\s*\+\s*var\(--left-panel-width\)\)/.test(rule)));
+  assert.match(hintRule, /left:\s*calc\(var\(--workspace-left-occlusion\)\s*\+\s*14px\)/);
 });
 
 test('top bar adapts to the actual center workspace width', () => {
