@@ -32,6 +32,11 @@
 
       deps.showShell?.(request);
       deps.setLoading?.(true, "正在进入平台并加载 2D 地图…");
+      try {
+        Promise.resolve(deps.prewarm?.(request)).catch((error) => deps.onPrewarmError?.(error));
+      } catch (error) {
+        deps.onPrewarmError?.(error);
+      }
       inFlightKey = key;
 
       inFlight = (async () => {

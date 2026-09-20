@@ -49,3 +49,13 @@ test("object panel guidance stays meaningful in both 2D and 3D", () => {
   assert.match(viewSwitcherSource, /选择地图对象，查看属性、照片与相关讨论/);
   assert.match(viewSwitcherSource, /2D 与 3D 共用对象信息/);
 });
+
+test("course design task launches a 3D-first scene studio and supplies role context", () => {
+  assert.match(appSource, /onOpenSceneStudio:\s*\(\)\s*=>\s*openSceneStudioWorkspace\(\)/);
+  const stateReader = appSource.match(/function readSceneStudioPlatformState\(\)[\s\S]*?(?=\nfunction chooseSceneStudioFile)/)?.[0] || "";
+  assert.match(stateReader, /\brole,/);
+  const opener = appSource.match(/async function openSceneStudioWorkspace\(\)[\s\S]*?(?=\nfunction buildViewSwitcherDeps)/)?.[0] || "";
+  assert.match(opener, /switchMainView\("model3d"\)/);
+  assert.match(opener, /ensureVillage3DLoaded/);
+  assert.doesNotMatch(opener, /^\s*switchMainView\("plan2d"\)/m);
+});

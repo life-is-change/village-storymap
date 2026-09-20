@@ -94,8 +94,12 @@
     const completed = new Set(completedTaskIds || []);
     const isComplete = completed.has(task.id);
     if (task.id === "join-group") return "";
+    const sceneStudioAction = task.id === "design-workspace"
+      ? '<button type="button" class="course-btn course-btn-primary" data-scene-studio-open>开始场景设计</button>'
+      : "";
     return `
-      <button type="button" class="course-btn course-btn-primary" data-complete-task="${escapeHtml(task.id)}">
+      ${sceneStudioAction}
+      <button type="button" class="course-btn ${sceneStudioAction ? "course-btn-secondary" : "course-btn-primary"}" data-complete-task="${escapeHtml(task.id)}">
         ${isComplete ? "本阶段已完成" : "记录本阶段完成"}
       </button>
     `;
@@ -283,6 +287,12 @@
     }
 
     async function handleClick(event) {
+      const sceneStudioButton = event.target.closest?.("[data-scene-studio-open]");
+      if (sceneStudioButton) {
+        const task = (course.tasks || []).find((item) => item.id === activeTaskId) || null;
+        await deps.onOpenSceneStudio?.({ task, context });
+        return;
+      }
       const taskButton = event.target.closest?.("[data-course-task-id]");
       if (taskButton) {
         deps.onTaskSelected?.();

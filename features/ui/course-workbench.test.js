@@ -93,6 +93,50 @@ test("design task exposes 2D and 3D as views of one group workspace", () => {
   assert.equal(state.spaceId, "group-space-g1");
 });
 
+test("design task provides the module-two scene studio action", () => {
+  const html = renderDashboard({
+    course: DEFAULT_COURSE,
+    user: student,
+    context: { group: { id: "g1", spaceId: "group-space-g1" }, progress: { completedTaskIds: [] } },
+    activeTaskId: "design-workspace"
+  });
+
+  assert.match(html, /data-scene-studio-open/);
+  assert.match(html, />开始场景设计</);
+});
+
+test("course workbench delegates the scene studio launch", async () => {
+  let clickHandler = null;
+  const calls = [];
+  const container = {
+    innerHTML: "",
+    addEventListener(type, handler) { if (type === "click") clickHandler = handler; },
+    removeEventListener() {},
+    querySelector() { return null; }
+  };
+  const context = { group: { id: "g1", spaceId: "s1" }, progress: { completedTaskIds: [] } };
+  const workbench = createCourseWorkbench({
+    course: DEFAULT_COURSE,
+    container,
+    service: { async loadContext() { return context; } },
+    getUser: () => student,
+    onOpenSceneStudio: (value) => calls.push(value)
+  });
+  await workbench.init();
+  await workbench.showTask("design-workspace");
+  await clickHandler({ target: { closest: (selector) => selector === "[data-scene-studio-open]" ? {} : null } });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].task.id, "design-workspace");
+  assert.equal(calls[0].context, context);
+});
+
+test("platform wires admin scene uploads to personal scope", () => {
+  const app = fs.readFileSync(path.resolve(__dirname, "..", "..", "app.js"), "utf8");
+  assert.match(app, /onOpenSceneStudio:\s*\(\)\s*=>\s*openSceneStudioWorkspace\(\)/);
+  assert.match(app, /scope:\s*context\.scopeKind\s*===\s*"admin_sandbox"\s*\?\s*"personal"\s*:\s*"group"/);
+  assert.match(app, /groupId:\s*context\.groupId/);
+});
+
 test("task navigation is an icon rail with accessible stage names", () => {
   const html = renderTaskNavigation({
     course: DEFAULT_COURSE,
@@ -190,7 +234,7 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260911-photo-lifecycle-fix/);
+  assert.match(html, /app\.js\?v=20260916-scene-studio-assets5/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -207,7 +251,7 @@ test("personal space reliability scripts share a cache-busting release version",
   }
 
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260911-photo-lifecycle-fix/);
+  assert.match(html, /app\.js\?v=20260916-scene-studio-assets5/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {

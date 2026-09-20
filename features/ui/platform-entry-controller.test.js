@@ -33,6 +33,21 @@ test("platform entry reveals the 2D loading shell before asynchronous preparatio
   assert.equal(events.at(-1), "loading:false");
 });
 
+test("platform entry starts map prewarming without blocking project preparation", async () => {
+  const events = [];
+  let releasePrewarm;
+  const prewarm = new Promise((resolve) => { releasePrewarm = resolve; });
+  const controller = moduleApi.createPlatformEntryController({
+    showShell: () => events.push("shell"),
+    prewarm: async () => { events.push("prewarm"); await prewarm; },
+    prepare: async () => { events.push("prepare"); return { group: null }; },
+    openWorkspace: async () => events.push("open")
+  });
+  await controller.enter();
+  assert.deepEqual(events.slice(0, 4), ["shell", "prewarm", "prepare", "open"]);
+  releasePrewarm();
+});
+
 test("repeated platform entry clicks share one in-flight initialization", async () => {
   assert.equal(typeof moduleApi.createPlatformEntryController, "function");
 

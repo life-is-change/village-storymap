@@ -21,7 +21,7 @@ test('fixed basemap bounds do not decode the orthophoto during map startup', () 
 
 test('2D switch displays an immediate loading state without a duplicate layer wait', () => {
   const source = fs.readFileSync(path.join(__dirname, 'view-switcher.js'), 'utf8');
-  const switcher = source.match(/async switchTo2DView\(deps\)[\s\S]*?\n    },\n\n    async switchTo3DView/)?.[0] || '';
+  const switcher = source.match(/async switchTo2DView\(deps\)[\s\S]*?\r?\n    },\r?\n\r?\n    async switchTo3DView/)?.[0] || '';
   assert.match(switcher, /setPlanMapLoadingState\?\.\(true/);
   assert.match(switcher, /setPlanMapLoadingState\?\.\(false/);
   assert.doesNotMatch(switcher, /await deps\.ensureSelectedLayersLoaded\(\)/);

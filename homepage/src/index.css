@@ -183,6 +183,24 @@
   white-space: nowrap;
 }
 
+@media (min-width: 768px) {
+  .home-nav-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .home-nav-list {
+    position: static;
+    justify-self: center;
+    transform: none;
+  }
+
+  .home-nav-shell > :last-child {
+    justify-self: end;
+  }
+}
+
 .home-auth-pill {
   border: 1px solid transparent;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;

@@ -4259,6 +4259,33 @@ const ENABLE_SUPABASE_SYNC = (() => {
     );
   }
 
+  function getViewer() {
+    return viewer;
+  }
+
+  function setRealityInsetVisible(visible) {
+    const controller = ensureRealityInsetController();
+    return visible ? controller?.show?.() : controller?.hide?.();
+  }
+
+  function isRealityInsetVisible() {
+    return !byId("reality3dPanel")?.classList?.contains?.("is-hidden");
+  }
+
+  function focusSceneBoundary(boundary) {
+    const points = boundary?.coordinates?.[0] || [];
+    if (!viewer || !points.length) return false;
+    const longitudes = points.map((point) => Number(point[0])).filter(Number.isFinite);
+    const latitudes = points.map((point) => Number(point[1])).filter(Number.isFinite);
+    if (!longitudes.length || !latitudes.length) return false;
+    viewer.camera.flyTo({
+      destination: Cesium.Rectangle.fromDegrees(
+        Math.min(...longitudes), Math.min(...latitudes), Math.max(...longitudes), Math.max(...latitudes)
+      )
+    });
+    return true;
+  }
+
   function refreshBuildingHeight(sourceCode, nextHeight) {
     const entity = entityMap.get(normalizeCode(sourceCode));
     if (!entity || !entity.polygon) return false;
@@ -4336,6 +4363,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     refreshEntityInfo,
     toggleMeasureMode,
     recenter,
+    getViewer,
+    setRealityInsetVisible,
+    isRealityInsetVisible,
+    focusSceneBoundary,
     destroy
   };
 })();

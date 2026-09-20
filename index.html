@@ -8,7 +8,8 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260911-selection-speed" />
+  <link rel="stylesheet" href="style.css?v=20260916-scene-studio-assets5" />
+  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260916-scene-studio-assets5" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -139,7 +140,7 @@
               <iframe
                 id="homeLandingFrame"
                 class="home-landing-frame"
-                src="./homepage/dist/index.html?v=20260903-home-guide"
+                src="./homepage/dist/index.html?v=20260916-home-context-cache"
                 title="村庄规划互动平台首页"
                 data-entry-role="embedded-homepage-build"
                 data-source-entry="homepage/index.html"
@@ -211,6 +212,7 @@
               </div>
             </div>
           </section>
+          <section id="sceneStudioMount" class="scene-studio-host" aria-label="公共空间设计工作室" hidden></section>
           <!-- 3D 测量按钮：进入三维距离测量模式 -->
           <button id="measure3dBtn" class="map-recenter-btn map-measure-btn" title="测量距离">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -336,7 +338,8 @@
   <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
-  <script defer src="features/ui/platform-entry-controller.js?v=20260911-entry-queue"></script>
+  <script defer src="features/ui/platform-entry-controller.js?v=20260916-startup-perf"></script>
+  <script defer src="features/ui/scene-studio-startup.js?v=20260916-startup-perf"></script>
   <script defer src="features/theory/theory-practice-context.js?v=20260825-theory-context"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
@@ -380,7 +383,27 @@
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
-  <script defer src="app.js?v=20260911-photo-lifecycle-fix"></script>
+  <script defer src="3D_scenes_edit/domain/scene-document.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/domain/geometry-rules.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/persistence/scene-edit-client.js"></script>
+  <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/persistence/autosave-controller.js"></script>
+  <script defer src="3D_scenes_edit/assets/scene-asset-library.js"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-to-cesium.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20260916-scene-studio-assets6"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-transform-bridge.js"></script>
+  <script defer src="3D_scenes_edit/interaction_3d/cesium-ground-picker.js"></script>
+  <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20260916-scene-studio-assets6"></script>
+  <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/index.js?v=20260916-scene-studio-assets5"></script>
+  <script defer src="app.js?v=20260916-scene-studio-assets5"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

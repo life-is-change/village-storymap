@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { VillageMapSection } from '@/features/village-map/VillageMapSection';
 import { DEFAULT_VILLAGE_ID, VILLAGES, getVillageById, mergeRuntimeVillages } from '@/features/village-map/village-data.js';
+import { readHomeContext, writeHomeContext } from '@/features/village-map/home-context-cache.js';
 import { buildTheoryPracticeMessage, getTheoryTaskStatus, resolveTheoryPracticeOpened } from '@/features/theory/theory-practice.js';
 import { 
   MapPin, 
@@ -20,8 +21,6 @@ import {
   X,
   Trees,
   Home,
-  GraduationCap,
-  Map,
   Leaf,
   MessageSquareText,
   ShieldCheck
@@ -271,11 +270,17 @@ const lessons: Lesson[] = [
 ];
 
 function App() {
+  const cachedHomeContext = readHomeContext();
+  const initialVillages = mergeRuntimeVillages(cachedHomeContext?.villages || VILLAGES);
+  const cachedVillageId = cachedHomeContext?.selectedVillageId || DEFAULT_VILLAGE_ID;
+  const initialVillageId = initialVillages.some((village) => village.id === cachedVillageId)
+    ? cachedVillageId
+    : DEFAULT_VILLAGE_ID;
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
-  const [selectedVillageId, setSelectedVillageId] = useState(DEFAULT_VILLAGE_ID);
-  const [villages, setVillages] = useState(VILLAGES);
+  const [selectedVillageId, setSelectedVillageId] = useState(initialVillageId);
+  const [villages, setVillages] = useState(initialVillages);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [currentLessonStep, setCurrentLessonStep] = useState('intro');
   const [lessonGuideOpen, setLessonGuideOpen] = useState(true);
@@ -311,10 +316,12 @@ function App() {
       if (event.data?.type === 'village-home-context') {
         const nextVillages = mergeRuntimeVillages(event.data.payload?.villages);
         const preferredId = String(event.data.payload?.selectedVillageId || '');
-        setVillages(nextVillages);
-        setSelectedVillageId(nextVillages.some((village) => village.id === preferredId)
+        const nextSelectedVillageId = nextVillages.some((village) => village.id === preferredId)
           ? preferredId
-          : nextVillages[0].id);
+          : nextVillages[0].id;
+        setVillages(nextVillages);
+        setSelectedVillageId(nextSelectedVillageId);
+        writeHomeContext(localStorage, { villages: nextVillages, selectedVillageId: nextSelectedVillageId });
         return;
       }
       const opened = resolveTheoryPracticeOpened(event.data);
@@ -753,7 +760,7 @@ function App() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative flex items-center justify-between">
+          <div className="home-nav-shell relative flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -767,7 +774,7 @@ function App() {
             </div>
 
             {/* Desktop Navigation */}
-            <div className="home-nav-list hidden md:flex items-center justify-center gap-8">
+            <div className="home-nav-list hidden md:flex items-center justify-center gap-10">
               <button
                 onClick={() => scrollToSection('platform-guide')}
                 className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
@@ -775,14 +782,6 @@ function App() {
                 }`}
               >
                 平台说明
-              </button>
-              <button 
-                onClick={() => scrollToSection('teaching-purpose')}
-                className={`home-nav-link text-sm font-medium transition-colors hover:opacity-80 ${
-                  isScrolled ? 'text-gray-700' : 'text-white/90'
-                }`}
-              >
-                教学目的
               </button>
               <button 
                 onClick={() => scrollToSection('theory-learning')}
@@ -876,12 +875,6 @@ function App() {
                 className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
               >
                 平台说明
-              </button>
-              <button 
-                onClick={() => scrollToSection('teaching-purpose')}
-                className="text-left px-4 py-3 rounded-xl hover:bg-green-50 text-gray-700 font-medium transition-colors"
-              >
-                教学目的
               </button>
               <button 
                 onClick={() => scrollToSection('theory-learning')}
@@ -1052,56 +1045,6 @@ function App() {
 
           <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-5 text-sm leading-7 text-amber-950">
             <strong>双轨空间说明：</strong>个人体验空间主要用于学习和尝试，结果不会自动反馈到系统现状；只有在“全班共享现状空间”中完成并保存的修改，才会影响后续课程成果。
-          </div>
-        </div>
-      </section>
-
-      {/* Teaching Purpose Section */}
-      <section id="teaching-purpose" className="py-24 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-700 mb-6">
-              <GraduationCap className="w-4 h-4" />
-              <span className="text-sm font-medium">教学目的</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
-              培养规划思维与实践能力
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              通过互动式学习，让学生掌握村庄规划的基本方法和技能
-            </p>
-          </div>
-
-          {/* Features Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: BookOpen, title: '理论学习', desc: '村庄规划基础知识' },
-              { icon: Map, title: '案例分析', desc: '典型村庄规划案例' },
-              { icon: Compass, title: '实践操作', desc: '动手设计规划方案' },
-              { icon: Trees, title: '创新思维', desc: '培养创新规划理念' },
-            ].map((item, index) => (
-              <div
-                key={index}
-                className="text-center p-6 rounded-2xl hover:bg-white hover:shadow-lg transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">{item.title}</h3>
-                <p className="text-gray-600 text-sm">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Content Placeholder */}
-          <div className="mt-12 p-12 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-6">
-              <GraduationCap className="w-10 h-10 text-blue-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">教学目的内容区域</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
-              此处预留教学目的的详细内容展示区域，可放置教学目标、课程大纲、学习路径等内容
-            </p>
           </div>
         </div>
       </section>
@@ -1334,7 +1277,6 @@ function App() {
               <h4 className="font-semibold mb-4">快速链接</h4>
               <ul className="space-y-2 text-gray-400">
                 <li><button onClick={() => scrollToSection('platform-guide')} className="hover:text-white transition-colors">平台说明</button></li>
-                <li><button onClick={() => scrollToSection('teaching-purpose')} className="hover:text-white transition-colors">教学目的</button></li>
                 <li><button onClick={() => scrollToSection('theory-learning')} className="hover:text-white transition-colors">理论学习</button></li>
                 <li><button onClick={() => scrollToSection('practice')} className="hover:text-white transition-colors">开始实践</button></li>
               </ul>

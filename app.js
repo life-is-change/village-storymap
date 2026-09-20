@@ -132,12 +132,15 @@ const workspaceStageLabel = document.getElementById("workspaceStageLabel");
 const projectHeaderSelect = document.getElementById("projectHeaderSelect");
 const surveyReviewPanelRoot = document.getElementById("surveyReviewPanelRoot");
 const classDiscussionBtn = document.getElementById("classDiscussionBtn");
+const workspaceContextBar = document.getElementById("workspaceContextBar");
+const sceneStudioMount = document.getElementById("sceneStudioMount");
 const projectSettingsBtn = document.getElementById("projectSettingsBtn");
 const projectSettingsDrawer = document.getElementById("projectSettingsDrawer");
 const projectSettingsCloseBtn = document.getElementById("projectSettingsCloseBtn");
 const groupBaselinePanelMount = document.getElementById("groupBaselinePanelMount");
 const plan2dView = document.getElementById("plan2dView");
 const model3dView = document.getElementById("model3dView");
+const cesiumContainerEl = document.getElementById("cesiumContainer");
 
 const spaceList = document.getElementById("spaceList");
 const floatingHomeBtn = document.getElementById("floatingHomeBtn");
@@ -156,6 +159,10 @@ let basemapLabelToggle = null;
 let groupBaselinePanel = null;
 let groupBaselinePanelSpaceId = "";
 let activeAdminGroupPlanContext = null;
+let sceneStudioPlatformBridge = null;
+let sceneStudioFocusMode = null;
+let sceneStudioMapHome = null;
+let sceneStudioCesiumHome = null;
 
 const supabaseClient = window.VillageSupabaseClient || (
   ENABLE_SUPABASE_SYNC &&
@@ -190,6 +197,7 @@ let resizeOverlayRaf = 0;
 let overlayRefreshController = null;
 
 const layerDataCache = {};
+const layerDataLoadPromises = {};
 const buildingDbRowsCache = new Map();
 const buildingDbHasAnyCache = new Map();
 const roadDbRowsCache = new Map();
@@ -241,6 +249,8 @@ let surveyRealtimeContextKey = "";
 let surveyRealtimeState = "disconnected";
 let projectSwitcher = null;
 let activeVillageContext = null;
+let resolveVillageProjectReady = null;
+let villageProjectReadyPromise = new Promise((resolve) => { resolveVillageProjectReady = resolve; });
 let objectInfoRequestSerial = 0;
 let personalVersionCompareController = null;
 let isCreatingSpace = false;
@@ -1105,12 +1115,16 @@ function broadcastHomepageContext() {
   const homepageVillages = window.VillageModelModule.buildHomepageProjectVillages(
     activeVillageContext || {}
   );
+  const payload = {
+    villages: homepageVillages,
+    selectedVillageId: activeVillageContext?.villageId || homepageVillages[0]?.id || ""
+  };
+  try {
+    localStorage.setItem("village_home_context_v1", JSON.stringify(payload));
+  } catch (_) { /* optional fast-start cache */ }
   frame.contentWindow.postMessage({
     type: "village-home-context",
-    payload: {
-      villages: homepageVillages,
-      selectedVillageId: activeVillageContext?.villageId || homepageVillages[0]?.id || ""
-    }
+    payload
   }, "*");
 }
 
@@ -1482,6 +1496,10 @@ function bindHomepageLandingBridge() {
       if (event.data?.type === "village-home-context-request") {
         broadcastHomepageContext();
         return;
+      }
+
+      if (event.data?.type === "village-home-enter" && !projectSwitcher) {
+        await villageProjectReadyPromise;
       }
 
       const homepageEntries = window.VillageModelModule?.buildProjectEntries?.(
@@ -2182,6 +2200,7 @@ async function ensureCourseWorkbenchInitialized() {
     logger: activityLogger,
     getUser: getCourseUser,
     showToast,
+    onOpenSceneStudio: () => openSceneStudioWorkspace(),
     mountGeoprocessing: async (container) => {
       geoprocessingPanel?.destroy?.();
       geoprocessingAoiController?.destroy?.();
@@ -2302,6 +2321,7 @@ function rememberCurrentSpaceForActiveMode() {
 
 function setCurrentSpaceIdAndRemember(spaceId) {
   const nextSpaceId = getValidSpaceId(spaceId);
+  if (currentSpaceId !== nextSpaceId) closeSceneStudioWorkspace();
   // 离开现状空间时释放编辑锁
   if (isBaseSpace(currentSpaceId) && currentSpaceId !== nextSpaceId) {
     releaseCurrentSpaceEditLock();
@@ -2898,7 +2918,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20260908-shared-admin-3d", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20260911-photo-security", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20260915-scene-studio-interaction3", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -2907,6 +2927,298 @@ async function ensureVillage3DLoaded() {
   })();
 
   return village3DLoadPromise;
+}
+
+function getSceneStudioActiveView() {
+  if (overviewView?.classList.contains("active")) return "overview";
+  return model3dView?.classList.contains("active") ? "model3d" : "plan2d";
+}
+
+function getSceneStudioVillageBoundary() {
+  const georef = activeBasemapGeoref || BASEMAP_GEOREF;
+  if (![georef?.minX, georef?.minY, georef?.maxX, georef?.maxY].every(Number.isFinite)) return null;
+  return {
+    type: "Polygon",
+    coordinates: [[
+      [georef.minX, georef.minY], [georef.maxX, georef.minY],
+      [georef.maxX, georef.maxY], [georef.minX, georef.maxY], [georef.minX, georef.minY]
+    ]]
+  };
+}
+
+function serializeSceneStudioBaselineFeature(feature) {
+  const format = new window.ol.format.GeoJSON();
+  const projection = planMap?.getView?.().getProjection?.();
+  return format.writeFeatureObject(feature, {
+    featureProjection: projection || "EPSG:4326",
+    dataProjection: "EPSG:4326"
+  });
+}
+
+function readSceneStudioPlatformState() {
+  const authUser = window.VillageAuth?.getCurrentUser?.() || null;
+  const courseContext = courseWorkbench?.getContext?.() || {};
+  const role = isAdminIdentity(authUser?.name) ? "admin" : String(authUser?.role || authUser?.profile_role || "student").toLowerCase();
+  const group = role === "admin" ? null : (courseContext.group || (activeAdminGroupPlanContext?.groupId ? { id: activeAdminGroupPlanContext.groupId } : null));
+  const space = getCurrentSpace() || null;
+  const course = window.CourseModelModule?.DEFAULT_COURSE || {};
+  return {
+    activeView: getSceneStudioActiveView(),
+    user: authUser,
+    role,
+    teachingProjectId: activeVillageContext?.teachingProjectId || space?.teachingProjectId || course.teachingProjectId,
+    courseId: group?.courseId || space?.courseId || course.id,
+    villageId: activeVillageContext?.villageId || space?.villageId || course.practiceVillageId,
+    group,
+    space: space ? { ...space, baselineRevision: Number(space.baselineRevision ?? space.revision ?? window.__buildingGeometryRevision ?? 0) || 0 } : null,
+    baselineRevision: Number(window.__buildingGeometryRevision || 0),
+    baselineFeatures: planVectorSource?.getFeatures?.() || [],
+    serializeFeature: serializeSceneStudioBaselineFeature,
+    villageBoundary: getSceneStudioVillageBoundary()
+  };
+}
+
+function chooseSceneStudioFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".glb,model/gltf-binary";
+    input.addEventListener("change", () => resolve(input.files?.[0] || null), { once: true });
+    input.click();
+  });
+}
+
+async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
+  if (!supabaseClient?.storage) return { ok: false, code: "STORAGE_UNAVAILABLE", message: "素材存储服务不可用" };
+  const file = await chooseSceneStudioFile();
+  if (!file) return { ok: false, code: "CANCELLED" };
+  const displayName = await customPrompt("请输入素材名称", file.name.replace(/\.glb$/i, ""), "上传 3D 素材", { maxLength: 100 });
+  if (displayName === null) return { ok: false, code: "CANCELLED" };
+  const allowed = ["tree", "shrub", "bench", "table", "light", "bin", "sign", "sculpture", "fitness", "pavilion", "pergola", "bus-stop", "stall", "stage", "play-equipment"];
+  const category = await customPrompt(`输入素材类别：${allowed.join(" / ")}`, "sculpture", "设置素材类别", {
+    maxLength: 40,
+    validate: (value) => allowed.includes(String(value).trim()) ? "" : "请输入列表中的英文类别"
+  });
+  if (category === null) return { ok: false, code: "CANCELLED" };
+  const storageBucket = supabaseClient.storage.from("scene-assets");
+  const library = assetLibrary.createAssetLibrary({
+    dataClient: client,
+    storage: {
+      upload: (path, data, options) => storageBucket.upload(path, data, options),
+      remove: (paths) => storageBucket.remove(paths),
+      createSignedUrl: (path, expiresIn) => storageBucket.createSignedUrl(path, expiresIn)
+    }
+  });
+  const placementKind = ["pavilion", "pergola", "bus-stop", "stall", "stage", "play-equipment"].includes(category) ? "structure" : "asset";
+  const result = await library.upload(file, {
+    kind: "model", scope: context.scopeKind === "admin_sandbox" ? "personal" : "group", ownerId: context.scopeKind === "admin_sandbox" ? context.userId : context.groupId, courseId: context.courseId,
+    groupId: context.groupId, ownerUserId: context.userId, displayName,
+    metadata: { category, placementKind, realSizeM: [1, 1, 1] }, license: "student-provided"
+  });
+  if (!result.ok) {
+    showToast(result.message || "素材上传失败", "error");
+    return result;
+  }
+  const asset = assetLibrary.toCatalogAsset(result.data);
+  showToast(context.scopeKind === "admin_sandbox" ? "素材已加入你的个人素材库，可在场景中放置" : "素材已加入本小组素材库，可在场景中放置", "success");
+  return { ...result, asset };
+}
+
+async function captureSceneStudioPreview(context, projectId) {
+  const canvas = sceneStudioMount?.querySelector?.("canvas");
+  if (!canvas?.toBlob || !supabaseClient?.storage) return null;
+  sceneStudioMount.classList.add("is-capturing");
+  try {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", .86));
+    if (!blob) return null;
+    const path = context.scopeKind === "admin_sandbox"
+      ? `personal/${context.userId}/${projectId}/${Date.now()}.png`
+      : `group/${context.groupId}/${projectId}/${Date.now()}.png`;
+    const { error } = await supabaseClient.storage.from("scene-version-previews").upload(path, blob, { contentType: "image/png", upsert: false });
+    if (error) throw error;
+    return path;
+  } catch (error) {
+    console.warn("场景里程碑预览生成失败，将继续保存无预览版本：", error);
+    return null;
+  } finally {
+    sceneStudioMount.classList.remove("is-capturing");
+  }
+}
+
+async function createSceneStudioMilestone({ document: sceneDocument, client, context }) {
+  const label = await customPrompt("为当前阶段命名（1–40 个字符）", "方案里程碑", "创建里程碑", {
+    maxLength: 40,
+    validate: (value) => String(value).trim().length >= 1 ? "" : "里程碑名称不能为空"
+  });
+  if (label === null) return { ok: false, code: "CANCELLED" };
+  const description = await customPrompt("可选：说明本阶段的设计意图或主要变化", "", "里程碑说明", { maxLength: 500, required: false });
+  if (description === null) return { ok: false, code: "CANCELLED" };
+  const previewPath = await captureSceneStudioPreview(context, sceneDocument.projectId);
+  const result = await client.createVersion({ document: sceneDocument, label: label.trim(), description: description.trim(), previewPath });
+  showToast(result.ok ? "里程碑已保存" : (result.message || "里程碑保存失败"), result.ok ? "success" : "error");
+  return result;
+}
+
+function downloadSceneStudioLocalCopy(sceneDocument) {
+  const blob = new Blob([JSON.stringify(sceneDocument, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `scene-local-copy-${sceneDocument.projectId || Date.now()}.json`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function restoreSceneStudioViewportTargets() {
+  if (map2dEl && sceneStudioMapHome && map2dEl.parentNode !== sceneStudioMapHome) sceneStudioMapHome.appendChild(map2dEl);
+  if (cesiumContainerEl && sceneStudioCesiumHome && cesiumContainerEl.parentNode !== sceneStudioCesiumHome) sceneStudioCesiumHome.appendChild(cesiumContainerEl);
+  planMap?.setTarget?.(map2dEl);
+  planMap?.updateSize?.();
+  window.Village3D?.getViewer?.()?.resize?.();
+}
+
+function closeSceneStudioWorkspace() {
+  restoreSceneStudioViewportTargets();
+  sceneStudioPlatformBridge?.close?.();
+  sceneStudioFocusMode?.exit?.();
+  switchMainView("plan2d");
+  planMap?.setTarget?.(map2dEl);
+  planMap?.updateSize?.();
+  requestAnimationFrame(() => {
+    planMap?.setTarget?.(map2dEl);
+    planMap?.updateSize?.();
+  });
+}
+
+function ensureSceneStudioFocusMode() {
+  if (sceneStudioFocusMode || !window.SceneStudioFocusModeModule) return sceneStudioFocusMode;
+  sceneStudioFocusMode = window.SceneStudioFocusModeModule.createSceneStudioFocusMode({
+    body: document.body,
+    chromeElements: [
+      document.querySelector(".detail-panel"),
+      rightPanelToggleBtn,
+      workspaceContextBar,
+      projectSettingsDrawer
+    ],
+    getRealityVisible: () => window.Village3D?.isRealityInsetVisible?.() ?? !document.getElementById("reality3dPanel")?.classList.contains("is-hidden"),
+    setRealityVisible: (visible) => window.Village3D?.setRealityInsetVisible?.(visible)
+  });
+  return sceneStudioFocusMode;
+}
+
+function renderSceneStudioViewport(model, root) {
+  const canvas = root.querySelector?.(".scene-studio-canvas");
+  if (!canvas) return;
+  if (model.mode === "3d" && cesiumContainerEl) {
+    if (cesiumContainerEl.parentNode !== canvas) canvas.appendChild(cesiumContainerEl);
+    window.Village3D?.getViewer?.()?.resize?.();
+    window.Village3D?.getViewer?.()?.scene?.requestRender?.();
+  } else if (map2dEl) {
+    if (map2dEl.parentNode !== canvas) canvas.appendChild(map2dEl);
+    planMap?.setTarget?.(map2dEl);
+    planMap?.updateSize?.();
+  }
+}
+
+function buildSceneStudioOpenOptions(context) {
+  return {
+    root: sceneStudioMount,
+    context,
+    supabaseClient,
+    map: planMap,
+    ol: window.ol,
+    storage: localStorage,
+    onPanelRender: renderSceneStudioViewport,
+    onModeChange: async (mode) => {
+      switchMainView(mode === "3d" ? "model3d" : "plan2d");
+      if (mode === "3d") {
+        const api = await ensureVillage3DLoaded();
+        await api.enter();
+      } else {
+        await ensurePlanMap();
+        planMap?.updateSize?.();
+      }
+    },
+    onClose: closeSceneStudioWorkspace,
+    onUploadAsset: uploadSceneStudioAsset,
+    onMilestone: createSceneStudioMilestone,
+    onKeepLocalCopy: downloadSceneStudioLocalCopy,
+    confirmAction: (message) => customConfirm(message),
+    confirmBaselineUpgrade: () => customConfirm("平台现状数据已更新。是否保留旧方案，并基于新版现状另建一个方案分支？"),
+    onProjectRestored: () => {
+      closeSceneStudioWorkspace();
+      window.setTimeout(() => void openSceneStudioWorkspace(), 0);
+    },
+    onStatus: (status) => showToast(status?.message || status?.code || "公共空间设计状态已更新", status?.level === "error" ? "error" : "info"),
+    assetResolver: async (asset) => {
+      if (asset?.url) return asset.url;
+      if (!asset?.storagePath) throw new Error("素材缺少本地地址或存储路径");
+      const { data, error } = await supabaseClient.storage.from("scene-assets").createSignedUrl(asset.storagePath, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+    ensure3D: async () => {
+      const api = await ensureVillage3DLoaded();
+      switchMainView("model3d");
+      await api.enter();
+      return { Cesium: window.Cesium, viewer: api.getViewer() };
+    }
+  };
+}
+
+function ensureSceneStudioPlatformBridge() {
+  if (sceneStudioPlatformBridge || !sceneStudioMount || !window.ScenePlatformBridgeModule || !window.SceneEditStudio) return sceneStudioPlatformBridge;
+  sceneStudioPlatformBridge = window.ScenePlatformBridgeModule.createPlatformBridge({
+    studioApi: window.SceneEditStudio,
+    mount: sceneStudioMount,
+    readState: readSceneStudioPlatformState,
+    buildOptions: (context) => buildSceneStudioOpenOptions(context),
+    onFocusChange: (active) => active ? ensureSceneStudioFocusMode()?.enter() : ensureSceneStudioFocusMode()?.exit()
+  });
+  return sceneStudioPlatformBridge;
+}
+
+async function openSceneStudioWorkspace() {
+  sceneStudioMapHome ||= map2dEl?.parentNode || null;
+  sceneStudioCesiumHome ||= cesiumContainerEl?.parentNode || null;
+  const focusMode = ensureSceneStudioFocusMode();
+  focusMode?.enter?.();
+  if (sceneStudioMount) {
+    sceneStudioMount.hidden = false;
+    sceneStudioMount.innerHTML = `
+      <div class="scene-studio-loading" role="status" aria-live="polite">
+        <span class="scene-studio-loading-spinner" aria-hidden="true"></span>
+        <strong>正在准备公共空间设计工作室</strong>
+        <span>正在并行加载二维现状与三维场景…</span>
+      </div>
+    `;
+  }
+  try {
+    switchMainView("model3d");
+    const startup = window.SceneStudioStartupModule;
+    const api = startup?.prepareSceneStudio
+      ? await startup.prepareSceneStudio({ ensurePlanMap, ensureSelectedLayersLoaded, refresh2DOverlay, ensureVillage3DLoaded })
+      : await ensureVillage3DLoaded();
+    if (!startup?.prepareSceneStudio) await api.enter();
+    const bridge = ensureSceneStudioPlatformBridge();
+    if (!bridge) {
+      focusMode?.exit?.();
+      return showToast("公共空间设计模块尚未加载", "error");
+    }
+    const result = await bridge.open();
+    if (!result.ok) {
+      restoreSceneStudioViewportTargets();
+      focusMode?.exit?.();
+      showToast(result.message || "公共空间设计工作台启动失败", "error");
+      return result;
+    }
+    showToast("已进入公共空间设计工作室", "success");
+    return result;
+  } catch (error) {
+    restoreSceneStudioViewportTargets();
+    focusMode?.exit?.();
+    throw error;
+  }
 }
 
 function buildViewSwitcherDeps() {
@@ -5995,43 +6307,53 @@ function getSmoothedRoadLineGeometry(feature) {
 
 async function ensureLayerLoaded(layerKey) {
   if (layerDataCache[layerKey]) return layerDataCache[layerKey];
+  if (layerDataLoadPromises[layerKey]) return layerDataLoadPromises[layerKey];
 
-  if (layerKey === "figureGround") {
-    const result = { features: [], rows: [], rowIndex: new Map() };
+  const loading = (async () => {
+
+    if (layerKey === "figureGround") {
+      const result = { features: [], rows: [], rowIndex: new Map() };
+      layerDataCache[layerKey] = result;
+      return result;
+    }
+
+    const config = layerConfigs[layerKey];
+    if (!config) {
+      throw new Error(`未找到图层配置：${layerKey}`);
+    }
+
+    const dynamicResources = activeVillageContext?.datasetResources;
+    const usesDynamicDataset = Boolean(dynamicResources?.storageBacked);
+    const dynamicGeojsonUrl = dynamicResources?.layers?.[layerKey] || null;
+    if (usesDynamicDataset && !dynamicGeojsonUrl) {
+      const result = { features: [], rows: [], rowIndex: new Map() };
+      layerDataCache[layerKey] = result;
+      return result;
+    }
+    const geojsonUrl = dynamicGeojsonUrl || config.geojsonUrl;
+    const tableUrl = dynamicGeojsonUrl ? null : config.tableUrl;
+    const [geojson, csvText] = await Promise.all([
+      fetchJSON(geojsonUrl),
+      tableUrl ? fetchText(tableUrl).catch(() => "") : Promise.resolve("")
+    ]);
+
+    const normalizedGeojson = window.VillageDatasetResolverModule?.normalizeFeatureCollection
+      ? window.VillageDatasetResolverModule.normalizeFeatureCollection(geojson, layerKey)
+      : geojson;
+    const features = getGeoJSONFeatures(normalizedGeojson);
+    const rows = csvText ? parseCSV(csvText) : [];
+    const rowIndex = buildRowIndex(rows, layerKey);
+
+    const result = { features, rows, rowIndex };
     layerDataCache[layerKey] = result;
     return result;
+  })();
+  layerDataLoadPromises[layerKey] = loading;
+  try {
+    return await loading;
+  } finally {
+    delete layerDataLoadPromises[layerKey];
   }
-
-  const config = layerConfigs[layerKey];
-  if (!config) {
-    throw new Error(`未找到图层配置：${layerKey}`);
-  }
-
-  const dynamicResources = activeVillageContext?.datasetResources;
-  const usesDynamicDataset = Boolean(dynamicResources?.storageBacked);
-  const dynamicGeojsonUrl = dynamicResources?.layers?.[layerKey] || null;
-  if (usesDynamicDataset && !dynamicGeojsonUrl) {
-    const result = { features: [], rows: [], rowIndex: new Map() };
-    layerDataCache[layerKey] = result;
-    return result;
-  }
-  const geojsonUrl = dynamicGeojsonUrl || config.geojsonUrl;
-  const tableUrl = dynamicGeojsonUrl ? null : config.tableUrl;
-  const [geojson, csvText] = await Promise.all([
-    fetchJSON(geojsonUrl),
-    tableUrl ? fetchText(tableUrl).catch(() => "") : Promise.resolve("")
-  ]);
-
-  const normalizedGeojson = window.VillageDatasetResolverModule?.normalizeFeatureCollection
-    ? window.VillageDatasetResolverModule.normalizeFeatureCollection(geojson, layerKey)
-    : geojson;
-  const features = getGeoJSONFeatures(normalizedGeojson);
-  const rows = csvText ? parseCSV(csvText) : [];
-  const rowIndex = buildRowIndex(rows, layerKey);
-
-  const result = { features, rows, rowIndex };
-  layerDataCache[layerKey] = result;
-  return result;
 }
 
 async function ensureSelectedLayersLoaded() {
@@ -6403,6 +6725,7 @@ function setActiveStoryItem(viewKey) {
 }
 
 function switchMainView(viewKey) {
+  if (viewKey === "overview" && sceneStudioPlatformBridge?.getInstance?.()) closeSceneStudioWorkspace();
   const isOverview = viewKey === "overview";
   const isMapView = viewKey === "plan2d" || viewKey === "model3d";
   const isEnteringMapFromOverview =
@@ -7695,6 +8018,12 @@ function ensurePlatformEntryController() {
       switchMainView("plan2d");
     },
     setLoading: (isLoading, message) => setPlanMapLoadingState(isLoading, message),
+    prewarm: () => Promise.all([
+      ensurePlanMap(),
+      ensureLayerLoaded("building"),
+      ensureLayerLoaded("road")
+    ]),
+    onPrewarmError: (error) => console.warn("平台优先图层预热失败：", error),
     prepare: async ({ entry } = {}) => {
       if (entry && projectSwitcher) {
         await projectSwitcher.switchTo(entry);
@@ -7828,6 +8157,7 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   personalSpaceClient = null;
   coursePersonalSpace = null;
   coursePersonalSpaceReady = null;
+  villageProjectReadyPromise = new Promise((resolve) => { resolveVillageProjectReady = resolve; });
 
   resetWorkspaceStateDefaults();
   spaces = loadSpacesFromStorage();
@@ -7836,9 +8166,11 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   currentSpaceId = getValidSpaceId(currentSpaceId, BASE_SPACE_ID);
   lastPlanningSpaceId = getValidSpaceId(lastPlanningSpaceId, BASE_SPACE_ID);
   lastCollabSpaceId = getValidSpaceId(lastCollabSpaceId, BASE_SPACE_ID);
-  await initializeVillageProjectSwitcher().catch((error) => {
+  const villageContext = await initializeVillageProjectSwitcher().catch((error) => {
     console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
+    return null;
   });
+  resolveVillageProjectReady?.(villageContext);
   sync2DSpaceStateTo3D();
   renderSpaceList();
 
@@ -7911,9 +8243,11 @@ async function init() {
       saveAppState();
     }
 
-    await initializeVillageProjectSwitcher().catch((error) => {
+    const villageContext = await initializeVillageProjectSwitcher().catch((error) => {
       console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
+      return null;
     });
+    resolveVillageProjectReady?.(villageContext);
     adminGroupPlanApplied = await applyAdminGroupPlanContextFromUrl().catch((error) => {
       console.warn("小组方案临时管理上下文校验失败：", error);
       showToast("无法进入小组方案：后台校验未通过。", "error");
@@ -7945,6 +8279,7 @@ async function init() {
 
     // 监听认证状态变化
     window.addEventListener("village-auth-change", async () => {
+      closeSceneStudioWorkspace();
       updateAuthButtonUI();
       const user = window.VillageAuth ? window.VillageAuth.getCurrentUser() : null;
       const displayName = user ? user.name : "";

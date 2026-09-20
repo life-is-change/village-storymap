@@ -3664,6 +3664,25 @@ body.model3d-view-active .reality-3d-sidebar-mount {
   display: block;
 }
 
+body.scene-studio-active .reality-3d-sidebar-mount,
+body.scene-studio-active #reality3dToggleBtn {
+  display: none !important;
+}
+
+body.scene-studio-active .detail-panel,
+body.scene-studio-active #rightPanelToggleBtn,
+body.scene-studio-active .workspace-context-bar,
+body.scene-studio-active .project-settings-drawer,
+body.scene-studio-active .map-floating-controls,
+body.scene-studio-active #measure3dBtn,
+body.scene-studio-active #recenter3dBtn {
+  display: none !important;
+}
+
+body.scene-studio-active .main-layout.mode-map {
+  --right-panel-width: 0px;
+}
+
 .reality-3d-panel {
   position: relative;
   z-index: 1;
