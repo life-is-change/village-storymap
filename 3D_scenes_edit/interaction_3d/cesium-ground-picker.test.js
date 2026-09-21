@@ -36,3 +36,19 @@ test("ground picker falls back to globe ray and returns null when neither hits",
   globeHit = null;
   assert.equal(pickGroundDegrees({ Cesium, viewer, screenPosition: {} }), null);
 });
+
+test("preview ground picking skips the expensive depth buffer and uses the terrain ray", () => {
+  let depthCalls = 0;
+  let globeCalls = 0;
+  const viewer = {
+    scene: {
+      pickPositionSupported: true,
+      pickPosition() { depthCalls += 1; return { cartographic: { longitude: 1, latitude: 1, height: 99 } }; },
+      globe: { pick() { globeCalls += 1; return { cartographic: { longitude: 0, latitude: 0, height: 0 } }; } }
+    },
+    camera: { getPickRay: () => ({ ray: true }) }
+  };
+  assert.deepEqual(pickGroundDegrees({ Cesium: cesiumFixture(), viewer, screenPosition: {}, skipDepth: true }), [0, 0, 0]);
+  assert.equal(depthCalls, 0);
+  assert.equal(globeCalls, 1);
+});

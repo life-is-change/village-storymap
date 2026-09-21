@@ -138,7 +138,7 @@ test("3D placement and dragging synchronize into the 2D document without mutatin
     entities: { add(value) { entities.push(value); return value; }, remove(value) { const i = entities.indexOf(value); if (i >= 0) entities.splice(i, 1); } },
     scene: {
       pickPositionSupported: true, pickPosition: () => ground, pick: () => pickedEntity,
-      globe: { pick: () => null }, screenSpaceCameraController: { enableInputs: true }
+      globe: { pick: () => ground }, screenSpaceCameraController: { enableInputs: true }
     },
     camera: { getPickRay: () => ({}), flyTo() {} }
   };

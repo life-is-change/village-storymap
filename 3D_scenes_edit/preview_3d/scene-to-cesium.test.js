@@ -56,3 +56,14 @@ test("omits objects on hidden layers", () => {
   const output = toCesiumDescriptors({ layers: [{ id: "hidden", visible: false }], objects: [object("x", "surface", "grass", { type: "Polygon", coordinates: [] }, {}, undefined)] }, new Map());
   assert.deepEqual(output, { models: [], instances: [], polygons: [], polylines: [], procedurals: [], fallbacks: [] });
 });
+
+test("line descriptors preserve the catalog renderer instead of collapsing every facility to a generic line", () => {
+  const document = { layers: [{ id: "design", visible: true }], objects: [
+    object("path-1", "line", "path", { type: "LineString", coordinates: [[114, 30], [114.001, 30.001]] }, { assetRef: "seed:path:gravel", widthM: 1.5 })
+  ] };
+  const output = toCesiumDescriptors(document, new Map([["seed:path:gravel", {
+    id: "seed:path:gravel", renderer: "wide-line", footprintM: [1.5, 4], defaultHeightM: .04
+  }]]));
+  assert.equal(output.polylines[0].renderer, "wide-line");
+  assert.equal(output.polylines[0].heightM, .04);
+});

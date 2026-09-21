@@ -125,6 +125,56 @@ test("placement preview coalesces rapid pointer moves into one terrain pick per 
   assert.deepEqual(ghosts, [[5, 6, 0]]);
 });
 
+test("placement preview limits expensive terrain picks while keeping the newest pointer position", () => {
+  const f = fixture();
+  const frames = [];
+  const picked = [];
+  const interactions = createCesiumSceneInteractions({
+    ...f,
+    placementPreviewIntervalMs: 40,
+    requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
+    cancelAnimationFrame() {},
+    pickGround(position) { picked.push(position); return [position.x, position.y, 0]; },
+    previewAdapter: { setGhost() {}, clearGhost() {} }
+  });
+  interactions.setAsset({ id: "table", label: "休闲桌" });
+  interactions.activate("place-asset");
+  f.getHandler().actions.move({ endPosition: { x: 1, y: 1 } });
+  frames.shift()(0);
+  f.getHandler().actions.move({ endPosition: { x: 2, y: 2 } });
+  frames.shift()(16);
+  f.getHandler().actions.move({ endPosition: { x: 8, y: 9 } });
+  frames.shift()(32);
+  assert.equal(picked.length, 1);
+  frames.shift()(48);
+  assert.deepEqual(picked, [{ x: 1, y: 1 }, { x: 8, y: 9 }]);
+});
+
+test("placement preview uses the fast terrain picker while the final click stays accurate", () => {
+  const f = fixture();
+  const frames = [];
+  const calls = [];
+  const placements = [];
+  const interactions = createCesiumSceneInteractions({
+    ...f,
+    requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
+    cancelAnimationFrame() {},
+    previewPickGround(position) { calls.push(["preview", position]); return [114, 23, 0]; },
+    pickGround(position) { calls.push(["final", position]); return [114.001, 23.001, 7]; },
+    previewAdapter: { setGhost() {}, clearGhost() {} },
+    onPlace(value) { placements.push(value); }
+  });
+  interactions.setAsset({ id: "bench", label: "木座椅" });
+  interactions.activate("place-asset");
+  const movePosition = { x: 1, y: 2 };
+  const clickPosition = { x: 3, y: 4 };
+  f.getHandler().actions.move({ endPosition: movePosition });
+  frames.shift()(0);
+  f.getHandler().actions.left({ position: clickPosition });
+  assert.deepEqual(calls, [["preview", movePosition], ["final", clickPosition]]);
+  assert.deepEqual(placements[0].coordinate, [114.001, 23.001]);
+});
+
 test("boundary edit drags numbered handles, adds an edge vertex and commits only on finish", () => {
   const f = fixture();
   const completed = [];
@@ -204,4 +254,24 @@ test("selecting and dragging a scene entity emits a horizontal move", () => {
   f.getHandler().actions.up({ position: {} });
   assert.deepEqual(events.at(-1), ["move", "o1", [114.002, 23.003]]);
   assert.equal(f.viewer.scene.screenSpaceCameraController.enableInputs, true);
+});
+
+test("dragging an existing component uses the fast terrain picker", () => {
+  const f = fixture();
+  const calls = [];
+  const moves = [];
+  f.viewer.scene.pick = () => ({ id: { id: "scene-edit:o1" } });
+  const interactions = createCesiumSceneInteractions({
+    ...f,
+    pickGround() { calls.push("accurate"); return [1, 1, 0]; },
+    previewPickGround() { calls.push("fast"); return [114.002, 23.003, 0]; },
+    previewAdapter: { pickObjectId: () => "o1", select() {} },
+    onMove(value) { moves.push(value); }
+  });
+  interactions.activate("move");
+  f.getHandler().actions.down({ position: {} });
+  f.getHandler().actions.move({ endPosition: {} });
+  f.getHandler().actions.up({ position: {} });
+  assert.deepEqual(calls, ["fast"]);
+  assert.deepEqual(moves[0].coordinate, [114.002, 23.003]);
 });

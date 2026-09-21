@@ -148,6 +148,9 @@
       if (action.type === "layer-visible") return controller.toggleLayerVisible(action.value);
       if (action.type === "layer-lock") return controller.toggleLayerLocked(action.value);
       if (action.type === "add-layer") return controller.addLayer();
+      if (action.type === "layer-rename") return controller.renameLayer(action.value, action.name);
+      if (action.type === "layer-delete") return controller.deleteLayer(action.value);
+      if (action.type === "inspect-properties") return lifecycle.inspectProperties?.();
       if (action.type === "layer-move") {
         const [layerId, direction] = String(action.value).split("|");
         const layers = controller.getState().document.layers.slice().sort((a, b) => a.order - b.order);
@@ -178,7 +181,7 @@
   async function loadSeedAssets(fetchImpl) {
     if (!fetchImpl) return [];
     try {
-      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20260916-assets5");
+      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20260920-library");
       if (!response.ok) return [];
       return (await response.json()).assets || [];
     } catch (_error) {
@@ -254,6 +257,7 @@
       const listedAssets = await client.listAssets({ courseId: context.courseId, groupId: context.groupId });
       if (listedAssets.ok) assets = [...assets, ...(listedAssets.data || []).map(Assets.toCatalogAsset).filter(Boolean)];
     }
+    adapter.setAssets?.(assets);
     let activeAsset = assets.find((asset) => asset.category === "bench") || null;
     let versions = [];
     let comparisonIds = [];
@@ -302,6 +306,37 @@
       const state = controller?.getState() || { selectedIds: [] };
       if (previewAdapter && mode === "3d") previewAdapter.select?.(state.selectedIds);
     }
+    function schedule2DBoundaryFit() {
+      requestFrame(() => {
+        if (mode !== "2d") return;
+        options.map?.updateSize?.();
+        adapter.fitBoundary?.(document.selectionBoundary);
+      });
+    }
+    let hydratingTopViews = false;
+    async function hydratePlacedAssetTopViews() {
+      if (hydratingTopViews) return;
+      hydratingTopViews = true;
+      try {
+        const refs = new Set((document.objects || []).map((object) => object.properties?.assetRef).filter(Boolean));
+        for (const asset of assets) {
+          if (!refs.has(asset.id) || asset.topViewUrl || asset.fileType !== "glb") continue;
+          try {
+            let url = null;
+            if (asset.topViewPath && options.assetResolver) url = await options.assetResolver({ storagePath: asset.topViewPath });
+            else if (options.topViewGenerator) url = await options.topViewGenerator(asset);
+            if (url) {
+              asset.topViewUrl = url;
+              adapter.setAssets?.(assets);
+            }
+          } catch (error) {
+            console.warn("生成二维素材俯视图失败，已使用分类符号：", asset.id, error);
+          }
+        }
+      } finally {
+        hydratingTopViews = false;
+      }
+    }
     function updateSelectionUI(focusId) {
       const model = currentViewModel();
       panel.updateSelection?.(model);
@@ -335,7 +370,7 @@
         map: options.map,
         source: adapter.getSource(),
         layer: adapter.getLayer(),
-        projection: options.projection || "EPSG:3857",
+        projection: options.projection,
         onSelect(ids) { controller.select(ids); updateSelectionUI(); },
         onCreate(drawTool, geometry) {
           if (!controller.getState().document.selectionBoundary && (drawTool === "draw-surface" || drawTool === "draw-rectangle")) {
@@ -399,11 +434,20 @@
       interactionBridge?.setDocument?.(document);
       return { previewAdapter, interactionBridge };
     }
+    function enterPropertyInspection() {
+      controller.setTool("select");
+      if (mode === "3d") interactionBridge?.activate?.("select");
+      else mapInteractionBridge?.activate?.("select");
+      panel.updateActiveTool?.("select");
+      return { ok: true, tool: "select" };
+    }
     const lifecycle = {
       selectObject(id) {
+        enterPropertyInspection();
         controller.select(id ? [id] : []);
         return updateSelectionUI(id);
       },
+      inspectProperties() { return enterPropertyInspection(); },
       finishBoundaryEdit() {
         const result = interactionBridge?.finishBoundaryEdit?.();
         if (result) {
@@ -434,8 +478,10 @@
         } else {
           interactionBridge?.cancel?.();
           mapInteractionBridge?.activate?.(document.selectionBoundary ? controller.getState().tool : "draw-surface");
+          void hydratePlacedAssetTopViews();
         }
         render();
+        if (mode === "2d") schedule2DBoundaryFit();
         return { ok: true, mode };
       },
       async createMilestone() {
@@ -448,19 +494,26 @@
         render();
         return result;
       },
-      compareVersion(versionId) {
+      async compareVersion(versionId) {
         comparisonIds = comparisonIds.includes(versionId) ? comparisonIds.filter((id) => id !== versionId) : [...comparisonIds, versionId].slice(-2);
         comparisonAdapters.forEach((item) => item.dispose());
         comparisonAdapters = [];
+        const switchedTo2D = comparisonIds.length && mode !== "2d";
+        if (switchedTo2D) await lifecycle.switchMode("2d");
         for (const [index, id] of comparisonIds.entries()) {
           const version = versions.find((item) => item.id === id);
           if (!version?.document || !options.map || !(options.ol || globalThis.ol)) continue;
-          const compare = Layers.createSceneLayerAdapter({ ol: options.ol || globalThis.ol, map: options.map, zIndex: 880 + index, forcedStyleToken: index ? "compareB" : "compareA" });
+          const compare = Layers.createSceneLayerAdapter({ ol: options.ol || globalThis.ol, map: options.map, zIndex: 1180 + index, forcedStyleToken: index ? "compareB" : "compareA" });
+          compare.setAssets?.(assets);
           compare.mount();
           compare.render(version.document, { forcedStyleToken: index ? "compareB" : "compareA" });
           comparisonAdapters.push(compare);
         }
+        interactionStatus = comparisonIds.length
+          ? "版本对比：蓝色为里程碑，绿色或橙色为当前草稿"
+          : "已退出版本对比";
         render();
+        if (comparisonIds.length && !switchedTo2D) schedule2DBoundaryFit();
         return { ok: true, comparisonIds: comparisonIds.slice() };
       },
       async restoreVersion(versionId) {
@@ -528,7 +581,10 @@
       },
       async uploadAsset() {
         const result = await options.onUploadAsset?.({ assetLibrary: Assets, client, context });
-        if (result?.asset) assets = [result.asset, ...assets.filter((asset) => asset.id !== result.asset.id)];
+        if (result?.asset) {
+          assets = [result.asset, ...assets.filter((asset) => asset.id !== result.asset.id)];
+          adapter.setAssets?.(assets);
+        }
         render();
         return result;
       },
@@ -551,7 +607,7 @@
       dispatch,
       async flush() { return autosave.flush(); },
       dispose() { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); },
-      setAssets(nextAssets) { assets = nextAssets || []; activeAsset = assets.find((asset) => asset.id === activeAsset?.id) || assets.find((asset) => asset.category === "bench") || null; interactionBridge?.setAsset?.(activeAsset); render(); }
+      setAssets(nextAssets) { assets = nextAssets || []; adapter.setAssets?.(assets); activeAsset = assets.find((asset) => asset.id === activeAsset?.id) || assets.find((asset) => asset.category === "bench") || null; interactionBridge?.setAsset?.(activeAsset); render(); }
     };
   }
 

@@ -143,6 +143,7 @@
       renderer: record.kind === "model" ? "glb" : record.kind,
       fileType: record.kind === "model" ? "glb" : record.kind,
       storagePath: record.storagePath,
+      topViewPath: metadata.topViewPath || null,
       scope: record.scope,
       metadata
     };
@@ -224,10 +225,25 @@
         const path = buildStoragePath({ scope: input.scope, ownerId: input.ownerId, fileName: file.name, uuid: uuid(), date: now().toISOString().slice(0, 10) });
         const uploaded = await storage.upload(path, file, { contentType: file.type, upsert: false });
         if (uploaded.error) return { ok: false, code: "UPLOAD_FAILED", message: uploaded.error.message };
+        const uploadedPaths = [path];
+        let topViewPath = null;
+        let topViewStatus = input.topViewBlob ? "failed" : (input.metadata?.topViewStatus || null);
+        if (input.topViewBlob && input.kind === "model") {
+          topViewPath = path.replace(/\.[^.]+$/, ".top.png");
+          const topViewUpload = await storage.upload(topViewPath, input.topViewBlob, { contentType: "image/png", upsert: false });
+          if (!topViewUpload.error) {
+            uploadedPaths.push(topViewPath);
+            topViewStatus = "ready";
+          } else {
+            topViewPath = null;
+          }
+        }
         const metadata = {
           ...(input.metadata || {}),
           inspection: validation.inspection || null,
-          measuredSizeM: validation.inspection?.bounds?.size || input.metadata?.measuredSizeM || null
+          measuredSizeM: validation.inspection?.bounds?.size || input.metadata?.measuredSizeM || null,
+          ...(topViewStatus ? { topViewStatus } : {}),
+          ...(topViewPath ? { topViewPath } : {})
         };
         const registered = await dataClient.registerAsset({
           course_id: input.courseId,
@@ -242,7 +258,7 @@
           metadata,
           license: input.license || "student-provided"
         });
-        if (!registered.ok && storage.remove) await storage.remove([path]);
+        if (!registered.ok && storage.remove) await storage.remove(uploadedPaths);
         return registered;
       },
       async resolveUrl(asset) {

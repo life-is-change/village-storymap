@@ -82,6 +82,12 @@
       next.layers.forEach((item, index) => { item.order = index; });
     } else if (type === "updateLayer") {
       next.layers = next.layers.map((layer) => layer.id === command.layerId ? { ...layer, ...SceneDocument.clone(command.patch || {}) } : layer);
+    } else if (type === "deleteLayer") {
+      if (command.layerId === "design") throw new Error("The default layer cannot be deleted");
+      if (!next.layers.some((layer) => layer.id === command.layerId)) return next;
+      next.objects = next.objects.map((object) => object.layerId === command.layerId ? { ...object, layerId: "design" } : object);
+      next.layers = next.layers.filter((layer) => layer.id !== command.layerId);
+      next.layers.forEach((layer, index) => { layer.order = index; });
     } else {
       throw new Error(`Unknown scene command: ${type}`);
     }

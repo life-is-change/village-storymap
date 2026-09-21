@@ -127,3 +127,51 @@ test("maps Cesium picks to document ids and reuses a real model placement ghost"
   adapter.clearGhost();
   assert.equal(entities.length, 0);
 });
+
+test("renders wide road assets as terrain-clamped corridors with real-world width", async () => {
+  const entities = [];
+  const viewer = { entities: { add(value) { entities.push(value); return value; }, remove() {} }, camera: { flyTo() {} } };
+  const Cesium = {
+    Cartesian3: { fromDegreesArray: (value) => value },
+    Color: { WHITE: { withAlpha: () => ({}) }, GRAY: {}, fromCssColorString: (value) => value },
+    HeightReference: { CLAMP_TO_GROUND: "clamp" }
+  };
+  const adapter = createScenePreviewAdapter({ Cesium, viewer });
+  await adapter.render({ layers: [{ id: "design", visible: true }], objects: [{
+    id: "path-1", kind: "line", category: "path", layerId: "design",
+    geometry: { type: "LineString", coordinates: [[114, 30], [114.001, 30.001]] },
+    properties: { assetRef: "seed:path:gravel", widthM: 1.5 }
+  }] }, new Map([["seed:path:gravel", { id: "seed:path:gravel", renderer: "wide-line", defaultHeightM: .04 }]]));
+  const road = entities.find((entity) => entity.id === "scene-edit:path-1");
+  assert.equal(road.corridor.width, 1.5);
+  assert.equal(road.corridor.heightReference, "clamp");
+  assert.equal(road.polyline, undefined);
+});
+
+test("focuses a long path by its midpoint and extent instead of using the point-object range", async () => {
+  const cameraFlights = [];
+  const objectFlights = [];
+  const viewer = {
+    entities: { add(value) { return value; }, remove() {} },
+    camera: { flyTo(options) { cameraFlights.push(options); } },
+    flyTo(entity, options) { objectFlights.push([entity, options]); }
+  };
+  const Cesium = {
+    Cartesian3: { fromDegrees: (...value) => value, fromDegreesArray: (value) => value },
+    Color: { WHITE: { withAlpha: () => ({}) }, GRAY: {}, fromCssColorString: (value) => value },
+    HeightReference: { CLAMP_TO_GROUND: "clamp" },
+    ClassificationType: { BOTH: "both" }
+  };
+  const adapter = createScenePreviewAdapter({ Cesium, viewer });
+  await adapter.render({ layers: [{ id: "design", visible: true }], objects: [{
+    id: "path-long", kind: "line", category: "path", layerId: "design",
+    geometry: { type: "LineString", coordinates: [[114, 30], [114.01, 30.004]] },
+    properties: { widthM: 1.5 }
+  }] }, new Map());
+  assert.equal(adapter.flyToObject("path-long"), true);
+  assert.equal(objectFlights.length, 0);
+  assert.equal(cameraFlights.length, 1);
+  assert.equal(cameraFlights[0].destination[0], 114.005);
+  assert.equal(Math.abs(cameraFlights[0].destination[1] - 30.002) < 1e-9, true);
+  assert.equal(cameraFlights[0].destination[2] > 35, true);
+});

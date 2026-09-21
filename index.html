@@ -9,7 +9,7 @@
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
   <link rel="stylesheet" href="style.css?v=20260916-scene-studio-assets5" />
-  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260916-scene-studio-assets5" />
+  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260920-layer-library" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -384,17 +384,18 @@
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20260810-platform-fix"></script>
   <script defer src="3D_scenes_edit/domain/scene-document.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20260920-layer-library"></script>
   <script defer src="3D_scenes_edit/domain/geometry-rules.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/persistence/scene-edit-client.js"></script>
   <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/persistence/autosave-controller.js"></script>
-  <script defer src="3D_scenes_edit/assets/scene-asset-library.js"></script>
-  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js"></script>
+  <script defer src="3D_scenes_edit/assets/scene-asset-library.js?v=20260921-top-view"></script>
+  <script defer src="3D_scenes_edit/assets/model-top-view-thumbnail.js?v=20260921-top-view-fix2"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20260921-top-view"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20260920-layer-library"></script>
+  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js?v=20260921-projection-fix"></script>
   <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20260920-layer-library"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-to-cesium.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20260916-scene-studio-assets6"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-transform-bridge.js"></script>
@@ -402,8 +403,8 @@
   <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20260916-scene-studio-assets6"></script>
   <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/index.js?v=20260916-scene-studio-assets5"></script>
-  <script defer src="app.js?v=20260916-scene-studio-assets5"></script>
+  <script defer src="3D_scenes_edit/index.js?v=20260921-top-view"></script>
+  <script defer src="app.js?v=20260921-top-view-fix2"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

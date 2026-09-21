@@ -158,6 +158,20 @@ test("replaces a conflicted document as a fresh history without saving the old d
   assert.deepEqual(controller.getState().selectedIds, []);
 });
 
+test("names user layers sequentially and deletes them without deleting their objects", () => {
+  const { controller } = createController();
+  const first = controller.addLayer();
+  const second = controller.addLayer();
+  assert.deepEqual(controller.getState().document.layers.map((layer) => layer.name), ["方案要素", "图层 2", "图层 3"]);
+  controller.renameLayer(first, "休憩设施");
+  assert.equal(controller.getState().document.layers.find((layer) => layer.id === first).name, "休憩设施");
+  controller.createObject({ kind: "asset", category: "bench", layerId: first, geometry: { type: "Point", coordinates: [114.3002, 30.5002] } });
+  assert.equal(controller.deleteLayer(first).ok, true);
+  assert.equal(controller.getState().document.objects[0].layerId, "design");
+  assert.equal(controller.deleteLayer("design").code, "DEFAULT_LAYER_REQUIRED");
+  assert.equal(controller.getState().document.layers.some((layer) => layer.id === second), true);
+});
+
 test("selection uses the adapter fast path without rebuilding every map feature", () => {
   const doc = SceneDocument.create({ projectId: "p", villageId: "v", groupId: "g", spaceId: "s", baselineRevision: 1 });
   doc.selectionBoundary = square();

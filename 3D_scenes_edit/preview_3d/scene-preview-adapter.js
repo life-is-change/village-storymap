@@ -33,17 +33,69 @@
       return alpha !== undefined && value?.withAlpha ? value.withAlpha(alpha) : value;
     }
 
-    function upsert(sourceObjectId, graphics, uri) {
+    function lineMaterial(descriptor) {
+      const colors = {
+        path: "#b98b55",
+        drainage: "#4c94b8",
+        curb: "#8c9298",
+        "low-wall": "#a26f4a",
+        fence: "#8a6848",
+        hedge: "#447f4f"
+      };
+      return Cesium.Color?.fromCssColorString?.(colors[descriptor.category] || "#f4f1e8") || color("WHITE");
+    }
+
+    function lineGraphics(descriptor) {
+      const positions = Cesium.Cartesian3.fromDegreesArray(flattenPositions(descriptor.coordinatesDegrees));
+      const material = lineMaterial(descriptor);
+      if (descriptor.renderer === "wide-line" || descriptor.renderer === "extruded-line") {
+        return {
+          polyline: undefined,
+          corridor: {
+            positions,
+            width: Math.max(.2, descriptor.widthM),
+            material,
+            heightReference: Cesium.HeightReference?.CLAMP_TO_GROUND,
+            classificationType: Cesium.ClassificationType?.BOTH
+          }
+        };
+      }
+      return {
+        corridor: undefined,
+        polyline: {
+          positions,
+          width: Math.max(3, descriptor.widthM * 2),
+          clampToGround: true,
+          material
+        }
+      };
+    }
+
+    function lineFocus(coordinates) {
+      const points = coordinates || [];
+      if (!points.length) return null;
+      const longitudes = points.map((point) => point[0]);
+      const latitudes = points.map((point) => point[1]);
+      const longitude = (Math.min(...longitudes) + Math.max(...longitudes)) / 2;
+      const latitude = (Math.min(...latitudes) + Math.max(...latitudes)) / 2;
+      const longitudeSpanM = (Math.max(...longitudes) - Math.min(...longitudes)) * 111320 * Math.cos(latitude * Math.PI / 180);
+      const latitudeSpanM = (Math.max(...latitudes) - Math.min(...latitudes)) * 110540;
+      const height = Math.max(45, Math.min(500, Math.max(longitudeSpanM, latitudeSpanM) * 1.8));
+      return { positionDegrees: [longitude, latitude, height] };
+    }
+
+    function upsert(sourceObjectId, graphics, uri, focus) {
       const id = `scene-edit:${sourceObjectId}`;
       const current = records.get(sourceObjectId);
       if (current) {
         if (current.uri?.startsWith?.("blob:") && current.uri !== uri) globalThis.URL?.revokeObjectURL?.(current.uri);
         Object.assign(current.entity, graphics, { show: true });
         current.uri = uri || null;
+        current.focus = focus || null;
         return current.entity;
       }
       const entity = viewer.entities.add({ id, ...graphics, show: true, properties: { sourceObjectId } });
-      records.set(sourceObjectId, { entity, uri: uri || null });
+      records.set(sourceObjectId, { entity, uri: uri || null, focus: focus || null });
       return entity;
     }
 
@@ -120,7 +172,7 @@
       }
       for (const descriptor of descriptors.polylines) {
         nextIds.add(descriptor.sourceObjectId);
-        upsert(descriptor.sourceObjectId, { polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flattenPositions(descriptor.coordinatesDegrees)), width: descriptor.widthM, material: color("WHITE") } });
+        upsert(descriptor.sourceObjectId, lineGraphics(descriptor), null, lineFocus(descriptor.coordinatesDegrees));
       }
       for (const descriptor of descriptors.fallbacks) {
         nextIds.add(descriptor.sourceObjectId);
@@ -170,7 +222,16 @@
     }
 
     function flyToObject(id) {
-      const entity = records.get(String(id || ""))?.entity;
+      const record = records.get(String(id || ""));
+      const entity = record?.entity;
+      if (record?.focus?.positionDegrees && typeof viewer.camera?.flyTo === "function") {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(...record.focus.positionDegrees),
+          duration: 0.45,
+          orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 }
+        });
+        return true;
+      }
       if (!entity || typeof viewer.flyTo !== "function") return false;
       const options = { duration: 0.45 };
       if (Cesium.HeadingPitchRange) options.offset = new Cesium.HeadingPitchRange(0, -.55, 35);

@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const Panel = require("./scene-studio-panel");
 
@@ -98,6 +100,18 @@ test("3D mode renders contextual design tools over the canvas", () => {
   assert.doesNotMatch(root.innerHTML, />3D 预览</);
 });
 
+test("2D mode exposes only review and fine-tuning tools", () => {
+  const root = { innerHTML: "", setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {} };
+  const panel = Panel.createSceneStudioPanel({ root });
+  panel.render(Panel.buildViewModel({ mode: "2d", phase: "editing" }));
+  for (const tool of ["select", "box-select", "move", "rotate", "scale", "measure", "pan"]) {
+    assert.match(root.innerHTML, new RegExp(`data-action="tool" data-value="${tool}"`));
+  }
+  for (const tool of ["draw-surface", "draw-rectangle", "draw-line", "place-asset", "edit-nodes", "edit-boundary"]) {
+    assert.doesNotMatch(root.innerHTML, new RegExp(`data-action="tool" data-value="${tool}"`));
+  }
+});
+
 test("editor groups scene structure and switches one inspector panel at a time", () => {
   const listeners = {};
   const root = {
@@ -114,6 +128,8 @@ test("editor groups scene structure and switches one inspector panel at a time",
 
   assert.match(root.innerHTML, /aria-label="场景结构"/);
   assert.match(root.innerHTML, /class="scene-studio-layer-name"[^>]*>方案要素/);
+  assert.match(root.innerHTML, /默认图层/);
+  assert.doesNotMatch(root.innerHTML, /data-action="layer-delete" data-value="design"/);
   assert.match(root.innerHTML, /aria-label="隐藏 方案要素"/);
   assert.match(root.innerHTML, /aria-label="锁定 方案要素"/);
   assert.match(root.innerHTML, /data-active-inspector="assets"/);
@@ -121,6 +137,46 @@ test("editor groups scene structure and switches one inspector panel at a time",
 
   listeners.click({ target: { closest: () => ({ dataset: { action: "panel-tab", value: "properties" } }) } });
   assert.match(root.innerHTML, /data-active-inspector="properties"/);
+});
+
+test("user layers can be renamed and deleted while the default layer explains its role", () => {
+  const listeners = {};
+  const actions = [];
+  const root = {
+    innerHTML: "", setAttribute() {}, focus() {},
+    addEventListener(name, listener) { listeners[name] = listener; },
+    removeEventListener() {}
+  };
+  const panel = Panel.createSceneStudioPanel({ root, onAction: (action) => actions.push(action) });
+  panel.render(Panel.buildViewModel({ phase: "editing", layers: [
+    { id: "design", name: "方案要素", visible: true, locked: false },
+    { id: "layer-2", name: "图层 2", visible: true, locked: false }
+  ] }));
+  assert.match(root.innerHTML, /data-action="layer-rename"[^>]*data-value="layer-2"/);
+  assert.match(root.innerHTML, /data-action="layer-delete" data-value="layer-2"/);
+  listeners.change({ target: { value: "休憩设施", closest: () => ({ dataset: { action: "layer-rename", value: "layer-2" } }) } });
+  assert.deepEqual(actions[0], { type: "layer-rename", value: "layer-2", path: "", source: actions[0].source, name: "休憩设施" });
+});
+
+test("layer controls use a two-row layout and visually separate the destructive action", () => {
+  const css = fs.readFileSync(path.join(__dirname, "..", "style.css"), "utf8");
+  assert.match(css, /\.scene-studio-row\[data-layer-id\][^{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.scene-studio-layer-actions[^\{]*\{[^}]*justify-content:\s*flex-end/s);
+  assert.match(css, /\.scene-studio-layer-actions\s+\.is-danger[^\{]*\{[^}]*margin-left:/s);
+});
+
+test("opening the property inspector requests camera-safe inspection mode", () => {
+  const listeners = {};
+  const actions = [];
+  const root = {
+    innerHTML: "", setAttribute() {}, focus() {},
+    addEventListener(name, listener) { listeners[name] = listener; },
+    removeEventListener() {}
+  };
+  const panel = Panel.createSceneStudioPanel({ root, onAction: (action) => actions.push(action) });
+  panel.render(Panel.buildViewModel({ mode: "3d", phase: "editing" }));
+  listeners.click({ target: { closest: () => ({ dataset: { action: "panel-tab", value: "properties" } }) } });
+  assert.equal(actions.at(-1).type, "inspect-properties");
 });
 
 test("asset library uses category filters, search and a collapsible compact grid", () => {
@@ -233,6 +289,26 @@ test("selection updates object rows and properties without rebuilding the 3D wor
   assert.match(properties.innerHTML, /落叶乔木/);
 });
 
+test("switching from move to property inspection updates tool buttons without rebuilding the workspace", () => {
+  let writes = 0;
+  let html = "";
+  const buttons = ["select", "move"].map((value) => ({
+    dataset: { value }, pressed: "",
+    setAttribute(name, next) { if (name === "aria-pressed") this.pressed = next; }
+  }));
+  const root = {
+    get innerHTML() { return html; }, set innerHTML(value) { html = value; writes += 1; },
+    setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {},
+    querySelectorAll(selector) { return selector === '[data-action="tool"]' ? buttons : []; },
+    querySelector() { return null; }
+  };
+  const panel = Panel.createSceneStudioPanel({ root });
+  panel.render(Panel.buildViewModel({ mode: "3d", phase: "editing", activeTool: "move" }));
+  panel.updateActiveTool("select");
+  assert.equal(writes, 1);
+  assert.deepEqual(buttons.map((button) => button.pressed), ["true", "false"]);
+});
+
 test("conflict state offers exactly the three explicit recovery choices and versions expose immutable actions", () => {
   const root = { innerHTML: "", setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {} };
   const panel = Panel.createSceneStudioPanel({ root });
@@ -242,6 +318,7 @@ test("conflict state offers exactly the three explicit recovery choices and vers
   assert.match(root.innerHTML, /载入远端版本/);
   assert.match(root.innerHTML, /另存为新方案/);
   assert.match(root.innerHTML, /data-action="compare-version"/);
+  assert.match(root.innerHTML, /在2D叠加对比/);
   assert.match(root.innerHTML, /data-action="restore-version"/);
   assert.match(root.innerHTML, /data-action="submit-version"/);
 });

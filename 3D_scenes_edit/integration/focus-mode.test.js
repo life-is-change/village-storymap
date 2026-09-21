@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const FocusMode = require("./focus-mode");
 
 function classList(initial = []) {
@@ -66,4 +68,12 @@ test("scene focus hides platform chrome and restores each previous hidden state"
   assert.equal(detailPanel.hidden, false);
   assert.equal(rightToggle.hidden, false);
   assert.equal(workspaceBar.hidden, true);
+});
+
+test("scene focus removes the course rail and lets the studio use the full viewport", () => {
+  const platformCss = fs.readFileSync(path.join(__dirname, "..", "..", "style.css"), "utf8");
+  const studioCss = fs.readFileSync(path.join(__dirname, "..", "style.css"), "utf8");
+  assert.match(platformCss, /body\.scene-studio-active\s+\.course-task-sidebar[^\{]*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(platformCss, /body\.scene-studio-active\s+\.main-layout\.mode-map[^\{]*\{[^}]*--course-task-width:\s*0px/s);
+  assert.match(studioCss, /body\.scene-studio-active\s+\.scene-studio-host[^\{]*\{[^}]*inset:\s*0/s);
 });

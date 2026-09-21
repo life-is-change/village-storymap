@@ -6,10 +6,11 @@ const path = require("node:path");
 const Assets = require("./scene-asset-library");
 
 test("maps stored uploads into placeable catalog assets", () => {
-  assert.deepEqual(Assets.toCatalogAsset({ id: "a1", kind: "model", storage_path: "group/g/a.glb", display_name: "自制座椅", metadata: { category: "bench", placementKind: "asset", realSizeM: [2, .8, 1] } }), {
+  assert.deepEqual(Assets.toCatalogAsset({ id: "a1", kind: "model", storage_path: "group/g/a.glb", display_name: "自制座椅", metadata: { category: "bench", placementKind: "asset", realSizeM: [2, .8, 1], topViewPath: "group/g/a.top.png" } }), {
     id: "a1", kind: "asset", category: "bench", label: "自制座椅", footprintM: [2, .8], defaultHeightM: 1,
     renderer: "glb", fileType: "glb", storagePath: "group/g/a.glb", scope: undefined,
-    metadata: { category: "bench", placementKind: "asset", realSizeM: [2, .8, 1] }
+    topViewPath: "group/g/a.top.png",
+    metadata: { category: "bench", placementKind: "asset", realSizeM: [2, .8, 1], topViewPath: "group/g/a.top.png" }
   });
 });
 
@@ -165,10 +166,61 @@ test("seed catalog covers every first-release public-space category", () => {
   assert.equal(catalog.assets.every((asset) => asset.id.startsWith(`seed:${asset.category}:`) && asset.renderer), true);
 });
 
-test("the bundled component catalog points to valid local GLB models", () => {
+test("uploads a generated top view beside a GLB and records it in asset metadata", async () => {
+  const calls = [];
+  const topViewBlob = { type: "image/png", size: 321 };
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(path, data, options) { calls.push(["upload", path, data, options]); return { data: { path }, error: null }; },
+      async remove(paths) { calls.push(["remove", paths]); return { error: null }; }
+    },
+    dataClient: {
+      async registerAsset(record) { calls.push(["register", record]); return { ok: true, data: { id: "asset-top", ...record } }; }
+    },
+    uuid: () => "with-top",
+    now: () => new Date("2026-09-21T00:00:00Z")
+  });
+
+  const result = await library.upload(makeFile("custom.glb", "model/gltf-binary", glb()), {
+    kind: "model", scope: "group", ownerId: "g1", courseId: "c1", groupId: "g1",
+    displayName: "学生模型", topViewBlob, metadata: { category: "sculpture", placementKind: "asset" }
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls.filter(([kind]) => kind === "upload").map(([, path]) => path), [
+    "group/g1/2026-09/with-top.glb",
+    "group/g1/2026-09/with-top.top.png"
+  ]);
+  const record = calls.find(([kind]) => kind === "register")[1];
+  assert.equal(record.metadata.topViewPath, "group/g1/2026-09/with-top.top.png");
+  assert.equal(record.metadata.topViewStatus, "ready");
+});
+
+test("removes both GLB and generated top view when asset registration fails", async () => {
+  let removed = null;
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(path) { return { data: { path }, error: null }; },
+      async remove(paths) { removed = paths; return { error: null }; }
+    },
+    dataClient: { async registerAsset() { return { ok: false, code: "REGISTER_FAILED" }; } },
+    uuid: () => "rollback-top",
+    now: () => new Date("2026-09-21T00:00:00Z")
+  });
+  await library.upload(makeFile("custom.glb", "model/gltf-binary", glb()), {
+    kind: "model", scope: "group", ownerId: "g1", courseId: "c1", groupId: "g1",
+    topViewBlob: { type: "image/png", size: 10 }, metadata: {}
+  });
+  assert.deepEqual(removed, ["group/g1/2026-09/rollback-top.glb", "group/g1/2026-09/rollback-top.top.png"]);
+});
+
+test("the bundled component catalog provides a broad set of valid local GLB models", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, "seed/catalog.json"), "utf8"));
-  const modeled = catalog.assets.filter((asset) => ["tree", "shrub", "bench", "table", "light", "bin", "sign", "pavilion", "fitness", "play-equipment"].includes(asset.category));
-  assert.equal(modeled.length, 10);
+  const modeled = catalog.assets.filter((asset) => asset.fileType === "glb");
+  assert.ok(modeled.length >= 20, `expected at least 20 bundled models, got ${modeled.length}`);
+  for (const label of ["石质座椅", "圆桌凳", "木花箱", "自行车架", "隔离桩", "村务宣传栏", "草坪灯", "饮水台", "遮阳棚", "景观小桥"]) {
+    assert.equal(modeled.some((asset) => asset.label === label), true, label);
+  }
   for (const asset of modeled) {
     assert.equal(asset.fileType, "glb", asset.category);
     assert.match(asset.url, /^3D_scenes_edit\/assets\/models\/.+\.glb(?:\?v=[\w-]+)?$/);

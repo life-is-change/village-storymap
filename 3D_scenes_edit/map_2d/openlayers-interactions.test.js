@@ -47,3 +47,27 @@ test("select and translate emit canonical object ids and updated geometry", () =
   assert.deepEqual(selections, [["o1"]]);
   assert.deepEqual(changes, [["o1", { type: "Point", coordinates: [114, 30] }]]);
 });
+
+test("geometry edits use the projection reported by the map view", () => {
+  const added = [];
+  let writeOptions = null;
+  const collection = { getArray: () => [{ get: (key) => key === "sceneObjectId" ? "o1" : "geometry", getGeometry: () => ({}) }] };
+  class Select extends Interaction { getFeatures() { return collection; } }
+  const map = {
+    addInteraction: (value) => added.push(value), removeInteraction() {},
+    getView() { return { getProjection: () => ({ getCode: () => "EPSG:4326" }) }; }
+  };
+  const ol = {
+    interaction: { Select, Translate: Interaction },
+    format: { GeoJSON: class {
+      writeGeometryObject(_geometry, options) {
+        writeOptions = options;
+        return { type: "Point", coordinates: [114, 30] };
+      }
+    } }
+  };
+  const bridge = Interactions.createOpenLayersInteractions({ ol, map, source: {}, layer: {}, onGeometryChange() {} });
+  bridge.activate("move");
+  added[1].emit("translateend", {});
+  assert.deepEqual(writeOptions, { dataProjection: "EPSG:4326", featureProjection: "EPSG:4326" });
+});

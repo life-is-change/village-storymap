@@ -3680,7 +3680,12 @@ body.scene-studio-active #recenter3dBtn {
 }
 
 body.scene-studio-active .main-layout.mode-map {
+  --course-task-width: 0px;
   --right-panel-width: 0px;
+}
+
+body.scene-studio-active .course-task-sidebar {
+  display: none !important;
 }
 
 .reality-3d-panel {

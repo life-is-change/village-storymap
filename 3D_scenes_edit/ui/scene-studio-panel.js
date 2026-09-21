@@ -17,6 +17,7 @@
     conflict: ["warning", "发现两个版本，请选择保留本地、载入远端或另存方案。"],
     readonly: ["info", "只读查看；不会改变学生方案。"]
   });
+  const REVIEW_TOOL_IDS = new Set(["select", "box-select", "move", "rotate", "scale", "measure", "pan"]);
   const CATEGORY_LABELS = Object.freeze({
     bench: "座椅", table: "桌椅", paving: "铺装", grass: "草坪", water: "水景",
     planter: "花坛", planting: "种植", "activity-field": "活动场地", path: "道路",
@@ -107,23 +108,31 @@
       unlock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M16 10V7a4 4 0 0 0-7.5-2"/>',
       up: '<path d="m7 11 5-5 5 5M12 6v12"/>',
       down: '<path d="m7 13 5 5 5-5M12 18V6"/>',
-      plus: '<path d="M12 5v14M5 12h14"/>'
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>'
     };
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ""}</svg>`;
   }
 
   function renderLayers(layers) {
     if (!layers.length) return '<p class="scene-studio-empty">暂无方案图层</p>';
-    return layers.map((layer) => `
+    return layers.map((layer) => {
+      const isDefault = layer.id === "design";
+      const nameControl = isDefault
+        ? `<span class="scene-studio-layer-name" title="默认承载未分类对象；删除其他图层时，其中对象会转移到这里">${escapeHtml(layer.name || "方案要素")}<small class="scene-layer-badge">默认图层</small></span>`
+        : `<input class="scene-studio-layer-name-input" type="text" maxlength="40" data-action="layer-rename" data-value="${escapeHtml(layer.id)}" value="${escapeHtml(layer.name || layer.id)}" aria-label="重命名 ${escapeHtml(layer.name || layer.id)}" title="输入名称后按回车或移开焦点保存">`;
+      return `
       <div class="scene-studio-row" data-layer-id="${escapeHtml(layer.id)}">
-        <span class="scene-studio-layer-name">${escapeHtml(layer.name || layer.id)}</span>
+        ${nameControl}
         <span class="scene-studio-layer-actions">
           <button class="scene-icon-button" type="button" data-action="layer-visible" data-value="${escapeHtml(layer.id)}" aria-pressed="${layer.visible !== false}" aria-label="${layer.visible === false ? "显示" : "隐藏"} ${escapeHtml(layer.name || layer.id)}" title="${layer.visible === false ? "显示" : "隐藏"}">${icon(layer.visible === false ? "eye-off" : "eye")}</button>
           <button class="scene-icon-button" type="button" data-action="layer-lock" data-value="${escapeHtml(layer.id)}" aria-pressed="${!!layer.locked}" aria-label="${layer.locked ? "解锁" : "锁定"} ${escapeHtml(layer.name || layer.id)}" title="${layer.locked ? "解锁" : "锁定"}">${icon(layer.locked ? "lock" : "unlock")}</button>
           <button class="scene-icon-button" type="button" data-action="layer-move" data-value="${escapeHtml(layer.id)}|up" aria-label="上移 ${escapeHtml(layer.name || layer.id)}" title="上移">${icon("up")}</button>
           <button class="scene-icon-button" type="button" data-action="layer-move" data-value="${escapeHtml(layer.id)}|down" aria-label="下移 ${escapeHtml(layer.name || layer.id)}" title="下移">${icon("down")}</button>
+          ${isDefault ? "" : `<button class="scene-icon-button is-danger" type="button" data-action="layer-delete" data-value="${escapeHtml(layer.id)}" aria-label="删除 ${escapeHtml(layer.name || layer.id)}" title="删除图层；其中对象将移至方案要素">${icon("trash")}</button>`}
         </span>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
 
   function renderObjects(objects, selectedIds) {
@@ -173,7 +182,7 @@
     return versions.map((version) => `<article class="scene-version-row${compared.has(version.id) ? " is-compared" : ""}">
       <strong>${escapeHtml(version.label)}</strong><small>R${Number(version.revision) || 0} · ${escapeHtml(version.author_name || version.authorName || "小组成员")} · ${escapeHtml(version.created_at || version.createdAt || "")}</small>
       <span>${version.submission_status === "submitted" || version.submissionStatus === "submitted" ? "已提交" : "里程碑"}</span>
-      <div><button type="button" data-action="compare-version" data-value="${escapeHtml(version.id)}">${compared.has(version.id) ? "取消对比" : "对比"}</button><button type="button" data-action="restore-version" data-value="${escapeHtml(version.id)}">恢复为新草稿</button><button type="button" data-action="submit-version" data-value="${escapeHtml(version.id)}">提交此版本</button></div>
+      <div><button type="button" data-action="compare-version" data-value="${escapeHtml(version.id)}">${compared.has(version.id) ? "取消对比" : "在2D叠加对比"}</button><button type="button" data-action="restore-version" data-value="${escapeHtml(version.id)}">恢复为新草稿</button><button type="button" data-action="submit-version" data-value="${escapeHtml(version.id)}">提交此版本</button></div>
     </article>`).join("");
   }
 
@@ -207,6 +216,10 @@
       if (action.type === "panel-tab") {
         activeInspector = ["assets", "properties", "versions"].includes(action.value) ? action.value : "assets";
         inspectorCollapsed = false;
+        if (activeInspector === "properties") {
+          onAction({ type: "inspect-properties", value: "", path: "", source: action.source });
+          if (lastModel) lastModel = { ...lastModel, activeTool: "select", tools: lastModel.tools.map((tool) => ({ ...tool, active: tool.id === "select" })) };
+        }
         if (lastModel) renderPanel(lastModel);
         return;
       }
@@ -237,6 +250,10 @@
       }
       if (action?.type === "property") onAction({ ...action, value: event.target.dataset?.valueType === "string" ? event.target.value : Number(event.target.value) });
     }
+    function onChange(event) {
+      const action = actionFromTarget(event.target);
+      if (action?.type === "layer-rename") onAction({ ...action, name: event.target.value || "" });
+    }
     function onKeydown(event) {
       const type = shortcutForEvent(event);
       if (!type) return;
@@ -245,6 +262,7 @@
     }
     root.addEventListener("click", onClick);
     root.addEventListener("input", onInput);
+    root.addEventListener("change", onChange);
     root.addEventListener("keydown", onKeydown);
 
     function renderPanel(model) {
@@ -262,7 +280,7 @@
               </div>
             </header>
             <div class="scene-studio-banner is-${escapeHtml(model.banner.level)}" role="status">${escapeHtml(model.banner.message)}${model.phase === "conflict" ? `<div class="scene-studio-conflict"><strong>远端版本 R${escapeHtml(model.conflict?.remoteRevision ?? "?")} 与本机草稿不同</strong><button type="button" data-action="conflict-local">保留本地副本</button><button type="button" data-action="conflict-remote">载入远端版本</button><button type="button" data-action="conflict-copy">另存为新方案</button></div>` : ""}</div>
-            <nav class="scene-studio-tools" aria-label="场景编辑工具">${model.tools.map((tool) => `<button type="button" data-action="tool" data-value="${escapeHtml(tool.id)}" aria-pressed="${tool.active}" ${tool.disabled ? "disabled" : ""}>${escapeHtml(tool.label)}</button>`).join("")}</nav>
+            <nav class="scene-studio-tools" aria-label="场景编辑工具">${model.tools.filter((tool) => model.mode !== "2d" || REVIEW_TOOL_IDS.has(tool.id)).map((tool) => `<button type="button" data-action="tool" data-value="${escapeHtml(tool.id)}" aria-pressed="${tool.active}" ${tool.disabled ? "disabled" : ""}>${escapeHtml(tool.label)}</button>`).join("")}</nav>
             <aside class="scene-studio-left" aria-label="场景结构">
               <div class="scene-panel-heading"><span>场景结构</span><small>${model.sections.objects.length} 个对象</small></div>
               <section data-panel="layers"><h3><span>图层</span><button class="scene-icon-button" type="button" data-action="add-layer" aria-label="添加图层" title="添加图层">${icon("plus")}</button></h3>${renderLayers(model.sections.layers)}</section>
@@ -317,10 +335,16 @@
         const actions = root.querySelector?.(".scene-selection-actions");
         if (actions) actions.hidden = !selected.size;
       },
+      updateActiveTool(tool) {
+        for (const button of root.querySelectorAll?.('[data-action="tool"]') || []) {
+          button.setAttribute?.("aria-pressed", String(button.dataset?.value === tool));
+        }
+      },
       focus() { root.focus(); },
       dispose() {
         root.removeEventListener("click", onClick);
         root.removeEventListener("input", onInput);
+        root.removeEventListener("change", onChange);
         root.removeEventListener("keydown", onKeydown);
         root.innerHTML = "";
       }

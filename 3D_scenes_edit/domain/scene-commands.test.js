@@ -98,3 +98,13 @@ test("reorders layers and rejects unknown commands", () => {
   assert.deepEqual(history.present.layers.map((layer) => layer.id), ["planting", "design"]);
   assert.throws(() => Commands.execute(history, { type: "explode" }), /Unknown scene command/);
 });
+
+test("deleting a user layer preserves its objects by moving them to the default layer", () => {
+  let history = historyWith([point("a", 114, 30)]);
+  history = Commands.execute(history, { type: "addLayer", layer: { id: "furniture", name: "家具" } });
+  history = Commands.execute(history, { type: "updateObject", id: "a", patch: { layerId: "furniture" } });
+  history = Commands.execute(history, { type: "deleteLayer", layerId: "furniture" });
+  assert.deepEqual(history.present.layers.map((layer) => layer.id), ["design"]);
+  assert.equal(history.present.objects[0].layerId, "design");
+  assert.throws(() => Commands.execute(history, { type: "deleteLayer", layerId: "design" }), /default layer/i);
+});

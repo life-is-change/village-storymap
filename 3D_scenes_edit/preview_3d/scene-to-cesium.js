@@ -16,17 +16,25 @@
     for (const object of document?.objects || []) {
       if (!visibleLayers.has(object.layerId)) continue;
       const base = { sourceObjectId: object.id, layerId: object.layerId, category: object.category };
+      const assetRef = object.properties?.assetRef;
+      const asset = getAsset(assetMap, assetRef);
       if (object.kind === "surface") {
         output.polygons.push({ ...base, coordinatesDegrees: object.geometry.coordinates, materialRef: object.properties?.materialRef || object.category, elevationM: Number(object.properties?.elevationM) || 0, extrusionHeightM: Number(object.properties?.extrusionHeightM) || 0 });
         continue;
       }
       if (object.kind === "line") {
-        output.polylines.push({ ...base, coordinatesDegrees: object.geometry.coordinates, widthM: Math.max(.05, Number(object.properties?.widthM) || 1), materialRef: object.properties?.materialRef || object.category });
+        output.polylines.push({
+          ...base,
+          assetRef,
+          coordinatesDegrees: object.geometry.coordinates,
+          widthM: Math.max(.05, Number(object.properties?.widthM) || Number(asset?.footprintM?.[0]) || 1),
+          heightM: Number(object.properties?.heightM ?? asset?.defaultHeightM) || 0,
+          renderer: asset?.renderer || "line",
+          materialRef: object.properties?.materialRef || object.category
+        });
         continue;
       }
       if (object.kind !== "asset" && object.kind !== "structure") continue;
-      const assetRef = object.properties?.assetRef;
-      const asset = getAsset(assetMap, assetRef);
       const transform = object.transform || {};
       const descriptor = {
         ...base,

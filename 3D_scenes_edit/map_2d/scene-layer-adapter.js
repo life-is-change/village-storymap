@@ -10,11 +10,23 @@
     const selected = new Set(viewState?.selectedIds || []);
     const errors = new Set(viewState?.errorIds || []);
     const descriptors = [];
+    if (document?.selectionBoundary) {
+      descriptors.push({
+        objectId: null,
+        role: "boundary",
+        kind: "boundary",
+        category: "selection-boundary",
+        geometry: document.selectionBoundary,
+        layerId: null,
+        styleToken: "boundary",
+        properties: {}
+      });
+    }
     for (const object of document?.objects || []) {
       const layer = layers.get(object.layerId);
       if (!layer || layer.visible === false) continue;
       const styleToken = viewState?.forcedStyleToken || (errors.has(object.id) ? "error" : selected.has(object.id) ? "selected" : layer.locked ? "locked" : "normal");
-      descriptors.push({ objectId: object.id, role: "geometry", kind: object.kind, category: object.category, geometry: object.geometry, layerId: object.layerId, styleToken, properties: object.properties || {} });
+      descriptors.push({ objectId: object.id, role: "geometry", kind: object.kind, category: object.category, geometry: object.geometry, layerId: object.layerId, styleToken, headingDeg: object.transform?.headingDeg || 0, properties: object.properties || {} });
       if ((object.kind === "asset" || object.kind === "structure") && Array.isArray(object.properties?.footprintM)) {
         const scale = object.transform?.scale || [1, 1, 1];
         descriptors.push({
@@ -28,6 +40,7 @@
           }, object.transform?.headingDeg || 0),
           layerId: object.layerId,
           styleToken,
+          headingDeg: object.transform?.headingDeg || 0,
           properties: object.properties || {}
         });
       }
@@ -38,18 +51,31 @@
   function createSceneLayerAdapter(options) {
     const ol = options?.ol;
     const map = options?.map;
-    const projection = options?.projection || "EPSG:3857";
+    const projection = options?.projection || map?.getView?.()?.getProjection?.()?.getCode?.() || "EPSG:3857";
     const source = new ol.source.Vector();
     const styleCache = new Map();
+    const assetMap = new Map();
     let renderedFeatures = [];
 
     function getValue(feature, key) {
       return typeof feature.get === "function" ? feature.get(key) : feature.values?.[key];
     }
 
-    function makeStyle(token, role) {
+    function fallbackIcon(category) {
+      const labels = { bench: "椅", table: "桌", tree: "树", shrub: "灌", light: "灯", bin: "桶", sign: "牌", sculpture: "景", fitness: "健", pavilion: "亭", pergola: "廊", "bus-stop": "站", stall: "摊", stage: "台", "play-equipment": "乐" };
+      const label = labels[category] || "物";
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><path d="M32 64h192v128H32z" rx="22" fill="#dcefe7" stroke="#19785f" stroke-width="12"/><text x="128" y="151" text-anchor="middle" font-family="sans-serif" font-size="92" font-weight="700" fill="#145c4b">${label}</text></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function makeStyle(token, role, kind, category, assetRef, headingDeg) {
       if (!ol.style) return undefined;
-      const key = `${token}:${role}`;
+      if (role === "footprint" && !["selected", "error", "compareA", "compareB"].includes(token)) return null;
+      const asset = assetMap.get(assetRef);
+      const iconUrl = (kind === "asset" || kind === "structure") && role === "geometry"
+        ? (asset?.topViewUrl || fallbackIcon(category))
+        : null;
+      const key = `${token}:${role}:${kind}:${category || ""}:${assetRef || ""}:${iconUrl || ""}:${Number(headingDeg) || 0}`;
       if (styleCache.has(key)) return styleCache.get(key);
       const colors = {
         normal: ["rgba(42, 141, 114, 0.24)", "#238d72"],
@@ -57,13 +83,17 @@
         locked: ["rgba(110, 118, 129, 0.15)", "#737b85"],
         error: ["rgba(214, 64, 69, 0.22)", "#d64045"],
         compareA: ["rgba(65, 105, 161, 0.18)", "#4169a1"],
-        compareB: ["rgba(182, 70, 150, 0.16)", "#b64696"]
+        compareB: ["rgba(182, 70, 150, 0.16)", "#b64696"],
+        boundary: ["rgba(25, 211, 255, 0.08)", "#19d3ff"]
       };
       const [fill, stroke] = colors[token] || colors.normal;
+      const strokeWidth = kind === "line" ? (token === "selected" ? 5 : 4) : kind === "boundary" ? 3 : (token === "selected" ? 3 : 2);
       const style = new ol.style.Style({
-        fill: new ol.style.Fill({ color: role === "footprint" ? "rgba(0,0,0,0.02)" : fill }),
-        stroke: new ol.style.Stroke({ color: stroke, width: token === "selected" ? 3 : 2, lineDash: role === "footprint" ? [5, 4] : undefined }),
-        image: new ol.style.Circle({ radius: token === "selected" ? 7 : 6, fill: new ol.style.Fill({ color: stroke }), stroke: new ol.style.Stroke({ color: "#fff", width: 2 }) })
+        fill: new ol.style.Fill({ color: fill }),
+        stroke: new ol.style.Stroke({ color: stroke, width: strokeWidth }),
+        image: iconUrl && ol.style.Icon
+          ? new ol.style.Icon({ src: iconUrl, rotation: (Number(headingDeg) || 0) * Math.PI / 180, rotateWithView: true, scale: token === "selected" ? .22 : .19, anchor: [.5, .5], crossOrigin: "anonymous" })
+          : new ol.style.Circle({ radius: token === "selected" ? 8 : 7, fill: new ol.style.Fill({ color: stroke }), stroke: new ol.style.Stroke({ color: "#fff", width: 2 }) })
       });
       styleCache.set(key, style);
       return style;
@@ -71,9 +101,12 @@
 
     const layer = new ol.layer.Vector({
       source,
-      zIndex: Number(options?.zIndex) || 900,
+      zIndex: Number(options?.zIndex) || 1200,
       properties: { sceneEditOverlay: true },
-      style: (feature) => makeStyle(getValue(feature, "sceneStyleToken"), getValue(feature, "sceneRole"))
+      style: (feature) => makeStyle(
+        getValue(feature, "sceneStyleToken"), getValue(feature, "sceneRole"), getValue(feature, "sceneKind"),
+        getValue(feature, "sceneCategory"), getValue(feature, "sceneAssetRef"), getValue(feature, "sceneHeadingDeg")
+      )
     });
     let mounted = false;
 
@@ -103,6 +136,8 @@
         sceneRole: descriptor.role,
         sceneKind: descriptor.kind,
         sceneCategory: descriptor.category,
+        sceneAssetRef: descriptor.properties?.assetRef || null,
+        sceneHeadingDeg: Number(descriptor.properties?.headingDeg ?? descriptor.headingDeg) || 0,
         sceneLayerId: descriptor.layerId,
         sceneStyleToken: descriptor.styleToken,
         sceneBaseStyleToken: descriptor.styleToken === "locked" ? "locked" : "normal"
@@ -121,6 +156,12 @@
         source.addFeatures(features);
         renderedFeatures = features;
         return features;
+      },
+      setAssets(assets) {
+        assetMap.clear();
+        for (const asset of assets || []) if (asset?.id) assetMap.set(asset.id, asset);
+        styleCache.clear();
+        layer.changed?.();
       },
       updateSelection(ids, viewState) {
         const selected = new Set(ids || []);

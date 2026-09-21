@@ -7,7 +7,7 @@
     const { Cesium, viewer, screenPosition } = options || {};
     if (!Cesium || !viewer?.scene || !screenPosition) return null;
     let cartesian = null;
-    if (viewer.scene.pickPositionSupported && typeof viewer.scene.pickPosition === "function") {
+    if (!options?.skipDepth && viewer.scene.pickPositionSupported && typeof viewer.scene.pickPosition === "function") {
       try { cartesian = viewer.scene.pickPosition(screenPosition); } catch (_error) { cartesian = null; }
     }
     if (!cartesian) {

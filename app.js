@@ -2988,6 +2988,34 @@ function chooseSceneStudioFile() {
   });
 }
 
+let sceneStudioTopViewThumbnailer = null;
+
+function getSceneStudioTopViewThumbnailer() {
+  if (!sceneStudioTopViewThumbnailer && window.ModelTopViewThumbnailModule?.createModelTopViewThumbnailer && window.Cesium) {
+    sceneStudioTopViewThumbnailer = window.ModelTopViewThumbnailModule.createModelTopViewThumbnailer({
+      Cesium: window.Cesium,
+      document,
+      size: 256
+    });
+  }
+  return sceneStudioTopViewThumbnailer;
+}
+
+async function resolveSceneStudioAssetUrl(asset) {
+  if (asset?.url) return asset.url;
+  if (!asset?.storagePath) throw new Error("素材缺少本地地址或存储路径");
+  const { data, error } = await supabaseClient.storage.from("scene-assets").createSignedUrl(asset.storagePath, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+async function generateSceneStudioTopView(assetOrFile) {
+  const thumbnailer = getSceneStudioTopViewThumbnailer();
+  if (!thumbnailer) return { ok: false, code: "TOP_VIEW_RENDERER_UNAVAILABLE", message: "俯视图渲染器不可用" };
+  if (typeof assetOrFile?.arrayBuffer === "function") return thumbnailer.generate(assetOrFile);
+  return thumbnailer.generateFromUrl(await resolveSceneStudioAssetUrl(assetOrFile));
+}
+
 async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
   if (!supabaseClient?.storage) return { ok: false, code: "STORAGE_UNAVAILABLE", message: "素材存储服务不可用" };
   const file = await chooseSceneStudioFile();
@@ -3010,16 +3038,27 @@ async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
     }
   });
   const placementKind = ["pavilion", "pergola", "bus-stop", "stall", "stage", "play-equipment"].includes(category) ? "structure" : "asset";
+  const topView = await generateSceneStudioTopView(file);
+  if (!topView.ok) console.warn("上传模型的二维俯视图生成失败，将使用分类符号：", topView.message);
   const result = await library.upload(file, {
     kind: "model", scope: context.scopeKind === "admin_sandbox" ? "personal" : "group", ownerId: context.scopeKind === "admin_sandbox" ? context.userId : context.groupId, courseId: context.courseId,
     groupId: context.groupId, ownerUserId: context.userId, displayName,
-    metadata: { category, placementKind, realSizeM: [1, 1, 1] }, license: "student-provided"
+    topViewBlob: topView.ok ? topView.blob : null,
+    metadata: { category, placementKind, realSizeM: [1, 1, 1], ...(!topView.ok ? { topViewStatus: "fallback" } : {}) }, license: "student-provided"
   });
   if (!result.ok) {
     showToast(result.message || "素材上传失败", "error");
     return result;
   }
   const asset = assetLibrary.toCatalogAsset(result.data);
+  if (asset.topViewPath) {
+    try {
+      asset.topViewUrl = await resolveSceneStudioAssetUrl({ storagePath: asset.topViewPath });
+    } catch (error) {
+      console.warn("读取已上传的二维俯视图失败，将暂时使用本地预览：", error);
+      if (topView.ok) asset.topViewUrl = URL.createObjectURL(topView.blob);
+    }
+  }
   showToast(context.scopeKind === "admin_sandbox" ? "素材已加入你的个人素材库，可在场景中放置" : "素材已加入本小组素材库，可在场景中放置", "success");
   return { ...result, asset };
 }
@@ -3150,12 +3189,11 @@ function buildSceneStudioOpenOptions(context) {
       window.setTimeout(() => void openSceneStudioWorkspace(), 0);
     },
     onStatus: (status) => showToast(status?.message || status?.code || "公共空间设计状态已更新", status?.level === "error" ? "error" : "info"),
-    assetResolver: async (asset) => {
-      if (asset?.url) return asset.url;
-      if (!asset?.storagePath) throw new Error("素材缺少本地地址或存储路径");
-      const { data, error } = await supabaseClient.storage.from("scene-assets").createSignedUrl(asset.storagePath, 3600);
-      if (error) throw error;
-      return data.signedUrl;
+    assetResolver: resolveSceneStudioAssetUrl,
+    topViewGenerator: async (asset) => {
+      const result = await generateSceneStudioTopView(asset);
+      if (!result.ok) console.warn("二维素材俯视图生成失败：", asset?.id, result.code, result.message, result.stack || "");
+      return result.ok ? URL.createObjectURL(result.blob) : null;
     },
     ensure3D: async () => {
       const api = await ensureVillage3DLoaded();

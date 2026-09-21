@@ -197,7 +197,27 @@
       toggleLayerLocked(layerId) { const layer = layerFor(layerId); if (layer) apply({ type: "updateLayer", layerId, patch: { locked: !layer.locked } }); },
       toggleLayerVisible(layerId) { const layer = layerFor(layerId); if (layer) apply({ type: "updateLayer", layerId, patch: { visible: layer.visible === false } }); },
       reorderLayer(layerId, order) { apply({ type: "reorderLayer", layerId, order }); },
-      addLayer(name) { const id = `layer-${idFactory()}`; apply({ type: "addLayer", layer: { id, name: name || "新图层" } }); return id; },
+      addLayer(name) {
+        const id = `layer-${idFactory()}`;
+        const fallbackName = `图层 ${history.present.layers.length + 1}`;
+        apply({ type: "addLayer", layer: { id, name: String(name || fallbackName).trim() || fallbackName } });
+        return id;
+      },
+      renameLayer(layerId, name) {
+        const layer = layerFor(layerId);
+        const nextName = String(name || "").trim().slice(0, 40);
+        if (!layer) return reject("LAYER_NOT_FOUND", "图层不存在");
+        if (layerId === "design") return reject("DEFAULT_LAYER_REQUIRED", "方案要素是默认图层，不能重命名");
+        if (!nextName) return reject("LAYER_NAME_REQUIRED", "请输入图层名称");
+        apply({ type: "updateLayer", layerId, patch: { name: nextName } });
+        return { ok: true, layerId };
+      },
+      deleteLayer(layerId) {
+        if (layerId === "design") return reject("DEFAULT_LAYER_REQUIRED", "方案要素用于接收未分类对象，不能删除");
+        if (!layerFor(layerId)) return reject("LAYER_NOT_FOUND", "图层不存在");
+        apply({ type: "deleteLayer", layerId });
+        return { ok: true, layerId };
+      },
       acknowledgeSavedRevision(revision, updatedAt) {
         if (!Number.isInteger(revision) || revision < history.present.revision) return false;
         for (const document of [...history.past, history.present, ...history.future]) {

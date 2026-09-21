@@ -8,7 +8,7 @@
     const map = options.map;
     const source = options.source;
     const layer = options.layer;
-    const projection = options.projection || "EPSG:3857";
+    const projection = options.projection || map?.getView?.()?.getProjection?.()?.getCode?.() || "EPSG:3857";
     const onSelect = options.onSelect || function () {};
     const onCreate = options.onCreate || function () {};
     const onGeometryChange = options.onGeometryChange || function () {};

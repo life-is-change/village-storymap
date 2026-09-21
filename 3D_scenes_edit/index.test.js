@@ -110,14 +110,36 @@ test("creates and disposes a loaded studio with its real composition services", 
     removeEventListener(type) { listeners.delete(type); }
   };
   const calls = [];
+  const frames = [];
+  class VectorSource { clear() {} addFeatures() {} }
+  class VectorLayer { constructor(options) { this.options = options; } changed() {} }
+  class Feature { constructor() { this.values = {}; } setProperties(values) { this.values = values; } }
+  class Geometry { constructor(coordinates) { this.coordinates = coordinates; } getExtent() { return [1, 2, 3, 4]; } }
+  const ol = {
+    source: { Vector: VectorSource }, layer: { Vector: VectorLayer }, Feature,
+    geom: { Point: Geometry, LineString: Geometry, Polygon: Geometry },
+    proj: { fromLonLat: (position) => position }
+  };
+  const map = {
+    addLayer() { calls.push("compare-mount"); }, removeLayer() {},
+    updateSize() { calls.push("map-update-size"); },
+    getView() { return { fit() { calls.push("map-fit"); } }; }
+  };
   const preview = { async render(next) { calls.push(["preview-render", next.projectId]); }, select(ids) { calls.push(["preview-select", ids]); }, flyToBoundary() { calls.push("preview-fly"); }, dispose() { calls.push("preview-dispose"); } };
   const studio = await Studio.create({
     root,
+    ol,
+    map,
+    requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
     context: { ...completeContext, projectId: "project-1", seedAssets: [{ id: "seed:bench:wood", kind: "asset", category: "bench" }] },
     services: {
-      client: { async loadProject() { return { ok: true, data: document }; }, async saveDraft() { return { ok: true, data: { revision: 1 } }; } },
+      client: {
+        async loadProject() { return { ok: true, data: document }; },
+        async saveDraft() { return { ok: true, data: { revision: 1 } }; },
+        async listVersions() { return { ok: true, data: [{ id: "v1", label: "测试1", document }] }; }
+      },
       localStore: { read() { return null; }, write() {}, remove() {} },
-      adapter: { mount() { calls.push("mount"); }, render() {}, dispose() { calls.push("adapter-dispose"); } },
+      adapter: { mount() { calls.push("mount"); }, render() {}, fitBoundary() { calls.push("adapter-fit"); }, dispose() { calls.push("adapter-dispose"); } },
       interactions: { activate(tool) { calls.push(["activate", tool]); }, dispose() { calls.push("interactions-dispose"); } },
       preview
     }
@@ -130,11 +152,28 @@ test("creates and disposes a loaded studio with its real composition services", 
   assert.equal(calls.some((call) => call[0] === "activate" && call[1] === "select"), true);
   await studio.dispatch({ type: "tool", value: "move" });
   assert.equal(calls.some((call) => Array.isArray(call) && call[0] === "activate" && call[1] === "move"), true);
+  await studio.dispatch({ type: "select-object", value: "missing" });
+  assert.equal(studio.getState().tool, "select");
+  assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === "activate").at(-1), ["activate", "select"]);
+  const fitCountBefore2D = calls.filter((call) => call === "adapter-fit").length;
   await studio.dispatch({ type: "mode", value: "2d" });
   assert.equal(studio.getState().mode, "2d");
+  assert.equal(calls.filter((call) => call === "adapter-fit").length, fitCountBefore2D);
+  assert.equal(frames.length, 1);
+  frames.shift()();
+  assert.deepEqual(calls.slice(-2), ["map-update-size", "adapter-fit"]);
   await studio.switchMode("3d");
   assert.equal(calls.some((call) => call[0] === "preview-render"), true);
   assert.equal(calls.includes("preview-fly"), true);
+  const fitCountBeforeCompare = calls.filter((call) => call === "adapter-fit").length;
+  await studio.dispatch({ type: "compare-version", value: "v1" });
+  assert.equal(studio.getState().mode, "2d");
+  assert.deepEqual(studio.getState().comparisonIds, ["v1"]);
+  assert.equal(calls.includes("compare-mount"), true);
+  assert.equal(calls.filter((call) => call === "adapter-fit").length, fitCountBeforeCompare);
+  assert.equal(frames.length, 1);
+  frames.shift()();
+  assert.deepEqual(calls.slice(-2), ["map-update-size", "adapter-fit"]);
   studio.dispose();
   assert.equal(listeners.size, 0);
   assert.equal(calls.includes("preview-dispose"), true);
@@ -170,6 +209,27 @@ test("dispatcher routes lightweight object selection and boundary edit controls 
   assert.deepEqual(calls, [
     ["select-object", "o1"], ["finish-boundary"], ["cancel-boundary"], ["delete-boundary-vertex"]
   ]);
+});
+
+test("dispatcher routes layer rename and safe deletion through the controller", async () => {
+  const calls = [];
+  const dispatcher = Studio.createActionDispatcher({
+    controller: {
+      renameLayer: (id, name) => calls.push(["rename", id, name]),
+      deleteLayer: (id) => calls.push(["delete-layer", id])
+    },
+    lifecycle: {}
+  });
+  await dispatcher({ type: "layer-rename", value: "layer-2", name: "休憩设施" });
+  await dispatcher({ type: "layer-delete", value: "layer-2" });
+  assert.deepEqual(calls, [["rename", "layer-2", "休憩设施"], ["delete-layer", "layer-2"]]);
+});
+
+test("dispatcher routes property inspection through the camera-safe lifecycle", async () => {
+  const calls = [];
+  const dispatcher = Studio.createActionDispatcher({ controller: {}, lifecycle: { inspectProperties: () => calls.push("inspect") } });
+  await dispatcher({ type: "inspect-properties" });
+  assert.deepEqual(calls, ["inspect"]);
 });
 
 test("catalog asset tools remain available in 3D", () => {

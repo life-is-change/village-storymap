@@ -15,6 +15,8 @@
   font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+body.scene-studio-active .scene-studio-host { inset: 0; }
+
 .scene-studio-host[hidden],
 .scene-studio-host [hidden] { display: none !important; }
 .scene-studio-loading { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 32px; background: linear-gradient(145deg,#f6faf6,#e7f0e9); color: #315346; text-align: center; }
@@ -103,8 +105,13 @@
 .scene-studio-host h4 { margin-bottom: 7px; color: var(--scene-muted); font-size: 12px; }
 
 .scene-studio-row { display: flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 6px; padding: 4px 5px 4px 10px; border: 1px solid var(--scene-soft-line); border-radius: 9px; background: #fff; }
+.scene-studio-row[data-layer-id] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 7px 8px; }
 .scene-studio-layer-name { min-width: 0; flex: 1 1 auto; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.scene-studio-layer-actions { flex: 0 0 auto; display: flex; gap: 2px; }
+.scene-studio-layer-name-input { min-width: 62px; width: 100%; height: 30px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; font-weight: 600; }
+.scene-studio-layer-name-input:hover, .scene-studio-layer-name-input:focus { border-color: var(--scene-line); background: #f8fbf9; outline: none; }
+.scene-layer-badge { display: inline-block; margin-left: 5px; padding: 1px 5px; border-radius: 999px; background: #e7f2ea; color: #4a735f; font-size: 9px; font-weight: 600; vertical-align: 1px; }
+.scene-studio-layer-actions { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 4px; padding-top: 3px; border-top: 1px solid var(--scene-soft-line); }
+.scene-studio-layer-actions .is-danger { margin-left: 8px; }
 .scene-studio-host .scene-icon-button { width: 32px; min-width: 32px; min-height: 32px; padding: 6px; display: inline-grid; place-items: center; }
 .scene-icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .scene-studio-layer-actions .scene-icon-button { width: 27px; min-width: 27px; min-height: 28px; padding: 5px; }

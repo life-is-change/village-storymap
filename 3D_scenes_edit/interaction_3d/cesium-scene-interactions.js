@@ -8,6 +8,7 @@
   function createCesiumSceneInteractions(options) {
     const { Cesium, viewer } = options || {};
     const pickGround = options?.pickGround || ((screenPosition) => GroundPicker.pickGroundDegrees({ Cesium, viewer, screenPosition }));
+    const previewPickGround = options?.previewPickGround || options?.pickGround || ((screenPosition) => GroundPicker.pickGroundDegrees({ Cesium, viewer, screenPosition, skipDepth: true }));
     const eventTypes = Cesium.ScreenSpaceEventType;
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
     const vertices = [];
@@ -22,9 +23,11 @@
     let selectedBoundaryVertex = null;
     const requestFrame = options?.requestAnimationFrame || globalThis.requestAnimationFrame?.bind(globalThis) || ((callback) => { callback(); return null; });
     const cancelFrame = options?.cancelAnimationFrame || globalThis.cancelAnimationFrame?.bind(globalThis) || (() => {});
+    const placementPreviewIntervalMs = Math.max(16, Number(options?.placementPreviewIntervalMs) || 60);
     let placementPreviewFrame = null;
     let placementPreviewScheduled = false;
     let pendingPlacementPosition = null;
+    let lastPlacementPreviewAt = -Infinity;
 
     function relativeToGround() {
       return Cesium.HeightReference?.RELATIVE_TO_GROUND;
@@ -93,20 +96,30 @@
       placementPreviewFrame = null;
       placementPreviewScheduled = false;
       pendingPlacementPosition = null;
+      lastPlacementPreviewAt = -Infinity;
     }
 
     function schedulePlacementPreview(screenPosition) {
       pendingPlacementPosition = screenPosition;
       if (placementPreviewScheduled) return;
       placementPreviewScheduled = true;
-      placementPreviewFrame = requestFrame(() => {
+      placementPreviewFrame = requestFrame(function runPlacementPreview(frameTime) {
         placementPreviewFrame = null;
         placementPreviewScheduled = false;
+        const timestamp = Number.isFinite(frameTime) ? frameTime : null;
+        if (timestamp !== null && Number.isFinite(lastPlacementPreviewAt) && timestamp - lastPlacementPreviewAt < placementPreviewIntervalMs) {
+          placementPreviewScheduled = true;
+          placementPreviewFrame = requestFrame(runPlacementPreview);
+          return;
+        }
         const latestPosition = pendingPlacementPosition;
         pendingPlacementPosition = null;
         if (activeTool !== "place-asset" || !latestPosition) return;
-        const point = pickGround(latestPosition);
-        if (point) options?.previewAdapter?.setGhost?.(currentAsset, point);
+        const point = previewPickGround(latestPosition);
+        if (point) {
+          lastPlacementPreviewAt = timestamp === null ? lastPlacementPreviewAt : timestamp;
+          options?.previewAdapter?.setGhost?.(currentAsset, point);
+        }
       });
     }
 
@@ -336,7 +349,7 @@
         }, eventTypes.LEFT_DOWN);
         handler.setInputAction((event) => {
           if (!dragId) return;
-          const point = pickGround(event.endPosition);
+          const point = previewPickGround(event.endPosition);
           if (point) dragCoordinate = point.slice(0, 2);
         }, eventTypes.MOUSE_MOVE);
         handler.setInputAction(() => {
