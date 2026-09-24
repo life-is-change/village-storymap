@@ -1,4 +1,5 @@
--- Apply after Geoprocessing Worker Queue.sql and Multi-Village Dual-Track Repair.sql.
+-- Apply after Geoprocessing Worker Queue.sql, Multi-Village Dual-Track Repair.sql,
+-- and Geoprocessing Practice Village Catalog Fix.sql. Never reapply those older RPC definitions afterward.
 -- This migration changes STUDENT processing inputs only. Published shared datasets stay untouched.
 begin;
 
