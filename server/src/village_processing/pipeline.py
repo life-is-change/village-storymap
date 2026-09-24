@@ -1,6 +1,8 @@
 from dataclasses import asdict, dataclass, replace
 import json
+import logging
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 import httpx
@@ -10,6 +12,9 @@ from village_processing.contracts import ArtifactSummary, ProcessingRequest
 from village_processing.processors.contours import generate_contours
 from village_processing.processors.osm import extract_osm_layers
 from village_processing.raster import crop_imagery
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def resolve_dataset(request: ProcessingRequest, local_catalog, remote_resolver=None):
@@ -39,28 +44,36 @@ def _write_manifest(request: ProcessingRequest, manifest: RunManifest) -> None:
 
 def run_pipeline(request: ProcessingRequest, catalog, processors, remote_resolver=None) -> RunManifest:
     request.work_dir.mkdir(parents=True, exist_ok=True)
-    dataset = resolve_dataset(request, catalog, remote_resolver)
     artifacts: list[ArtifactSummary] = []
     warnings: list[str] = []
     stages = {step: "pending" for step in request.requested_steps}
     try:
+        started = perf_counter()
+        dataset = resolve_dataset(request, catalog, remote_resolver)
+        LOGGER.info("run=%s stage=local_source seconds=%.3f", request.run_id, perf_counter() - started)
         if "buildings" in request.requested_steps:
+            started = perf_counter()
             stages["buildings"] = "running"
             artifacts.append(processors.buildings(request, dataset))
             stages["buildings"] = "completed"
+            LOGGER.info("run=%s stage=buildings seconds=%.3f", request.run_id, perf_counter() - started)
         if "roads_water" in request.requested_steps:
+            started = perf_counter()
             stages["roads_water"] = "running"
             osm_artifacts = processors.roads_water(request, dataset)
             artifacts.extend(osm_artifacts)
             warnings.extend(item.warning_code for item in osm_artifacts if item.warning_code)
             stages["roads_water"] = "completed"
+            LOGGER.info("run=%s stage=roads_water seconds=%.3f", request.run_id, perf_counter() - started)
         if "contours" in request.requested_steps:
+            started = perf_counter()
             stages["contours"] = "running"
             contour = processors.contours(request, dataset)
             artifacts.append(contour)
             if contour.warning_code:
                 warnings.append(contour.warning_code)
             stages["contours"] = "completed"
+            LOGGER.info("run=%s stage=contours seconds=%.3f", request.run_id, perf_counter() - started)
         manifest = RunManifest(
             request.run_id, request.village_id, "completed", tuple(artifacts),
             tuple(warnings), stages,

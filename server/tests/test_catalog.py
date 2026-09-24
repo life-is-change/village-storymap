@@ -40,7 +40,7 @@ def test_unknown_village_is_rejected(tmp_path: Path):
     manifest = tmp_path / "villages.yaml"
     manifest.write_text("villages: {}\n", "utf-8")
 
-    with pytest.raises(KeyError, match="DATASET_NOT_REGISTERED"):
+    with pytest.raises(FileNotFoundError, match="LOCAL_SOURCE_NOT_REGISTERED"):
         load_catalog(manifest, tmp_path).resolve("unknown")
 
 

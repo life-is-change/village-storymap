@@ -38,6 +38,10 @@ class DatasetCatalog:
     def village_ids(self) -> tuple[str, ...]:
         return tuple(self._items)
 
+    def bounds(self, village_id: str) -> tuple[float, float, float, float] | None:
+        item = self._items.get(self._aliases.get(village_id, village_id))
+        return item.bounds if item else None
+
     def status(self, village_id: str) -> str:
         item = self._items.get(self._aliases.get(village_id, village_id))
         if item is None:
@@ -52,10 +56,9 @@ class DatasetCatalog:
         return "ready"
 
     def resolve(self, village_id: str) -> VillageDataset:
-        try:
-            item = self._items[self._aliases.get(village_id, village_id)]
-        except KeyError as exc:
-            raise KeyError("DATASET_NOT_REGISTERED") from exc
+        item = self._items.get(self._aliases.get(village_id, village_id))
+        if item is None:
+            raise FileNotFoundError("LOCAL_SOURCE_NOT_REGISTERED")
         status = self.status(village_id)
         if status != "ready":
             raise FileNotFoundError(status)

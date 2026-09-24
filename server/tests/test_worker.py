@@ -43,6 +43,9 @@ class FakeGateway:
     def fail(self, *args):
         self.events.append("fail")
 
+    def heartbeat(self, worker_id, state, version):
+        self.events.append("heartbeat")
+
 
 def test_worker_claims_runs_pipeline_uploads_then_completes():
     gateway = FakeGateway()
@@ -89,4 +92,33 @@ def test_worker_cycle_survives_a_transient_queue_error_and_can_poll_again():
     assert asyncio.run(worker.run_cycle()) is False
     assert asyncio.run(worker.run_cycle()) is False
     assert gateway.claim_count == 2
-    assert gateway.events == ["heartbeat"]
+    assert gateway.events == ["heartbeat", "heartbeat"]
+
+
+def test_worker_keeps_heartbeat_fresh_while_processing():
+    import time
+
+    class BusyGateway(FakeGateway):
+        def heartbeat(self, worker_id, state, version):
+            self.events.append(f"heartbeat:{state}")
+
+    gateway = BusyGateway()
+
+    def slow_pipeline(run):
+        time.sleep(0.04)
+        return Manifest()
+
+    worker = Worker(gateway, slow_pipeline, worker_id="win11-pilot", lease_renew_seconds=0.01)
+    asyncio.run(worker.run_once())
+    assert "heartbeat:busy" in gateway.events
+
+
+def test_status_publication_failure_does_not_block_queue():
+    gateway = FakeGateway()
+
+    def failing_publisher():
+        raise RuntimeError("temporary status RPC failure")
+
+    worker = Worker(gateway, lambda run: Manifest(), "win11-pilot", source_status_publisher=failing_publisher)
+    assert asyncio.run(worker.run_cycle()) is True
+    assert "complete" in gateway.events

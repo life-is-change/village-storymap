@@ -95,3 +95,19 @@ class SupabaseGateway:
         self.client.rpc("upsert_worker_heartbeat", {
             "p_worker_id": worker_id, "p_state": state, "p_version": version,
         }).execute()
+
+    def list_published_village_ids(self) -> tuple[str, ...]:
+        rows = self.client.table("villages").select("id").eq("status", "published").execute().data or []
+        return tuple(str(row["id"]) for row in rows)
+
+    def publish_source_status(
+        self, village_id: str, ready: bool, code: str | None,
+        worker_id: str, bounds: list[float] | None,
+    ) -> None:
+        self.client.rpc("upsert_geoprocessing_source_status", {
+            "p_village_id": village_id,
+            "p_ready": ready,
+            "p_error_code": code,
+            "p_worker_id": worker_id,
+            "p_bounds": bounds,
+        }).execute()
