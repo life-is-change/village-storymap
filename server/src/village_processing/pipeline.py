@@ -12,14 +12,8 @@ from village_processing.processors.osm import extract_osm_layers
 from village_processing.raster import crop_imagery
 
 
-def resolve_dataset(request: ProcessingRequest, local_catalog, remote_resolver):
-    if request.dataset_id:
-        if remote_resolver is None:
-            raise ValueError("REMOTE_DATASET_RESOLVER_REQUIRED")
-        return remote_resolver.resolve(request, request.work_dir)
-    if request.village_id != "mibu":
-        raise ValueError("DATASET_ID_REQUIRED")
-    return local_catalog.resolve("mibu")
+def resolve_dataset(request: ProcessingRequest, local_catalog, remote_resolver=None):
+    return local_catalog.resolve(request.village_id)
 
 
 @dataclass(frozen=True)
