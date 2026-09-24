@@ -39,6 +39,15 @@ begin
     raise exception 'INVALID_SOURCE_BOUNDS';
   end if;
   if p_ready and p_bounds is null then raise exception 'INVALID_SOURCE_BOUNDS'; end if;
+  if p_bounds is not null then
+    if exists (select 1 from jsonb_array_elements(p_bounds) item where jsonb_typeof(item) <> 'number')
+    then raise exception 'INVALID_SOURCE_BOUNDS'; end if;
+    if (p_bounds->>0)::numeric < -180 or (p_bounds->>2)::numeric > 180
+       or (p_bounds->>1)::numeric < -90 or (p_bounds->>3)::numeric > 90
+       or (p_bounds->>0)::numeric >= (p_bounds->>2)::numeric
+       or (p_bounds->>1)::numeric >= (p_bounds->>3)::numeric
+    then raise exception 'INVALID_SOURCE_BOUNDS'; end if;
+  end if;
   insert into public.geoprocessing_source_status(village_id, ready, error_code, bounds, worker_id, checked_at)
   values(p_village_id, p_ready, p_error_code, p_bounds, p_worker_id, now())
   on conflict(village_id) do update set ready = excluded.ready, error_code = excluded.error_code,
@@ -73,7 +82,7 @@ as $$
   left join public.worker_heartbeats h on h.worker_id = s.worker_id;
 $$;
 revoke all on function public.get_geoprocessing_source_status(text) from public, anon;
-grant execute on function public.get_geoprocessing_source_status(text) to authenticated;
+grant execute on function public.get_geoprocessing_source_status(text) to authenticated, service_role;
 
 create or replace function public.submit_geoprocessing_run(
   p_course_id text, p_village_id text, p_requested_steps text[], p_aoi jsonb, p_parameters jsonb,
