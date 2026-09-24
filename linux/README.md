@@ -10,6 +10,10 @@ Compose 内部的 `geo-worker` 访问。
 
 ## Architecture
 
+个人底图生产不再把管理员上传的共享数据包作为计算输入。浏览器只向 Supabase 提交教学项目、村庄、研究范围和参数；`geo-worker` 从本机 `/data` 读取对应村的影像以及共用的广东 DEM、OSM 和模型，处理后把成果上传回私有 Storage。共享现状底图上传流程保持原样。
+
+`server/config/villages.yaml` 使用数据库中的真实村庄 UUID 登记每村影像。米埗村当前 UUID 是 `00000000-0000-4000-8000-000000000001`；红星村的 UUID 必须从数据库核对后登记，不能按村名猜。红星村影像未放到 4090 时，Worker 仍应正常服务米埗村，而红星村个人任务应在提交前提示“本地影像未登记/缺失”。
+
 ```text
 Browser -> Supabase queue/private Storage <- HTTPS -> geo-worker
                                                      |

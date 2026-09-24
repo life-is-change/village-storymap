@@ -40,6 +40,9 @@ compose exec -T building python3 -c \
 geo python -m village_processing health
 
 geo python -c \
+  'import os; from pathlib import Path; from village_processing.catalog import load_catalog; c=load_catalog(Path(os.environ.get("PLATFORM_CATALOG","/app/server/config/villages.yaml")),Path(os.environ["PLATFORM_DATA_ROOT"])); village="00000000-0000-4000-8000-000000000001"; status=c.status(village); assert status=="ready", "Mibu local source is not ready: "+status; print("Mibu local source ready")'
+
+geo python -c \
   'import json; from pathlib import Path; root=Path("/work/linux-smoke"); root.mkdir(parents=True, exist_ok=True); payload={"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[113.661,23.676],[113.665,23.676],[113.665,23.679],[113.661,23.679],[113.661,23.676]]]}}; (root/"aoi.geojson").write_text(json.dumps(payload), "utf-8")'
 
 geo python -m village_processing crop-imagery \

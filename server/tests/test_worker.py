@@ -122,3 +122,17 @@ def test_status_publication_failure_does_not_block_queue():
     worker = Worker(gateway, lambda run: Manifest(), "win11-pilot", source_status_publisher=failing_publisher)
     assert asyncio.run(worker.run_cycle()) is True
     assert "complete" in gateway.events
+
+
+def test_source_disappears_after_claim_reports_specific_failure_code():
+    class RecordingGateway(FakeGateway):
+        def fail(self, run_id, worker_id, code, message):
+            self.failed = (code, message)
+
+    gateway = RecordingGateway()
+
+    def missing_source(run):
+        raise FileNotFoundError("LOCAL_IMAGERY_MISSING")
+
+    assert asyncio.run(Worker(gateway, missing_source, "worker-1").run_once()) is True
+    assert gateway.failed == ("LOCAL_IMAGERY_MISSING", "LOCAL_IMAGERY_MISSING")
