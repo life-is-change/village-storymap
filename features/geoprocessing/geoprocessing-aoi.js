@@ -33,7 +33,9 @@
     if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
     const areaSqKm = polygonAreaSqKm(ring);
     if (!(areaSqKm > 0)) return { ok: false, code: "AOI_INVALID" };
-    if (areaSqKm > maxAreaSqKm) return { ok: false, code: "AOI_TOO_LARGE" };
+    if (maxAreaSqKm != null && areaSqKm > maxAreaSqKm) {
+      return { ok: false, code: "AOI_TOO_LARGE", areaSqKm, maxAreaSqKm };
+    }
     return { ok: true, geometry: { type: "Polygon", coordinates: [ring] }, areaSqKm };
   }
 
@@ -47,6 +49,7 @@
     map.addLayer(layer);
     let draw = null;
     let activeVillageBounds = Array.isArray(villageBounds) ? [...villageBounds] : null;
+    let activeMaxAreaSqKm = maxAreaSqKm;
     function clearInteraction() {
       if (draw) map.removeInteraction(draw);
       draw = null;
@@ -77,13 +80,18 @@
       },
       validate() {
         if (!activeVillageBounds) return { ok: false, code: "AOI_BOUNDS_REQUIRED" };
-        return validateAoi(this.getGeoJSON(), activeVillageBounds, maxAreaSqKm);
+        return validateAoi(this.getGeoJSON(), activeVillageBounds, activeMaxAreaSqKm);
       },
       setVillageBounds(bounds) {
         if (!Array.isArray(bounds) || bounds.length !== 4 || bounds.some((value) => !Number.isFinite(Number(value)))) {
           throw new Error("AOI_BOUNDS_INVALID");
         }
         activeVillageBounds = bounds.map(Number);
+      },
+      setMaxAreaSqKm(value) {
+        const limit = Number(value);
+        if (!(limit > 0) || !Number.isFinite(limit)) throw new Error("AOI_MAX_AREA_INVALID");
+        activeMaxAreaSqKm = limit;
       },
       destroy() {
         this.clear();

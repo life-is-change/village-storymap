@@ -6,8 +6,10 @@ const {
   restoreLatestRun,
   startAoiWithPreview,
   shouldNotifyCompletion,
-  getArtifactLabel
+  getArtifactLabel,
+  createSubmissionGuard
 } = require("./geoprocessing-panel.js");
+const { formatAoiValidationMessage, formatSubmissionError } = require("./geoprocessing-panel.js");
 
 test("panel defaults to all processors and safe parameters", () => {
   const html = renderGeoprocessingForm({ availability: "available" });
@@ -41,6 +43,21 @@ test("saved run renders a disabled saved state instead of another import action"
   assert.match(html, /data-run-saved/);
   assert.match(html, /已保存到个人空间/);
   assert.doesNotMatch(html, /data-save-run/);
+});
+
+test("failed run shows the worker's stored reason and run id instead of only failed", () => {
+  const html = renderRunStatus({ id: "run-42", status: "failed", progress: 1,
+    error_code: "DATASET_NOT_FOUND", error_message: "Missing configured imagery" });
+  assert.match(html, /DATASET_NOT_FOUND/);
+  assert.match(html, /Missing configured imagery/);
+  assert.match(html, /run-42/);
+  assert.doesNotMatch(html, /等待领取/);
+});
+
+test("worker failure text is escaped before rendering", () => {
+  const html = renderRunStatus({ id: "run-1", status: "failed", error_message: "<img src=x>" });
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
 });
 
 test("completion notification only fires for an active to completed transition", () => {
@@ -86,4 +103,53 @@ test("AOI drawing stays stopped when the village preview is unavailable", async 
   assert.equal(ok, false);
   assert.equal(calls.some((item) => item === "draw"), false);
   assert.match(calls[0], /预览/);
+});
+
+test("personal workspace failure is not misreported as missing TIF preview", async () => {
+  const messages = [];
+  await startAoiWithPreview({
+    onStartAoi: async () => { throw new Error("PERSONAL_SPACE_UNAVAILABLE"); },
+    aoiController: { start() { assert.fail("must not draw in shared space"); } },
+    showMessage: (message) => messages.push(message)
+  });
+  assert.match(messages[0], /个人空间/);
+  assert.doesNotMatch(messages[0], /TIF/);
+});
+
+test("AOI too large message gives measured area and village limit", () => {
+  assert.match(formatAoiValidationMessage({ code: "AOI_TOO_LARGE", areaSqKm: 0.76, maxAreaSqKm: 0.5 }), /0\.76.*0\.50/);
+});
+
+test("backend AOI size rejection gives actionable guidance", () => {
+  assert.match(formatSubmissionError({ message: "AOI_TOO_LARGE" }), /缩小范围/);
+});
+
+test("missing local imagery disables drawing and submission with a clear reason", () => {
+  const html = renderGeoprocessingForm({ availability: "available", sourceStatus: { state: "missing", error_code: "LOCAL_IMAGERY_MISSING" } });
+  assert.match(html, /本地遥感影像/);
+  assert.match(html, /data-aoi-start[^>]*disabled/);
+  assert.match(html, /class="geoprocessing-submit"[^>]*disabled/);
+});
+
+test("submission guard prevents a second request while the first is pending", async () => {
+  const guard = createSubmissionGuard();
+  let finish;
+  let calls = 0;
+  const first = guard.run(async () => {
+    calls += 1;
+    return new Promise((resolve) => { finish = resolve; });
+  });
+  const second = await guard.run(async () => { calls += 1; return "duplicate"; });
+  assert.equal(second.accepted, false);
+  assert.equal(calls, 1);
+  finish("run-1");
+  assert.deepEqual(await first, { accepted: true, value: "run-1" });
+  assert.equal(guard.isSubmitting(), false);
+});
+
+test("submission guard unlocks after failure", async () => {
+  const guard = createSubmissionGuard();
+  await assert.rejects(guard.run(async () => { throw new Error("NETWORK_ERROR"); }), /NETWORK_ERROR/);
+  assert.equal(guard.isSubmitting(), false);
+  assert.deepEqual(await guard.run(async () => "run-2"), { accepted: true, value: "run-2" });
 });

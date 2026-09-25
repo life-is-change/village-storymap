@@ -225,6 +225,8 @@ let geoprocessingAoiController = null;
 let geoprocessingResultPreview = null;
 let villagePreviewController = null;
 let personalSpaceClient = null;
+let coursePersonalSpace = null;
+let coursePersonalSpaceInitToken = 0;
 let villageClient = null;
 let surveyReviewClient = null;
 let surveyReviewPanel = null;
@@ -1933,6 +1935,12 @@ async function commitVillageContext(prepared) {
   await applyVillageDatasetToPlanMap(prepared.datasetResources);
   sync2DSpaceStateTo3D();
   renderSpaceList();
+  if (courseWorkbench) {
+    await initializeCoursePersonalSpace().catch((error) => {
+      console.warn("当前村庄的个人图底空间暂时无法初始化：", error);
+    });
+    await courseWorkbench.refresh();
+  }
   if (planMap && plan2dView?.classList.contains("active")) {
     await refresh2DOverlay({ forceFullRebuild: true });
   }
@@ -2096,6 +2104,44 @@ async function openCoursePlanningWorkspace(viewMode, group) {
   await handleSpaceSelect(space.id);
 }
 
+async function initializeCoursePersonalSpace() {
+  if (!supabaseClient) return null;
+  const token = ++coursePersonalSpaceInitToken;
+  personalSpaceClient = null;
+  coursePersonalSpace = null;
+  const client = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
+  const user = getCourseUser();
+  const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
+  const personalSpace = await client.ensure({
+    courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+    teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+    villageId: processingContext.personalVillageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+    spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
+    title: `${user.name || "学生"} · 个人图底空间`
+  });
+  const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(personalSpace.id));
+  const selections = await client.listSelections(personalSpace.id);
+  if (token !== coursePersonalSpaceInitToken) return null;
+  personalSpaceClient = client;
+  coursePersonalSpace = personalSpace;
+  const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
+    personalSpace,
+    user,
+    existingSpace: existingPersonalWorkspace,
+    selections,
+    courseId: window.CourseModelModule.DEFAULT_COURSE.id,
+    teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+    villageId: processingContext.personalVillageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+    spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal"
+  });
+  const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
+  if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
+  else spaces.push(workspaceSpace);
+  saveSpacesToStorage({ syncRemote: false });
+  renderSpaceList();
+  return personalSpace;
+}
+
 async function ensureCourseWorkbenchInitialized() {
   if (courseWorkbench) return courseWorkbench;
   if (
@@ -2136,35 +2182,9 @@ async function ensureCourseWorkbenchInitialized() {
       };
     }
   });
-  let coursePersonalSpace = null;
   if (supabaseClient) {
-    personalSpaceClient = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
     try {
-      const user = getCourseUser();
-      coursePersonalSpace = await personalSpaceClient.ensure({
-        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
-        title: `${user.name || "学生"} · 个人图底空间`
-      });
-      const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
-      const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
-      const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
-        personalSpace: coursePersonalSpace,
-        user,
-        existingSpace: existingPersonalWorkspace,
-        selections,
-        courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal"
-      });
-      const existingIndex = spaces.findIndex((space) => space.id === workspaceSpace.id);
-      if (existingIndex >= 0) spaces[existingIndex] = { ...spaces[existingIndex], ...workspaceSpace };
-      else spaces.push(workspaceSpace);
-      saveSpacesToStorage({ syncRemote: false });
-      renderSpaceList();
+      await initializeCoursePersonalSpace();
     } catch (error) {
       console.warn("个人图底空间暂时无法初始化：", error);
     }
@@ -2191,14 +2211,19 @@ async function ensureCourseWorkbenchInitialized() {
           || !window.VillagePreviewModule
           || !window.GeoprocessingResultLayersModule || !window.GeoprocessingPanelModule) return;
       const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient });
+      const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
       let availability = "offline";
       try { availability = (await client.getAvailability())?.state || "offline"; } catch (_) { /* queue remains usable */ }
+      let sourceStatus = null;
+      try { sourceStatus = await client.getSourceStatus(processingContext.villageId); } catch (_) {
+        sourceStatus = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
+      }
       geoprocessingAoiController = window.GeoprocessingAoiModule.createAoiController({
         map: planMap,
         ol: window.__OL__,
-        villageBounds: activeVillageContext?.datasetResources?.initialExtent
+        villageBounds: sourceStatus?.bounds || activeVillageContext?.datasetResources?.initialExtent
           || [113.6578225, 23.6739555, 113.6695615, 23.6806181],
-        maxAreaSqKm: 2
+        maxAreaSqKm: sourceStatus?.max_aoi_sq_km || 2
       });
       villagePreviewController = window.VillagePreviewModule.createVillagePreviewController({
         map: planMap,
@@ -2221,16 +2246,28 @@ async function ensureCourseWorkbenchInitialized() {
         client,
         aoiController: geoprocessingAoiController,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || null,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        datasetId: activeVillageContext?.datasetId || null,
+        teachingProjectId: processingContext.teachingProjectId,
+        villageId: processingContext.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+        datasetId: processingContext.datasetId,
         availability,
+        sourceStatus,
         onStartAoi: async () => {
-          const entry = await villagePreviewController.show(
-            activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-            activeVillageContext?.datasetResources
-          );
-          geoprocessingAoiController.setVillageBounds(entry.bounds);
+          await window.GeoprocessingContextModule.enterPersonalGeoprocessingSpace({
+            personalSpace: coursePersonalSpace,
+            spaces,
+            villageId: activeVillageContext?.villageId,
+            teachingProjectId: activeVillageContext?.teachingProjectId,
+            getSpaceById,
+            getCurrentSpaceId: () => currentSpaceId,
+            selectSpace: handleSpaceSelect
+          });
+          try {
+            await villagePreviewController.show(
+              processingContext.previewVillageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+              processingContext.previewResources
+            );
+          } catch (_) { /* Existing map remains drawable without a published preview. */ }
+          if (sourceStatus?.bounds) geoprocessingAoiController.setVillageBounds(sourceStatus.bounds);
         },
         onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success"),
         onPreview: async (artifacts) => {
@@ -7664,6 +7701,7 @@ function resetWorkspaceStateDefaults() {
 }
 
 async function reloadWorkspaceForAuthenticatedAccount() {
+  coursePersonalSpaceInitToken += 1;
   geoprocessingPanel?.destroy?.();
   geoprocessingAoiController?.destroy?.();
   geoprocessingResultPreview?.destroy?.();
@@ -7679,6 +7717,7 @@ async function reloadWorkspaceForAuthenticatedAccount() {
   courseService = null;
   activityLogger = null;
   personalSpaceClient = null;
+  coursePersonalSpace = null;
 
   resetWorkspaceStateDefaults();
   spaces = loadSpacesFromStorage();

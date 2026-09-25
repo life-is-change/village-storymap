@@ -73,3 +73,29 @@ villages:
     assert catalog.status(hongxing_id) == "LOCAL_IMAGERY_MISSING"
     with pytest.raises(FileNotFoundError, match="LOCAL_IMAGERY_MISSING"):
         catalog.resolve(hongxing_id)
+
+
+def test_deployed_catalog_registers_hongxing_local_imagery_and_shared_sources():
+    village_id = "79ea2696-baf9-4194-acf0-fb29667bd874"
+    imagery = "建筑矢量/input_tif/红星村.tif"
+    dem = "等高线/广东省_哥白尼DEM.tif"
+    osm = "道路、水系/guangdong-260721.osm.pbf"
+    model_config = "建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.py"
+    model_checkpoint = "建筑矢量/china/mask_rcnn_x101_64x4d_fpn_2x_building_combine_total_china_finetune.pth"
+    manifest = Path(__file__).resolve().parents[1] / "config" / "villages.yaml"
+    data_root = manifest.parent / "catalog-test-root"
+    catalog = load_catalog(manifest, data_root)
+    item = catalog._items[village_id]
+
+    assert item.display_name == "红星村"
+    assert item.imagery == (data_root / imagery).resolve()
+    assert item.dem == (data_root / dem).resolve()
+    assert item.osm == (data_root / osm).resolve()
+    assert item.model_config == (data_root / model_config).resolve()
+    assert item.model_checkpoint == (data_root / model_checkpoint).resolve()
+    assert item.bounds == (
+        113.89168024063113,
+        22.704443889633787,
+        113.91114234924319,
+        22.720496594144244,
+    )

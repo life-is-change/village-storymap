@@ -18,6 +18,43 @@ browser storage, screenshots, issues, or chat.
 The migration is idempotent. Do not run it from the browser with the
 publishable key.
 
+## Local-input student processing rollout
+
+Admin-uploaded published packages remain the shared current-state map only. A
+student task now submits AOI, options, village UUID, and teaching-project UUID;
+the 4090 Worker reads pre-provisioned imagery for that village plus shared DEM,
+OSM, and model files under `PLATFORM_DATA_ROOT`. It uploads only the results.
+Historical `dataset_id`/`input_manifest` columns remain for audit, but no longer
+select a Worker input source.
+
+Deployment is coordinated: first back up the Supabase schema and apply
+`supabase_SQL/Geoprocessing Local Source Inputs.sql` after the queue and
+multi-village repair migrations, then deploy the updated 4090 Worker and
+frontend in one maintenance window. The SQL disables the five-argument submit
+RPC; an old browser will no longer be able to submit. Do not deploy frontend
+first. Verify the Worker publishes `geoprocessing_source_status` and has a
+fresh heartbeat before reopening student submissions. Do not delete history
+or status rows as a rollback shortcut.
+
+The catalog paths in `server/config/villages.yaml` are relative to
+`PLATFORM_DATA_ROOT`. Shared Guangdong DEM/OSM and model files are reused by
+all villages; each new village needs its own imagery file and real database
+UUID. A missing village is reported as `LOCAL_SOURCE_NOT_REGISTERED`; a file
+missing from its registered path is `LOCAL_IMAGERY_MISSING`. Neither condition
+may stop other villages from processing. The status RPC publishes only a
+readiness code and geographic bounds, never server file paths. Its 2-minute
+expiry prevents stale “ready” state when Worker connectivity is lost.
+
+Read-only acceptance: check Mibu source status `ready`; check Hongxing status
+`ready` if its registered imagery is present, or `LOCAL_IMAGERY_MISSING` if it
+is absent; submit a small Mibu AOI through a test
+student account, then verify queue claim, processing, private artifact upload,
+preview, and explicit import to personal space. The live test is opt-in with
+`RUN_LIVE_SUPABASE=1`. Inspect `stage=local_source`, `stage=buildings`,
+`stage=roads_water`, `stage=contours`, `stage=upload`, and `stage=total` log
+durations before comparing with the previous ~10-second experience; this
+implementation does not promise a 10-second runtime without that measurement.
+
 ## Win11 Worker configuration
 
 Copy `server/.env.example` to the ignored `server/.env` and replace only the

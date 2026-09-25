@@ -31,18 +31,23 @@
           .select("village_id,display_name,bounds,max_aoi_sq_km,active")
           .eq("village_id", villageId).eq("active", true).single());
       },
+      async getSourceStatus(villageId) {
+        const data = assertNoError(await supabaseClient.rpc("get_geoprocessing_source_status", {
+          p_village_id: String(villageId)
+        }));
+        return Array.isArray(data) ? data[0] : data;
+      },
       async submit(payload) {
+        if (!payload.teachingProjectId) throw new Error("TEACHING_PROJECT_REQUIRED");
         const args = {
           p_course_id: String(payload.courseId),
           p_village_id: String(payload.villageId),
           p_requested_steps: Array.from(payload.requestedSteps || []),
           p_aoi: payload.aoi,
-          p_parameters: normalizeParameters(payload.parameters)
+          p_parameters: normalizeParameters(payload.parameters),
+          p_teaching_project_id: String(payload.teachingProjectId),
+          p_dataset_id: null
         };
-        if (payload.teachingProjectId && payload.datasetId) {
-          args.p_teaching_project_id = String(payload.teachingProjectId);
-          args.p_dataset_id = String(payload.datasetId);
-        }
         return assertNoError(await supabaseClient.rpc("submit_geoprocessing_run", args));
       },
       async getAvailability() {
@@ -54,8 +59,11 @@
           .select("*").eq("id", runId).single());
       },
       async listMine(villageId) {
-        return assertNoError(await supabaseClient.from("geoprocessing_runs")
-          .select("*").eq("village_id", villageId).order("created_at", { ascending: false }));
+        const query = supabaseClient.from("geoprocessing_runs").select("*");
+        const scoped = String(villageId) === "00000000-0000-4000-8000-000000000001"
+          ? query.in("village_id", [String(villageId), "mibu"])
+          : query.eq("village_id", villageId);
+        return assertNoError(await scoped.order("created_at", { ascending: false }));
       },
       subscribe(runId, onChange) {
         const channel = supabaseClient.channel(`geoprocessing-run-${runId}`)

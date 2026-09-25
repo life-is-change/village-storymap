@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from pathlib import Path
+import time
 
 from .models import FacadeRun
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FacadeCancelRequested(RuntimeError):
@@ -44,7 +49,12 @@ class FacadePipeline:
         self._check_canceled(run)
         self.gateway.download_photo(run, input_path)
         self._check_canceled(run)
+        started = time.monotonic()
         artifacts = self.processor.rectify(input_path, job_dir)
+        LOGGER.info(
+            "Facade rectification %s processing completed in %.2fs",
+            run.run_id, time.monotonic() - started,
+        )
 
         definitions = (
             ("rectified_source", artifacts.source, "image/png"),
@@ -76,7 +86,12 @@ class FacadePipeline:
                 "source": {"phase": "rectification"},
             })
         self._check_canceled(run)
+        started = time.monotonic()
         self.gateway.publish_rectification(run.run_id, self.worker_id, published)
+        LOGGER.info(
+            "Facade rectification %s publication completed in %.2fs",
+            run.run_id, time.monotonic() - started,
+        )
         return artifacts
 
     def generate(self, run: FacadeRun):
@@ -113,6 +128,7 @@ class FacadePipeline:
             "roof_pitch": "standard",
             "roof_material": "gray_tile",
         }
+        started = time.monotonic()
         texture, resolved = self.processor.prepare_texture(
             rectified,
             mask,
@@ -120,8 +136,17 @@ class FacadePipeline:
             crop_top=run.crop_top,
             building=building,
         )
+        LOGGER.info(
+            "Facade generation %s texture preparation completed in %.2fs",
+            run.run_id, time.monotonic() - started,
+        )
         self._check_canceled(run)
+        started = time.monotonic()
         generated = self.processor.generate_prepared(texture, job_dir, resolved)
+        LOGGER.info(
+            "Facade generation %s Blender completed in %.2fs",
+            run.run_id, time.monotonic() - started,
+        )
         if (
             not generated.glb.is_file()
             or generated.glb.stat().st_size < 12

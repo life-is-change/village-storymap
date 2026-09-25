@@ -1,7 +1,10 @@
 import asyncio
 from dataclasses import dataclass
+import logging
 from pathlib import Path
+from threading import Event
 
+import httpx
 import pytest
 
 from village_processing.facade.models import FacadeRun
@@ -156,6 +159,16 @@ def test_rectification_uploads_required_artifacts_then_waits_for_crop(tmp_path):
     }
 
 
+def test_rectification_logs_processing_and_publication_durations(tmp_path, caplog):
+    pipeline = FacadePipeline(FakeGateway(), FakeProcessor(), tmp_path, "worker-1")
+
+    with caplog.at_level(logging.INFO):
+        pipeline.rectify(facade_run())
+
+    assert "Facade rectification run-1 processing completed in" in caplog.text
+    assert "Facade rectification run-1 publication completed in" in caplog.text
+
+
 def test_awaiting_crop_is_never_claimed_or_renewed(tmp_path):
     gateway = FakeGateway(run=None)
     worker = FacadeWorker(gateway, object(), "linux-4090-01", lease_renew_seconds=0.001)
@@ -174,6 +187,16 @@ def test_generation_restores_missing_rectification_artifacts(tmp_path):
     assert "restore:rectified_source" in gateway.events
     assert "restore:building_mask" in gateway.events
     assert gateway.events[-1] == "publish_generation"
+
+
+def test_generation_logs_texture_preparation_and_blender_durations(tmp_path, caplog):
+    pipeline = FacadePipeline(FakeGateway(), FakeProcessor(), tmp_path, "worker-1")
+
+    with caplog.at_level(logging.INFO):
+        pipeline.generate(facade_run("claimed_generation", revision=2))
+
+    assert "Facade generation run-1 texture preparation completed in" in caplog.text
+    assert "Facade generation run-1 Blender completed in" in caplog.text
 
 
 def test_regeneration_failure_preserves_previous_glb_record(tmp_path):
@@ -195,6 +218,33 @@ def test_busy_worker_emits_heartbeat_during_processing(tmp_path):
 
     assert asyncio.run(worker.run_once()) is True
     assert "heartbeat" in gateway.events
+
+
+def test_lease_renew_loop_retries_after_transient_disconnect():
+    class FlakyGateway(FakeGateway):
+        def __init__(self):
+            super().__init__()
+            self.recovered = Event()
+
+        def renew(self, run_id, worker_id):
+            super().renew(run_id, worker_id)
+            if self.renew_count == 1:
+                raise httpx.RemoteProtocolError("server disconnected")
+            self.recovered.set()
+
+    async def exercise():
+        gateway = FlakyGateway()
+        worker = FacadeWorker(gateway, object(), "worker-1", lease_renew_seconds=0.001)
+        task = asyncio.create_task(worker._renew_until_done("run-1"))
+        try:
+            assert await asyncio.wait_for(asyncio.to_thread(gateway.recovered.wait, 1), 2)
+            assert gateway.renew_count >= 2
+        finally:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    asyncio.run(exercise())
 
 
 def test_expired_claim_can_resume_with_deterministic_paths(tmp_path):

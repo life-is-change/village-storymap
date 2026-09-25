@@ -140,9 +140,19 @@ test("workbench mounts geoprocessing only for the active figure-ground task", as
   assert.equal(mounted.at(-1), panelMount);
 });
 
+test("personal basemap entry uses current village source status and switches into its personal space", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.js"), "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
+  assert.match(html, /features\/geoprocessing\/geoprocessing-context\.js/);
+  assert.match(app, /GeoprocessingContextModule\.resolveGeoprocessingContext/);
+  assert.match(app, /client\.getSourceStatus\(processingContext\.villageId\)/);
+  assert.match(app, /GeoprocessingContextModule\.enterPersonalGeoprocessingSpace/);
+  assert.match(app, /sourceStatus\?\.bounds/);
+});
+
 test("geoprocessing workbench scripts share a cache-busting release version", () => {
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  const version = "20260723-contour-ui";
+  const version = "20260925-local-source";
 
   for (const script of [
     "geoprocessing-client.js",
@@ -169,7 +179,7 @@ test("course entry ensures one personal figure-ground space without mirroring it
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
   assert.match(html, /features\/data\/personal-space-client\.js\?v=20260810-platform-fix/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
-  assert.match(app, /personalSpaceClient\.ensure\(/);
+  assert.match(app, /const personalSpace = await client\.ensure\(/);
   assert.match(app, /managedSpaceTypes = new Set\(\[/);
   assert.match(app, /"course_personal"/);
   assert.match(app, /!s\.teachingProjectId/);
@@ -190,7 +200,7 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260908-survey-markers/);
+  assert.match(html, /app\.js\?v=20260925-local-source/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -207,7 +217,7 @@ test("personal space reliability scripts share a cache-busting release version",
   }
 
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260908-survey-markers/);
+  assert.match(html, /app\.js\?v=20260925-local-source/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {
