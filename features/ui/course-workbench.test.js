@@ -148,6 +148,9 @@ test("personal basemap entry uses current village source status and switches int
   assert.match(app, /client\.getSourceStatus\(processingContext\.villageId\)/);
   assert.match(app, /GeoprocessingContextModule\.enterPersonalGeoprocessingSpace/);
   assert.match(app, /sourceStatus\?\.bounds/);
+  assert.match(app, /geoprocessingMountGuard\.begin\(\)/);
+  assert.match(app, /geoprocessingMountGuard\.isCurrent\(mountToken\)/);
+  assert.match(app, /geoprocessingMountGuard\.invalidate\(\)/);
 });
 
 test("geoprocessing workbench scripts share a cache-busting release version", () => {

@@ -57,7 +57,8 @@
         <span class="geoprocessing-status-dot" aria-hidden="true"></span>
         <span>${hint}</span>
       </div>
-      <p class="geoprocessing-message">${escapeHtml(sourceHint)}</p>
+      <p class="geoprocessing-message" data-source-hint>${escapeHtml(sourceHint)}</p>
+      <button class="geoprocessing-btn is-secondary" type="button" data-source-refresh>重新检查数据状态</button>
       <div class="geoprocessing-section-heading">
         <strong>研究范围</strong><span>先在影像上绘制本次处理范围</span>
       </div>
@@ -128,6 +129,27 @@
         }
       }
     };
+  }
+
+  async function refreshSourceStatus({ client, villageId, container, aoiController, activeRun = false }) {
+    let status;
+    try {
+      status = await client.getSourceStatus(villageId);
+    } catch (_) {
+      status = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
+    }
+    const ready = status?.state === "ready";
+    const draw = container.querySelector("[data-aoi-start]");
+    const submit = container.querySelector(".geoprocessing-submit");
+    const hint = container.querySelector("[data-source-hint]");
+    if (draw) draw.disabled = !ready;
+    if (submit) submit.disabled = !ready || activeRun;
+    if (hint) hint.textContent = ready
+      ? "4090 本地源数据已就绪。"
+      : formatSubmissionError({ message: status?.error_code || "SOURCE_STATUS_STALE" });
+    if (ready && Array.isArray(status?.bounds)) aoiController?.setVillageBounds?.(status.bounds);
+    if (ready && Number(status?.max_aoi_sq_km) > 0) aoiController?.setMaxAreaSqKm?.(Number(status.max_aoi_sq_km));
+    return status;
   }
 
   function shouldNotifyCompletion(previousRun, nextRun) {
@@ -211,11 +233,9 @@
         showMessage("已有任务正在提交或处理，请等待完成后再提交新任务。");
         return;
       }
-      try {
-        currentSourceStatus = await client.getSourceStatus(villageId);
-      } catch (_) {
-        currentSourceStatus = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
-      }
+      currentSourceStatus = await refreshSourceStatus({
+        client, villageId, container, aoiController, activeRun: isActiveRun(run)
+      });
       if (currentSourceStatus?.state !== "ready") return showMessage(formatSubmissionError({ message: currentSourceStatus?.error_code }));
       const validation = aoiController.validate();
       if (!validation.ok) return showMessage(formatAoiValidationMessage(validation));
@@ -248,12 +268,16 @@
       }
     }
     async function click(event) {
+      if (event.target.closest("[data-source-refresh]")) {
+        currentSourceStatus = await refreshSourceStatus({
+          client, villageId, container, aoiController, activeRun: isActiveRun(run)
+        });
+        return;
+      }
       if (event.target.closest("[data-aoi-start]")) {
-        try {
-          currentSourceStatus = await client.getSourceStatus(villageId);
-        } catch (_) {
-          currentSourceStatus = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
-        }
+        currentSourceStatus = await refreshSourceStatus({
+          client, villageId, container, aoiController, activeRun: isActiveRun(run)
+        });
         if (currentSourceStatus?.state !== "ready") {
           showMessage(formatSubmissionError({ message: currentSourceStatus?.error_code }));
           return;
@@ -312,6 +336,7 @@
     restoreLatestRun,
     shouldNotifyCompletion,
     createSubmissionGuard,
+    refreshSourceStatus,
     startAoiWithPreview,
     formatAoiValidationMessage,
     formatSubmissionError

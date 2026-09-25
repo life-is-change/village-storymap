@@ -224,6 +224,7 @@ let geoprocessingPanel = null;
 let geoprocessingAoiController = null;
 let geoprocessingResultPreview = null;
 let villagePreviewController = null;
+const geoprocessingMountGuard = window.GeoprocessingContextModule.createMountGuard();
 let personalSpaceClient = null;
 let coursePersonalSpace = null;
 let coursePersonalSpaceInitToken = 0;
@@ -1919,6 +1920,9 @@ async function applyVillageDatasetToPlanMap(resources) {
 }
 
 async function commitVillageContext(prepared) {
+  geoprocessingMountGuard.invalidate();
+  geoprocessingPanel?.destroy?.();
+  geoprocessingPanel = null;
   activeVillageContext = { ...activeVillageContext, ...prepared };
   window.__activeVillageContext = activeVillageContext;
   broadcastHomepageContext();
@@ -2198,6 +2202,7 @@ async function ensureCourseWorkbenchInitialized() {
     getUser: getCourseUser,
     showToast,
     mountGeoprocessing: async (container) => {
+      const mountToken = geoprocessingMountGuard.begin();
       geoprocessingPanel?.destroy?.();
       geoprocessingAoiController?.destroy?.();
       geoprocessingResultPreview?.destroy?.();
@@ -2218,6 +2223,8 @@ async function ensureCourseWorkbenchInitialized() {
       try { sourceStatus = await client.getSourceStatus(processingContext.villageId); } catch (_) {
         sourceStatus = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
       }
+      if (!geoprocessingMountGuard.isCurrent(mountToken) || !container.isConnected
+          || String(processingContext.villageId) !== String(activeVillageContext?.villageId)) return;
       geoprocessingAoiController = window.GeoprocessingAoiModule.createAoiController({
         map: planMap,
         ol: window.__OL__,
@@ -7701,6 +7708,7 @@ function resetWorkspaceStateDefaults() {
 }
 
 async function reloadWorkspaceForAuthenticatedAccount() {
+  geoprocessingMountGuard.invalidate();
   coursePersonalSpaceInitToken += 1;
   geoprocessingPanel?.destroy?.();
   geoprocessingAoiController?.destroy?.();

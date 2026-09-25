@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { resolveGeoprocessingContext, enterPersonalGeoprocessingSpace } = require("./geoprocessing-context.js");
+const { resolveGeoprocessingContext, enterPersonalGeoprocessingSpace, createMountGuard } = require("./geoprocessing-context.js");
 const { findVillagePreview } = require("./village-preview.js");
 const { createGeoprocessingClient } = require("./geoprocessing-client.js");
 const catalog = require("../../assets/villages/catalog.json");
@@ -110,4 +110,14 @@ test("drawing cannot continue in shared space when this village has no personal 
     villageId: "mibu-uuid", teachingProjectId: "project-1", getCurrentSpaceId: () => "shared-1",
     selectSpace: async () => {}
   }), /PERSONAL_SPACE_UNAVAILABLE/);
+});
+
+test("a newer village panel mount invalidates an older async mount", () => {
+  const guard = createMountGuard();
+  const mibuMount = guard.begin();
+  const hongxingMount = guard.begin();
+  assert.equal(guard.isCurrent(mibuMount), false);
+  assert.equal(guard.isCurrent(hongxingMount), true);
+  guard.invalidate();
+  assert.equal(guard.isCurrent(hongxingMount), false);
 });

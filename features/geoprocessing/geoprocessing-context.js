@@ -47,5 +47,14 @@
     return id;
   }
 
-  return { LEGACY_MIBU_ID, resolveGeoprocessingContext, enterPersonalGeoprocessingSpace };
+  function createMountGuard() {
+    let generation = 0;
+    return {
+      begin: () => ++generation,
+      invalidate: () => { generation += 1; },
+      isCurrent: (token) => token === generation
+    };
+  }
+
+  return { LEGACY_MIBU_ID, resolveGeoprocessingContext, enterPersonalGeoprocessingSpace, createMountGuard };
 });

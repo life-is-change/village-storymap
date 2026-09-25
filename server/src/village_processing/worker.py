@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+import re
 from time import perf_counter
 from typing import Callable
 
@@ -14,7 +15,7 @@ class CancelRequested(Exception):
 
 def error_code(error: Exception) -> str:
     value = str(error)
-    if value and value == value.upper() and " " not in value and len(value) <= 64:
+    if re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}", value):
         return value
     return "PROCESSING_FAILED"
 
@@ -86,12 +87,14 @@ class Worker:
         except CancelRequested:
             await asyncio.to_thread(self.gateway.cancel, run.run_id, self.worker_id)
         except Exception as exc:
+            LOGGER.exception("run=%s processing failed", run.run_id)
+            code = error_code(exc)
             await asyncio.to_thread(
                 self.gateway.fail,
                 run.run_id,
                 self.worker_id,
-                error_code(exc),
-                str(exc),
+                code,
+                code if code != "PROCESSING_FAILED" else "处理失败，请联系管理员并提供任务编号。",
             )
         finally:
             LOGGER.info("run=%s stage=total seconds=%.3f", run.run_id, perf_counter() - run_started)

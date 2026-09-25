@@ -7,7 +7,8 @@ const {
   startAoiWithPreview,
   shouldNotifyCompletion,
   getArtifactLabel,
-  createSubmissionGuard
+  createSubmissionGuard,
+  refreshSourceStatus
 } = require("./geoprocessing-panel.js");
 const { formatAoiValidationMessage, formatSubmissionError } = require("./geoprocessing-panel.js");
 
@@ -129,6 +130,30 @@ test("missing local imagery disables drawing and submission with a clear reason"
   assert.match(html, /本地遥感影像/);
   assert.match(html, /data-aoi-start[^>]*disabled/);
   assert.match(html, /class="geoprocessing-submit"[^>]*disabled/);
+  assert.match(html, /data-source-refresh/);
+});
+
+test("refreshing source status enables controls and updates AOI limits after the worker recovers", async () => {
+  const draw = { disabled: true };
+  const submit = { disabled: true };
+  const hint = { textContent: "" };
+  const limits = [];
+  const elements = { "[data-aoi-start]": draw, ".geoprocessing-submit": submit, "[data-source-hint]": hint };
+  const status = await refreshSourceStatus({
+    client: { getSourceStatus: async () => ({ state: "ready", bounds: [1, 2, 3, 4], max_aoi_sq_km: 2 }) },
+    villageId: "village-1",
+    container: { querySelector: (selector) => elements[selector] },
+    aoiController: {
+      setVillageBounds: (bounds) => limits.push(bounds),
+      setMaxAreaSqKm: (limit) => limits.push(limit)
+    },
+    activeRun: false
+  });
+  assert.equal(status.state, "ready");
+  assert.equal(draw.disabled, false);
+  assert.equal(submit.disabled, false);
+  assert.match(hint.textContent, /已就绪/);
+  assert.deepEqual(limits, [[1, 2, 3, 4], 2]);
 });
 
 test("submission guard prevents a second request while the first is pending", async () => {

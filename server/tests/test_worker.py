@@ -136,3 +136,17 @@ def test_source_disappears_after_claim_reports_specific_failure_code():
 
     assert asyncio.run(Worker(gateway, missing_source, "worker-1").run_once()) is True
     assert gateway.failed == ("LOCAL_IMAGERY_MISSING", "LOCAL_IMAGERY_MISSING")
+
+
+def test_processing_failure_does_not_publish_a_local_file_path():
+    class RecordingGateway(FakeGateway):
+        def fail(self, run_id, worker_id, code, message):
+            self.failed = (code, message)
+
+    gateway = RecordingGateway()
+
+    def unreadable_source(_run):
+        raise RuntimeError("/srv/village-platform/data/private/imagery.tif: file not found")
+
+    assert asyncio.run(Worker(gateway, unreadable_source, "worker-1").run_once()) is True
+    assert gateway.failed == ("PROCESSING_FAILED", "处理失败，请联系管理员并提供任务编号。")
