@@ -46,6 +46,14 @@ test("homepage platform entry refreshes course context and opens the map workspa
   assert.doesNotMatch(handler, /await ensureCourseWorkbenchInitialized/);
 });
 
+test("returning to the homepage cancels any unfinished platform entry", () => {
+  const overview = appSource.match(
+    /function showVillageOverview\(\)[\s\S]*?(?=\nfunction showPlan2DOverview)/
+  )?.[0] || "";
+
+  assert.match(overview, /platformEntryController\?\.cancel\?\.\(\)/);
+});
+
 test("platform entry uses the initialized course context and defers activity logging", () => {
   const entry = appSource.match(
     /function ensurePlatformEntryController\(\)[\s\S]*?(?=\nfunction bindStatusBadgeClick)/

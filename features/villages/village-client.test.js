@@ -91,6 +91,66 @@ test("当前项目保留服务端返回的全部已发布练习村", async () =>
   assert.deepEqual(context.villages.map((village) => village.id), ["mibu", "red", "formal"]);
 });
 
+test("项目 RPC 返回后并行读取村庄、空间和登录身份", async () => {
+  const started = [];
+  const pending = [];
+  function query(name, data) {
+    return {
+      select() { return this; }, eq() { return this; }, order() { return this; },
+      then(resolve) {
+        started.push(name);
+        return new Promise((done) => pending.push(() => done(resolve({ data, error: null }))));
+      }
+    };
+  }
+  const client = createVillageClient({ supabaseClient: {
+    rpc: async () => ({ data: {
+      project: { id: "p1", course_id: "c1", practice_village_id: "mibu" },
+      villages: [{ id: "mibu", name: "米埗村", is_practice: true, status: "published" }]
+    }, error: null }),
+    from: (table) => query(table, table === "villages" ? [{
+      id: "mibu", name: "米埗村", is_practice: true, status: "published"
+    }] : []),
+    auth: { getUser: () => {
+      started.push("auth");
+      return new Promise((done) => pending.push(() => done({ data: { user: { id: "u1" } }, error: null })));
+    } }
+  } });
+  const contextPromise = client.getActiveContext();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(started.sort(), ["auth", "planning_spaces", "villages"]);
+  pending.forEach((release) => release());
+  const context = await contextPromise;
+  assert.equal(context.actor.userId, "u1");
+});
+
+test("项目 RPC 已返回两个村庄时先通知首页，不等待空间与身份查询", async () => {
+  const notifications = [];
+  const pending = [];
+  function query(data) {
+    return {
+      select() { return this; }, eq() { return this; }, order() { return this; },
+      then(resolve) { return new Promise((done) => pending.push(() => done(resolve({ data, error: null })))); }
+    };
+  }
+  const villages = [
+    { id: "mibu", name: "米埗村", is_practice: true, status: "published" },
+    { id: "red", name: "红星村", is_practice: true, status: "published" }
+  ];
+  const client = createVillageClient({ supabaseClient: {
+    rpc: async () => ({ data: {
+      project: { id: "p1", course_id: "c1", practice_village_id: "mibu" }, villages
+    }, error: null }),
+    from: (table) => query(table === "villages" ? villages : []),
+    auth: { getUser: async () => ({ data: { user: null }, error: null }) }
+  } });
+  const contextPromise = client.getActiveContext({ onCatalog: (catalog) => notifications.push(catalog) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(notifications[0]?.villages?.map((village) => village.id), ["mibu", "red"]);
+  pending.forEach((release) => release());
+  await contextPromise;
+});
+
 test("教学项目和村庄生命周期只调用受控RPC", async () => {
   const calls = [];
   const client = createVillageClient({ supabaseClient: rpcOnlyClient(calls) });

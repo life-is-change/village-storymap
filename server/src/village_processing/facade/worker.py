@@ -4,6 +4,8 @@ import asyncio
 import contextlib
 import logging
 
+import httpx
+
 from village_processing.worker import error_code
 
 from .pipeline import FacadeCancelRequested
@@ -32,9 +34,16 @@ class FacadeWorker:
         self.heartbeat_seconds = heartbeat_seconds
 
     async def _renew_until_done(self, run_id: str) -> None:
+        delay = self.lease_renew_seconds
         while True:
-            await asyncio.sleep(self.lease_renew_seconds)
-            await asyncio.to_thread(self.gateway.renew, run_id, self.worker_id)
+            await asyncio.sleep(delay)
+            try:
+                await asyncio.to_thread(self.gateway.renew, run_id, self.worker_id)
+            except httpx.TransportError as exc:
+                LOGGER.warning("Facade lease renew network error: %s", type(exc).__name__)
+                delay = min(2.0, self.lease_renew_seconds)
+            else:
+                delay = self.lease_renew_seconds
 
     async def _heartbeat_until_done(self) -> None:
         while True:

@@ -141,6 +141,11 @@ const groupBaselinePanelMount = document.getElementById("groupBaselinePanelMount
 const plan2dView = document.getElementById("plan2dView");
 const model3dView = document.getElementById("model3dView");
 const cesiumContainerEl = document.getElementById("cesiumContainer");
+const surfaceIntentController = window.SurfaceIntentControllerModule?.createSurfaceIntentController?.();
+
+if (!surfaceIntentController) {
+  throw new Error("页面意图控制模块未加载。");
+}
 
 const spaceList = document.getElementById("spaceList");
 const floatingHomeBtn = document.getElementById("floatingHomeBtn");
@@ -236,6 +241,7 @@ let villagePreviewController = null;
 let personalSpaceClient = null;
 let coursePersonalSpace = null;
 let coursePersonalSpaceReady = null;
+let coursePersonalSpaceInitToken = 0;
 let villageClient = null;
 let surveyReviewClient = null;
 let surveyReviewPanel = null;
@@ -1109,20 +1115,21 @@ function openProfileCenterPage() {
   window.location.href = "./profile.html";
 }
 
-function broadcastHomepageContext() {
+function broadcastHomepageContext(context = activeVillageContext) {
   const frame = document.getElementById("homeLandingFrame");
-  if (!frame?.contentWindow || !window.VillageModelModule) return;
-  const homepageVillages = window.VillageModelModule.buildHomepageProjectVillages(
-    activeVillageContext || {}
+  if (!window.VillageModelModule || !window.HomepageContextModule) return;
+  let cachedSelectedVillageId = "";
+  try {
+    cachedSelectedVillageId = JSON.parse(localStorage.getItem("village_home_context_v1") || "null")?.selectedVillageId || "";
+  } catch (_) { /* invalid cache is ignored */ }
+  const payload = window.HomepageContextModule.confirmedHomepageContext(
+    context, window.VillageModelModule, cachedSelectedVillageId
   );
-  const payload = {
-    villages: homepageVillages,
-    selectedVillageId: activeVillageContext?.villageId || homepageVillages[0]?.id || ""
-  };
+  if (!payload) return;
   try {
     localStorage.setItem("village_home_context_v1", JSON.stringify(payload));
   } catch (_) { /* optional fast-start cache */ }
-  frame.contentWindow.postMessage({
+  frame?.contentWindow?.postMessage({
     type: "village-home-context",
     payload
   }, "*");
@@ -1544,6 +1551,7 @@ function bindHomepageLandingBridge() {
         return;
       }
 
+      surfaceIntentController.requestWorkspace();
       try {
         const workbench = await ensureCourseWorkbenchInitialized();
         const courseContext = await workbench.showDashboard();
@@ -1953,6 +1961,13 @@ async function commitVillageContext(prepared) {
   await applyVillageDatasetToPlanMap(prepared.datasetResources);
   sync2DSpaceStateTo3D();
   renderSpaceList();
+  if (courseWorkbench) {
+    coursePersonalSpaceReady = initializeCoursePersonalSpace().catch((error) => {
+      console.warn("当前村庄的个人图底空间暂时无法初始化：", error);
+      return null;
+    });
+    await courseWorkbench.refresh();
+  }
   if (planMap && plan2dView?.classList.contains("active")
       && !platformEntryController?.isEntering()) {
     await refresh2DOverlay({ forceFullRebuild: true });
@@ -1963,13 +1978,25 @@ async function commitVillageContext(prepared) {
   }
 }
 
-async function initializeVillageProjectSwitcher() {
+function startVillageProjectContextLoad() {
+  if (!supabaseClient || !window.VillageClientModule) return Promise.resolve(null);
+  villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
+  return villageClient.getActiveContext({
+    onCatalog: (catalog) => broadcastHomepageContext(catalog)
+  }).then((context) => {
+    broadcastHomepageContext(context);
+    return context;
+  });
+}
+
+async function initializeVillageProjectSwitcher(serverContextPromise = null) {
   if (!supabaseClient || !projectHeaderSelect || !window.VillageClientModule
     || !window.VillageModelModule || !window.ProjectSwitcherModule) return null;
-  villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
-  const serverContext = await villageClient.getActiveContext();
+  if (!villageClient) villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
+  const serverContext = await (serverContextPromise || villageClient.getActiveContext());
   if (!serverContext?.project) return null;
   activeVillageContext = serverContext;
+  broadcastHomepageContext(serverContext);
   const entries = window.VillageModelModule.buildProjectEntries(serverContext);
   if (!entries.length) return null;
   let saved = null;
@@ -2119,19 +2146,26 @@ async function openCoursePlanningWorkspace(viewMode, group) {
 
 async function initializeCoursePersonalSpace() {
   if (!supabaseClient) return null;
-  personalSpaceClient = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
+  const token = ++coursePersonalSpaceInitToken;
+  personalSpaceClient = null;
+  coursePersonalSpace = null;
+  const client = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
   const user = getCourseUser();
-  coursePersonalSpace = await personalSpaceClient.ensure({
+  const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
+  const personalSpace = await client.ensure({
     courseId: window.CourseModelModule.DEFAULT_COURSE.id,
     teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
-    villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+    villageId: processingContext.personalVillageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
     spaceType: activeVillageContext?.villageRole === "formal" ? "formal_personal" : "practice_personal",
     title: `${user.name || "学生"} · 个人图底空间`
   });
-  const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(coursePersonalSpace.id));
-  const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
+  const existingPersonalWorkspace = spaces.find((space) => String(space.id) === String(personalSpace.id));
+  const selections = await client.listSelections(personalSpace.id);
+  if (token !== coursePersonalSpaceInitToken) return null;
+  personalSpaceClient = client;
+  coursePersonalSpace = personalSpace;
   const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
-    personalSpace: coursePersonalSpace,
+    personalSpace,
     user,
     existingSpace: existingPersonalWorkspace,
     selections,
@@ -2145,7 +2179,7 @@ async function initializeCoursePersonalSpace() {
   else spaces.push(workspaceSpace);
   saveSpacesToStorage({ syncRemote: false });
   renderSpaceList();
-  return coursePersonalSpace;
+  return personalSpace;
 }
 
 async function ensureCourseWorkbenchInitialized() {
@@ -2183,7 +2217,12 @@ async function ensureCourseWorkbenchInitialized() {
         villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
         groupId: context.group?.id || "",
         taskId: courseWorkbench?.getActiveTaskId?.() || "",
-        spaceId: context.group?.spaceId || currentSpaceId || "",
+        spaceId: window.ActivityLoggerModule.resolveActivitySpaceId({
+          spaces,
+          preferredIds: [context.group?.spaceId, currentSpaceId],
+          teachingProjectId: activeVillageContext?.teachingProjectId || window.CourseModelModule.DEFAULT_COURSE.teachingProjectId,
+          villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId
+        }),
         viewMode: model3dView?.classList.contains("active") ? "3d" : "2d"
       };
     }
@@ -2216,14 +2255,24 @@ async function ensureCourseWorkbenchInitialized() {
           || !window.VillagePreviewModule
           || !window.GeoprocessingResultLayersModule || !window.GeoprocessingPanelModule) return;
       const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient });
+      const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
       let availability = "offline";
       try { availability = (await client.getAvailability())?.state || "offline"; } catch (_) { /* queue remains usable */ }
+      let sourceStatus = null;
+      try { sourceStatus = await client.getSourceStatus(processingContext.villageId); } catch (_) {
+        sourceStatus = { state: "stale", error_code: "SOURCE_STATUS_STALE" };
+      }
       geoprocessingAoiController = window.GeoprocessingAoiModule.createAoiController({
         map: planMap,
         ol: window.__OL__,
-        villageBounds: activeVillageContext?.datasetResources?.initialExtent
+        villageBounds: sourceStatus?.bounds || activeVillageContext?.datasetResources?.initialExtent
           || [113.6578225, 23.6739555, 113.6695615, 23.6806181],
-        maxAreaSqKm: 2
+        maxAreaSqKm: sourceStatus?.max_aoi_sq_km || 2,
+        storage: window.sessionStorage,
+        storageKey: window.GeoprocessingAoiModule.buildAoiDraftStorageKey(
+          window.VillageAuth?.getCurrentUser?.()?.id,
+          processingContext.villageId
+        )
       });
       villagePreviewController = window.VillagePreviewModule.createVillagePreviewController({
         map: planMap,
@@ -2246,16 +2295,28 @@ async function ensureCourseWorkbenchInitialized() {
         client,
         aoiController: geoprocessingAoiController,
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
-        teachingProjectId: activeVillageContext?.teachingProjectId || null,
-        villageId: activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-        datasetId: activeVillageContext?.datasetId || null,
+        teachingProjectId: processingContext.teachingProjectId,
+        villageId: processingContext.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+        datasetId: processingContext.datasetId,
         availability,
+        sourceStatus,
         onStartAoi: async () => {
-          const entry = await villagePreviewController.show(
-            activeVillageContext?.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
-            activeVillageContext?.datasetResources
-          );
-          geoprocessingAoiController.setVillageBounds(entry.bounds);
+          await window.GeoprocessingContextModule.enterPersonalGeoprocessingSpace({
+            personalSpace: coursePersonalSpace,
+            spaces,
+            villageId: activeVillageContext?.villageId,
+            teachingProjectId: activeVillageContext?.teachingProjectId,
+            getSpaceById,
+            getCurrentSpaceId: () => currentSpaceId,
+            selectSpace: handleSpaceSelect
+          });
+          try {
+            await villagePreviewController.show(
+              processingContext.previewVillageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+              processingContext.previewResources
+            );
+          } catch (_) { /* The existing map remains drawable without a published preview. */ }
+          if (sourceStatus?.bounds) geoprocessingAoiController.setVillageBounds(sourceStatus.bounds);
         },
         onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success"),
         onPreview: async (artifacts) => {
@@ -6763,6 +6824,7 @@ function setActiveStoryItem(viewKey) {
 }
 
 function switchMainView(viewKey) {
+  if (!surfaceIntentController.canShow(viewKey)) return false;
   if (viewKey === "overview" && sceneStudioPlatformBridge?.getInstance?.()) closeSceneStudioWorkspace();
   const isOverview = viewKey === "overview";
   const isMapView = viewKey === "plan2d" || viewKey === "model3d";
@@ -6817,6 +6879,7 @@ function switchMainView(viewKey) {
       });
     });
   }
+  return true;
 }
 
 function clearTheoryPracticeContext() {
@@ -6967,6 +7030,8 @@ function update2DStatusText() {
 }
 
 function showVillageOverview() {
+  surfaceIntentController.requestOverview();
+  platformEntryController?.cancel?.();
   clearTheoryPracticeContext();
   setActiveStoryItem("overview");
   switchMainView("overview");
@@ -8075,6 +8140,7 @@ function ensurePlatformEntryController() {
       id: window.CourseModelModule.DEFAULT_COURSE.id
     }),
     onActivityError: (error) => console.warn("课程进入记录失败：", error),
+    onCancelled: () => showVillageOverview(),
     onEntered: () => {
       shouldApplyInitialPlatformDefaults = false;
     }
@@ -8087,6 +8153,7 @@ function enterCoursePlatform(request = {}) {
     showToast("请先登录", "error");
     return Promise.resolve(null);
   }
+  surfaceIntentController.requestWorkspace();
   return ensurePlatformEntryController().enter(request).catch((error) => {
     console.error("进入课程工作台失败：", error);
     showToast(error?.message || "课程工作台加载失败", "error");
@@ -8178,6 +8245,7 @@ function resetWorkspaceStateDefaults() {
 }
 
 async function reloadWorkspaceForAuthenticatedAccount() {
+  coursePersonalSpaceInitToken += 1;
   geoprocessingPanel?.destroy?.();
   geoprocessingAoiController?.destroy?.();
   geoprocessingResultPreview?.destroy?.();
@@ -8199,12 +8267,17 @@ async function reloadWorkspaceForAuthenticatedAccount() {
 
   resetWorkspaceStateDefaults();
   spaces = loadSpacesFromStorage();
-  await syncSpacesFromSupabase();
+  const villageContextPromise = startVillageProjectContextLoad().catch((error) => {
+    console.warn("村庄目录加载失败：", error);
+    return null;
+  });
+  const serverContext = await villageContextPromise;
+  if (!serverContext?.project) await syncSpacesFromSupabase();
   loadAppState();
   currentSpaceId = getValidSpaceId(currentSpaceId, BASE_SPACE_ID);
   lastPlanningSpaceId = getValidSpaceId(lastPlanningSpaceId, BASE_SPACE_ID);
   lastCollabSpaceId = getValidSpaceId(lastCollabSpaceId, BASE_SPACE_ID);
-  const villageContext = await initializeVillageProjectSwitcher().catch((error) => {
+  const villageContext = await initializeVillageProjectSwitcher(Promise.resolve(serverContext)).catch((error) => {
     console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
     return null;
   });
@@ -8258,9 +8331,14 @@ async function init() {
 
     spaces = loadSpacesFromStorage();
     console.log("Initialized spaces:", spaces);
+    const villageContextPromise = startVillageProjectContextLoad().catch((error) => {
+      console.warn("村庄目录加载失败：", error);
+      return null;
+    });
 
-    // 尝试从 Supabase 同步空间列表（跨设备）
-    await syncSpacesFromSupabase();
+    // 有项目上下文时，切换器会加载当前村庄空间；不再额外读取整套旧空间。
+    const serverContext = await villageContextPromise;
+    if (!serverContext?.project) await syncSpacesFromSupabase();
 
     const hasPreviousState = loadAppState();
     shouldApplyInitialPlatformDefaults = !hasPreviousState;
@@ -8281,7 +8359,7 @@ async function init() {
       saveAppState();
     }
 
-    const villageContext = await initializeVillageProjectSwitcher().catch((error) => {
+    const villageContext = await initializeVillageProjectSwitcher(Promise.resolve(serverContext)).catch((error) => {
       console.warn("村庄项目切换器初始化失败，保留旧米埗村工作区：", error);
       return null;
     });
@@ -8308,8 +8386,9 @@ async function init() {
     bindResizeObserver();
     ensureBuildingEditorToolbar();
     bindHomepageLandingBridge();
-    showVillageOverview();
+    if (surfaceIntentController.getIntent() === "overview") showVillageOverview();
     if (adminGroupPlanApplied) {
+      surfaceIntentController.requestWorkspace();
       switchMainView("plan2d");
       await handleSpaceSelect(currentSpaceId);
     }

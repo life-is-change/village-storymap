@@ -49,6 +49,25 @@ def test_claim_maps_rpc_payload_to_queued_run():
     assert run.village_id == "mibu"
 
 
+def test_claim_does_not_sign_legacy_input_manifest():
+    client = FakeSupabase()
+    client.rpc_results["claim_next_geoprocessing_run"] = [{
+        "id": RUN_ID,
+        "owner_id": OWNER_ID,
+        "village_id": "mibu",
+        "requested_steps": ["buildings"],
+        "aoi": AOI,
+        "parameters": {},
+        "dataset_id": "old-dataset",
+        "input_manifest": {"files": {"imagery": {"bucket": "village-datasets", "path": "old.tif"}}},
+    }]
+
+    run = SupabaseGateway(client).claim("worker-1")
+
+    assert run.dataset_id == "old-dataset"
+    assert run.input_manifest["files"]["imagery"]["path"] == "old.tif"
+
+
 def test_fail_redacts_local_paths_and_urls():
     client = FakeSupabase()
 

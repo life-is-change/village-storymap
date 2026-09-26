@@ -8,10 +8,11 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20260916-scene-studio-assets5" />
+  <link rel="stylesheet" href="style.css?v=20260924-figure-ground-diagnostics" />
   <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260920-layer-library" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="features/ui/page-restore-guard.js?v=20260921-home-entry-bfcache"></script>
 
   <!-- Cesium 3D 运行时改为进入 3D 视图时按需加载，避免首页被 3D 引擎拖慢。 -->
 </head>
@@ -338,14 +339,16 @@
   <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20260805-backup"></script>
-  <script defer src="features/ui/platform-entry-controller.js?v=20260916-startup-perf"></script>
+  <script defer src="features/ui/surface-intent-controller.js?v=20260921-home-intent-lock"></script>
+  <script defer src="features/ui/platform-entry-controller.js?v=20260921-home-intent-lock"></script>
   <script defer src="features/ui/scene-studio-startup.js?v=20260916-startup-perf"></script>
   <script defer src="features/theory/theory-practice-context.js?v=20260825-theory-context"></script>
   <script defer src="features/course/course-model.js"></script>
   <script defer src="features/course/course-service.js"></script>
   <script defer src="features/course/activity-logger.js?v=20260911-admin-history-cleanup"></script>
   <script defer src="features/villages/village-model.js?v=20260907-practice-catalog"></script>
-  <script defer src="features/villages/village-client.js?v=20260907-practice-catalog"></script>
+  <script defer src="features/ui/homepage-context.js?v=20260924-fast-villages"></script>
+  <script defer src="features/villages/village-client.js?v=20260924-parallel-context"></script>
   <script defer src="features/villages/project-switcher.js?v=20260908-switch-queue"></script>
   <script defer src="features/course/course-workspace-adapter.js?v=20260903-space-context-fix"></script>
   <script defer src="features/data/personal-edit-version.js?v=20260810-version-guard"></script>
@@ -358,12 +361,13 @@
   <script defer src="features/3d/3d-edit-policy.js?v=20260907-shared-admin-3d"></script>
   <script defer src="features/data/personal-space-client.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/personal-layer-versions.js?v=20260810-platform-fix"></script>
-  <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260723-contour-ui"></script>
-  <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260723-contour-ui"></script>
-  <script defer src="features/geoprocessing/village-preview.js?v=20260723-contour-ui"></script>
-  <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260723-contour-ui"></script>
-  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260723-contour-ui"></script>
-  <script defer src="features/ui/course-workbench.js?v=20260723-contour-ui"></script>
+  <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-context.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/village-preview.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/ui/course-workbench.js?v=20260926-aoi-draft-order"></script>
   <script defer src="features/survey/survey-review-model.js"></script>
   <script defer src="features/survey/survey-activity-model.js?v=20260908-survey-markers"></script>
   <script defer src="features/survey/survey-review-client.js?v=20260911-practice-review"></script>
@@ -404,7 +408,7 @@
   <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/index.js?v=20260921-top-view"></script>
-  <script defer src="app.js?v=20260921-top-view-fix2"></script>
+  <script defer src="app.js?v=20260926-aoi-draft-order"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

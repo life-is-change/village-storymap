@@ -4,10 +4,10 @@
   root.PlatformEntryControllerModule = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   function createPlatformEntryController(deps = {}) {
-    let inFlight = null;
-    let inFlightKey = "";
+    let activeRun = null;
     let queuedRequest = null;
     let queuedPromise = null;
+    let lifecycle = 0;
 
     function requestKey(request = {}) {
       const entry = request.entry || {};
@@ -16,11 +16,13 @@
 
     function enter(request = {}) {
       const key = requestKey(request);
-      if (inFlight) {
-        if (key === inFlightKey) return inFlight;
+      if (activeRun) {
+        if (key === activeRun.key) return activeRun.promise;
         queuedRequest = request;
         if (!queuedPromise) {
-          queuedPromise = inFlight.catch(() => null).then(() => {
+          const queuedLifecycle = lifecycle;
+          queuedPromise = activeRun.promise.catch(() => null).then(() => {
+            if (lifecycle !== queuedLifecycle) return null;
             const nextRequest = queuedRequest;
             queuedRequest = null;
             queuedPromise = null;
@@ -37,11 +39,31 @@
       } catch (error) {
         deps.onPrewarmError?.(error);
       }
-      inFlightKey = key;
+      const runLifecycle = lifecycle;
+      const run = { key, promise: null };
+      let workspaceStarted = false;
+      let cancellationRestored = false;
 
-      inFlight = (async () => {
-        const context = await deps.prepare?.(request);
-        await deps.openWorkspace?.("2d", context?.group || null);
+      function restoreAfterCancelledWorkspace() {
+        if (workspaceStarted && !cancellationRestored) {
+          cancellationRestored = true;
+          deps.onCancelled?.(request);
+        }
+        return null;
+      }
+
+      run.promise = (async () => {
+        let context;
+        try {
+          context = await deps.prepare?.(request);
+          if (lifecycle !== runLifecycle) return null;
+          workspaceStarted = true;
+          await deps.openWorkspace?.("2d", context?.group || null);
+        } catch (error) {
+          if (lifecycle !== runLifecycle) return restoreAfterCancelledWorkspace();
+          throw error;
+        }
+        if (lifecycle !== runLifecycle) return restoreAfterCancelledWorkspace();
         try {
           Promise.resolve(deps.recordActivity?.(request)).catch((error) => {
             deps.onActivityError?.(error);
@@ -52,17 +74,29 @@
         deps.onEntered?.(context, request);
         return context;
       })().finally(() => {
+        if (activeRun !== run) return;
         deps.setLoading?.(false);
-        inFlight = null;
-        inFlightKey = "";
+        activeRun = null;
       });
+      activeRun = run;
 
-      return inFlight;
+      return run.promise;
+    }
+
+    function cancel() {
+      lifecycle += 1;
+      queuedRequest = null;
+      queuedPromise = null;
+      if (!activeRun) return false;
+      activeRun = null;
+      deps.setLoading?.(false);
+      return true;
     }
 
     return {
       enter,
-      isEntering: () => !!inFlight
+      cancel,
+      isEntering: () => !!activeRun
     };
   }
 

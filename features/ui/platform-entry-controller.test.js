@@ -112,3 +112,101 @@ test("activity logging is non-blocking after the workspace becomes usable", asyn
   assert.equal(controller.isEntering(), false);
   releaseActivity();
 });
+
+test("cancelling an entry while preparation is pending prevents the stale workspace from opening", async () => {
+  const events = [];
+  let releasePreparation;
+  const preparation = new Promise((resolve) => { releasePreparation = resolve; });
+  const controller = moduleApi.createPlatformEntryController({
+    setLoading: (loading) => events.push(`loading:${loading}`),
+    prepare: async () => {
+      await preparation;
+      return { group: { id: "stale-group" } };
+    },
+    openWorkspace: async () => events.push("open:stale-group"),
+    recordActivity: async () => events.push("activity:stale-group"),
+    onEntered: () => events.push("entered:stale-group")
+  });
+
+  const staleEntry = controller.enter();
+  controller.cancel();
+
+  assert.equal(controller.isEntering(), false);
+  assert.equal(events.at(-1), "loading:false");
+
+  releasePreparation();
+  assert.equal(await staleEntry, null);
+  assert.doesNotMatch(events.join(","), /open:|activity:|entered:/);
+});
+
+test("a fresh entry can start immediately after a stale entry is cancelled", async () => {
+  const opened = [];
+  let releaseStalePreparation;
+  const stalePreparation = new Promise((resolve) => { releaseStalePreparation = resolve; });
+  const controller = moduleApi.createPlatformEntryController({
+    prepare: async (request) => {
+      if (request.villageId === "stale-village") {
+        await stalePreparation;
+      }
+      return { group: { id: request.villageId } };
+    },
+    openWorkspace: async (_view, group) => opened.push(group.id)
+  });
+
+  const staleEntry = controller.enter({ villageId: "stale-village" });
+  controller.cancel();
+  await controller.enter({ villageId: "fresh-village" });
+
+  assert.deepEqual(opened, ["fresh-village"]);
+
+  releaseStalePreparation();
+  assert.equal(await staleEntry, null);
+  assert.deepEqual(opened, ["fresh-village"]);
+});
+
+test("cancelling entry also discards a different village queued by a duplicate homepage trigger", async () => {
+  const opened = [];
+  let releasePreparation;
+  const preparation = new Promise((resolve) => { releasePreparation = resolve; });
+  const controller = moduleApi.createPlatformEntryController({
+    prepare: async (request) => {
+      if (request.villageId === "first-village") await preparation;
+      return { group: { id: request.villageId } };
+    },
+    openWorkspace: async (_view, group) => opened.push(group.id)
+  });
+
+  const firstEntry = controller.enter({ villageId: "first-village" });
+  const queuedEntry = controller.enter({ villageId: "queued-village" });
+  controller.cancel();
+  releasePreparation();
+
+  assert.deepEqual(await Promise.all([firstEntry, queuedEntry]), [null, null]);
+  assert.deepEqual(opened, []);
+});
+
+test("cancelling while the workspace is already opening restores the homepage after the stale open finishes", async () => {
+  const events = [];
+  let releaseWorkspace;
+  let markWorkspaceStarted;
+  const workspaceStarted = new Promise((resolve) => { markWorkspaceStarted = resolve; });
+  const workspacePending = new Promise((resolve) => { releaseWorkspace = resolve; });
+  const controller = moduleApi.createPlatformEntryController({
+    prepare: async () => ({ group: null }),
+    openWorkspace: async () => {
+      events.push("workspace:start");
+      markWorkspaceStarted();
+      await workspacePending;
+      events.push("workspace:visible");
+    },
+    onCancelled: () => events.push("homepage:restored")
+  });
+
+  const entry = controller.enter();
+  await workspaceStarted;
+  controller.cancel();
+  releaseWorkspace();
+
+  assert.equal(await entry, null);
+  assert.deepEqual(events, ["workspace:start", "workspace:visible", "homepage:restored"]);
+});

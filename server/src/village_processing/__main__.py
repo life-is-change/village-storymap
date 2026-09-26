@@ -123,7 +123,7 @@ def main(argv=None) -> int:
     if args.command == "worker":
         from supabase import create_client
         from .queue.gateway import SupabaseGateway
-        from .remote_catalog import RemoteDatasetResolver
+        from .source_status import publish_source_statuses
         from .worker import Worker
 
         work_root = Path(os.environ.get("PLATFORM_WORK_ROOT", "server/runtime")).resolve()
@@ -133,15 +133,18 @@ def main(argv=None) -> int:
         gateway = SupabaseGateway(create_client(
             os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
         ))
-        remote_resolver = RemoteDatasetResolver()
         pipeline_runner = lambda queued: run_pipeline(
-            queued.processing_request(work_root), catalog, processors, remote_resolver
+            queued.processing_request(work_root), catalog, processors
         )
         logging.basicConfig(
             level=os.environ.get("PLATFORM_LOG_LEVEL", "INFO"),
             format="%(asctime)s %(levelname)s %(name)s %(message)s",
         )
-        worker = Worker(gateway, pipeline_runner, os.environ.get("WORKER_ID", "win11-pilot"))
+        worker_id = os.environ.get("WORKER_ID", "win11-pilot")
+        worker = Worker(
+            gateway, pipeline_runner, worker_id,
+            source_status_publisher=lambda: publish_source_statuses(catalog, gateway, worker_id),
+        )
         asyncio.run(worker.run_forever())
         return 0
     catalog = load_catalog(args.catalog, Path(data_root))

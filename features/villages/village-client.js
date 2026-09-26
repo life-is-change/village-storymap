@@ -89,11 +89,21 @@
     }
 
     return {
-      async getActiveContext() {
+      async getActiveContext({ onCatalog } = {}) {
         const raw = await rpc("get_active_project_context", {});
         if (!raw?.project) return null;
         const project = normalizeTeachingProject(raw.project);
-        const allVillages = await listVillages();
+        if (typeof onCatalog === "function" && Array.isArray(raw.villages) && raw.villages.length > 1) {
+          onCatalog({ project, villages: raw.villages });
+        }
+        const activeVillageId = project.formalProjectOpen && project.formalVillageId
+          ? project.formalVillageId
+          : project.practiceVillageId;
+        const [allVillages, spaces, authResponse] = await Promise.all([
+          listVillages(),
+          listSpaces({ teachingProjectId: project.id, villageId: activeVillageId }),
+          supabaseClient.auth?.getUser ? supabaseClient.auth.getUser() : Promise.resolve(null)
+        ]);
         const detailsById = new Map(allVillages.map((village) => [village.id, village]));
         const villages = Array.isArray(raw.villages)
           ? raw.villages.map((row) => {
@@ -107,14 +117,9 @@
             } : scoped;
           })
           : allVillages;
-        const activeVillageId = project.formalProjectOpen && project.formalVillageId
-          ? project.formalVillageId
-          : project.practiceVillageId;
-        const spaces = await listSpaces({ teachingProjectId: project.id, villageId: activeVillageId });
         let userId = null;
         let isStaff = false;
-        if (supabaseClient.auth?.getUser) {
-          const authResponse = await supabaseClient.auth.getUser();
+        if (authResponse) {
           if (authResponse?.error) throw createError(errorCode(authResponse.error), authResponse.error);
           userId = authResponse?.data?.user?.id || null;
           const role = authResponse?.data?.user?.app_metadata?.role || authResponse?.data?.user?.user_metadata?.role;

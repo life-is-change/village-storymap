@@ -1,5 +1,4 @@
 import json
-from copy import deepcopy
 from pathlib import Path
 import re
 
@@ -29,30 +28,7 @@ class SupabaseGateway:
         ).execute().data or []
         if not rows:
             return None
-        row = dict(rows[0])
-        row["input_manifest"] = self._sign_input_manifest(row.get("input_manifest"))
-        return QueuedRun.from_row(row)
-
-    def _sign_input_manifest(self, manifest):
-        if not isinstance(manifest, dict):
-            return None
-        signed = deepcopy(manifest)
-        files = signed.get("files")
-        if not isinstance(files, dict):
-            raise ValueError("DATASET_MANIFEST_INVALID")
-        for item in files.values():
-            if not isinstance(item, dict):
-                raise ValueError("DATASET_MANIFEST_INVALID")
-            bucket = str(item.pop("bucket", "village-datasets"))
-            path = str(item.pop("path", ""))
-            if not path or ".." in Path(path).parts:
-                raise ValueError("DATASET_STORAGE_PATH_INVALID")
-            result = self.client.storage.from_(bucket).create_signed_url(path, 900)
-            url = result.get("signedURL") or result.get("signedUrl")
-            if not url:
-                raise ValueError("DATASET_SIGNED_URL_FAILED")
-            item["url"] = url
-        return signed
+        return QueuedRun.from_row(dict(rows[0]))
 
     def renew(self, run_id: str, worker_id: str) -> None:
         self.client.rpc("renew_geoprocessing_lease", {
@@ -118,4 +94,20 @@ class SupabaseGateway:
     def heartbeat(self, worker_id: str, state: str, version: str) -> None:
         self.client.rpc("upsert_worker_heartbeat", {
             "p_worker_id": worker_id, "p_state": state, "p_version": version,
+        }).execute()
+
+    def list_published_village_ids(self) -> tuple[str, ...]:
+        rows = self.client.table("villages").select("id").eq("status", "published").execute().data or []
+        return tuple(str(row["id"]) for row in rows)
+
+    def publish_source_status(
+        self, village_id: str, ready: bool, code: str | None,
+        worker_id: str, bounds: list[float] | None,
+    ) -> None:
+        self.client.rpc("upsert_geoprocessing_source_status", {
+            "p_village_id": village_id,
+            "p_ready": ready,
+            "p_error_code": code,
+            "p_worker_id": worker_id,
+            "p_bounds": bounds,
         }).execute()

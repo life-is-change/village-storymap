@@ -33,11 +33,18 @@
     if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
     const areaSqKm = polygonAreaSqKm(ring);
     if (!(areaSqKm > 0)) return { ok: false, code: "AOI_INVALID" };
-    if (areaSqKm > maxAreaSqKm) return { ok: false, code: "AOI_TOO_LARGE" };
+    if (maxAreaSqKm != null && areaSqKm > maxAreaSqKm) {
+      return { ok: false, code: "AOI_TOO_LARGE", areaSqKm, maxAreaSqKm };
+    }
     return { ok: true, geometry: { type: "Polygon", coordinates: [ring] }, areaSqKm };
   }
 
-  function createAoiController({ map, ol, villageBounds, maxAreaSqKm = 2 }) {
+  function buildAoiDraftStorageKey(accountId, villageId) {
+    if (!accountId || !villageId) return "";
+    return `village_aoi_draft_v1:${encodeURIComponent(String(accountId))}:${encodeURIComponent(String(villageId))}`;
+  }
+
+  function createAoiController({ map, ol, villageBounds, maxAreaSqKm = 2, storage = null, storageKey = "" }) {
     const VectorSource = ol.VectorSource || ol.source?.Vector;
     const VectorLayer = ol.VectorLayer || ol.layer?.Vector;
     const Draw = ol.Draw || ol.interaction?.Draw;
@@ -47,26 +54,50 @@
     map.addLayer(layer);
     let draw = null;
     let activeVillageBounds = Array.isArray(villageBounds) ? [...villageBounds] : null;
+    let activeMaxAreaSqKm = maxAreaSqKm;
+    function saveDraft(feature) {
+      if (!storage || !storageKey) return;
+      try {
+        if (!feature) return;
+        const geometry = new GeoJSON().writeGeometryObject(feature.getGeometry(), {
+          featureProjection: map.getView().getProjection(), dataProjection: "EPSG:4326"
+        });
+        storage.setItem(storageKey, JSON.stringify(geometry));
+      } catch (_) { /* AOI remains usable when storage is unavailable. */ }
+    }
+    if (storage && storageKey && activeVillageBounds) {
+      try {
+        const saved = JSON.parse(storage.getItem(storageKey) || "null");
+        if (validateAoi(saved, activeVillageBounds, activeMaxAreaSqKm).ok) {
+          source.addFeature(new GeoJSON().readFeature({ type: "Feature", geometry: saved, properties: {} }, {
+            featureProjection: map.getView().getProjection(), dataProjection: "EPSG:4326"
+          }));
+        }
+      } catch (_) { /* A malformed or inaccessible draft is ignored. */ }
+    }
     function clearInteraction() {
       if (draw) map.removeInteraction(draw);
       draw = null;
     }
     return {
       start() {
-        clearInteraction();
-        source.clear();
+        this.clear();
         draw = new Draw({ source, type: "Polygon" });
         draw.on("drawstart", () => source.clear());
-        draw.on("drawend", () => {
+        draw.on("drawend", (event) => {
           const completedDraw = draw;
           draw = null;
           map.removeInteraction(completedDraw);
+          saveDraft(event.feature);
         });
         map.addInteraction(draw);
       },
       clear() {
         clearInteraction();
         source.clear();
+        if (storage && storageKey) {
+          try { storage.removeItem(storageKey); } catch (_) { /* optional persistence */ }
+        }
       },
       getGeoJSON() {
         const feature = source.getFeatures()[0];
@@ -77,7 +108,7 @@
       },
       validate() {
         if (!activeVillageBounds) return { ok: false, code: "AOI_BOUNDS_REQUIRED" };
-        return validateAoi(this.getGeoJSON(), activeVillageBounds, maxAreaSqKm);
+        return validateAoi(this.getGeoJSON(), activeVillageBounds, activeMaxAreaSqKm);
       },
       setVillageBounds(bounds) {
         if (!Array.isArray(bounds) || bounds.length !== 4 || bounds.some((value) => !Number.isFinite(Number(value)))) {
@@ -85,12 +116,18 @@
         }
         activeVillageBounds = bounds.map(Number);
       },
+      setMaxAreaSqKm(value) {
+        const limit = Number(value);
+        if (!(limit > 0) || !Number.isFinite(limit)) throw new Error("AOI_MAX_AREA_INVALID");
+        activeMaxAreaSqKm = limit;
+      },
       destroy() {
-        this.clear();
+        clearInteraction();
+        source.clear();
         map.removeLayer(layer);
       }
     };
   }
 
-  return { createAoiController, polygonAreaSqKm, validateAoi };
+  return { createAoiController, polygonAreaSqKm, validateAoi, buildAoiDraftStorageKey };
 });

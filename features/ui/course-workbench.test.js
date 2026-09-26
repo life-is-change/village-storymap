@@ -186,14 +186,17 @@ test("workbench mounts geoprocessing only for the active figure-ground task", as
 
 test("geoprocessing workbench scripts share a cache-busting release version", () => {
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
-  const version = "20260723-contour-ui";
+  const version = "20260926-aoi-draft-order";
 
   for (const script of [
     "geoprocessing-client.js",
+    "geoprocessing-context.js",
     "geoprocessing-aoi.js",
+    "village-preview.js",
     "geoprocessing-result-layers.js",
     "geoprocessing-panel.js",
-    "course-workbench.js"
+    "course-workbench.js",
+    "app.js"
   ]) {
     assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${version}`));
   }
@@ -213,7 +216,7 @@ test("course entry ensures one personal figure-ground space without mirroring it
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
   assert.match(html, /features\/data\/personal-space-client\.js\?v=20260810-platform-fix/);
   assert.match(app, /PersonalSpaceClientModule\.createPersonalSpaceClient/);
-  assert.match(app, /personalSpaceClient\.ensure\(/);
+  assert.match(app, /const personalSpace = await client\.ensure\(/);
   assert.match(app, /managedSpaceTypes = new Set\(\[/);
   assert.match(app, /"course_personal"/);
   assert.match(app, /!s\.teachingProjectId/);
@@ -234,7 +237,9 @@ test("remote space sync treats an empty server result as authoritative and prese
   assert.match(app, /mergeWorkspaceSpaces\(/);
   assert.match(app, /saveSpacesToStorage\(\{\s*syncRemote:\s*false\s*\}\)/);
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260916-scene-studio-assets5/);
+  assert.match(html, /surface-intent-controller\.js\?v=20260921-home-intent-lock/);
+  assert.match(html, /platform-entry-controller\.js\?v=20260921-home-intent-lock/);
+  assert.match(html, /app\.js\?v=20260926-aoi-draft-order/);
 });
 
 test("personal space reliability scripts share a cache-busting release version", () => {
@@ -251,7 +256,7 @@ test("personal space reliability scripts share a cache-busting release version",
   }
 
   assert.match(html, /course-workspace-adapter\.js\?v=20260903-space-context-fix/);
-  assert.match(html, /app\.js\?v=20260916-scene-studio-assets5/);
+  assert.match(html, /app\.js\?v=20260926-aoi-draft-order/);
 });
 
 test("personal spaces render only current imported versions instead of teacher static vectors", () => {

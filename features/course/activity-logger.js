@@ -45,6 +45,21 @@
     }
   }
 
+  function resolveActivitySpaceId({ spaces = [], preferredIds = [], teachingProjectId, villageId } = {}) {
+    const validSpaces = spaces.filter((space) =>
+      String(space?.teachingProjectId || "") === String(teachingProjectId || "")
+      && String(space?.villageId || "") === String(villageId || "")
+      && String(space?.actualSpaceId || space?.id || "") !== "current"
+    );
+    for (const preferredId of preferredIds) {
+      const match = validSpaces.find((space) =>
+        space.id === preferredId || space.actualSpaceId === preferredId);
+      if (match) return String(match.actualSpaceId || match.id);
+    }
+    const shared = validSpaces.find((space) => ["practice_shared", "formal_shared"].includes(space.spaceType));
+    return String(shared?.actualSpaceId || shared?.id || validSpaces[0]?.actualSpaceId || validSpaces[0]?.id || "");
+  }
+
   function createActivityLogger(deps = {}) {
     const storage = deps.storage || root?.localStorage;
     purgeLegacyAdminEventsOnce(storage);
@@ -128,7 +143,13 @@
       const events = readEvents(storage);
       let changed = false;
       for (const event of events) {
-        if (event.syncStatus === "synced") continue;
+        if (event.syncStatus === "synced" || event.syncStatus === "blocked") continue;
+        if (event.spaceId === "current") {
+          event.syncStatus = "blocked";
+          event.syncError = "LEGACY_SPACE_CONTEXT_INVALID";
+          changed = true;
+          continue;
+        }
         try {
           await insertRemote(event);
           event.syncStatus = "synced";
@@ -162,6 +183,7 @@
 
   return {
     createActivityLogger,
+    resolveActivitySpaceId,
     purgeLegacyAdminEventsOnce,
     STORAGE_KEY,
     ADMIN_HISTORY_CLEANUP_MARKER

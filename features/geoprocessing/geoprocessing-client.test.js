@@ -44,12 +44,35 @@ test("submit sends only whitelisted fields and never owner_id", async () => {
   assert.equal(fake.calls[0][0], "submit_geoprocessing_run");
   assert.equal("owner_id" in fake.calls[0][1], false);
   assert.equal(fake.calls[0][1].p_teaching_project_id, "project-1");
-  assert.equal(fake.calls[0][1].p_dataset_id, "dataset-1");
+  assert.equal(fake.calls[0][1].p_dataset_id, null);
   assert.deepEqual(fake.calls[0][1].p_parameters, {
     building_threshold: 0.35,
     contour_interval: 5,
     contour_smoothing: 1
   });
+});
+
+test("submission requires a teaching project and source status is queried by village", async () => {
+  const fake = fakeSupabase();
+  const client = createGeoprocessingClient({ supabaseClient: fake });
+  await assert.rejects(client.submit({ courseId: "course-1", villageId: "mibu-id", aoi: AOI }), /TEACHING_PROJECT_REQUIRED/);
+  assert.equal(fake.calls.length, 0);
+  await client.getSourceStatus("mibu-id");
+  assert.deepEqual(fake.calls[0], ["get_geoprocessing_source_status", { p_village_id: "mibu-id" }]);
+});
+
+test("Mibu history still includes runs stored under the legacy alias", async () => {
+  const calls = [];
+  const query = {
+    select() { return this; },
+    in(column, values) { calls.push([column, values]); return this; },
+    order() { return Promise.resolve({ data: [], error: null }); }
+  };
+  const client = createGeoprocessingClient({ supabaseClient: {
+    from: () => query
+  } });
+  await client.listMine("00000000-0000-4000-8000-000000000001");
+  assert.deepEqual(calls[0], ["village_id", ["00000000-0000-4000-8000-000000000001", "mibu"]]);
 });
 
 test("subscribe removes channel on dispose", () => {

@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import httpx
 import pytest
 
-from village_processing.facade.gateway import FacadeGateway, artifact_path, safe_message
+from village_processing.facade.gateway import FacadeGateway, FacadeLeaseLost, artifact_path, safe_message
 from village_processing.facade.models import FacadeRun
 
 
@@ -224,6 +225,20 @@ def test_renew_rejects_lost_lease():
         gateway.assert_lease("run-1")
 
 
+def test_transient_renew_error_does_not_permanently_mark_lease_lost(monkeypatch):
+    client = FakeSupabase()
+    gateway = FacadeGateway(client)
+
+    def disconnected(_call):
+        raise httpx.RemoteProtocolError("server disconnected")
+
+    monkeypatch.setattr(FakeCall, "execute", disconnected)
+
+    with pytest.raises(httpx.RemoteProtocolError):
+        gateway.renew("run-1", "worker-1")
+    gateway.assert_lease("run-1")
+
+
 def test_upload_artifact_sets_mime_hash_and_deterministic_path(tmp_path):
     source = tmp_path / "preview.webp"
     source.write_bytes(b"webp-preview")
@@ -247,6 +262,164 @@ def test_upload_artifact_sets_mime_hash_and_deterministic_path(tmp_path):
     assert payload["p_storage_path"] == storage_path
     assert payload["p_size_bytes"] == 12
     assert payload["p_sha256"] == "ab916ea41dfe485fc982a481aeddd13a7b6bdf4321827d13ac654251a6f5e9ca"
+
+
+def test_upload_artifact_retries_transient_upload_without_recomputing(monkeypatch, tmp_path):
+    source = tmp_path / "preview.jpg"
+    source.write_bytes(b"preview")
+    client = FakeSupabase()
+    original_upload = FakeBucket.upload
+    attempts = 0
+
+    def upload_after_timeout(bucket, path, content, options):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.WriteTimeout("temporary write timeout")
+        return original_upload(bucket, path, content, options)
+
+    monkeypatch.setattr(FakeBucket, "upload", upload_after_timeout)
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    path = FacadeGateway(client).upload_artifact(
+        FacadeRun.from_row(run_row()), "worker-1", "rectification",
+        "rectified_preview", source, "image/jpeg", {},
+    )
+
+    assert attempts == 2
+    assert client.files[("facade-generation", path)] == b"preview"
+    assert [name for name, _ in client.calls] == ["record_facade_artifact"]
+
+
+def test_upload_artifact_retries_record_only_after_transient_rpc_error(monkeypatch, tmp_path):
+    source = tmp_path / "preview.jpg"
+    source.write_bytes(b"preview")
+    client = FakeSupabase()
+    original_execute = FakeCall.execute
+    attempts = 0
+
+    def record_after_disconnect(call):
+        nonlocal attempts
+        if call.name == "record_facade_artifact":
+            attempts += 1
+            if attempts == 1:
+                raise httpx.RemoteProtocolError("server disconnected")
+        return original_execute(call)
+
+    monkeypatch.setattr(FakeCall, "execute", record_after_disconnect)
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    FacadeGateway(client).upload_artifact(
+        FacadeRun.from_row(run_row()), "worker-1", "rectification",
+        "rectified_preview", source, "image/jpeg", {},
+    )
+
+    assert attempts == 2
+    assert len(client.uploads) == 1
+
+
+def test_upload_artifact_does_not_retry_non_network_error(monkeypatch, tmp_path):
+    source = tmp_path / "preview.jpg"
+    source.write_bytes(b"preview")
+    client = FakeSupabase()
+    attempts = 0
+
+    def rejected_upload(_bucket, _path, _content, _options):
+        nonlocal attempts
+        attempts += 1
+        raise ValueError("not authorized")
+
+    monkeypatch.setattr(FakeBucket, "upload", rejected_upload)
+
+    with pytest.raises(ValueError, match="not authorized"):
+        FacadeGateway(client).upload_artifact(
+            FacadeRun.from_row(run_row()), "worker-1", "rectification",
+            "rectified_preview", source, "image/jpeg", {},
+        )
+    assert attempts == 1
+
+
+def test_transient_upload_failure_stops_after_three_attempts(monkeypatch, tmp_path):
+    source = tmp_path / "preview.jpg"
+    source.write_bytes(b"preview")
+    client = FakeSupabase()
+    attempts = 0
+
+    def timed_out_upload(_bucket, _path, _content, _options):
+        nonlocal attempts
+        attempts += 1
+        raise httpx.WriteTimeout("temporary write timeout")
+
+    monkeypatch.setattr(FakeBucket, "upload", timed_out_upload)
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    with pytest.raises(httpx.WriteTimeout):
+        FacadeGateway(client).upload_artifact(
+            FacadeRun.from_row(run_row()), "worker-1", "rectification",
+            "rectified_preview", source, "image/jpeg", {},
+        )
+    assert attempts == 3
+    assert client.calls == []
+
+
+def test_model_upload_retries_transient_timeout_before_publication(monkeypatch, tmp_path):
+    model = tmp_path / "building.glb"
+    model.write_bytes(b"glTF" + b"\x00" * 24)
+    client = FakeSupabase()
+    original_upload = FakeBucket.upload
+    attempts = 0
+
+    def upload_after_timeout(bucket, path, content, options):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.WriteTimeout("temporary write timeout")
+        return original_upload(bucket, path, content, options)
+
+    monkeypatch.setattr(FakeBucket, "upload", upload_after_timeout)
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    path = FacadeGateway(client).complete_generation(
+        FacadeRun.from_row(run_row(status="generating")),
+        "worker-1", model, {"phase": "generation"},
+    )
+
+    assert attempts == 2
+    assert client.files[("facade-generation", path)] == model.read_bytes()
+    assert [name for name, _ in client.calls] == ["publish_facade_generation"]
+
+
+def test_rejected_artifact_registration_reports_lost_lease(tmp_path):
+    source = tmp_path / "preview.jpg"
+    source.write_bytes(b"preview")
+    client = FakeSupabase()
+    client.rpc_results["record_facade_artifact"] = False
+
+    with pytest.raises(FacadeLeaseLost):
+        FacadeGateway(client).upload_artifact(
+            FacadeRun.from_row(run_row()), "worker-1", "rectification",
+            "rectified_preview", source, "image/jpeg", {},
+        )
+
+
+def test_rejected_rectification_publication_reports_lost_lease():
+    client = FakeSupabase()
+    client.rpc_results["publish_facade_rectification"] = False
+
+    with pytest.raises(FacadeLeaseLost):
+        FacadeGateway(client).publish_rectification("run-1", "worker-1", [])
+
+
+def test_rejected_model_publication_reports_lost_lease(tmp_path):
+    model = tmp_path / "building.glb"
+    model.write_bytes(b"glTF" + b"\x00" * 24)
+    client = FakeSupabase()
+    client.rpc_results["publish_facade_generation"] = False
+
+    with pytest.raises(FacadeLeaseLost):
+        FacadeGateway(client).complete_generation(
+            FacadeRun.from_row(run_row(status="generating")), "worker-1", model, {},
+        )
 
 
 def test_complete_generation_uses_atomic_publication_rpc(tmp_path):

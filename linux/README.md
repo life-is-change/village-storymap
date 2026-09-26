@@ -10,6 +10,10 @@ Compose 内部的 `geo-worker` 访问。
 
 ## Architecture
 
+个人底图生产不再把管理员上传的共享数据包作为计算输入。浏览器只向 Supabase 提交教学项目、村庄、研究范围和参数；`geo-worker` 从本机 `/data` 读取对应村的影像以及共用的广东 DEM、OSM 和模型，处理后把成果上传回私有 Storage。共享现状底图上传流程保持原样。
+
+`server/config/villages.yaml` 使用数据库中的真实村庄 UUID 登记每村影像。米埗村当前 UUID 是 `00000000-0000-4000-8000-000000000001`；红星村的 UUID 必须从数据库核对后登记，不能按村名猜。红星村影像未放到 4090 时，Worker 仍应正常服务米埗村，而红星村个人任务应在提交前提示“本地影像未登记/缺失”。
+
 ```text
 Browser -> Supabase queue/private Storage <- HTTPS -> geo-worker
                                                      |
@@ -270,7 +274,14 @@ where status = 'queued';
    cd /opt/village-storymap/linux
    sudo docker compose --env-file /etc/village-platform/worker.env ps
    sudo docker compose --env-file /etc/village-platform/worker.env logs --tail 100 geo-worker
+   sudo python3 /opt/village-storymap/linux/scripts/verify-live-geo-network.py
    ```
+
+   最后一条必须输出 `building ready: 200`。它检查正在领取任务的容器同时连接
+   `backend` 和 `egress`，并从该容器内部访问建筑服务；前面的验证脚本使用一次性
+   容器，不能替代此项检查。若提示缺少 `backend`，先保持队列暂停并确认没有
+   claimed/running 任务，再用当前两份 Compose 配置重建 `geo-worker`，随后重跑检查；
+   不要在任务运行中断开或重建容器。
 
 4. 在 Supabase SQL Editor 确认 `linux-rtx4090-01` 心跳更新时间持续前进：
 

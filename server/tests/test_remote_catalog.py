@@ -71,7 +71,18 @@ def test_mibu_without_dataset_id_uses_local_catalog(tmp_path):
     assert resolve_dataset(request, DatasetCatalog({"mibu": item}), None).village_id == "mibu"
 
 
-def test_formal_village_requires_dataset_id(tmp_path):
-    request = make_request(dataset_id=None, input_manifest=None)
-    with pytest.raises(ValueError, match="DATASET_ID_REQUIRED"):
-        resolve_dataset(request, DatasetCatalog({}), None)
+def test_dataset_id_never_switches_personal_run_to_remote_source(tmp_path):
+    request = make_request(input_manifest={"files": {"imagery": {"bucket": "village-datasets", "path": "remote.tif"}}})
+    for name in ("imagery.tif", "dem.tif", "osm.pbf", "model.py", "model.pth"):
+        (tmp_path / name).touch()
+    item = VillageDataset(
+        request.village_id, "本地村庄", tmp_path / "imagery.tif", tmp_path / "dem.tif",
+        tmp_path / "osm.pbf", (113, 23, 114, 24), tmp_path / "model.py",
+        tmp_path / "model.pth", "snapshot", "dem",
+    )
+
+    class NeverDownload:
+        def resolve(self, *_args):
+            raise AssertionError("remote input must not be used")
+
+    assert resolve_dataset(request, DatasetCatalog({request.village_id: item}), NeverDownload()) is item

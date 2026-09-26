@@ -3,9 +3,20 @@ const assert = require("node:assert/strict");
 
 const {
   createActivityLogger,
+  resolveActivitySpaceId,
   purgeLegacyAdminEventsOnce,
   ADMIN_HISTORY_CLEANUP_MARKER
 } = require("./activity-logger.js");
+
+test("activity events use the database space id behind the shared workspace alias", () => {
+  const spaces = [
+    { id: "current", actualSpaceId: "practice-shared-1", teachingProjectId: "project-1", villageId: "village-1" },
+    { id: "personal-2", actualSpaceId: "personal-2", teachingProjectId: "project-1", villageId: "village-2" }
+  ];
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["current"], teachingProjectId: "project-1", villageId: "village-1" }), "practice-shared-1");
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["personal-2"], teachingProjectId: "project-1", villageId: "village-1" }), "practice-shared-1");
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["current"], teachingProjectId: "project-2", villageId: "village-1" }), "");
+});
 
 function createMemoryStorage() {
   const values = new Map();
@@ -124,4 +135,18 @@ test("legacy administrator events are purged from local cache only once", () => 
   ]));
   assert.equal(purgeLegacyAdminEventsOnce(storage), 0);
   assert.equal(JSON.parse(storage.getItem("village_activity_events_v1")).length, 1);
+});
+
+test("flush retains but does not resend legacy events addressed to the virtual current space", async () => {
+  const storage = createMemoryStorage();
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "old-event", spaceId: "current", syncStatus: "pending" }
+  ]));
+  let sends = 0;
+  const logger = createLogger({ storage, remote: { async insert() { sends += 1; } } });
+  await logger.flush();
+  await logger.flush();
+  assert.equal(sends, 0);
+  assert.equal(logger.listLocalEvents()[0].syncStatus, "blocked");
+  assert.equal(logger.listLocalEvents()[0].syncError, "LEGACY_SPACE_CONTEXT_INVALID");
 });

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from pathlib import Path, PurePosixPath
 import re
+import time
 from typing import Any
 from urllib.parse import urlsplit
 from urllib.parse import quote
@@ -17,6 +19,7 @@ BUCKET = "facade-generation"
 PHOTO_BUCKET = "house-photos"
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
+LOGGER = logging.getLogger(__name__)
 
 
 class FacadeLeaseLost(RuntimeError):
@@ -59,6 +62,24 @@ class FacadeGateway:
         self.http_client = http_client or httpx
         self._lost_leases: set[str] = set()
 
+    @staticmethod
+    def _retry_transient(label: str, operation):
+        for attempt in range(1, 4):
+            started = time.monotonic()
+            try:
+                result = operation()
+            except httpx.TransportError as exc:
+                LOGGER.warning(
+                    "%s network error %s after %.2fs (attempt %d/3)",
+                    label, type(exc).__name__, time.monotonic() - started, attempt,
+                )
+                if attempt == 3:
+                    raise
+                time.sleep(min(attempt, 2))
+            else:
+                LOGGER.info("%s completed in %.2fs", label, time.monotonic() - started)
+                return result
+
     def claim(self, worker_id: str) -> FacadeRun | None:
         rows = self.client.rpc(
             "claim_next_facade_run", {"p_worker_id": worker_id}
@@ -75,6 +96,8 @@ class FacadeGateway:
                 "renew_facade_run_lease",
                 {"p_run_id": run_id, "p_worker_id": worker_id},
             ).execute().data
+        except httpx.TransportError:
+            raise
         except Exception:
             self._lost_leases.add(run_id)
             raise
@@ -235,25 +258,34 @@ class FacadeGateway:
     ) -> str:
         content = source_path.read_bytes()
         storage_path = artifact_path(run, phase, source_path.name)
-        self.client.storage.from_(BUCKET).upload(
-            storage_path,
-            content,
-            {"content-type": content_type, "upsert": "true"},
+        self._retry_transient(
+            f"Facade upload {run.run_id} {artifact_type}",
+            lambda: self.client.storage.from_(BUCKET).upload(
+                storage_path,
+                content,
+                {"content-type": content_type, "upsert": "true"},
+            ),
         )
-        self.client.rpc(
-            "record_facade_artifact",
-            {
-                "p_run_id": run.run_id,
-                "p_worker_id": worker_id,
-                "p_artifact_type": artifact_type,
-                "p_storage_path": storage_path,
-                "p_content_type": content_type,
-                "p_size_bytes": len(content),
-                "p_sha256": hashlib.sha256(content).hexdigest(),
-                "p_generation_revision": run.generation_revision,
-                "p_source": source,
-            },
-        ).execute()
+        recorded = self._retry_transient(
+            f"Facade record {run.run_id} {artifact_type}",
+            lambda: self.client.rpc(
+                "record_facade_artifact",
+                {
+                    "p_run_id": run.run_id,
+                    "p_worker_id": worker_id,
+                    "p_artifact_type": artifact_type,
+                    "p_storage_path": storage_path,
+                    "p_content_type": content_type,
+                    "p_size_bytes": len(content),
+                    "p_sha256": hashlib.sha256(content).hexdigest(),
+                    "p_generation_revision": run.generation_revision,
+                    "p_source": source,
+                },
+            ).execute(),
+        )
+        if recorded.data is False:
+            self._lost_leases.add(run.run_id)
+            raise FacadeLeaseLost("FACADE_LEASE_LOST")
         return storage_path
 
     def publish_rectification(
@@ -262,10 +294,13 @@ class FacadeGateway:
         worker_id: str,
         artifacts: list[dict],
     ) -> None:
-        self.client.rpc(
+        result = self.client.rpc(
             "publish_facade_rectification",
             {"p_run_id": run_id, "p_worker_id": worker_id, "p_artifacts": artifacts},
         ).execute()
+        if result.data is False:
+            self._lost_leases.add(run_id)
+            raise FacadeLeaseLost("FACADE_LEASE_LOST")
 
     def complete_generation(
         self,
@@ -280,12 +315,16 @@ class FacadeGateway:
             f"generation-r{run.generation_revision}",
             model_path.name,
         )
-        self.client.storage.from_(BUCKET).upload(
-            storage_path,
-            content,
-            {"content-type": "model/gltf-binary", "upsert": "true"},
+        self._retry_transient(
+            f"Facade upload {run.run_id} building_glb",
+            lambda: self.client.storage.from_(BUCKET).upload(
+                storage_path,
+                content,
+                {"content-type": "model/gltf-binary", "upsert": "true"},
+            ),
         )
-        self.client.rpc(
+        started = time.monotonic()
+        result = self.client.rpc(
             "publish_facade_generation",
             {
                 "p_run_id": run.run_id,
@@ -298,6 +337,13 @@ class FacadeGateway:
                 "p_source": source,
             },
         ).execute()
+        if result.data is False:
+            self._lost_leases.add(run.run_id)
+            raise FacadeLeaseLost("FACADE_LEASE_LOST")
+        LOGGER.info(
+            "Facade generation %s publication completed in %.2fs",
+            run.run_id, time.monotonic() - started,
+        )
         return storage_path
 
     def heartbeat(self, worker_id: str, state: str, version: str) -> None:
