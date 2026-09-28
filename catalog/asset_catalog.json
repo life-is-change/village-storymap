@@ -194,6 +194,312 @@
       "label": "Playground Swing",
       "source": "leonkin Playground",
       "license": "CC0 1.0 / Public Domain Dedication"
+    },
+    {
+      "id": "asset-025",
+      "path": "models/kenney/furniture/chairRounded.glb",
+      "category": "seating",
+      "label": "Rounded Chair",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-026",
+      "path": "models/kenney/furniture/chairCushion.glb",
+      "category": "seating",
+      "label": "Cushion Chair",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-027",
+      "path": "models/kenney/furniture/tableCross.glb",
+      "category": "tables",
+      "label": "Cross Table",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-028",
+      "path": "models/kenney/furniture/tableCloth.glb",
+      "category": "tables",
+      "label": "Cloth Table",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-029",
+      "path": "models/kenney/furniture/loungeChair.glb",
+      "category": "seating",
+      "label": "Lounge Chair",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-030",
+      "path": "models/kenney/furniture/sideTable.glb",
+      "category": "tables",
+      "label": "Side Table",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-031",
+      "path": "models/kenney/furniture/plantSmall1.glb",
+      "category": "planters",
+      "label": "Small Plant 1",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-032",
+      "path": "models/kenney/furniture/plantSmall2.glb",
+      "category": "planters",
+      "label": "Small Plant 2",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-033",
+      "path": "models/kenney/furniture/lampRoundFloor.glb",
+      "category": "lighting",
+      "label": "Round Floor Lamp",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-034",
+      "path": "models/kenney/furniture/lampWall.glb",
+      "category": "lighting",
+      "label": "Wall Lamp",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-035",
+      "path": "models/kenney/city-roads/light-square.glb",
+      "category": "lighting",
+      "label": "Square Street Light",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-036",
+      "path": "models/kenney/city-roads/light-curved-double.glb",
+      "category": "lighting",
+      "label": "Double Curved Street Light",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-037",
+      "path": "models/kenney/city-roads/construction-light.glb",
+      "category": "traffic",
+      "label": "Construction Warning Light",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-038",
+      "path": "models/kenney/city-roads/road-bridge.glb",
+      "category": "waterfront",
+      "label": "Road Bridge",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-039",
+      "path": "models/kenney/city-roads/road-crossing.glb",
+      "category": "traffic",
+      "label": "Road Crossing",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-040",
+      "path": "models/kenney/city-suburban/fence-low.glb",
+      "category": "boundaries",
+      "label": "Low Fence",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-041",
+      "path": "models/kenney/city-suburban/fence-1x3.glb",
+      "category": "boundaries",
+      "label": "Long Fence",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-042",
+      "path": "models/kenney/city-suburban/path-stones-short.glb",
+      "category": "paving",
+      "label": "Stone Path Short",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-043",
+      "path": "models/kenney/city-suburban/path-stones-long.glb",
+      "category": "paving",
+      "label": "Stone Path Long",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-044",
+      "path": "models/kenney/city-suburban/path-stones-messy.glb",
+      "category": "paving",
+      "label": "Stone Path Irregular",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-045",
+      "path": "models/kenney/city-suburban/planter.glb",
+      "category": "planters",
+      "label": "Outdoor Planter",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-046",
+      "path": "models/kenney/city-suburban/tree-large.glb",
+      "category": "vegetation",
+      "label": "Large Tree",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-047",
+      "path": "models/kenney/city-suburban/tree-small.glb",
+      "category": "vegetation",
+      "label": "Small Tree",
+      "source": "Kenney/City Suburban",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-048",
+      "path": "models/kenney/coaster/queue-entrance.glb",
+      "category": "signage",
+      "label": "Queue Entrance",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-049",
+      "path": "models/kenney/coaster/ride-entrance.glb",
+      "category": "signage",
+      "label": "Event Entrance",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-050",
+      "path": "models/kenney/coaster/station-fence.glb",
+      "category": "boundaries",
+      "label": "Station Fence",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-051",
+      "path": "models/kenney/coaster/trash.glb",
+      "category": "municipal",
+      "label": "Outdoor Trash Bin 2",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-052",
+      "path": "models/kenney/coaster/flowers.glb",
+      "category": "vegetation",
+      "label": "Flower Bed",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-053",
+      "path": "models/kenney/fantasy-town/hedge.glb",
+      "category": "boundaries",
+      "label": "Hedge",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-054",
+      "path": "models/kenney/fantasy-town/hedge-curved.glb",
+      "category": "boundaries",
+      "label": "Curved Hedge",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-055",
+      "path": "models/kenney/fantasy-town/hedge-gate.glb",
+      "category": "boundaries",
+      "label": "Hedge Gate",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-056",
+      "path": "models/kenney/fantasy-town/hedge-large.glb",
+      "category": "boundaries",
+      "label": "Large Hedge",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-057",
+      "path": "models/kenney/fantasy-town/stairs-wide-stone-handrail.glb",
+      "category": "landscape",
+      "label": "Wide Stone Steps with Handrail",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-058",
+      "path": "models/kenney/fantasy-town/stairs-wood-handrail.glb",
+      "category": "landscape",
+      "label": "Wood Steps with Handrail",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-059",
+      "path": "models/kenney/fantasy-town/fountain-round.glb",
+      "category": "landscape",
+      "label": "Round Fountain Basic",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-060",
+      "path": "models/kenney/fantasy-town/stall-stool.glb",
+      "category": "seating",
+      "label": "Stall Stool",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-061",
+      "path": "models/kenney/fantasy-town/cart-high.glb",
+      "category": "market-event",
+      "label": "High Cart",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-062",
+      "path": "models/kenney/fantasy-town/tree-high-round.glb",
+      "category": "vegetation",
+      "label": "Round Canopy Tree",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
     }
-  ]
+  ],
+  "updatedAt": "2026-09-28",
+  "assetCount": 62
 }

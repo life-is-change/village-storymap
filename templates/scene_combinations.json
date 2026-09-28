@@ -1,0 +1,810 @@
+{
+  "schemaVersion": 1,
+  "note": "Editable scene-group templates. Positions are starting values for one-click placement, ungrouping and further editing.",
+  "templates": [
+    {
+      "id": "combo-elderly-activity-corner",
+      "label": "老年活动角",
+      "category": "community",
+      "objects": [
+        {
+          "assetId": "asset-003",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "position": [
+            -1.4,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "position": [
+            1.4,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "position": [
+            0,
+            0,
+            1.4
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "position": [
+            0,
+            0,
+            -2.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "position": [
+            -3,
+            0,
+            -1.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-035",
+          "position": [
+            3,
+            0,
+            -1.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-childrens-play-area",
+      "label": "儿童活动角",
+      "category": "playground",
+      "objects": [
+        {
+          "assetId": "asset-023",
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-024",
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "position": [
+            0,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "position": [
+            3,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-005",
+          "position": [
+            -3,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-small-market",
+      "label": "乡村小市集",
+      "category": "market",
+      "objects": [
+        {
+          "assetId": "asset-019",
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-020",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-010",
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-022",
+          "position": [
+            -4,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-011",
+          "position": [
+            4,
+            0,
+            2.5
+          ],
+          "rotationYDeg": -25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            -5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-food-drink-zone",
+      "label": "餐饮休闲角",
+      "category": "market",
+      "objects": [
+        {
+          "assetId": "asset-010",
+          "position": [
+            -2.5,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-009",
+          "position": [
+            2.5,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-003",
+          "position": [
+            -1,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-003",
+          "position": [
+            1.5,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "position": [
+            -2,
+            0,
+            3
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "position": [
+            2.5,
+            0,
+            3
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "position": [
+            4.5,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-fountain-plaza",
+      "label": "喷泉休憩小广场",
+      "category": "plaza",
+      "objects": [
+        {
+          "assetId": "asset-013",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "position": [
+            0,
+            0,
+            3
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            -4,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            4,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-052",
+          "position": [
+            0,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-village-entrance",
+      "label": "村口入口节点",
+      "category": "entrance",
+      "objects": [
+        {
+          "assetId": "asset-008",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            -3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "position": [
+            -4,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "position": [
+            4,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "position": [
+            -4,
+            0,
+            4
+          ],
+          "rotationYDeg": 25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "position": [
+            4,
+            0,
+            4
+          ],
+          "rotationYDeg": -25,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-quiet-garden",
+      "label": "安静休憩花园",
+      "category": "garden",
+      "objects": [
+        {
+          "assetId": "asset-014",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-029",
+          "position": [
+            -1.5,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-029",
+          "position": [
+            1.5,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-030",
+          "position": [
+            0,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-052",
+          "position": [
+            0,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-walkway-rest",
+      "label": "步道休憩节点",
+      "category": "walkway",
+      "objects": [
+        {
+          "assetId": "asset-043",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-005",
+          "position": [
+            3.5,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "position": [
+            -3.5,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-public-toilet-corner",
+      "label": "公共厕所服务点",
+      "category": "service",
+      "objects": [
+        {
+          "assetId": "asset-012",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "position": [
+            2.3,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "position": [
+            -2.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-035",
+          "position": [
+            3,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "position": [
+            -3,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-night-rest",
+      "label": "夜间照明休憩点",
+      "category": "lighting",
+      "objects": [
+        {
+          "assetId": "asset-002",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            -2,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            2,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-031",
+          "position": [
+            -1.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-032",
+          "position": [
+            1.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-market-gateway",
+      "label": "市集入口组",
+      "category": "market",
+      "objects": [
+        {
+          "assetId": "asset-048",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-019",
+          "position": [
+            -3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-020",
+          "position": [
+            3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-061",
+          "position": [
+            -4,
+            0,
+            -1
+          ],
+          "rotationYDeg": 30,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-011",
+          "position": [
+            4,
+            0,
+            -1
+          ],
+          "rotationYDeg": -30,
+          "scale": 1
+        }
+      ]
+    },
+    {
+      "id": "combo-landscape-steps",
+      "label": "台阶景观节点",
+      "category": "landscape",
+      "objects": [
+        {
+          "assetId": "asset-057",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": -20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            -2,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "position": [
+            2,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
+      ]
+    }
+  ]
+}
