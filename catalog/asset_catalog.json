@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "curatedAt": "2026-09-28",
+  "purpose": "Village public-space scene design model library",
+  "assets": [
+    {
+      "id": "asset-001",
+      "path": "models/kenney/furniture/bench.glb",
+      "category": "seating",
+      "label": "Bench",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-002",
+      "path": "models/kenney/furniture/benchCushion.glb",
+      "category": "seating",
+      "label": "Bench Cushion",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-003",
+      "path": "models/kenney/furniture/tableRound.glb",
+      "category": "tables",
+      "label": "Round Table",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-004",
+      "path": "models/kenney/furniture/trashcan.glb",
+      "category": "municipal",
+      "label": "Trash Can",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-005",
+      "path": "models/kenney/city-roads/light-curved.glb",
+      "category": "lighting",
+      "label": "Curved Street Light",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-006",
+      "path": "models/kenney/city-roads/construction-barrier.glb",
+      "category": "traffic",
+      "label": "Construction Barrier",
+      "source": "Kenney/City Roads",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-007",
+      "path": "models/kenney/coaster/bench.glb",
+      "category": "seating",
+      "label": "Park Bench",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-008",
+      "path": "models/kenney/coaster/park-entrance.glb",
+      "category": "signage",
+      "label": "Park Entrance",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-009",
+      "path": "models/kenney/coaster/stall-drinks.glb",
+      "category": "market-event",
+      "label": "Drink Stall",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-010",
+      "path": "models/kenney/coaster/stall-food.glb",
+      "category": "market-event",
+      "label": "Food Stall",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-011",
+      "path": "models/kenney/coaster/stall-information.glb",
+      "category": "signage",
+      "label": "Information Stall",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-012",
+      "path": "models/kenney/coaster/stall-toilets.glb",
+      "category": "municipal",
+      "label": "Toilet Stall",
+      "source": "Kenney/Coaster",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-013",
+      "path": "models/kenney/fantasy-town/fountain-round-detail.glb",
+      "category": "landscape",
+      "label": "Round Fountain",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-014",
+      "path": "models/kenney/fantasy-town/fountain-square-detail.glb",
+      "category": "landscape",
+      "label": "Square Fountain",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-015",
+      "path": "models/kenney/fantasy-town/fence.glb",
+      "category": "boundaries",
+      "label": "Fence",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-016",
+      "path": "models/kenney/fantasy-town/fence-gate.glb",
+      "category": "boundaries",
+      "label": "Fence Gate",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-017",
+      "path": "models/kenney/fantasy-town/lantern.glb",
+      "category": "lighting",
+      "label": "Lantern",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-018",
+      "path": "models/kenney/fantasy-town/stairs-stone-handrail.glb",
+      "category": "landscape",
+      "label": "Stone Steps with Handrail",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-019",
+      "path": "models/kenney/fantasy-town/stall-green.glb",
+      "category": "market-event",
+      "label": "Green Market Stall",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-020",
+      "path": "models/kenney/fantasy-town/stall-red.glb",
+      "category": "market-event",
+      "label": "Red Market Stall",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-021",
+      "path": "models/kenney/fantasy-town/stall-bench.glb",
+      "category": "seating",
+      "label": "Stall Bench",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-022",
+      "path": "models/kenney/fantasy-town/cart.glb",
+      "category": "market-event",
+      "label": "Cart",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-023",
+      "path": "models/leonkin-playground/slide.glb",
+      "category": "playground",
+      "label": "Playground Slide",
+      "source": "leonkin Playground",
+      "license": "CC0 1.0 / Public Domain Dedication"
+    },
+    {
+      "id": "asset-024",
+      "path": "models/leonkin-playground/swing.glb",
+      "category": "playground",
+      "label": "Playground Swing",
+      "source": "leonkin Playground",
+      "license": "CC0 1.0 / Public Domain Dedication"
+    }
+  ]
+}
