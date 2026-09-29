@@ -1,0 +1,486 @@
+{
+  "generatedFrom": "templates/scene_combinations.json",
+  "count": 24,
+  "items": [
+    {
+      "id": "combo-elderly-activity-corner",
+      "label": "老年活动角",
+      "category": "community",
+      "path": "models/combinations/combo-elderly-activity-corner.glb",
+      "objectCount": 7,
+      "meshCount": 7,
+      "bounds": [
+        [
+          -3.2000000029802322,
+          -0.26999998092651367,
+          -3.000000002980232
+        ],
+        [
+          3.025000000372529,
+          0.6000000238418579,
+          1.6000000029802321
+        ]
+      ]
+    },
+    {
+      "id": "combo-childrens-play-area",
+      "label": "儿童活动角",
+      "category": "playground",
+      "path": "models/combinations/combo-childrens-play-area.glb",
+      "objectCount": 5,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -3.025000000372529,
+          -5.960464477539063e-08,
+          -3.2249999940395355
+        ],
+        [
+          3.2119449973106384,
+          2.7120001316070557,
+          3.1500000953674316
+        ]
+      ]
+    },
+    {
+      "id": "combo-small-market",
+      "label": "乡村小市集",
+      "category": "market",
+      "path": "models/combinations/combo-small-market.glb",
+      "objectCount": 7,
+      "meshCount": 9,
+      "bounds": [
+        [
+          -5.108224242925644,
+          -1.12798658e-17,
+          -2.1121599972248077
+        ],
+        [
+          5.108224242925644,
+          1.555999994277954,
+          3.2672348355357785
+        ]
+      ]
+    },
+    {
+      "id": "combo-food-drink-zone",
+      "label": "餐饮休闲角",
+      "category": "market",
+      "path": "models/combinations/combo-food-drink-zone.glb",
+      "objectCount": 7,
+      "meshCount": 9,
+      "bounds": [
+        [
+          -3.022601306438446,
+          -0.26999998092651367,
+          -0.7000000476837158
+        ],
+        [
+          4.711944997310638,
+          1.8802498579025269,
+          3.2119449973106384
+        ]
+      ]
+    },
+    {
+      "id": "combo-fountain-plaza",
+      "label": "喷泉休憩小广场",
+      "category": "plaza",
+      "path": "models/combinations/combo-fountain-plaza.glb",
+      "objectCount": 7,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -4.108224242925644,
+          -4.591168408512693e-20,
+          -3.40189665555954
+        ],
+        [
+          4.108224242925644,
+          1.555999994277954,
+          3.2000000029802322
+        ]
+      ]
+    },
+    {
+      "id": "combo-village-entrance",
+      "label": "村口入口节点",
+      "category": "entrance",
+      "path": "models/combinations/combo-village-entrance.glb",
+      "objectCount": 7,
+      "meshCount": 7,
+      "bounds": [
+        [
+          -4.457612226589331,
+          0.0,
+          -1.1121599972248077
+        ],
+        [
+          4.457612226589331,
+          2.434999942779541,
+          4.4058631258670955
+        ]
+      ]
+    },
+    {
+      "id": "combo-quiet-garden",
+      "label": "安静休憩花园",
+      "category": "garden",
+      "path": "models/combinations/combo-quiet-garden.glb",
+      "objectCount": 7,
+      "meshCount": 11,
+      "bounds": [
+        [
+          -3.5,
+          0.0,
+          -2.90189665555954
+        ],
+        [
+          3.5,
+          0.48000001907348633,
+          2.9100000262260437
+        ]
+      ]
+    },
+    {
+      "id": "combo-walkway-rest",
+      "label": "步道休憩节点",
+      "category": "walkway",
+      "path": "models/combinations/combo-walkway-rest.glb",
+      "objectCount": 5,
+      "meshCount": 5,
+      "bounds": [
+        [
+          -3.25,
+          0.0,
+          -2.0
+        ],
+        [
+          3.525000000372529,
+          0.6749999523162842,
+          0.4000000059604645
+        ]
+      ]
+    },
+    {
+      "id": "combo-public-toilet-corner",
+      "label": "公共厕所服务点",
+      "category": "service",
+      "path": "models/combinations/combo-public-toilet-corner.glb",
+      "objectCount": 5,
+      "meshCount": 5,
+      "bounds": [
+        [
+          -2.75,
+          -2.821695431027396e-31,
+          -2.5
+        ],
+        [
+          3.025000000372529,
+          1.4000000953674316,
+          1.9000000059604645
+        ]
+      ]
+    },
+    {
+      "id": "combo-night-rest",
+      "label": "夜间照明休憩点",
+      "category": "lighting",
+      "path": "models/combinations/combo-night-rest.glb",
+      "objectCount": 5,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -2.108224242925644,
+          0.0,
+          -1.1121599972248077
+        ],
+        [
+          2.108224242925644,
+          1.555999994277954,
+          1.5473303651409154
+        ]
+      ]
+    },
+    {
+      "id": "combo-market-gateway",
+      "label": "市集入口组",
+      "category": "market",
+      "path": "models/combinations/combo-market-gateway.glb",
+      "objectCount": 5,
+      "meshCount": 7,
+      "bounds": [
+        [
+          -4.545501525743453,
+          -1.12798658e-17,
+          -1.6873363653465605
+        ],
+        [
+          4.658012695931755,
+          1.5,
+          2.5
+        ]
+      ]
+    },
+    {
+      "id": "combo-landscape-steps",
+      "label": "台阶景观节点",
+      "category": "landscape",
+      "path": "models/combinations/combo-landscape-steps.glb",
+      "objectCount": 5,
+      "meshCount": 5,
+      "bounds": [
+        [
+          -3.6408563820557887,
+          0.0,
+          -0.6408563820557885
+        ],
+        [
+          3.4995241244315256,
+          1.555999994277954,
+          2.1121599972248077
+        ]
+      ]
+    },
+    {
+      "id": "combo-gazebo-tea-corner",
+      "label": "亭下茶叙节点",
+      "category": "shade",
+      "path": "models/combinations/combo-gazebo-tea-corner.glb",
+      "objectCount": 6,
+      "meshCount": 12,
+      "bounds": [
+        [
+          -5.199974060058594,
+          -0.26999998092651367,
+          -5.156733989715576
+        ],
+        [
+          5.199977874755859,
+          8.722735404968262,
+          5.156731128692627
+        ]
+      ]
+    },
+    {
+      "id": "combo-pergola-rest-area",
+      "label": "廊架休憩区",
+      "category": "shade",
+      "path": "models/combinations/combo-pergola-rest-area.glb",
+      "objectCount": 6,
+      "meshCount": 12,
+      "bounds": [
+        [
+          -4.1860583908855915,
+          -0.10458194972883611,
+          -3.170077896387432
+        ],
+        [
+          4.1860583908855915,
+          6.628115392113382,
+          3.0749711032867433
+        ]
+      ]
+    },
+    {
+      "id": "combo-fitness-station",
+      "label": "户外健身点",
+      "category": "fitness",
+      "path": "models/combinations/combo-fitness-station.glb",
+      "objectCount": 5,
+      "meshCount": 10,
+      "bounds": [
+        [
+          -3.7199999570846556,
+          -0.014682595634308815,
+          -3.0249999940395353
+        ],
+        [
+          3.4999993834644556,
+          6.628115392113382,
+          0.39000000059604645
+        ]
+      ]
+    },
+    {
+      "id": "combo-basketball-rest-corner",
+      "label": "篮球活动角",
+      "category": "fitness",
+      "path": "models/combinations/combo-basketball-rest-corner.glb",
+      "objectCount": 5,
+      "meshCount": 7,
+      "bounds": [
+        [
+          -3.182143657002598,
+          -0.014682595634308815,
+          -1.9000000059604645
+        ],
+        [
+          3.1821449026465416,
+          6.628115392113382,
+          5.255208408750542
+        ]
+      ]
+    },
+    {
+      "id": "combo-playground-expanded",
+      "label": "综合儿童活动场",
+      "category": "playground",
+      "path": "models/combinations/combo-playground-expanded.glb",
+      "objectCount": 6,
+      "meshCount": 10,
+      "bounds": [
+        [
+          -46.05717468261719,
+          -9.999999974752427e-07,
+          -76.75
+        ],
+        [
+          40.05717468261719,
+          114.49200439453125,
+          74.75
+        ]
+      ]
+    },
+    {
+      "id": "combo-shaded-market",
+      "label": "遮阳乡村市集",
+      "category": "market",
+      "path": "models/combinations/combo-shaded-market.glb",
+      "objectCount": 5,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -4.446512204408646,
+          -0.01,
+          -1.65
+        ],
+        [
+          4.5,
+          1.5,
+          2.6949999928474426
+        ]
+      ]
+    },
+    {
+      "id": "combo-small-stage",
+      "label": "小型活动舞台",
+      "category": "event",
+      "path": "models/combinations/combo-small-stage.glb",
+      "objectCount": 6,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -2.625,
+          0.0,
+          -4.2249999940395355
+        ],
+        [
+          3.425000011920929,
+          0.9999999403953552,
+          1.75
+        ]
+      ]
+    },
+    {
+      "id": "combo-waterfront-wood-bridge",
+      "label": "滨水木桥节点",
+      "category": "waterfront",
+      "path": "models/combinations/combo-waterfront-wood-bridge.glb",
+      "objectCount": 5,
+      "meshCount": 9,
+      "bounds": [
+        [
+          -4.182143657002598,
+          -0.05,
+          -2.170077896387432
+        ],
+        [
+          4.182144902646542,
+          6.628115392113382,
+          2.4434728324154786
+        ]
+      ]
+    },
+    {
+      "id": "combo-stone-bridge-garden",
+      "label": "石桥小花园",
+      "category": "waterfront",
+      "path": "models/combinations/combo-stone-bridge-garden.glb",
+      "objectCount": 5,
+      "meshCount": 8,
+      "bounds": [
+        [
+          -3.6408563820557887,
+          -0.05,
+          -2.2440444231033325
+        ],
+        [
+          3.4995241244315256,
+          0.3500000059604645,
+          2.6408563820557887
+        ]
+      ]
+    },
+    {
+      "id": "combo-shaded-dining",
+      "label": "遮阳餐饮休闲区",
+      "category": "shade",
+      "path": "models/combinations/combo-shaded-dining.glb",
+      "objectCount": 5,
+      "meshCount": 9,
+      "bounds": [
+        [
+          -1.4000000029802322,
+          -0.26999998092651367,
+          -2.500000483647804
+        ],
+        [
+          3.2999993834644554,
+          1.1428576233113936,
+          0.2655561864376068
+        ]
+      ]
+    },
+    {
+      "id": "combo-wayfinding-node",
+      "label": "导视与文化展示节点",
+      "category": "signage",
+      "path": "models/combinations/combo-wayfinding-node.glb",
+      "objectCount": 6,
+      "meshCount": 11,
+      "bounds": [
+        [
+          -3.6860583908855915,
+          -0.10458194972883611,
+          -0.25
+        ],
+        [
+          3.6860583908855915,
+          1.017134268353504,
+          3.1610625088214874
+        ]
+      ]
+    },
+    {
+      "id": "combo-waste-service-point",
+      "label": "垃圾收集服务点",
+      "category": "municipal",
+      "path": "models/combinations/combo-waste-service-point.glb",
+      "objectCount": 5,
+      "meshCount": 17,
+      "bounds": [
+        [
+          -2.2057450964120795,
+          -0.040236456867709235,
+          -2.730000004172325
+        ],
+        [
+          4.260000139474869,
+          6.628115392113382,
+          1.7744718119502068
+        ]
+      ]
+    }
+  ]
+}
