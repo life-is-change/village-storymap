@@ -498,8 +498,346 @@
       "label": "Round Canopy Tree",
       "source": "Kenney/Fantasy Town",
       "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-063",
+      "path": "models/green-diamond/props/gazebo.glb",
+      "category": "shade-structure",
+      "label": "Gazebo",
+      "source": "Poly by Google via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/0cRW-BhHD16"
+    },
+    {
+      "id": "asset-064",
+      "path": "models/green-diamond/props/pergola.glb",
+      "category": "shade-structure",
+      "label": "Pergola",
+      "source": "Daniel Doran via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/akMzoP0qU7f"
+    },
+    {
+      "id": "asset-065",
+      "path": "models/green-diamond/props/playground_climbing_frame.glb",
+      "category": "playground",
+      "label": "Climbing Frame",
+      "source": "Poly by Google via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/0-7U_RTHzKT"
+    },
+    {
+      "id": "asset-066",
+      "path": "models/green-diamond/props/playground_swings.glb",
+      "category": "playground",
+      "label": "Two-seat Swing Set",
+      "source": "Poly by Google via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/e-IJdcqZH4p"
+    },
+    {
+      "id": "asset-067",
+      "path": "models/green-diamond/props/basketball_hoop.glb",
+      "category": "fitness-sports",
+      "label": "Basketball Hoop",
+      "source": "Poly by Google via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/85FpUr2fHkH"
+    },
+    {
+      "id": "asset-068",
+      "path": "models/green-diamond/props/fitness_parallel_bars.glb",
+      "category": "fitness-sports",
+      "label": "Outdoor Parallel Bars",
+      "source": "green-diamond project-authored",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-069",
+      "path": "models/green-diamond/props/fitness_pullup_bars.glb",
+      "category": "fitness-sports",
+      "label": "Outdoor Pull-up Bars",
+      "source": "green-diamond project-authored",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-070",
+      "path": "models/green-diamond/props/playground_spring_rider.glb",
+      "category": "playground",
+      "label": "Spring Rider",
+      "source": "green-diamond project-authored",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-071",
+      "path": "models/green-diamond/props/bollard.glb",
+      "category": "traffic",
+      "label": "Bollard",
+      "source": "J-Toastie via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/JSQJ07PFj2"
+    },
+    {
+      "id": "asset-072",
+      "path": "models/green-diamond/props/planter.glb",
+      "category": "planters",
+      "label": "Planter with Bushes",
+      "source": "J-Toastie via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/wn85Xr9lM3"
+    },
+    {
+      "id": "asset-073",
+      "path": "models/green-diamond/props/pool_umbrella.glb",
+      "category": "shade-structure",
+      "label": "Outdoor Umbrella",
+      "source": "S. Paul Michael via green-diamond",
+      "license": "CC-BY 3.0",
+      "sourceUrl": "https://poly.pizza/m/2li3sdSkmCI"
+    },
+    {
+      "id": "asset-074",
+      "path": "models/green-diamond/props/trash_bin_park.glb",
+      "category": "municipal",
+      "label": "Park Litter Bin",
+      "source": "Isa Lousberg via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/2UXIdGYkg9"
+    },
+    {
+      "id": "asset-075",
+      "path": "models/green-diamond/props/street_light.glb",
+      "category": "lighting",
+      "label": "Street Light Variant",
+      "source": "Quaternius via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/0lxF8Dl1jU"
+    },
+    {
+      "id": "asset-076",
+      "path": "models/green-diamond/props/fence_iron.glb",
+      "category": "boundaries",
+      "label": "Iron Fence / Railing",
+      "source": "Kay Lousberg via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/MDROOJeCSQ"
+    },
+    {
+      "id": "asset-077",
+      "path": "models/green-diamond/props/fence_chainlink.glb",
+      "category": "boundaries",
+      "label": "Chain-link Fence",
+      "source": "Quaternius via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/qWKhREFj7H"
+    },
+    {
+      "id": "asset-078",
+      "path": "models/green-diamond/props/boom_barrier.glb",
+      "category": "traffic",
+      "label": "Boom Barrier",
+      "source": "green-diamond project-authored",
+      "license": "CC0 1.0"
+    },
+    {
+      "id": "asset-079",
+      "path": "models/green-diamond/props/traffic_cone.glb",
+      "category": "traffic",
+      "label": "Traffic Cone",
+      "source": "Quaternius via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/lAx8JytxGD"
+    },
+    {
+      "id": "asset-080",
+      "path": "models/green-diamond/props/dumpster.glb",
+      "category": "municipal",
+      "label": "Dumpster",
+      "source": "Quaternius via green-diamond",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://poly.pizza/m/PKsbolkZSr"
+    },
+    {
+      "id": "asset-081",
+      "path": "models/kenney/furniture/speaker.glb",
+      "category": "event",
+      "label": "Speaker",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/assets/furniture-kit"
+    },
+    {
+      "id": "asset-082",
+      "path": "models/kenney/furniture/speakerSmall.glb",
+      "category": "event",
+      "label": "Small Speaker",
+      "source": "Kenney/Furniture",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/assets/furniture-kit"
+    },
+    {
+      "id": "asset-083",
+      "path": "models/kenney/city-commercial/detail-awning.glb",
+      "category": "shade-structure",
+      "label": "Awning",
+      "source": "Kenney/City Commercial",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-084",
+      "path": "models/kenney/city-commercial/detail-awning-wide.glb",
+      "category": "shade-structure",
+      "label": "Wide Awning",
+      "source": "Kenney/City Commercial",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-085",
+      "path": "models/kenney/racing/tent.glb",
+      "category": "shade-structure",
+      "label": "Event Tent",
+      "source": "Kenney/Racing",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-086",
+      "path": "models/kenney/racing/tentLong.glb",
+      "category": "shade-structure",
+      "label": "Long Event Tent",
+      "source": "Kenney/Racing",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-087",
+      "path": "models/kenney/racing/tentRoofDouble.glb",
+      "category": "shade-structure",
+      "label": "Double Tent Roof",
+      "source": "Kenney/Racing",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-088",
+      "path": "models/kenney/mini-forest/platform.glb",
+      "category": "event",
+      "label": "Wood Platform",
+      "source": "Kenney/Mini Forest",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-089",
+      "path": "models/kenney/mini-forest/building-platform.glb",
+      "category": "event",
+      "label": "Raised Platform",
+      "source": "Kenney/Mini Forest",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-090",
+      "path": "models/kenney/survival/signpost.glb",
+      "category": "signage",
+      "label": "Direction Signpost",
+      "source": "Kenney/Survival",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-091",
+      "path": "models/kenney/survival/signpost-single.glb",
+      "category": "signage",
+      "label": "Single Direction Sign",
+      "source": "Kenney/Survival",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-092",
+      "path": "models/kenney/nature/bridge_wood.glb",
+      "category": "waterfront",
+      "label": "Wood Footbridge",
+      "source": "Kenney/Nature",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-093",
+      "path": "models/kenney/nature/bridge_stone.glb",
+      "category": "waterfront",
+      "label": "Stone Footbridge",
+      "source": "Kenney/Nature",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-094",
+      "path": "models/kenney/nature/pot_large.glb",
+      "category": "planters",
+      "label": "Large Outdoor Pot",
+      "source": "Kenney/Nature",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-095",
+      "path": "models/kenney/nature/pot_small.glb",
+      "category": "planters",
+      "label": "Small Outdoor Pot",
+      "source": "Kenney/Nature",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-096",
+      "path": "models/kenney/retro-urban/detail-bench.glb",
+      "category": "seating",
+      "label": "Retro Urban Bench",
+      "source": "Kenney/Retro Urban",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/assets/retro-urban-kit"
+    },
+    {
+      "id": "asset-097",
+      "path": "models/kenney/retro-urban/detail-awning-small.glb",
+      "category": "shade-structure",
+      "label": "Retro Small Awning",
+      "source": "Kenney/Retro Urban",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/assets/retro-urban-kit"
+    },
+    {
+      "id": "asset-098",
+      "path": "models/kenney/retro-urban/detail-awning-wide.glb",
+      "category": "shade-structure",
+      "label": "Retro Wide Awning",
+      "source": "Kenney/Retro Urban",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/assets/retro-urban-kit"
+    },
+    {
+      "id": "asset-099",
+      "path": "models/kenney/fantasy-town/banner-green.glb",
+      "category": "culture-display",
+      "label": "Green Banner",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
+    },
+    {
+      "id": "asset-100",
+      "path": "models/kenney/fantasy-town/banner-red.glb",
+      "category": "culture-display",
+      "label": "Red Banner",
+      "source": "Kenney/Fantasy Town",
+      "license": "CC0 1.0",
+      "sourceUrl": "https://kenney.nl/"
     }
   ],
-  "updatedAt": "2026-09-28",
-  "assetCount": 62
+  "updatedAt": "2026-09-29",
+  "assetCount": 100
 }
