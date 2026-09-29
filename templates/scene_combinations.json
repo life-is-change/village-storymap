@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "Editable scene-group templates. Positions are starting values for one-click placement, ungrouping and further editing.",
+  "note": "Editable scene-group templates. Components are normalized to a ground-centered local anchor before these relative transforms are applied.",
   "templates": [
     {
       "id": "combo-elderly-activity-corner",
@@ -222,19 +222,9 @@
       "category": "market",
       "objects": [
         {
-          "assetId": "asset-010",
+          "assetId": "asset-003",
           "position": [
-            -2.5,
-            0,
-            0
-          ],
-          "rotationYDeg": 0,
-          "scale": 1
-        },
-        {
-          "assetId": "asset-009",
-          "position": [
-            2.5,
+            -1.6,
             0,
             0
           ],
@@ -244,19 +234,9 @@
         {
           "assetId": "asset-003",
           "position": [
-            -1,
+            1.6,
             0,
-            3
-          ],
-          "rotationYDeg": 0,
-          "scale": 1
-        },
-        {
-          "assetId": "asset-003",
-          "position": [
-            1.5,
-            0,
-            3
+            0
           ],
           "rotationYDeg": 0,
           "scale": 1
@@ -264,9 +244,9 @@
         {
           "assetId": "asset-026",
           "position": [
-            -2,
+            -2.55,
             0,
-            3
+            0
           ],
           "rotationYDeg": 90,
           "scale": 1
@@ -274,19 +254,69 @@
         {
           "assetId": "asset-026",
           "position": [
-            2.5,
+            -0.65,
             0,
-            3
+            0
           ],
           "rotationYDeg": -90,
           "scale": 1
         },
         {
+          "assetId": "asset-026",
+          "position": [
+            0.65,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "position": [
+            2.55,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-073",
+          "position": [
+            -1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-073",
+          "position": [
+            1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "position": [
+            0,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
           "assetId": "asset-051",
           "position": [
-            4.5,
             0,
-            3
+            0,
+            -2
           ],
           "rotationYDeg": 0,
           "scale": 1

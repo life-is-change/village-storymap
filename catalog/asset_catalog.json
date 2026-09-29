@@ -9,7 +9,8 @@
       "category": "seating",
       "label": "Bench",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-002",
@@ -17,7 +18,8 @@
       "category": "seating",
       "label": "Bench Cushion",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-003",
@@ -25,7 +27,8 @@
       "category": "tables",
       "label": "Round Table",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.8
     },
     {
       "id": "asset-004",
@@ -41,7 +44,8 @@
       "category": "lighting",
       "label": "Curved Street Light",
       "source": "Kenney/City Roads",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 6
     },
     {
       "id": "asset-006",
@@ -57,7 +61,8 @@
       "category": "seating",
       "label": "Park Bench",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.6
     },
     {
       "id": "asset-008",
@@ -89,7 +94,8 @@
       "category": "signage",
       "label": "Information Stall",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.2
     },
     {
       "id": "asset-012",
@@ -97,7 +103,8 @@
       "category": "municipal",
       "label": "Toilet Stall",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.3
     },
     {
       "id": "asset-013",
@@ -153,7 +160,8 @@
       "category": "market-event",
       "label": "Green Market Stall",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.5
     },
     {
       "id": "asset-020",
@@ -161,7 +169,8 @@
       "category": "market-event",
       "label": "Red Market Stall",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.5
     },
     {
       "id": "asset-021",
@@ -177,7 +186,8 @@
       "category": "market-event",
       "label": "Cart",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.3
     },
     {
       "id": "asset-023",
@@ -201,7 +211,8 @@
       "category": "seating",
       "label": "Rounded Chair",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2.2
     },
     {
       "id": "asset-026",
@@ -209,7 +220,8 @@
       "category": "seating",
       "label": "Cushion Chair",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2.2
     },
     {
       "id": "asset-027",
@@ -233,7 +245,8 @@
       "category": "seating",
       "label": "Lounge Chair",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.6
     },
     {
       "id": "asset-030",
@@ -241,7 +254,8 @@
       "category": "tables",
       "label": "Side Table",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.6
     },
     {
       "id": "asset-031",
@@ -249,7 +263,8 @@
       "category": "planters",
       "label": "Small Plant 1",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 4
     },
     {
       "id": "asset-032",
@@ -257,7 +272,8 @@
       "category": "planters",
       "label": "Small Plant 2",
       "source": "Kenney/Furniture",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 4
     },
     {
       "id": "asset-033",
@@ -281,7 +297,8 @@
       "category": "lighting",
       "label": "Square Street Light",
       "source": "Kenney/City Roads",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 6
     },
     {
       "id": "asset-036",
@@ -345,7 +362,8 @@
       "category": "paving",
       "label": "Stone Path Long",
       "source": "Kenney/City Suburban",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 5
     },
     {
       "id": "asset-044",
@@ -361,7 +379,8 @@
       "category": "planters",
       "label": "Outdoor Planter",
       "source": "Kenney/City Suburban",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-046",
@@ -385,7 +404,8 @@
       "category": "signage",
       "label": "Queue Entrance",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-049",
@@ -409,7 +429,8 @@
       "category": "municipal",
       "label": "Outdoor Trash Bin 2",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.5
     },
     {
       "id": "asset-052",
@@ -417,7 +438,8 @@
       "category": "vegetation",
       "label": "Flower Bed",
       "source": "Kenney/Coaster",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.5
     },
     {
       "id": "asset-053",
@@ -425,7 +447,8 @@
       "category": "boundaries",
       "label": "Hedge",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-054",
@@ -433,7 +456,8 @@
       "category": "boundaries",
       "label": "Curved Hedge",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 2
     },
     {
       "id": "asset-055",
@@ -457,7 +481,8 @@
       "category": "landscape",
       "label": "Wide Stone Steps with Handrail",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.3
     },
     {
       "id": "asset-058",
@@ -489,7 +514,8 @@
       "category": "market-event",
       "label": "High Cart",
       "source": "Kenney/Fantasy Town",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 1.3
     },
     {
       "id": "asset-062",
@@ -506,7 +532,8 @@
       "label": "Gazebo",
       "source": "Poly by Google via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/0cRW-BhHD16"
+      "sourceUrl": "https://poly.pizza/m/0cRW-BhHD16",
+      "sceneScale": 0.45
     },
     {
       "id": "asset-064",
@@ -515,7 +542,8 @@
       "label": "Pergola",
       "source": "Daniel Doran via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/akMzoP0qU7f"
+      "sourceUrl": "https://poly.pizza/m/akMzoP0qU7f",
+      "sceneScale": 0.75
     },
     {
       "id": "asset-065",
@@ -524,7 +552,8 @@
       "label": "Climbing Frame",
       "source": "Poly by Google via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/0-7U_RTHzKT"
+      "sourceUrl": "https://poly.pizza/m/0-7U_RTHzKT",
+      "sceneScale": 0.28
     },
     {
       "id": "asset-066",
@@ -533,7 +562,8 @@
       "label": "Two-seat Swing Set",
       "source": "Poly by Google via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/e-IJdcqZH4p"
+      "sourceUrl": "https://poly.pizza/m/e-IJdcqZH4p",
+      "sceneScale": 0.02
     },
     {
       "id": "asset-067",
@@ -542,7 +572,8 @@
       "label": "Basketball Hoop",
       "source": "Poly by Google via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/85FpUr2fHkH"
+      "sourceUrl": "https://poly.pizza/m/85FpUr2fHkH",
+      "sceneScale": 0.8
     },
     {
       "id": "asset-068",
@@ -584,7 +615,8 @@
       "label": "Planter with Bushes",
       "source": "J-Toastie via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/wn85Xr9lM3"
+      "sourceUrl": "https://poly.pizza/m/wn85Xr9lM3",
+      "sceneScale": 0.8
     },
     {
       "id": "asset-073",
@@ -593,7 +625,8 @@
       "label": "Outdoor Umbrella",
       "source": "S. Paul Michael via green-diamond",
       "license": "CC-BY 3.0",
-      "sourceUrl": "https://poly.pizza/m/2li3sdSkmCI"
+      "sourceUrl": "https://poly.pizza/m/2li3sdSkmCI",
+      "sceneScale": 4
     },
     {
       "id": "asset-074",
@@ -602,7 +635,8 @@
       "label": "Park Litter Bin",
       "source": "Isa Lousberg via green-diamond",
       "license": "CC0 1.0",
-      "sourceUrl": "https://poly.pizza/m/2UXIdGYkg9"
+      "sourceUrl": "https://poly.pizza/m/2UXIdGYkg9",
+      "sceneScale": 0.75
     },
     {
       "id": "asset-075",
@@ -611,7 +645,8 @@
       "label": "Street Light Variant",
       "source": "Quaternius via green-diamond",
       "license": "CC0 1.0",
-      "sourceUrl": "https://poly.pizza/m/0lxF8Dl1jU"
+      "sourceUrl": "https://poly.pizza/m/0lxF8Dl1jU",
+      "sceneScale": 0.6
     },
     {
       "id": "asset-076",
@@ -629,7 +664,8 @@
       "label": "Chain-link Fence",
       "source": "Quaternius via green-diamond",
       "license": "CC0 1.0",
-      "sourceUrl": "https://poly.pizza/m/qWKhREFj7H"
+      "sourceUrl": "https://poly.pizza/m/qWKhREFj7H",
+      "sceneScale": 0.7
     },
     {
       "id": "asset-078",
@@ -637,7 +673,8 @@
       "category": "traffic",
       "label": "Boom Barrier",
       "source": "green-diamond project-authored",
-      "license": "CC0 1.0"
+      "license": "CC0 1.0",
+      "sceneScale": 0.8
     },
     {
       "id": "asset-079",
@@ -655,7 +692,8 @@
       "label": "Dumpster",
       "source": "Quaternius via green-diamond",
       "license": "CC0 1.0",
-      "sourceUrl": "https://poly.pizza/m/PKsbolkZSr"
+      "sourceUrl": "https://poly.pizza/m/PKsbolkZSr",
+      "sceneScale": 0.8
     },
     {
       "id": "asset-081",
@@ -664,7 +702,8 @@
       "label": "Speaker",
       "source": "Kenney/Furniture",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/assets/furniture-kit"
+      "sourceUrl": "https://kenney.nl/assets/furniture-kit",
+      "sceneScale": 1.5
     },
     {
       "id": "asset-082",
@@ -709,7 +748,8 @@
       "label": "Long Event Tent",
       "source": "Kenney/Racing",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 3.2
     },
     {
       "id": "asset-087",
@@ -736,7 +776,8 @@
       "label": "Raised Platform",
       "source": "Kenney/Mini Forest",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 2
     },
     {
       "id": "asset-090",
@@ -745,7 +786,8 @@
       "label": "Direction Signpost",
       "source": "Kenney/Survival",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 4
     },
     {
       "id": "asset-091",
@@ -763,7 +805,8 @@
       "label": "Wood Footbridge",
       "source": "Kenney/Nature",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 3
     },
     {
       "id": "asset-093",
@@ -772,7 +815,8 @@
       "label": "Stone Footbridge",
       "source": "Kenney/Nature",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 3
     },
     {
       "id": "asset-094",
@@ -781,7 +825,8 @@
       "label": "Large Outdoor Pot",
       "source": "Kenney/Nature",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 2.2
     },
     {
       "id": "asset-095",
@@ -799,7 +844,8 @@
       "label": "Retro Urban Bench",
       "source": "Kenney/Retro Urban",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/assets/retro-urban-kit"
+      "sourceUrl": "https://kenney.nl/assets/retro-urban-kit",
+      "sceneScale": 2.2
     },
     {
       "id": "asset-097",
@@ -826,7 +872,8 @@
       "label": "Green Banner",
       "source": "Kenney/Fantasy Town",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 2.2
     },
     {
       "id": "asset-100",
@@ -835,9 +882,11 @@
       "label": "Red Banner",
       "source": "Kenney/Fantasy Town",
       "license": "CC0 1.0",
-      "sourceUrl": "https://kenney.nl/"
+      "sourceUrl": "https://kenney.nl/",
+      "sceneScale": 2.2
     }
   ],
   "updatedAt": "2026-09-29",
-  "assetCount": 100
+  "assetCount": 100,
+  "sceneScaleConvention": "sceneScale is applied only when assembling scene combinations; raw source GLB files are unchanged. Components are ground-centered before placement."
 }

@@ -17,13 +17,7 @@
 ## B. 合并后的组合 GLB
 目录：`models/combinations/`
 
-每一个模板都有对应的独立 GLB，例如：
-- `combo-gazebo-tea-corner.glb`
-- `combo-pergola-rest-area.glb`
-- `combo-playground-expanded.glb`
-- `combo-small-stage.glb`
-
-这一形式适合：
+每一个模板都有对应的独立 GLB，适合：
 - Blender / Windows 3D Viewer 直接查看整体效果；
 - 批量生成俯视缩略图；
 - 后续在 2D 界面中以组合对象方式显示；
@@ -44,7 +38,7 @@
 11. 市集入口组
 12. 台阶景观节点
 
-本轮新增：
+扩展：
 13. 亭下茶叙节点
 14. 廊架休憩区
 15. 户外健身点
@@ -58,6 +52,13 @@
 23. 导视与文化展示节点
 24. 垃圾收集服务点
 
-`models/combinations/combined_catalog.json` 记录了每个组合 GLB 的路径、对象数、网格数和包围盒，便于后续做俯视图和2D接入。
+## 组合生成规则（2026-09-29 优化）
+- 原始单体 GLB 不修改，仍可单独作为插件式构件使用。
+- 生成组合前，自动把每个单体统一为 **X/Z 水平居中、Y 底部=0** 的地面中心锚点，解决不同模型原点不一致导致的错位。
+- `catalog/asset_catalog.json` 的 `sceneScale` 只用于组合场景，校正不同模型包之间的尺度差异；模板中的 `scale` 仍作为单个摆件的二次微调。
+- 多网格构件保留一个逻辑父节点，导入 Blender 后不会再把同一把椅子的多个材质网格误看成互不相关的物件。
+- 组合导出继续保留源材质/纹理。Blender 若处于“实体/Solid”模式，部分模型仍可能显示为灰白；查看真实颜色请切换到“材质预览/Material Preview”。
 
-说明：组合坐标目前是推荐初值，真正接入你的场景编辑器后仍应根据项目统一的米制尺度、原点和贴地逻辑做一次批量校准。
+`models/combinations/combined_catalog.json` 会记录每个组合的路径、对象数、网格数、包围盒，以及每个组件的校正后尺寸和 sceneScale，便于后续做俯视图和 2D 接入。
+
+本轮同时重做了“餐饮休闲角”：移除容易被看成两栋小房子的 Food/Drink Stall，改为两组圆桌、座椅、遮阳伞、花箱和垃圾桶的户外休闲组合。
