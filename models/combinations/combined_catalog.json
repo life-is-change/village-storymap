@@ -1,5 +1,6 @@
 {
   "generatedFrom": "templates/scene_combinations.json",
+  "anchorConvention": "ground-center (X/Z centered, Y bottom = 0)",
   "count": 24,
   "items": [
     {
@@ -11,15 +12,136 @@
       "meshCount": 7,
       "bounds": [
         [
-          -3.2000000029802322,
-          -0.26999998092651367,
+          -3.4000000059604645,
+          0.0,
           -3.000000002980232
         ],
         [
-          3.025000000372529,
-          0.6000000238418579,
-          1.6000000029802321
+          3.150000002235174,
+          3.6000001430511475,
+          1.6200000032782553
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-003",
+          "label": "Round Table",
+          "sceneScale": 1.8,
+          "normalizedSize": [
+            1.2471,
+            0.6601,
+            1.44
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            -1.4,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            1.4,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            0,
+            0,
+            1.4
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "label": "Bench",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.94,
+            0.4
+          ],
+          "position": [
+            0,
+            0,
+            -2.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "label": "Outdoor Planter",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.3542,
+            0.6
+          ],
+          "position": [
+            -3,
+            0,
+            -1.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-035",
+          "label": "Square Street Light",
+          "sceneScale": 6.0,
+          "normalizedSize": [
+            0.3,
+            3.6,
+            1.425
+          ],
+          "position": [
+            3,
+            0,
+            -1.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -31,15 +153,102 @@
       "meshCount": 8,
       "bounds": [
         [
-          -3.025000000372529,
-          -5.960464477539063e-08,
-          -3.2249999940395355
+          -3.150000002235174,
+          0.0,
+          -3.675000010058284
         ],
         [
-          3.2119449973106384,
-          2.7120001316070557,
-          3.1500000953674316
+          3.3179174959659576,
+          4.049999713897705,
+          2.5250000953674316
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-023",
+          "label": "Playground Slide",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            1.4,
+            2.7,
+            5.05
+          ],
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-024",
+          "label": "Playground Swing",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            1.7462,
+            2.712,
+            2.4
+          ],
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            0,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "label": "Outdoor Trash Bin 2",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            0.6358,
+            0.6552,
+            0.6358
+          ],
+          "position": [
+            3,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-005",
+          "label": "Curved Street Light",
+          "sceneScale": 6.0,
+          "normalizedSize": [
+            0.3,
+            4.05,
+            1.35
+          ],
+          "position": [
+            -3,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -52,14 +261,135 @@
       "bounds": [
         [
           -5.108224242925644,
-          -1.12798658e-17,
+          0.0,
           -2.1121599972248077
         ],
         [
           5.108224242925644,
-          1.555999994277954,
-          3.2672348355357785
+          1.8554742336273193,
+          3.4679502155485338
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-019",
+          "label": "Green Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-020",
+          "label": "Red Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-010",
+          "label": "Food Stall",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            1.0421,
+            1.5447,
+            1.2
+          ],
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-022",
+          "label": "Cart",
+          "sceneScale": 1.3,
+          "normalizedSize": [
+            1.1609,
+            0.6962,
+            1.742
+          ],
+          "position": [
+            -4,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-011",
+          "label": "Information Stall",
+          "sceneScale": 1.2,
+          "normalizedSize": [
+            1.2,
+            1.8,
+            1.38
+          ],
+          "position": [
+            4,
+            0,
+            2.5
+          ],
+          "rotationYDeg": -25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            -5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -67,19 +397,191 @@
       "label": "餐饮休闲角",
       "category": "market",
       "path": "models/combinations/combo-food-drink-zone.glb",
-      "objectCount": 7,
-      "meshCount": 9,
+      "objectCount": 10,
+      "meshCount": 22,
       "bounds": [
         [
-          -3.022601306438446,
-          -0.26999998092651367,
-          -0.7000000476837158
+          -2.7700000032782555,
+          0.0,
+          -2.3179174959659576
         ],
         [
-          4.711944997310638,
-          1.8802498579025269,
-          3.2119449973106384
+          2.7700000032782555,
+          2.6929380893707275,
+          2.2999999970197678
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-003",
+          "label": "Round Table",
+          "sceneScale": 1.8,
+          "normalizedSize": [
+            1.2471,
+            0.6601,
+            1.44
+          ],
+          "position": [
+            -1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-003",
+          "label": "Round Table",
+          "sceneScale": 1.8,
+          "normalizedSize": [
+            1.2471,
+            0.6601,
+            1.44
+          ],
+          "position": [
+            1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "label": "Cushion Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.012,
+            0.44
+          ],
+          "position": [
+            -2.55,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "label": "Cushion Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.012,
+            0.44
+          ],
+          "position": [
+            -0.65,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "label": "Cushion Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.012,
+            0.44
+          ],
+          "position": [
+            0.65,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-026",
+          "label": "Cushion Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.012,
+            0.44
+          ],
+          "position": [
+            2.55,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-073",
+          "label": "Outdoor Umbrella",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            2.2699,
+            2.6929,
+            2.0276
+          ],
+          "position": [
+            -1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-073",
+          "label": "Outdoor Umbrella",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            2.2699,
+            2.6929,
+            2.0276
+          ],
+          "position": [
+            1.6,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "label": "Outdoor Planter",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.3542,
+            0.6
+          ],
+          "position": [
+            0,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "label": "Outdoor Trash Bin 2",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            0.6358,
+            0.6552,
+            0.6358
+          ],
+          "position": [
+            0,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -93,13 +595,134 @@
         [
           -4.108224242925644,
           -4.591168408512693e-20,
-          -3.40189665555954
+          -3.5892389863729477
         ],
         [
           4.108224242925644,
           1.555999994277954,
           3.2000000029802322
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-013",
+          "label": "Round Fountain",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            2.0,
+            0.48,
+            2.0
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "label": "Bench",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.94,
+            0.4
+          ],
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "label": "Bench",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.94,
+            0.4
+          ],
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-001",
+          "label": "Bench",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.94,
+            0.4
+          ],
+          "position": [
+            0,
+            0,
+            3
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            -4,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            4,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-052",
+          "label": "Flower Bed",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.165,
+            0.2056,
+            1.1785
+          ],
+          "position": [
+            0,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -111,15 +734,136 @@
       "meshCount": 7,
       "bounds": [
         [
-          -4.457612226589331,
+          -4.744451501292475,
           0.0,
           -1.1121599972248077
         ],
         [
-          4.457612226589331,
+          4.744451501292475,
           2.434999942779541,
-          4.4058631258670955
+          4.623063743810886
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-008",
+          "label": "Park Entrance",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            3.085,
+            2.435,
+            1.155
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            -3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "label": "Outdoor Planter",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.3542,
+            0.6
+          ],
+          "position": [
+            -4,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "label": "Outdoor Planter",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.3542,
+            0.6
+          ],
+          "position": [
+            4,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -4,
+            0,
+            4
+          ],
+          "rotationYDeg": 25,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            4,
+            0,
+            4
+          ],
+          "rotationYDeg": -25,
+          "scale": 1
+        }
       ]
     },
     {
@@ -131,15 +875,136 @@
       "meshCount": 11,
       "bounds": [
         [
-          -3.5,
+          -4.0,
           0.0,
-          -2.90189665555954
+          -3.0892389863729477
         ],
         [
-          3.5,
-          0.48000001907348633,
-          2.9100000262260437
+          4.0,
+          0.7360000133514405,
+          2.828000020980835
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-014",
+          "label": "Square Fountain",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            2.0,
+            0.48,
+            2.0
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "label": "Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.5,
+            0.5,
+            2.0
+          ],
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "label": "Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.5,
+            0.5,
+            2.0
+          ],
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-029",
+          "label": "Lounge Chair",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            0.784,
+            0.736,
+            0.656
+          ],
+          "position": [
+            -1.5,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-029",
+          "label": "Lounge Chair",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            0.784,
+            0.736,
+            0.656
+          ],
+          "position": [
+            1.5,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-030",
+          "label": "Side Table",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            0.8552,
+            0.6151,
+            0.352
+          ],
+          "position": [
+            0,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-052",
+          "label": "Flower Bed",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.165,
+            0.2056,
+            1.1785
+          ],
+          "position": [
+            0,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -151,15 +1016,102 @@
       "meshCount": 5,
       "bounds": [
         [
-          -3.25,
+          -3.75,
           0.0,
-          -2.0
+          -2.5
         ],
         [
-          3.525000000372529,
-          0.6749999523162842,
-          0.4000000059604645
+          3.650000002235174,
+          4.049999713897705,
+          1.0000000149011612
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-043",
+          "label": "Stone Path Long",
+          "sceneScale": 5.0,
+          "normalizedSize": [
+            0.7,
+            0.05,
+            2.0
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-045",
+          "label": "Outdoor Planter",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.3542,
+            0.6
+          ],
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-005",
+          "label": "Curved Street Light",
+          "sceneScale": 6.0,
+          "normalizedSize": [
+            0.3,
+            4.05,
+            1.35
+          ],
+          "position": [
+            3.5,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "label": "Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.5,
+            0.5,
+            2.0
+          ],
+          "position": [
+            -3.5,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -171,15 +1123,102 @@
       "meshCount": 5,
       "bounds": [
         [
-          -2.75,
-          -2.821695431027396e-31,
-          -2.5
+          -3.25,
+          0.0,
+          -3.0
         ],
         [
-          3.025000000372529,
-          1.4000000953674316,
-          1.9000000059604645
+          3.150000002235174,
+          3.6000001430511475,
+          2.140000009536743
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-012",
+          "label": "Toilet Stall",
+          "sceneScale": 1.3,
+          "normalizedSize": [
+            1.3,
+            1.82,
+            1.378
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-051",
+          "label": "Outdoor Trash Bin 2",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            0.6358,
+            0.6552,
+            0.6358
+          ],
+          "position": [
+            2.3,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -2.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-035",
+          "label": "Square Street Light",
+          "sceneScale": 6.0,
+          "normalizedSize": [
+            0.3,
+            3.6,
+            1.425
+          ],
+          "position": [
+            3,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-053",
+          "label": "Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.5,
+            0.5,
+            2.0
+          ],
+          "position": [
+            -3,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -198,8 +1237,95 @@
         [
           2.108224242925644,
           1.555999994277954,
-          1.5473303651409154
+          1.689321460563661
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-002",
+          "label": "Bench Cushion",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            0.8,
+            0.92,
+            0.4
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            -2,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            2,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-031",
+          "label": "Small Plant 1",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            0.3786,
+            0.56,
+            0.3786
+          ],
+          "position": [
+            -1.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-032",
+          "label": "Small Plant 2",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            0.3786,
+            0.56,
+            0.3786
+          ],
+          "position": [
+            1.5,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -211,15 +1337,102 @@
       "meshCount": 7,
       "bounds": [
         [
-          -4.545501525743453,
-          -1.12798658e-17,
-          -1.6873363653465605
+          -4.741652135562937,
+          0.0,
+          -1.9498288562782262
         ],
         [
-          4.658012695931755,
-          1.5,
-          2.5
+          4.744615224389269,
+          1.8554742336273193,
+          2.75
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-048",
+          "label": "Queue Entrance",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.0,
+            1.85,
+            2.0
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-019",
+          "label": "Green Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            -3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-020",
+          "label": "Red Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-061",
+          "label": "High Cart",
+          "sceneScale": 1.3,
+          "normalizedSize": [
+            1.1609,
+            1.1187,
+            1.807
+          ],
+          "position": [
+            -4,
+            0,
+            -1
+          ],
+          "rotationYDeg": 30,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-011",
+          "label": "Information Stall",
+          "sceneScale": 1.2,
+          "normalizedSize": [
+            1.2,
+            1.8,
+            1.38
+          ],
+          "position": [
+            4,
+            0,
+            -1
+          ],
+          "rotationYDeg": -30,
+          "scale": 1
+        }
       ]
     },
     {
@@ -231,15 +1444,102 @@
       "meshCount": 5,
       "bounds": [
         [
-          -3.6408563820557887,
+          -4.281712764111577,
           0.0,
-          -0.6408563820557885
+          -1.281712764111577
         ],
         [
-          3.4995241244315256,
-          1.555999994277954,
+          3.999048248863051,
+          1.8785000681877138,
           2.1121599972248077
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-057",
+          "label": "Wide Stone Steps with Handrail",
+          "sceneScale": 1.3,
+          "normalizedSize": [
+            1.326,
+            1.8785,
+            1.3
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "label": "Curved Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.0,
+            0.5,
+            2.0
+          ],
+          "position": [
+            -3,
+            0,
+            0
+          ],
+          "rotationYDeg": 20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "label": "Curved Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.0,
+            0.5,
+            2.0
+          ],
+          "position": [
+            3,
+            0,
+            0
+          ],
+          "rotationYDeg": -20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            -2,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-017",
+          "label": "Lantern",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.2164,
+            1.556,
+            0.2243
+          ],
+          "position": [
+            2,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -251,15 +1551,119 @@
       "meshCount": 12,
       "bounds": [
         [
-          -5.199974060058594,
-          -0.26999998092651367,
-          -5.156733989715576
+          -3.948846712708473,
+          0.0,
+          -2.320529651641846
         ],
         [
-          5.199977874755859,
-          8.722735404968262,
-          5.156731128692627
+          3.948846712708473,
+          3.9481557324528698,
+          2.3205296516418454
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-063",
+          "label": "Gazebo",
+          "sceneScale": 0.45,
+          "normalizedSize": [
+            4.68,
+            3.9482,
+            4.6411
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-003",
+          "label": "Round Table",
+          "sceneScale": 1.8,
+          "normalizedSize": [
+            1.2471,
+            0.6601,
+            1.44
+          ],
+          "position": [
+            0,
+            0,
+            0.2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            -1.3,
+            0,
+            0.2
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            1.3,
+            0,
+            0.2
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            -3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            3,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -271,15 +1675,119 @@
       "meshCount": 12,
       "bounds": [
         [
-          -4.1860583908855915,
-          -0.10458194972883611,
-          -3.170077896387432
+          -3.948846712708473,
+          0.0,
+          -3.877585891541392
         ],
         [
-          4.1860583908855915,
-          6.628115392113382,
-          3.0749711032867433
+          3.948846712708473,
+          3.985678792648614,
+          2.6068843897378
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-064",
+          "label": "Pergola",
+          "sceneScale": 0.75,
+          "normalizedSize": [
+            3.735,
+            3.225,
+            4.6125
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            -3,
+            0,
+            2.3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            3,
+            0,
+            2.3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            0,
+            0,
+            -3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -291,15 +1799,102 @@
       "meshCount": 10,
       "bounds": [
         [
-          -3.7199999570846556,
-          -0.014682595634308815,
-          -3.0249999940395353
+          -3.719999897480011,
+          0.0,
+          -3.377585891541392
         ],
         [
-          3.4999993834644556,
-          6.628115392113382,
+          3.375000009080395,
+          3.985678792648614,
           0.39000000059604645
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-069",
+          "label": "Outdoor Pull-up Bars",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            3.84,
+            2.7,
+            0.24
+          ],
+          "position": [
+            -1.8,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-068",
+          "label": "Outdoor Parallel Bars",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            2.02,
+            1.225,
+            0.78
+          ],
+          "position": [
+            1.8,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            0,
+            0,
+            -2.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            -3,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-074",
+          "label": "Park Litter Bin",
+          "sceneScale": 0.75,
+          "normalizedSize": [
+            0.75,
+            0.8571,
+            0.75
+          ],
+          "position": [
+            3,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -311,15 +1906,102 @@
       "meshCount": 7,
       "bounds": [
         [
-          -3.182143657002598,
-          -0.014682595634308815,
-          -1.9000000059604645
+          -3.109286567894742,
+          0.0,
+          -2.140000009536743
         ],
         [
-          3.1821449026465416,
-          6.628115392113382,
-          5.255208408750542
+          3.109286567894742,
+          3.985678792648614,
+          3.492511749267578
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-067",
+          "label": "Basketball Hoop",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.44,
+            3.2148,
+            1.985
+          ],
+          "position": [
+            0,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 180,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -2.7,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            2.7,
+            0,
+            -1.5
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            -3,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            3,
+            0,
+            2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -331,15 +2013,119 @@
       "meshCount": 10,
       "bounds": [
         [
-          -46.05717468261719,
-          -9.999999974752427e-07,
-          -76.75
+          -4.1400000095367435,
+          0.0,
+          -3.5250000953674316
         ],
         [
-          40.05717468261719,
-          114.49200439453125,
-          74.75
+          3.875000009080395,
+          3.2425559234619143,
+          3.3890378713607787
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-065",
+          "label": "Climbing Frame",
+          "sceneScale": 0.28,
+          "normalizedSize": [
+            2.66,
+            3.2426,
+            2.6255
+          ],
+          "position": [
+            0,
+            0,
+            1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-066",
+          "label": "Two-seat Swing Set",
+          "sceneScale": 0.02,
+          "normalizedSize": [
+            1.7223,
+            2.2898,
+            3.03
+          ],
+          "position": [
+            -3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-023",
+          "label": "Playground Slide",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            1.4,
+            2.7,
+            5.05
+          ],
+          "position": [
+            3,
+            0,
+            -1
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-070",
+          "label": "Spring Rider",
+          "sceneScale": 1.0,
+          "normalizedSize": [
+            0.93,
+            1.0,
+            0.6
+          ],
+          "position": [
+            0,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -3.5,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-074",
+          "label": "Park Litter Bin",
+          "sceneScale": 0.75,
+          "normalizedSize": [
+            0.75,
+            0.8571,
+            0.75
+          ],
+          "position": [
+            3.5,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -351,15 +2137,102 @@
       "meshCount": 8,
       "bounds": [
         [
-          -4.446512204408646,
-          -0.01,
-          -1.65
+          -4.58046572246562,
+          0.0,
+          -1.6000000000000005
         ],
         [
-          4.5,
-          1.5,
-          2.6949999928474426
+          4.6,
+          2.2399999618530275,
+          2.8709999829530717
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-086",
+          "label": "Long Event Tent",
+          "sceneScale": 3.2,
+          "normalizedSize": [
+            6.4,
+            2.24,
+            3.2
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-019",
+          "label": "Green Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-020",
+          "label": "Red Market Stall",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            1.5,
+            1.8555,
+            1.5
+          ],
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-022",
+          "label": "Cart",
+          "sceneScale": 1.3,
+          "normalizedSize": [
+            1.1609,
+            0.6962,
+            1.742
+          ],
+          "position": [
+            -4,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-011",
+          "label": "Information Stall",
+          "sceneScale": 1.2,
+          "normalizedSize": [
+            1.2,
+            1.8,
+            1.38
+          ],
+          "position": [
+            4,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -371,15 +2244,119 @@
       "meshCount": 8,
       "bounds": [
         [
-          -2.625,
+          -3.055000013113022,
           0.0,
-          -4.2249999940395355
+          -4.389037871360779
         ],
         [
-          3.425000011920929,
-          0.9999999403953552,
-          1.75
+          3.055000013113022,
+          1.8465721637010575,
+          2.05
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-089",
+          "label": "Raised Platform",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.6,
+            1.0,
+            2.6
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-081",
+          "label": "Speaker",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            0.222,
+            0.9546,
+            0.222
+          ],
+          "position": [
+            -2.5,
+            0,
+            -0.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-081",
+          "label": "Speaker",
+          "sceneScale": 1.5,
+          "normalizedSize": [
+            0.222,
+            0.9546,
+            0.222
+          ],
+          "position": [
+            2.5,
+            0,
+            -0.8
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-100",
+          "label": "Red Banner",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.11,
+            1.8466,
+            1.1
+          ],
+          "position": [
+            -3,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-099",
+          "label": "Green Banner",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.11,
+            1.8466,
+            1.1
+          ],
+          "position": [
+            3,
+            0,
+            1.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            0,
+            0,
+            -4
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -391,15 +2368,102 @@
       "meshCount": 9,
       "bounds": [
         [
-          -4.182143657002598,
-          -0.05,
-          -2.170077896387432
+          -4.109286567894742,
+          0.0,
+          -2.877585891541392
         ],
         [
-          4.182144902646542,
-          6.628115392113382,
-          2.4434728324154786
+          4.109286567894742,
+          3.985678792648614,
+          2.6857700923657406
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-092",
+          "label": "Wood Footbridge",
+          "sceneScale": 3.0,
+          "normalizedSize": [
+            3.12,
+            1.2,
+            3.12
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            -3,
+            0,
+            2
+          ],
+          "rotationYDeg": 35,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-007",
+          "label": "Park Bench",
+          "sceneScale": 1.6,
+          "normalizedSize": [
+            1.28,
+            0.7864,
+            0.7781
+          ],
+          "position": [
+            3,
+            0,
+            2
+          ],
+          "rotationYDeg": -35,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            -4,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            4,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -411,15 +2475,102 @@
       "meshCount": 8,
       "bounds": [
         [
-          -3.6408563820557887,
-          -0.05,
-          -2.2440444231033325
+          -4.281712764111577,
+          0.0,
+          -2.5368977308273317
         ],
         [
-          3.4995241244315256,
-          0.3500000059604645,
-          2.6408563820557887
+          3.999048248863051,
+          1.2000000178813934,
+          3.2817127641115773
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-093",
+          "label": "Stone Footbridge",
+          "sceneScale": 3.0,
+          "normalizedSize": [
+            3.12,
+            1.2,
+            3.12
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "label": "Curved Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.0,
+            0.5,
+            2.0
+          ],
+          "position": [
+            -3,
+            0,
+            2
+          ],
+          "rotationYDeg": 20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-054",
+          "label": "Curved Hedge",
+          "sceneScale": 2.0,
+          "normalizedSize": [
+            2.0,
+            0.5,
+            2.0
+          ],
+          "position": [
+            3,
+            0,
+            2
+          ],
+          "rotationYDeg": -20,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-094",
+          "label": "Large Outdoor Pot",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            1.2399,
+            0.44,
+            1.0738
+          ],
+          "position": [
+            -2.5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-094",
+          "label": "Large Outdoor Pot",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            1.2399,
+            0.44,
+            1.0738
+          ],
+          "position": [
+            2.5,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -431,15 +2582,102 @@
       "meshCount": 9,
       "bounds": [
         [
-          -1.4000000029802322,
-          -0.26999998092651367,
-          -2.500000483647804
+          -1.4200000032782554,
+          0.0,
+          -2.375000201165677
         ],
         [
-          3.2999993834644554,
-          1.1428576233113936,
-          0.2655561864376068
+          3.175000009080395,
+          2.6929380893707275,
+          1.0137817859649658
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-073",
+          "label": "Outdoor Umbrella",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            2.2699,
+            2.6929,
+            2.0276
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-003",
+          "label": "Round Table",
+          "sceneScale": 1.8,
+          "normalizedSize": [
+            1.2471,
+            0.6601,
+            1.44
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            -1.2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-025",
+          "label": "Rounded Chair",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.44,
+            1.001,
+            0.44
+          ],
+          "position": [
+            1.2,
+            0,
+            0
+          ],
+          "rotationYDeg": -90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-074",
+          "label": "Park Litter Bin",
+          "sceneScale": 0.75,
+          "normalizedSize": [
+            0.75,
+            0.8571,
+            0.75
+          ],
+          "position": [
+            2.8,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -451,15 +2689,119 @@
       "meshCount": 11,
       "bounds": [
         [
-          -3.6860583908855915,
-          -0.10458194972883611,
-          -0.25
+          -3.448846712708473,
+          0.0,
+          -0.55
         ],
         [
-          3.6860583908855915,
-          1.017134268353504,
-          3.1610625088214874
+          3.448846712708473,
+          1.8465721637010575,
+          3.354337503015995
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-090",
+          "label": "Direction Signpost",
+          "sceneScale": 4.0,
+          "normalizedSize": [
+            0.8565,
+            1.8403,
+            0.1719
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-100",
+          "label": "Red Banner",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.11,
+            1.8466,
+            1.1
+          ],
+          "position": [
+            -2.5,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-099",
+          "label": "Green Banner",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            0.11,
+            1.8466,
+            1.1
+          ],
+          "position": [
+            2.5,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            -2.5,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-072",
+          "label": "Planter with Bushes",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.8977,
+            0.8974,
+            0.6138
+          ],
+          "position": [
+            2.5,
+            0,
+            2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-096",
+          "label": "Retro Urban Bench",
+          "sceneScale": 2.2,
+          "normalizedSize": [
+            1.3286,
+            0.9,
+            0.7087
+          ],
+          "position": [
+            0,
+            0,
+            3
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     },
     {
@@ -471,15 +2813,102 @@
       "meshCount": 17,
       "bounds": [
         [
-          -2.2057450964120795,
-          -0.040236456867709235,
-          -2.730000004172325
+          -2.040146469794205,
+          0.0,
+          -2.877585891541392
         ],
         [
-          4.260000139474869,
-          6.628115392113382,
-          1.7744718119502068
+          3.109286567894742,
+          3.985678792648614,
+          1.2421302683651447
         ]
+      ],
+      "components": [
+        {
+          "assetId": "asset-080",
+          "label": "Dumpster",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            1.9533,
+            1.6242,
+            1.0364
+          ],
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-077",
+          "label": "Chain-link Fence",
+          "sceneScale": 0.7,
+          "normalizedSize": [
+            2.4843,
+            2.0127,
+            0.0803
+          ],
+          "position": [
+            -2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-077",
+          "label": "Chain-link Fence",
+          "sceneScale": 0.7,
+          "normalizedSize": [
+            2.4843,
+            2.0127,
+            0.0803
+          ],
+          "position": [
+            2,
+            0,
+            0
+          ],
+          "rotationYDeg": 90,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-078",
+          "label": "Boom Barrier",
+          "sceneScale": 0.8,
+          "normalizedSize": [
+            3.592,
+            0.832,
+            0.368
+          ],
+          "position": [
+            0,
+            0,
+            -2.5
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        },
+        {
+          "assetId": "asset-075",
+          "label": "Street Light Variant",
+          "sceneScale": 0.6,
+          "normalizedSize": [
+            0.2186,
+            3.9857,
+            1.7552
+          ],
+          "position": [
+            3,
+            0,
+            -2
+          ],
+          "rotationYDeg": 0,
+          "scale": 1
+        }
       ]
     }
   ]
