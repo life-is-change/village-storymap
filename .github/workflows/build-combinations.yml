@@ -1,0 +1,41 @@
+name: Build combined GLB templates
+
+on:
+  push:
+    branches: [model]
+    paths:
+      - 'models/**'
+      - 'catalog/asset_catalog.json'
+      - 'templates/scene_combinations.json'
+      - 'tools/build_combinations.py'
+      - '.github/workflows/build-combinations.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: model
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build dependencies
+        run: pip install trimesh numpy
+      - name: Build combined GLBs
+        run: python tools/build_combinations.py
+      - name: Commit combined assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add models/combinations
+          if git diff --cached --quiet; then
+            echo "No combined-model changes."
+          else
+            git commit -m "Build combined GLB templates"
+            git push origin HEAD:model
+          fi
