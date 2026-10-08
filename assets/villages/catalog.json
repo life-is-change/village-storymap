@@ -1,0 +1,17 @@
+{
+  "villages": [
+    {
+      "id": "mibu",
+      "name": "米埗村",
+      "preview_path": "assets/villages/mibu/preview.webp",
+      "bounds": [
+        113.65782245993616,
+        23.673955529360466,
+        113.66956152839406,
+        23.680618066762378
+      ],
+      "width": 2000,
+      "height": 1135
+    }
+  ]
+}

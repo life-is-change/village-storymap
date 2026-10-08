@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>后台管理 - 村庄规划互动平台</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body.admin-page {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      color: #1f3552;
+      background:
+        linear-gradient(135deg, rgba(235, 247, 232, 0.88), rgba(237, 246, 255, 0.92)),
+        url("./assets/orthophoto.webp") center / cover fixed;
+    }
+
+    html, body.admin-page {
+      overflow-y: auto;
+    }
+
+    .admin-page::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.72);
+      pointer-events: none;
+    }
+
+    .admin-shell {
+      position: relative;
+      z-index: 1;
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 64px;
+    }
+
+    .admin-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .admin-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #1f3552;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .admin-brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      color: #ffffff;
+      background: linear-gradient(135deg, #2f7a2a, #1f7a8c);
+      box-shadow: 0 8px 20px rgba(47, 105, 40, 0.18);
+    }
+
+    .admin-btn,
+    .admin-link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(31, 53, 82, 0.12);
+      background: #ffffff;
+      color: #1f3552;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .admin-btn:hover,
+    .admin-link-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(31, 53, 82, 0.12);
+    }
+
+    .admin-btn-primary {
+      border-color: transparent;
+      background: linear-gradient(135deg, #2f7a2a, #2f6928);
+      color: #ffffff;
+    }
+
+    .admin-btn-danger {
+      border-color: rgba(201, 74, 74, 0.22);
+      background: #fff5f5;
+      color: #b73e3e;
+    }
+
+    .admin-btn-danger:hover {
+      background: #ffe8e8;
+      box-shadow: 0 8px 22px rgba(201, 74, 74, 0.16);
+    }
+
+    .admin-delete-btn {
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .admin-action-muted {
+      color: #a8b3c1;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .admin-inline-notice {
+      margin: 0 0 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(31, 53, 82, 0.1);
+      background: rgba(255, 255, 255, 0.9);
+      color: #1f3552;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(31, 53, 82, 0.08);
+    }
+
+    .admin-inline-notice.success {
+      border-color: rgba(47, 105, 40, 0.22);
+      background: #f0faf0;
+      color: #2f6928;
+    }
+
+    .admin-inline-notice.error {
+      border-color: rgba(201, 74, 74, 0.22);
+      background: #fff5f5;
+      color: #b73e3e;
+    }
+
+    .admin-inline-notice.warning {
+      border-color: rgba(245, 158, 11, 0.3);
+      background: #fffbeb;
+      color: #92400e;
+    }
+
+    .admin-delete-btn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .admin-card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      overflow: hidden;
+    }
+
+    .admin-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 28px;
+      border-bottom: 1px solid rgba(31, 53, 82, 0.06);
+      flex-wrap: wrap;
+    }
+
+    .admin-card-header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      color: #1f3552;
+    }
+
+    .admin-count {
+      color: #5f7385;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .admin-table-wrap {
+      overflow-x: auto;
+    }
+
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .admin-table thead th {
+      padding: 14px 20px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 12px;
+      color: #728296;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgba(31, 53, 82, 0.03);
+      border-bottom: 1px solid rgba(31, 53, 82, 0.08);
+      white-space: nowrap;
+    }
+
+    .admin-table tbody td {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(31, 53, 82, 0.06);
+      color: #1f3552;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+
+    .admin-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .admin-table tbody tr:hover {
+      background: rgba(25, 118, 210, 0.03);
+    }
+
+    .admin-table .cell-muted {
+      color: #9aa9b8;
+      font-weight: 500;
+    }
+
+    .admin-empty {
+      padding: 48px 28px;
+      text-align: center;
+      color: #5f7385;
+    }
+
+    .admin-locked {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      padding: 64px 32px;
+      text-align: center;
+    }
+
+    .admin-locked h1 {
+      margin: 0 0 12px;
+      color: #1f3552;
+      font-size: 26px;
+    }
+
+    .admin-locked p {
+      margin: 0 0 28px;
+      color: #5f7385;
+      font-size: 15px;
+    }
+
+    .admin-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+      padding: 20px 28px;
+    }
+
+    .admin-photo-item {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(31, 53, 82, 0.04);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      transition: transform 0.16s ease, box-shadow 0.18s ease;
+    }
+
+    .admin-photo-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(31, 53, 82, 0.12);
+    }
+
+    .admin-photo-item img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .admin-photo-meta {
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #5f7385;
+    }
+
+    .admin-photo-meta .photo-type {
+      font-weight: 700;
+      color: #1f3552;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .admin-photo-delete {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      color: #b73e3e;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .admin-photo-item:hover .admin-photo-delete {
+      opacity: 1;
+    }
+
+    .admin-photo-delete:hover {
+      background: #ffe8e8;
+    }
+
+    .admin-photo-download {
+      position: absolute;
+      top: 8px;
+      right: 44px;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      color: #1f7a8c;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      text-decoration: none;
+    }
+
+    .admin-photo-item:hover .admin-photo-download {
+      opacity: 1;
+    }
+
+    .admin-photo-download:hover {
+      background: #e6f7ff;
+    }
+
+    .admin-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .admin-sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 24px;
+    }
+
+    .admin-menu {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(31, 53, 82, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(31, 53, 82, 0.12);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .admin-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border: none;
+      background: transparent;
+      color: #5f7385;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.18s ease, color 0.18s ease;
+      text-align: left;
+      border-left: 3px solid transparent;
+    }
+
+    .admin-menu-item:hover {
+      background: rgba(25, 118, 210, 0.06);
+      color: #1f3552;
+    }
+
+    .admin-menu-item.active {
+      background: rgba(25, 118, 210, 0.1);
+      color: #1f3552;
+      border-left-color: #2f7a2a;
+    }
+
+    .admin-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .admin-tab-panel {
+      display: none;
+    }
+
+    .admin-tab-panel.active {
+      display: block;
+    }
+
+    @media (max-width: 720px) {
+      .admin-layout {
+        flex-direction: column;
+      }
+      .admin-sidebar {
+        width: 100%;
+        position: static;
+      }
+      .admin-menu {
+        flex-direction: row;
+        border-radius: 12px;
+      }
+      .admin-menu-item {
+        flex: 1;
+        justify-content: center;
+        border-left: none;
+        border-bottom: 3px solid transparent;
+      }
+      .admin-menu-item.active {
+        border-left-color: transparent;
+        border-bottom-color: #2f7a2a;
+      }
+      .admin-shell {
+        width: calc(100% - 24px);
+        padding: 20px 0 40px;
+      }
+
+      .admin-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .admin-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .admin-table thead th,
+      .admin-table tbody td {
+        padding: 12px 14px;
+      }
+    }
+    .admin-course-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(31, 53, 82, 0.08);
+      background: rgba(247, 250, 247, 0.9);
+    }
+
+    .admin-course-input,
+    .admin-course-select {
+      min-height: 38px;
+      box-sizing: border-box;
+      padding: 0 12px;
+      border: 1px solid rgba(31, 53, 82, 0.16);
+      border-radius: 10px;
+      background: #fff;
+      color: #1f3552;
+      font: inherit;
+    }
+
+    .admin-course-input { min-width: 190px; }
+    .admin-course-hint { margin: 6px 0 0; color: #728296; font-size: 13px; }
+    .village-admin-hero { padding: 26px 28px; color: #fff; background: linear-gradient(125deg, #155c37, #2f7a2a 58%, #56a549); border-radius: 18px; box-shadow: 0 16px 40px rgba(25,90,55,.18); }
+    .village-admin-hero h1 { margin: 0 0 8px; font-size: 26px; }
+    .village-admin-hero p { margin: 0; color: rgba(255,255,255,.84); line-height: 1.7; }
+    .village-admin-project { margin-top: 14px; display: inline-flex; gap: 6px; padding: 7px 12px; border: 1px solid rgba(255,255,255,.26); border-radius: 999px; background: rgba(255,255,255,.11); }
+    .village-workflow { display: grid; gap: 16px; margin-top: 16px; }
+    .village-step { overflow: hidden; border: 1px solid rgba(31,53,82,.09); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: 0 10px 30px rgba(31,53,82,.07); }
+    .village-step-head { display: grid; grid-template-columns: 42px 1fr; gap: 14px; padding: 20px 24px 14px; }
+    .village-step-number { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: #2f7a2a; font-weight: 800; }
+    .village-step h2 { margin: 0 0 5px; color: #1f3552; font-size: 19px; }
+    .village-step p { margin: 0; color: #718095; line-height: 1.6; }
+    .village-step-body { padding: 0 24px 22px 80px; }
+    .village-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    .village-field { display: grid; gap: 7px; color: #314963; font-size: 13px; font-weight: 700; }
+    .village-field .admin-course-input, .village-field .admin-course-select { width: 100%; min-width: 0; min-height: 44px; }
+    .village-field-wide { grid-column: 1 / -1; }
+    .village-inline-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .village-boundary-status, .village-package-status { padding: 12px 14px; border-radius: 11px; color: #557086; background: #f3f7f4; font-size: 13px; line-height: 1.55; }
+    .village-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+    .village-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid rgba(31,53,82,.08); border-radius: 12px; background: #f8faf8; }
+    .village-list li strong { margin-right: auto; color: #1f3552; }
+    .village-midterm { margin-top: 24px; border-top: 1px dashed rgba(31,53,82,.2); padding-top: 24px; }
+    .village-midterm-label { display: inline-block; margin-bottom: 10px; padding: 5px 10px; border-radius: 999px; color: #7b5b11; background: #fff4cf; font-size: 12px; font-weight: 800; }
+    .teaching-project-card { margin-top: 16px; padding: 20px 24px; border: 1px solid rgba(31,53,82,.09); border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: 0 10px 30px rgba(31,53,82,.07); }
+    .teaching-project-card h2 { margin: 0 0 6px; font-size: 19px; color: #1f3552; }
+    .teaching-project-card > p { margin: 0 0 16px; color: #718095; line-height: 1.6; }
+    .teaching-project-active { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg,#f2f8f2,#f7fafc); }
+    .teaching-project-details { display: grid; gap: 5px; }
+    .teaching-project-details strong { color: #1f3552; font-size: 16px; }
+    .teaching-project-details span { color: #718095; font-size: 13px; }
+    .teaching-project-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; gap: 12px; }
+    .village-status { padding: 4px 8px; border-radius: 999px; background: #eaf2eb; color: #4f6855; font-size: 12px; }
+    .village-lifecycle-note { color: #8b98a8; font-size: 12px; }
+    .survey-admin-context { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:22px 28px; background:linear-gradient(125deg,#155c37,#2f7a2a); color:#fff; }
+    .survey-admin-context div { display:grid; gap:5px; padding:13px 15px; border:1px solid rgba(255,255,255,.2); border-radius:13px; background:rgba(255,255,255,.08); }
+    .survey-admin-context span { color:rgba(255,255,255,.72); font-size:12px; }
+    .admin-stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; padding:20px 28px; }
+    .admin-stat-grid > div { display:grid; gap:6px; padding:17px; border:1px solid rgba(31,53,82,.08); border-radius:14px; background:#f7faf7; }
+    .admin-stat-grid strong { color:#1f5f38; font-size:23px; }
+    .admin-stat-grid span { color:#718095; font-size:12px; }
+    .survey-admin-history { margin:18px 28px 26px; padding:18px; border:1px solid rgba(31,53,82,.1); border-radius:14px; background:#f8faf8; }
+    .survey-admin-history h3 { margin:0 0 12px; color:#1f3552; }
+    .survey-admin-history > div { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; padding:9px 0; border-top:1px solid rgba(31,53,82,.08); }
+    .group-plan-admin-card { overflow: visible; }
+    .group-plan-admin-context { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:22px 28px; background:linear-gradient(125deg,#173f32,#28754a 62%,#4d9b62); color:#fff; }
+    .group-plan-admin-context > div { display:grid; gap:5px; min-width:0; padding:13px 15px; border:1px solid rgba(255,255,255,.2); border-radius:13px; background:rgba(255,255,255,.09); }
+    .group-plan-admin-context span { color:rgba(255,255,255,.72); font-size:12px; }
+    .group-plan-admin-context strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .group-plan-table td { vertical-align:top; }
+    .group-plan-row-meta { display:block; margin-top:4px; color:#8392a2; font-weight:500; }
+    .group-plan-state { display:inline-flex; padding:5px 9px; border-radius:999px; background:#fff4d6; color:#8a621b; font-size:12px; white-space:nowrap; }
+    .group-plan-state.is-ready { background:#e7f6eb; color:#24683d; }
+    .group-plan-conflict-count { color:#a15b16; font-weight:800; }
+    .group-plan-actions { display:flex; flex-wrap:wrap; gap:7px; min-width:210px; }
+    .group-plan-actions .admin-btn { min-height:31px; padding:0 10px; font-size:12px; }
+    @media (max-width: 760px) {
+      .village-form-grid { grid-template-columns: 1fr; }
+      .village-field-wide { grid-column: auto; }
+      .village-step-body { padding: 0 18px 20px; }
+      .village-step-head { padding: 18px; }
+      .teaching-project-form { grid-template-columns: 1fr; }
+      .teaching-project-active { align-items: flex-start; flex-direction: column; }
+      .survey-admin-context, .admin-stat-grid { grid-template-columns:1fr 1fr; }
+      .group-plan-admin-context { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <main class="admin-shell">
+    <header class="admin-topbar">
+      <a class="admin-brand" href="./index.html" data-return-platform aria-label="返回平台首页">
+        <span class="admin-brand-mark">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </span>
+        <span>村庄规划互动平台 · 后台管理</span>
+      </a>
+      <a class="admin-link-btn" href="./index.html" data-return-platform>返回平台首页</a>
+    </header>
+
+    <section id="adminLocked" class="admin-locked" style="display:none;">
+      <h1>权限不足</h1>
+      <p>只有管理员账号才能访问后台管理平台。</p>
+      <a class="admin-btn admin-btn-primary" href="./index.html" data-return-platform>返回平台首页</a>
+    </section>
+
+    <section id="adminContent" style="display:none;">
+      <div class="admin-layout">
+        <aside class="admin-sidebar">
+          <nav class="admin-menu">
+            <button class="admin-menu-item active" type="button" data-admin-tab="users">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span>账号管理</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="photos">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+              <span>照片管理</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="messages">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span>留言管理</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="villages">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M5 21V9l7-6 7 6v12M9 21v-6h6v6"></path>
+              </svg>
+              <span>村庄与项目</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="surveyReview">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3h18v18H3z"></path><path d="M7 12l3 3 7-7"></path>
+              </svg>
+              <span>现状校核</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="groupPlans">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V8l8-5 8 5v11"></path><path d="M8 21v-7h8v7M2 21h20"></path>
+              </svg>
+              <span>小组方案</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="courseGroups">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="7" r="4"></circle><path d="M3 21v-2a6 6 0 0 1 12 0v2"></path><path d="M16 3.5a4 4 0 0 1 0 7"></path><path d="M18 15a5 5 0 0 1 3 4.5V21"></path>
+              </svg>
+              <span>课程小组</span>
+            </button>
+            <button class="admin-menu-item" type="button" data-admin-tab="activity">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16v16H4z"></path><path d="M8 9h8M8 13h8M8 17h5"></path>
+              </svg>
+              <span>操作记录</span>
+            </button>
+          </nav>
+        </aside>
+        <div class="admin-main">
+          <div id="adminTabUsers" class="admin-tab-panel active">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <h1>注册账号列表</h1>
+                <span id="adminUserCount" class="admin-count">共 0 个账号</span>
+              </div>
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>用户名</th>
+                      <th>学号</th>
+                      <th>性别</th>
+                      <th>班级</th>
+                      <th>年级</th>
+                      <th>注册时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminTableBody">
+                    <tr>
+                      <td colspan="8" class="admin-empty">加载中...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div id="adminTabPhotos" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <h1>照片管理</h1>
+                <span id="adminPhotoCount" class="admin-count">共 0 张照片</span>
+              </div>
+              <div id="adminPhotoGrid" class="admin-photo-grid">
+                <div class="admin-empty" style="grid-column: 1 / -1;">加载中...</div>
+              </div>
+            </div>
+          </div>
+          <div id="adminTabMessages" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <h1>留言管理</h1>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <select id="adminMessageSortSelect" class="community-message-sort-select" style="height:32px;">
+                    <option value="time_desc">时间晚→早</option>
+                    <option value="time_asc">时间早→晚</option>
+                    <option value="likes_desc">点赞多→少</option>
+                    <option value="likes_asc">点赞少→多</option>
+                    <option value="replies_desc">评论多→少</option>
+                    <option value="replies_asc">评论少→多</option>
+                  </select>
+                  <span id="adminMessageCount" class="admin-count">共 0 条留言</span>
+                </div>
+              </div>
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>类型</th>
+                      <th>详情</th>
+                      <th>上报人</th>
+                      <th>点赞</th>
+                      <th>评论</th>
+                      <th>时间</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminMessageTableBody">
+                    <tr>
+                      <td colspan="8" class="admin-empty">加载中...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div id="adminTabCourseGroups" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <div><h1>课程小组管理</h1><p class="admin-course-hint">教师预建小组并生成组码；学生可在课程工作台输入组码加入。</p></div>
+                <span id="adminCourseGroupCount" class="admin-count">共 0 个小组</span>
+              </div>
+              <form id="adminCreateGroupForm" class="admin-course-toolbar">
+                <input id="adminGroupNameInput" class="admin-course-input" type="text" placeholder="例如：米埗村第一组" required />
+                <input id="adminGroupCodeInput" class="admin-course-input" type="text" maxlength="12" placeholder="组码（可留空自动生成）" />
+                <button class="admin-btn admin-btn-primary" type="submit">创建小组</button>
+              </form>
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>小组</th><th>组码</th><th>成员数</th><th>已开始任务人数</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="adminCourseGroupTableBody"><tr><td colspan="6" class="admin-empty">加载中...</td></tr></tbody>
+              </table></div>
+            </div>
+          </div>
+          <div id="adminTabVillages" class="admin-tab-panel">
+            <div id="adminVillageRoot" data-village-admin-root>
+              <div class="village-admin-hero">
+                <h1>新村庄数据发布</h1>
+                <p>本地工具负责生成标准 V0 数据包；后台只负责校验、上传、发布和教学项目绑定。</p>
+                <div class="village-admin-project">当前项目：<strong data-village-active-project>加载中…</strong></div>
+              </div>
+              <section class="teaching-project-card" data-teaching-project-card>
+                <h2>教学项目</h2>
+                <p>一个项目代表一个学期。归档本学期后，可复用同一课程模板创建下学期项目；练习村庄会自动开放。</p>
+                <div class="teaching-project-active" data-teaching-project-active hidden>
+                  <div class="teaching-project-details" data-teaching-project-details></div>
+                  <button class="admin-btn admin-btn-danger" type="button" data-teaching-project-archive>结束并归档本学期</button>
+                </div>
+                <form class="teaching-project-form" data-teaching-project-create-form hidden>
+                  <label class="village-field">新学期项目名称<input class="admin-course-input" name="projectName" placeholder="例如：2027 春季村庄规划课程" required /></label>
+                  <label class="village-field">课程模板 ID<input class="admin-course-input" name="courseId" value="mibu-village-planning" required /></label>
+                  <label class="village-field">默认练习村庄<select class="admin-course-select" name="practiceVillageId" data-practice-village-select required><option value="">选择练习村庄</option></select></label>
+                  <button class="admin-btn admin-btn-primary" type="submit">创建新学期</button>
+                </form>
+              </section>
+              <div class="village-workflow">
+                <section class="village-step" data-village-step="create">
+                  <div class="village-step-head"><span class="village-step-number">1</span><div><h2>创建村庄</h2><p>先登记名称和大致边界。边界同时决定首页地图范围及本地处理范围。</p></div></div>
+                  <form data-village-create-form class="village-step-body">
+                    <div class="village-form-grid">
+                      <label class="village-field">村庄名称<input name="villageName" class="admin-course-input" type="text" maxlength="80" placeholder="例如：溪口村" required /></label>
+                      <label class="village-field">村庄边界（GeoJSON）<input data-village-boundary-file type="file" accept=".geojson,.json" required /></label>
+                      <label class="village-field"><span>村庄类型</span><span><input name="isPractice" type="checkbox" /> 设为练习村庄</span></label>
+                      <details class="village-field"><summary>高级选项：坐标系</summary><input name="defaultCrs" class="admin-course-input" value="EPSG:4326" aria-label="默认坐标系" /></details>
+                      <div data-village-boundary-summary class="village-boundary-status village-field-wide">尚未读取边界。本地工具支持 Shapefile ZIP；后台建村使用工具导出的 boundary.geojson。</div>
+                    </div>
+                    <div class="village-inline-actions"><button class="admin-btn admin-btn-primary" type="submit">创建村庄草稿</button></div>
+                  </form>
+                </section>
+                <section class="village-step" data-village-step="import" data-village-package-step>
+                  <div class="village-step-head"><span class="village-step-number">2</span><div><h2>导入本地 V0 数据包</h2><p>选择本地工具生成的完整文件夹。浏览器会先核验结构与文件哈希，再写入私有存储。</p></div></div>
+                  <div class="village-step-body"><div class="village-form-grid">
+                    <label class="village-field">对应村庄<select name="villageId" data-village-select class="admin-course-select" aria-label="选择数据准备村庄"><option value="">选择村庄</option></select></label>
+                    <label class="village-field">成果文件夹<input data-village-upload-bundle type="file" webkitdirectory multiple aria-label="选择V0数据包文件夹" /></label>
+                    <div data-village-package-status class="village-package-status village-field-wide">等待选择数据包。不会上传原始 GeoTIFF、PBF、DEM 或模型权重。</div>
+                  </div></div>
+                </section>
+                <section class="village-step" data-village-step="publish">
+                  <div class="village-step-head"><span class="village-step-number">3</span><div><h2>校验、发布并绑定教学项目</h2><p>只有包含建筑成果且校验通过的数据包才能发布；正式村庄发布后再绑定到当前学期。</p></div></div>
+                  <div class="village-step-body"><ul data-village-admin-list class="village-list"><li>加载中…</li></ul></div>
+                </section>
+              </div>
+              <section class="village-step village-midterm">
+                <div class="village-step-head"><span class="village-step-number">3D</span><div><span class="village-midterm-label">学期中期 · 3D 实景模型</span><h2>发布 Cesium 实景资源</h2><p>该资源独立叠加，可随时补充，不替换或干扰二维建筑白模。</p></div></div>
+                <form data-village-reality-form class="village-step-body">
+                  <div class="village-form-grid">
+                    <label class="village-field">所属村庄<select name="villageId" data-village-select class="admin-course-select" required><option value="">选择村庄</option></select></label>
+                    <label class="village-field">Cesium ion Asset ID<input name="ionAssetId" class="admin-course-input" type="number" min="1" step="1" placeholder="例如：1234567" required /></label>
+                    <label class="village-field">显示名称<input name="title" class="admin-course-input" type="text" maxlength="100" value="村庄实景模型" /></label>
+                    <label class="village-field">高度偏移（米）<input name="heightOffset" class="admin-course-input" type="number" min="-1000" max="1000" step="0.1" value="0" /></label>
+                  </div>
+                  <div class="village-inline-actions"><label><input name="publishNow" type="checkbox" /> 保存后立即发布</label><button class="admin-btn admin-btn-primary" type="submit">保存实景模型</button></div>
+                </form>
+              </section>
+            </div>
+          </div>
+          <div id="adminTabSurveyReview" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header"><div><h1>共享现状校核</h1><p class="admin-course-hint">查看固定 V0 进度、对象状态与追加式历史；这里不分配或认领对象。</p></div></div>
+              <div id="adminSurveyRoot"><div class="admin-empty">正在读取当前正式村庄…</div></div>
+            </div>
+          </div>
+          <div id="adminTabGroupPlans" class="admin-tab-panel">
+            <div class="admin-card group-plan-admin-card">
+              <div class="admin-card-header">
+                <div><h1>小组方案管理</h1><p class="admin-course-hint">统一查看各组方案空间、冻结基线、最近活动和冲突；进入方案采用临时管理视图，不会混入普通空间下拉框。</p></div>
+              </div>
+              <div id="adminGroupPlanRoot"><div class="admin-empty">正在读取当前正式村庄的小组方案…</div></div>
+            </div>
+          </div>
+          <div id="adminTabActivity" class="admin-tab-panel">
+            <div class="admin-card">
+              <div class="admin-card-header">
+                <div><h1>学生操作记录</h1><p class="admin-course-hint">按学生、小组和操作类型追踪课程过程，可导出 CSV 用于教学分析与论文研究。</p></div>
+                <span id="adminActivityCount" class="admin-count">共 0 条记录</span>
+              </div>
+              <div class="admin-course-toolbar">
+                <select id="adminActivityGroupFilter" class="admin-course-select"><option value="">全部小组</option></select>
+                <input id="adminActivityStudentFilter" class="admin-course-input" type="search" placeholder="筛选学生姓名" />
+                <select id="adminActivityActionFilter" class="admin-course-select"><option value="">全部操作</option></select>
+                <select id="adminActivityTaskFilter" class="admin-course-select"><option value="">全部任务</option></select>
+                <label class="admin-course-hint">从 <input id="adminActivityDateFrom" class="admin-course-input" type="date" /></label>
+                <label class="admin-course-hint">至 <input id="adminActivityDateTo" class="admin-course-input" type="date" /></label>
+                <button id="adminActivityExportBtn" class="admin-btn" type="button">导出 CSV</button>
+              </div>
+              <div class="admin-table-wrap"><table class="admin-table">
+                <thead><tr><th>时间</th><th>学生</th><th>小组</th><th>任务</th><th>操作</th><th>对象</th><th>视图</th></tr></thead>
+                <tbody id="adminActivityTableBody"><tr><td colspan="7" class="admin-empty">加载中...</td></tr></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="adminMessageDetailModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal" style="max-width:600px;">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title" id="adminMessageDetailTitle">留言详情</h3>
+      </div>
+      <div class="custom-modal-body" id="adminMessageDetailBody" style="max-height:70vh;overflow-y:auto;">
+        <!-- 动态填充 -->
+      </div>
+      <div class="custom-modal-footer">
+        <button id="adminMessageDetailClose" class="custom-modal-btn custom-modal-btn-cancel" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminConfirmModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title" id="adminConfirmTitle">确认</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="adminConfirmMessage"></p>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="adminConfirmCancel" class="custom-modal-btn custom-modal-btn-cancel" type="button">取消</button>
+        <button id="adminConfirmOk" class="custom-modal-btn custom-modal-btn-ok danger" type="button">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="features/auth/supabase-auth-model.js?v=20260721-supabase-auth"></script>
+  <script defer src="features/auth/access-control.js?v=20260721-supabase-auth"></script>
+  <script defer src="auth-system.js?v=20260721-supabase-auth"></script>
+  <script defer src="features/course/course-model.js"></script>
+  <script defer src="features/course/course-service.js"></script>
+  <script defer src="features/course/activity-logger.js?v=20260911-admin-history-cleanup"></script>
+  <script defer src="features/villages/village-model.js?v=20260907-practice-catalog"></script>
+  <script defer src="features/villages/village-client.js?v=20260907-practice-catalog"></script>
+  <script defer src="features/villages/village-boundary.js"></script>
+  <script defer src="features/geoprocessing/geoprocessing-client.js"></script>
+  <script defer src="features/admin/village-package.js?v=20260907-arraybuffer"></script>
+  <script defer src="features/admin/village-admin.js?v=20260907-project-lifecycle"></script>
+  <script defer src="features/admin/survey-admin.js"></script>
+  <script defer src="features/admin/group-plan-admin.js?v=20260906-group-plan"></script>
+  <script defer src="features/admin/course-admin.js"></script>
+  <script defer src="admin.js?v=20260911-photo-security"></script>
+</body>
+</html>

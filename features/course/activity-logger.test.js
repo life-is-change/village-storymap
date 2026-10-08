@@ -1,0 +1,152 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const {
+  createActivityLogger,
+  resolveActivitySpaceId,
+  purgeLegacyAdminEventsOnce,
+  ADMIN_HISTORY_CLEANUP_MARKER
+} = require("./activity-logger.js");
+
+test("activity events use the database space id behind the shared workspace alias", () => {
+  const spaces = [
+    { id: "current", actualSpaceId: "practice-shared-1", teachingProjectId: "project-1", villageId: "village-1" },
+    { id: "personal-2", actualSpaceId: "personal-2", teachingProjectId: "project-1", villageId: "village-2" }
+  ];
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["current"], teachingProjectId: "project-1", villageId: "village-1" }), "practice-shared-1");
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["personal-2"], teachingProjectId: "project-1", villageId: "village-1" }), "practice-shared-1");
+  assert.equal(resolveActivitySpaceId({ spaces, preferredIds: ["current"], teachingProjectId: "project-2", villageId: "village-1" }), "");
+});
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(key) ? values.get(key) : null;
+    },
+    setItem(key, value) {
+      values.set(key, String(value));
+    }
+  };
+}
+
+function sequentialUuid() {
+  let value = 0;
+  return () => `event-${++value}`;
+}
+
+function createLogger(overrides = {}) {
+  return createActivityLogger({
+    storage: createMemoryStorage(),
+    uuid: sequentialUuid(),
+    now: () => "2026-07-15T09:00:00.000Z",
+    getContext: () => ({
+      actor: { studentKey: "2026001::张三", name: "张三" },
+      courseId: "mibu-village-planning",
+      teachingProjectId: "project-1",
+      villageId: "village-1",
+      groupId: "group-1",
+      taskId: "design-workspace",
+      spaceId: "group-space-1",
+      viewMode: "2d"
+    }),
+    ...overrides
+  });
+}
+
+test("record appends actions instead of overwriting current state", async () => {
+  const logger = createLogger();
+
+  await logger.record("view_switched", { type: "workspace", id: "space-1" }, { viewMode: "2d" });
+  await logger.record("view_switched", { type: "workspace", id: "space-1" }, { viewMode: "3d" });
+
+  const events = logger.listLocalEvents();
+  assert.equal(events.length, 2);
+  assert.deepEqual(events.map((event) => event.clientEventId), ["event-1", "event-2"]);
+  assert.deepEqual(events.map((event) => event.viewMode), ["2d", "3d"]);
+});
+
+test("record attaches actor, course, group, task and target context", async () => {
+  const logger = createLogger();
+
+  const event = await logger.record(
+    "feature_updated",
+    { type: "building", id: "B023" },
+    { changedFields: ["建筑高度"] }
+  );
+
+  assert.equal(event.studentKey, "2026001::张三");
+  assert.equal(event.courseId, "mibu-village-planning");
+  assert.equal(event.teachingProjectId, "project-1");
+  assert.equal(event.villageId, "village-1");
+  assert.equal(event.groupId, "group-1");
+  assert.equal(event.taskId, "design-workspace");
+  assert.equal(event.targetType, "building");
+  assert.equal(event.targetId, "B023");
+});
+
+test("flush keeps a failed event pending and de-duplicates a successful retry", async () => {
+  let attempts = 0;
+  const remote = {
+    async insert(event) {
+      attempts += 1;
+      if (attempts === 1) throw new Error("offline");
+      return event.clientEventId;
+    }
+  };
+  const logger = createLogger({ remote });
+  await logger.record("task_started", { type: "task", id: "survey-collect" }, {});
+
+  await logger.flush();
+  assert.equal(logger.listLocalEvents()[0].syncStatus, "pending");
+
+  await logger.flush();
+  const events = logger.listLocalEvents();
+  assert.equal(events.length, 1);
+  assert.equal(events[0].syncStatus, "synced");
+  assert.equal(attempts, 2);
+});
+
+test("local event filters support research queries", async () => {
+  const logger = createLogger();
+  await logger.record("task_started", { type: "task", id: "design-workspace" }, {});
+  await logger.record("view_switched", { type: "workspace", id: "group-space-1" }, {});
+
+  assert.equal(logger.listLocalEvents({ action: "view_switched" }).length, 1);
+  assert.equal(logger.listLocalEvents({ groupId: "other-group" }).length, 0);
+});
+
+test("legacy administrator events are purged from local cache only once", () => {
+  const storage = createMemoryStorage();
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "admin-old", studentName: "管理员", syncStatus: "pending" },
+    { clientEventId: "student-old", studentName: "张三", syncStatus: "synced" }
+  ]));
+
+  assert.equal(purgeLegacyAdminEventsOnce(storage), 1);
+  assert.deepEqual(
+    JSON.parse(storage.getItem("village_activity_events_v1")).map((event) => event.clientEventId),
+    ["student-old"]
+  );
+  assert.equal(storage.getItem(ADMIN_HISTORY_CLEANUP_MARKER), "1");
+
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "admin-new", studentName: "管理员", syncStatus: "pending" }
+  ]));
+  assert.equal(purgeLegacyAdminEventsOnce(storage), 0);
+  assert.equal(JSON.parse(storage.getItem("village_activity_events_v1")).length, 1);
+});
+
+test("flush retains but does not resend legacy events addressed to the virtual current space", async () => {
+  const storage = createMemoryStorage();
+  storage.setItem("village_activity_events_v1", JSON.stringify([
+    { clientEventId: "old-event", spaceId: "current", syncStatus: "pending" }
+  ]));
+  let sends = 0;
+  const logger = createLogger({ storage, remote: { async insert() { sends += 1; } } });
+  await logger.flush();
+  await logger.flush();
+  assert.equal(sends, 0);
+  assert.equal(logger.listLocalEvents()[0].syncStatus, "blocked");
+  assert.equal(logger.listLocalEvents()[0].syncError, "LEGACY_SPACE_CONTEXT_INVALID");
+});

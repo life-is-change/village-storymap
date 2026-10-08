@@ -1,0 +1,8 @@
+{
+  "run_id": "11111111-2222-4333-8444-555555555555",
+  "village_id": "mibu",
+  "aoi": {"type":"Polygon","coordinates":[[[113.661,23.676],[113.665,23.676],[113.665,23.679],[113.661,23.679],[113.661,23.676]]]},
+  "requested_steps": ["buildings", "roads_water", "contours"],
+  "parameters": {"building_threshold": 0.35, "contour_interval": 5, "contour_smoothing": 1},
+  "work_dir": "smoke/11111111-2222-4333-8444-555555555555"
+}

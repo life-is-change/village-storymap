@@ -1,0 +1,1510 @@
+(function () {
+  const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
+// 默认开启 Supabase；如需临时切回纯本地模式，可将 village_enable_supabase 设为 "false"。
+const ENABLE_SUPABASE_SYNC = (() => {
+  try {
+    return localStorage.getItem("village_enable_supabase") !== "false";
+  } catch (_) {
+    return true;
+  }
+})();
+
+  const SPACE_STORAGE_KEY = "village_planning_spaces_v2";
+  const LEGACY_USERS_KEY = "village_planning_users_v1";
+  const LEGACY_ACTIVE_KEY = "village_planning_active_user_v1";
+  const PHOTO_BUCKET = "house-photos";
+  const OBJECT_PHOTOS_TABLE = "object_photos";
+  const OBJECT_EDITS_TABLE = "object_attribute_edits";
+  const PLANNING_FEATURES_TABLE = "planning_features";
+  const COMMUNITY_TASKS_TABLE = "community_tasks";
+  const TASK_VERIFICATIONS_TABLE = "task_verifications";
+  const POINTS_LEDGER_TABLE = "points_ledger";
+  const USER_STATS_TABLE = "user_stats";
+  const COMMUNITY_TASK_PHOTO_OBJECT_TYPE = "community_task";
+
+  const supabaseClient = window.VillageSupabaseClient || (
+    ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+      : null
+  );
+
+  let isDeletingUser = false;
+  let remoteCleanupWarnings = [];
+  let messageBoardSortOrder = "time_desc";
+  let courseAdminService = null;
+  let courseAdminLogger = null;
+  let villageAdminController = null;
+  let surveyAdminController = null;
+  let groupPlanAdminController = null;
+  let villageAdminClient = null;
+  let latestVillageAdminState = null;
+  const adminTabPromises = new Map();
+  let courseGroupRows = [];
+  let courseActivityRows = [];
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function getCurrentUser() {
+    return window.VillageAuth && typeof window.VillageAuth.getCurrentUser === "function"
+      ? window.VillageAuth.getCurrentUser()
+      : null;
+  }
+
+  async function getAllUsers() {
+    let remoteUsers = [];
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("profiles")
+          .select("id, display_name, student_id, role, gender, class_name, grade, created_at")
+          .order("created_at", { ascending: false });
+        if (!error && Array.isArray(data)) {
+          remoteUsers = data.map((row) => ({
+            id: row.id,
+            name: row.display_name,
+            studentId: row.student_id,
+            role: row.role || "student",
+            gender: row.gender || "",
+            className: row.class_name || "",
+            grade: row.grade || "",
+            createdAt: row.created_at
+          }));
+        }
+      } catch (e) {
+        console.warn("从远端读取用户列表失败：", e);
+      }
+    }
+
+    // 同时读取本地用户，合并去重（确保当前电脑上注册的用户一定能看到）
+    let localUsers = [];
+    if (window.VillageAuth && typeof window.VillageAuth.loadAuthUsers === "function") {
+      try {
+        localUsers = window.VillageAuth.loadAuthUsers() || [];
+      } catch (_) {
+        localUsers = [];
+      }
+    }
+
+    const mergedMap = new Map();
+    [...remoteUsers, ...localUsers].forEach((u) => {
+      const key = `${String(u.name || "").trim()}::${String(u.studentId || "").trim()}`;
+      if (!key || key === "::") return;
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, u);
+      }
+    });
+    return Array.from(mergedMap.values());
+  }
+
+  function readJsonArray(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function getSpaceCreator(space) {
+    return String(space?.creatorName || space?.ownerName || space?.createdBy || "").trim();
+  }
+
+  function formatDate(isoString) {
+    if (!isoString) return "—";
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return "—";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${y}-${m}-${day} ${h}:${min}`;
+    } catch (_) {
+      return "—";
+    }
+  }
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showAdminNotice(message, type = "info") {
+    const existing = document.querySelector(".admin-inline-notice");
+    if (existing) existing.remove();
+
+    const content = $("adminContent");
+    if (!content) return;
+    const notice = document.createElement("div");
+    notice.className = `admin-inline-notice ${type}`;
+    notice.textContent = message;
+    content.prepend(notice);
+    window.setTimeout(() => notice.remove(), 3600);
+  }
+
+  function getAdminPhotoDeleteErrorMessage(error) {
+    const message = String(error?.message || error || "");
+    if (message.includes("FACADE_PHOTO_PROCESSING")) {
+      return "该照片正在用于 3D 立面处理，请等待任务完成或取消任务后再删除。";
+    }
+    if (message.includes("FACADE_PHOTO_IN_USE")) {
+      return "数据库仍在使用旧版照片删除规则，请先执行照片生命周期迁移。";
+    }
+    if (message.includes("SNAPSHOT_PHOTO_IMMUTABLE")) {
+      return "该照片属于已冻结的正式版本，不能删除。";
+    }
+    if (message.includes("PHOTO_DELETE_FORBIDDEN")) {
+      return "只有照片上传者或管理员可以删除该照片。";
+    }
+    return message || "删除照片失败，请稍后重试。";
+  }
+
+  function adminConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+      const modal = $("adminConfirmModal");
+      const titleEl = $("adminConfirmTitle");
+      const messageEl = $("adminConfirmMessage");
+      const okBtn = $("adminConfirmOk");
+      const cancelBtn = $("adminConfirmCancel");
+      if (!modal || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+        resolve(window.confirm(message));
+        return;
+      }
+
+      titleEl.textContent = options.title || "确认";
+      messageEl.textContent = message;
+      okBtn.textContent = options.okText || "确认";
+      cancelBtn.textContent = options.cancelText || "取消";
+      okBtn.classList.toggle("danger", options.isDanger !== false);
+      modal.classList.remove("is-hidden");
+
+      const cleanup = (result) => {
+        modal.classList.add("is-hidden");
+        okBtn.removeEventListener("click", handleOk);
+        cancelBtn.removeEventListener("click", handleCancel);
+        modal.removeEventListener("click", handleOutside);
+        document.removeEventListener("keydown", handleKeydown);
+        resolve(result);
+      };
+      const handleOk = () => cleanup(true);
+      const handleCancel = () => cleanup(false);
+      const handleOutside = (event) => {
+        if (event.target === modal) cleanup(false);
+      };
+      const handleKeydown = (event) => {
+        if (event.key === "Escape") cleanup(false);
+      };
+
+      okBtn.addEventListener("click", handleOk);
+      cancelBtn.addEventListener("click", handleCancel);
+      modal.addEventListener("click", handleOutside);
+      document.addEventListener("keydown", handleKeydown);
+    });
+  }
+
+  async function renderTable() {
+    const tbody = $("adminTableBody");
+    const countEl = $("adminUserCount");
+    const users = await getAllUsers();
+
+    if (countEl) countEl.textContent = `共 ${users.length} 个账号`;
+
+    if (!tbody) return;
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="admin-empty">暂无注册账号</td></tr>`;
+      return;
+    }
+
+    const sorted = [...users].sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+
+    tbody.innerHTML = sorted.map((u) => {
+      const rawName = String(u.name || "").trim();
+      const rawStudentId = String(u.studentId || "").trim();
+      const name = escapeHtml(rawName || "—");
+      const studentId = escapeHtml(rawStudentId || "—");
+      const gender = escapeHtml(u.gender || "—");
+      const className = escapeHtml(u.className || "—");
+      const grade = escapeHtml(u.grade || "—");
+      const createdAt = formatDate(u.createdAt);
+      const actionHtml = window.AccessControlModule?.isAdminUser(u)
+        ? `<span class="admin-action-muted">管理员账号</span>`
+        : `<button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-user-name="${escapeHtml(rawName)}" data-delete-user-student-id="${escapeHtml(rawStudentId)}">删除</button>`;
+
+      return `
+        <tr>
+          <td>${name}</td>
+          <td>${studentId}</td>
+          <td class="${u.gender ? "" : "cell-muted"}">${gender}</td>
+          <td class="${u.className ? "" : "cell-muted"}">${className}</td>
+          <td class="${u.grade ? "" : "cell-muted"}">${grade}</td>
+          <td class="cell-muted">${createdAt}</td>
+          <td>${actionHtml}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function ignoreMissingTable(label, operation) {
+    try {
+      return await operation();
+    } catch (error) {
+      console.warn(`${label} 清理失败：`, error);
+      return null;
+    }
+  }
+
+  function isQueryMissingTableError(error) {
+    if (!error) return false;
+    const code = String(error.code || "");
+    const status = Number(error.status);
+    const message = String(error.message || "").toLowerCase();
+    return code === "PGRST205" || code === "42P01" || status === 404 || message.includes("does not exist");
+  }
+
+  async function runDeleteQuery(label, queryBuilder) {
+    if (!supabaseClient) return { skipped: true };
+    let error = null;
+    try {
+      const result = await queryBuilder();
+      error = result?.error || null;
+    } catch (caught) {
+      error = caught;
+    }
+    if (error) {
+      const isMissing = isQueryMissingTableError(error);
+      console.warn(isMissing ? `${label} 表不存在或不可访问，已跳过。` : `${label} 清理失败，已继续执行。`, error);
+      if (!isMissing) remoteCleanupWarnings.push(label);
+    }
+    return { skipped: !!error, failed: !!error && !isQueryMissingTableError(error) };
+  }
+
+  async function fetchRows(label, queryBuilder) {
+    if (!supabaseClient) return [];
+    let data = [];
+    let error = null;
+    try {
+      const result = await queryBuilder();
+      data = result?.data || [];
+      error = result?.error || null;
+    } catch (caught) {
+      error = caught;
+    }
+    if (error) {
+      const isMissing = isQueryMissingTableError(error);
+      console.warn(isMissing ? `${label} 表不存在或不可访问，已跳过读取。` : `${label} 读取失败，已继续执行。`, error);
+      if (!isMissing) remoteCleanupWarnings.push(label);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function deleteObjectPhotosByRows(photoRows) {
+    if (!supabaseClient || !Array.isArray(photoRows) || photoRows.length === 0) return;
+
+    const deletedPaths = [];
+    for (const row of photoRows) {
+      if (row?.id === null || row?.id === undefined) continue;
+      const { data, error } = await supabaseClient.rpc("delete_object_photo_safely", {
+        p_photo_id: Number(row.id)
+      });
+      if (error) throw error;
+      const path = data?.photoPath || data?.photo_path || row?.photo_path;
+      if (path) deletedPaths.push(path);
+    }
+
+    const photoPaths = Array.from(new Set(deletedPaths));
+    if (photoPaths.length > 0) {
+      await ignoreMissingTable("照片文件", async () => {
+        const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove(photoPaths);
+        if (error) {
+          remoteCleanupWarnings.push("照片文件");
+          throw error;
+        }
+      });
+    }
+
+  }
+
+  function getPhotoDisplayUrl(photo = {}) {
+    const photoPath = String(photo.photo_path || "").trim();
+    if (photoPath) {
+      const result = supabaseClient.storage.from(PHOTO_BUCKET).getPublicUrl(photoPath);
+      const publicUrl = result?.data?.publicUrl || result?.publicURL || "";
+      if (publicUrl) return publicUrl;
+    }
+    return String(photo.photo_url || "").trim();
+  }
+
+  async function replaceMissingPhotoFile(button) {
+    const item = button?.closest?.(".admin-photo-item");
+    const photoId = item?.dataset?.photoId;
+    const photoPath = item?.dataset?.photoPath;
+    if (!photoId || !photoPath) {
+      showAdminNotice("该记录缺少存储路径，无法原位修复。", "error");
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      button.disabled = true;
+      try {
+        const { error: uploadError } = await supabaseClient.storage
+          .from(PHOTO_BUCKET)
+          .upload(photoPath, file, { upsert: true, contentType: file.type || "image/jpeg" });
+        if (uploadError) throw uploadError;
+        const publicUrl = getPhotoDisplayUrl({ photo_path: photoPath });
+        const { error: updateError } = await supabaseClient
+          .from(OBJECT_PHOTOS_TABLE)
+          .update({ photo_url: publicUrl })
+          .eq("id", photoId);
+        if (updateError) throw updateError;
+        const image = item.querySelector("img");
+        const missing = item.querySelector(".admin-photo-missing");
+        if (image) {
+          image.src = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}repaired=${Date.now()}`;
+          image.style.display = "";
+        }
+        if (missing) missing.style.display = "none";
+        showAdminNotice("原图已补回，照片记录及 3D 立面引用保持不变。", "success");
+        await renderPhotos();
+      } catch (error) {
+        console.error("修复照片失败：", error);
+        showAdminNotice(error?.message || "修复照片失败，请稍后重试。", "error");
+        button.disabled = false;
+      }
+    }, { once: true });
+    input.click();
+  }
+
+  async function cleanupRemoteUserData(userName, removedSpaceIds) {
+    remoteCleanupWarnings = [];
+    const summary = {
+      remoteSkipped: !supabaseClient,
+      warningCount: 0
+    };
+
+    if (!supabaseClient) return summary;
+
+    const reportedTasks = await fetchRows("社区任务", () =>
+      supabaseClient.from(COMMUNITY_TASKS_TABLE).select("id").eq("reporter_name", userName)
+    );
+    const spaceTasks = removedSpaceIds.length
+      ? await fetchRows("社区任务", () =>
+          supabaseClient.from(COMMUNITY_TASKS_TABLE).select("id").in("space_id", removedSpaceIds)
+        )
+      : [];
+    const taskIds = Array.from(new Set([...reportedTasks, ...spaceTasks].map((row) => row?.id).filter((id) => id !== null && id !== undefined)));
+    const taskPhotoCodes = taskIds.map((id) => `TASK_${id}`);
+
+    if (taskPhotoCodes.length > 0) {
+      const taskPhotoRows = await fetchRows("任务照片", () =>
+        supabaseClient
+          .from(OBJECT_PHOTOS_TABLE)
+          .select("id, photo_path")
+          .eq("object_type", COMMUNITY_TASK_PHOTO_OBJECT_TYPE)
+          .in("object_code", taskPhotoCodes)
+      );
+      await deleteObjectPhotosByRows(taskPhotoRows);
+    }
+
+    if (taskIds.length > 0) {
+      await runDeleteQuery("任务核实", () =>
+        supabaseClient.from(TASK_VERIFICATIONS_TABLE).delete().in("task_id", taskIds)
+      );
+      await runDeleteQuery("积分流水", () =>
+        supabaseClient.from(POINTS_LEDGER_TABLE).delete().in("task_id", taskIds)
+      );
+      await runDeleteQuery("社区任务", () =>
+        supabaseClient.from(COMMUNITY_TASKS_TABLE).delete().in("id", taskIds)
+      );
+    }
+
+    await runDeleteQuery("用户核实记录", () =>
+      supabaseClient.from(TASK_VERIFICATIONS_TABLE).delete().eq("verifier_name", userName)
+    );
+    await runDeleteQuery("用户积分流水", () =>
+      supabaseClient.from(POINTS_LEDGER_TABLE).delete().eq("user_name", userName)
+    );
+    await runDeleteQuery("用户统计", () =>
+      supabaseClient.from(USER_STATS_TABLE).delete().eq("user_name", userName)
+    );
+    const uploadedPhotoRows = await fetchRows("对象照片", () =>
+      supabaseClient.from(OBJECT_PHOTOS_TABLE).select("id, photo_path").eq("uploaded_by", userName)
+    );
+    const spacePhotoRows = [];
+    for (const spaceId of removedSpaceIds) {
+      const rows = await fetchRows("空间照片", () =>
+        supabaseClient.from(OBJECT_PHOTOS_TABLE).select("id, photo_path").like("object_type", `%__${spaceId}`)
+      );
+      spacePhotoRows.push(...rows);
+    }
+    await deleteObjectPhotosByRows([...uploadedPhotoRows, ...spacePhotoRows]);
+
+    for (const spaceId of removedSpaceIds) {
+      await runDeleteQuery("空间对象编辑", () =>
+        supabaseClient.from(OBJECT_EDITS_TABLE).delete().like("object_type", `%__${spaceId}`)
+      );
+    }
+
+    if (removedSpaceIds.length > 0) {
+      await runDeleteQuery("规划要素", () =>
+        supabaseClient.from(PLANNING_FEATURES_TABLE).delete().in("space_id", removedSpaceIds)
+      );
+    }
+
+    summary.warningCount = remoteCleanupWarnings.length;
+    return summary;
+  }
+
+  async function deleteUserAndData(userName, studentId) {
+    const targetName = String(userName || "").trim();
+    const targetStudentId = String(studentId || "").trim();
+    if (!targetName) throw new Error("缺少目标账号。");
+
+    const users = await getAllUsers();
+    const target = users.find((u) => String(u.name || "").trim() === targetName && String(u.studentId || "").trim() === targetStudentId);
+    if (!target) throw new Error("未找到该账号，可能已被删除。");
+    if (window.AccessControlModule?.isAdminUser(target)) throw new Error("管理员账号不能删除。");
+
+    const spaces = readJsonArray(SPACE_STORAGE_KEY);
+    const removedSpaces = spaces.filter((space) => getSpaceCreator(space) === targetName);
+    const removedSpaceIds = removedSpaces.map((space) => space.id).filter(Boolean);
+    const nextSpaces = spaces.filter((space) => getSpaceCreator(space) !== targetName);
+
+    const remoteSummary = await cleanupRemoteUserData(targetName, removedSpaceIds);
+
+    localStorage.setItem(SPACE_STORAGE_KEY, JSON.stringify(nextSpaces));
+
+    const legacyUsers = readJsonArray(LEGACY_USERS_KEY).filter((name) => String(name || "").trim() !== targetName);
+    if (legacyUsers.length > 0) {
+      localStorage.setItem(LEGACY_USERS_KEY, JSON.stringify(legacyUsers));
+    } else {
+      localStorage.removeItem(LEGACY_USERS_KEY);
+    }
+
+    if (String(localStorage.getItem(LEGACY_ACTIVE_KEY) || "").trim() === targetName) {
+      localStorage.removeItem(LEGACY_ACTIVE_KEY);
+    }
+
+    if (!supabaseClient || !target.id) throw new Error("无法连接认证服务，账号未删除。");
+    const { error: deleteAuthError } = await supabaseClient.functions.invoke("admin-delete-user", {
+      body: { userId: target.id }
+    });
+    if (deleteAuthError) throw new Error(deleteAuthError.message || "认证账号删除失败");
+
+    return {
+      removedSpaceCount: removedSpaceIds.length,
+      remoteSkipped: remoteSummary.remoteSkipped,
+      remoteWarningCount: Number(remoteSummary.warningCount || 0)
+    };
+  }
+
+  async function handleDeleteClick(button) {
+    if (isDeletingUser) return;
+    const userName = String(button.dataset.deleteUserName || "").trim();
+    const studentId = String(button.dataset.deleteUserStudentId || "").trim();
+    if (!userName) return;
+
+    const confirmed = await adminConfirm(
+      `确认删除账号“${userName}”（学号：${studentId || "—"}）吗？该操作会删除此账号及其名下的规划空间、照片、任务和积分数据，删除后不可恢复。`,
+      {
+        title: "高危操作确认",
+        okText: "确认删除",
+        cancelText: "取消",
+        isDanger: true
+      }
+    );
+    if (!confirmed) return;
+
+    isDeletingUser = true;
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "删除中...";
+    try {
+      const result = await deleteUserAndData(userName, studentId);
+      renderTable();
+      const remoteTip = result.remoteSkipped
+        ? "；当前未连接远端数据库，仅清理了本地数据"
+        : result.remoteWarningCount > 0
+          ? `；有 ${result.remoteWarningCount} 项远端清理未完成，请检查控制台`
+          : "";
+      showAdminNotice(`已删除账号“${userName}”及其名下数据，移除规划空间 ${result.removedSpaceCount} 个${remoteTip}。`, result.remoteWarningCount > 0 ? "warning" : "success");
+    } catch (error) {
+      console.error("删除账号失败：", error);
+      button.disabled = false;
+      button.textContent = originalText;
+      showAdminNotice(error?.message || "删除失败，请稍后重试。", "error");
+    } finally {
+      isDeletingUser = false;
+    }
+  }
+
+  async function renderPhotos() {
+    const grid = $("adminPhotoGrid");
+    const countEl = $("adminPhotoCount");
+    if (!grid) return;
+
+    // 直接查询以捕获错误提示；表中可能没有时间戳字段，故不在 SQL 里排序
+    let photos = [];
+    let queryError = null;
+    try {
+      const result = await supabaseClient
+        .from(OBJECT_PHOTOS_TABLE)
+        .select("*")
+        .limit(500);
+      photos = result?.data || [];
+      queryError = result?.error || null;
+    } catch (e) {
+      queryError = e;
+    }
+
+    if (queryError) {
+      console.warn("照片查询失败：", queryError);
+      grid.innerHTML = `<div class="admin-empty" style="grid-column: 1 / -1;">照片查询失败：${escapeHtml(queryError.message || "请检查控制台")}</div>`;
+      if (countEl) countEl.textContent = "共 0 张照片";
+      return;
+    }
+
+    // 按 id 倒序排列（id 自增，越大的越新）
+    photos.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+
+    if (countEl) countEl.textContent = `共 ${photos.length} 张照片`;
+
+    if (photos.length === 0) {
+      grid.innerHTML = `<div class="admin-empty" style="grid-column: 1 / -1;">暂无照片</div>`;
+      return;
+    }
+
+    grid.innerHTML = photos.map((p) => {
+      const typeLabel = escapeHtml(p.object_type || "—");
+      const code = escapeHtml(p.object_code || "—");
+      const uploader = escapeHtml(p.uploaded_by || "—");
+      const time = formatDate(p.created_at || p.uploaded_at);
+      const displayUrl = getPhotoDisplayUrl(p);
+      return `
+        <div class="admin-photo-item" data-photo-id="${escapeHtml(String(p.id))}" data-photo-path="${escapeHtml(p.photo_path || "")}">
+          <a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </a>
+          <button type="button" class="admin-photo-delete" title="删除" data-delete-photo>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+          <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="admin-photo-missing" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
+            <span>原图文件已丢失</span>
+            <button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>
+          </div>
+          <div class="admin-photo-meta">
+            <div class="photo-type">${typeLabel} · ${code}</div>
+            <div>上传者：${uploader}</div>
+            <div class="cell-muted">${time}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function handlePhotoDelete(button) {
+    const item = button.closest(".admin-photo-item");
+    if (!item) return;
+    const photoId = item.dataset.photoId;
+    const photoPath = item.dataset.photoPath;
+    if (!photoId) return;
+
+    const confirmed = await adminConfirm(
+      `确认删除这张照片吗？删除后不可恢复。`,
+      { title: "删除照片", okText: "确认删除", cancelText: "取消", isDanger: true }
+    );
+    if (!confirmed) return;
+
+    try {
+      const { data: deletedPhoto, error: deleteError } = await supabaseClient.rpc("delete_object_photo_safely", {
+        p_photo_id: Number(photoId)
+      });
+      if (deleteError) throw deleteError;
+      const deletedPhotoPath = deletedPhoto?.photoPath || deletedPhoto?.photo_path || photoPath;
+      if (deletedPhotoPath) {
+        await ignoreMissingTable("照片文件", async () => {
+          const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([deletedPhotoPath]);
+          if (error) throw error;
+        });
+      }
+      item.remove();
+      const countEl = $("adminPhotoCount");
+      if (countEl) {
+        const current = parseInt(countEl.textContent.replace(/\D/g, ""), 10) || 0;
+        countEl.textContent = `共 ${Math.max(0, current - 1)} 张照片`;
+      }
+      showAdminNotice("照片已删除", "success");
+    } catch (error) {
+      console.error("删除照片失败：", error);
+      showAdminNotice(getAdminPhotoDeleteErrorMessage(error), "error");
+    }
+  }
+
+  async function downloadPhoto(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("下载失败");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.warn("照片下载失败：", err);
+      window.open(url, "_blank");
+    }
+  }
+
+  function bindPhotoEvents() {
+    const grid = $("adminPhotoGrid");
+    if (!grid || grid.dataset.bound) return;
+    grid.dataset.bound = "1";
+    grid.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-delete-photo]");
+      if (button) {
+        handlePhotoDelete(button);
+        return;
+      }
+      const repairButton = event.target.closest("[data-repair-photo]");
+      if (repairButton) {
+        replaceMissingPhotoFile(repairButton);
+        return;
+      }
+      const downloadLink = event.target.closest("[data-download-src]");
+      if (downloadLink) {
+        event.preventDefault();
+        downloadPhoto(downloadLink.dataset.downloadSrc);
+      }
+    });
+  }
+
+  function bindTableEvents() {
+    const tbody = $("adminTableBody");
+    if (!tbody || tbody.dataset.bound) return;
+    tbody.dataset.bound = "1";
+    tbody.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-delete-user-name]");
+      if (!button) return;
+      handleDeleteClick(button);
+    });
+  }
+
+  async function fetchAllMessages() {
+    if (!supabaseClient) return [];
+    const { data, error } = await supabaseClient
+      .from(COMMUNITY_TASKS_TABLE)
+      .select("*")
+      .order("id", { ascending: false })
+      .limit(1000);
+    if (error) {
+      console.warn("读取留言失败：", error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function fetchMessageLikes(messageId) {
+    if (!supabaseClient || !messageId) return [];
+    const { data, error } = await supabaseClient
+      .from(OBJECT_EDITS_TABLE)
+      .select("data")
+      .eq("object_code", `MSG_${messageId}`)
+      .eq("object_type", "message_likes")
+      .maybeSingle();
+    if (error) {
+      console.warn("读取点赞失败：", error);
+      return [];
+    }
+    return Array.isArray(data?.data?.likers) ? data.data.likers : [];
+  }
+
+  async function fetchMessageReplies(messageId) {
+    if (!supabaseClient || !messageId) return [];
+    const { data, error } = await supabaseClient
+      .from(OBJECT_EDITS_TABLE)
+      .select("data")
+      .eq("object_code", `MSG_${messageId}`)
+      .eq("object_type", "message_replies")
+      .maybeSingle();
+    if (error) {
+      console.warn("读取追评失败：", error);
+      return [];
+    }
+    return Array.isArray(data?.data?.replies) ? data.data.replies : [];
+  }
+
+  async function renderMessages() {
+    const tbody = $("adminMessageTableBody");
+    const countEl = $("adminMessageCount");
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="9" class="admin-empty">加载中...</td></tr>`;
+
+    const rows = await fetchAllMessages();
+    if (countEl) countEl.textContent = `共 ${rows.length} 条留言`;
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">暂无留言</td></tr>`;
+      return;
+    }
+
+    // 获取每条留言的点赞和评论数
+    const messageMeta = await Promise.all(
+      rows.map(async (msg) => {
+        const likers = await fetchMessageLikes(msg.id);
+        const replies = await fetchMessageReplies(msg.id);
+        return {
+          msg,
+          likeCount: likers.length,
+          replyCount: replies.length,
+          createdAt: Date.parse(msg.created_at || "") || 0
+        };
+      })
+    );
+
+    // 排序
+    messageMeta.sort((a, b) => {
+      switch (messageBoardSortOrder) {
+        case "time_desc": return b.createdAt - a.createdAt;
+        case "time_asc": return a.createdAt - b.createdAt;
+        case "likes_desc":
+          if (a.likeCount !== b.likeCount) return b.likeCount - a.likeCount;
+          return b.createdAt - a.createdAt;
+        case "likes_asc":
+          if (a.likeCount !== b.likeCount) return a.likeCount - b.likeCount;
+          return b.createdAt - a.createdAt;
+        case "replies_desc":
+          if (a.replyCount !== b.replyCount) return b.replyCount - a.replyCount;
+          return b.createdAt - a.createdAt;
+        case "replies_asc":
+          if (a.replyCount !== b.replyCount) return a.replyCount - b.replyCount;
+          return b.createdAt - a.createdAt;
+        default: return b.createdAt - a.createdAt;
+      }
+    });
+
+    const typeMeta = {
+      garbage: { label: "垃圾堆积" },
+      road_damage: { label: "道路破损" },
+      drainage_issue: { label: "排水问题" },
+      safety_hazard: { label: "安全隐患" },
+      public_space_need: { label: "公共空间需求" }
+    };
+
+    tbody.innerHTML = messageMeta.map((meta) => {
+      const msg = meta.msg;
+      const id = escapeHtml(String(msg.id));
+      const typeLabel = escapeHtml(typeMeta[msg.category]?.label || msg.category || "—");
+      const reporter = escapeHtml(msg.reporter_name || "—");
+      const likes = meta.likeCount;
+      const replies = meta.replyCount;
+      const time = formatDate(msg.created_at);
+      return `
+        <tr>
+          <td class="cell-muted">${id}</td>
+          <td>${typeLabel}</td>
+          <td><button type="button" class="admin-btn" data-view-message-id="${msg.id}" style="min-height:28px;padding:0 10px;font-size:12px;">查看</button></td>
+          <td>${reporter}</td>
+          <td>${likes}</td>
+          <td>${replies}</td>
+          <td class="cell-muted">${time}</td>
+          <td>
+            <button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-message-id="${msg.id}">删除</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function handleMessageDelete(button) {
+    const messageId = button.dataset.deleteMessageId;
+    if (!messageId) return;
+
+    const confirmed = await adminConfirm(
+      `确认删除这条留言吗？删除后不可恢复。`,
+      { title: "删除留言", okText: "确认删除", cancelText: "取消", isDanger: true }
+    );
+    if (!confirmed) return;
+
+    try {
+      // 删除关联的点赞和评论记录
+      await runDeleteQuery("留言点赞", () =>
+        supabaseClient.from(OBJECT_EDITS_TABLE).delete().eq("object_code", `MSG_${messageId}`)
+      );
+      // 删除关联的照片
+      const photoRows = await fetchRows("任务照片", () =>
+        supabaseClient
+          .from(OBJECT_PHOTOS_TABLE)
+          .select("id, photo_path")
+          .eq("object_type", COMMUNITY_TASK_PHOTO_OBJECT_TYPE)
+          .eq("object_code", `TASK_${messageId}`)
+      );
+      await deleteObjectPhotosByRows(photoRows);
+      // 删除留言本身
+      await runDeleteQuery("留言", () =>
+        supabaseClient.from(COMMUNITY_TASKS_TABLE).delete().eq("id", messageId)
+      );
+      button.closest("tr")?.remove();
+      const countEl = $("adminMessageCount");
+      if (countEl) {
+        const current = parseInt(countEl.textContent.replace(/\D/g, ""), 10) || 0;
+        countEl.textContent = `共 ${Math.max(0, current - 1)} 条留言`;
+      }
+      showAdminNotice("留言已删除", "success");
+    } catch (error) {
+      console.error("删除留言失败：", error);
+      showAdminNotice("删除留言失败，请稍后重试。", "error");
+    }
+  }
+
+  async function showMessageDetailModal(messageId) {
+    const modal = $("adminMessageDetailModal");
+    const body = $("adminMessageDetailBody");
+    if (!modal || !body) return;
+
+    body.innerHTML = '<div style="padding:20px;text-align:center;color:#5f7385;">加载中...</div>';
+    modal.classList.remove("is-hidden");
+
+    const rows = await fetchAllMessages();
+    const msg = rows.find((r) => String(r.id) === String(messageId));
+    if (!msg) {
+      body.innerHTML = '<div style="padding:20px;text-align:center;color:#5f7385;">留言不存在或已被删除</div>';
+      return;
+    }
+
+    // 获取照片
+    let photos = [];
+    try {
+      const { data, error } = await supabaseClient
+        .from(OBJECT_PHOTOS_TABLE)
+        .select("id, photo_url, photo_path, uploaded_by, created_at")
+        .eq("object_type", COMMUNITY_TASK_PHOTO_OBJECT_TYPE)
+        .eq("object_code", `TASK_${messageId}`);
+      if (!error) photos = data || [];
+    } catch (e) {
+      console.warn("读取留言照片失败：", e);
+    }
+
+    // 获取追评
+    const replies = await fetchMessageReplies(messageId);
+    replies.sort((a, b) => {
+      const ta = Date.parse(a.created_at || "") || 0;
+      const tb = Date.parse(b.created_at || "") || 0;
+      return tb - ta;
+    });
+
+    const content = escapeHtml(msg.description || "（无描述）");
+    const typeMeta = {
+      garbage: { label: "垃圾堆积" },
+      road_damage: { label: "道路破损" },
+      drainage_issue: { label: "排水问题" },
+      safety_hazard: { label: "安全隐患" },
+      public_space_need: { label: "公共空间需求" }
+    };
+    const typeLabel = escapeHtml(typeMeta[msg.category]?.label || msg.category || "—");
+    const reporter = escapeHtml(msg.reporter_name || "—");
+    const time = formatDate(msg.created_at);
+
+    const photoHtml = photos.length
+      ? `<div class="admin-photo-grid" style="margin-top:12px;">
+          ${photos.map((p) => {
+            const displayUrl = getPhotoDisplayUrl(p);
+            return `
+            <div class="admin-photo-item" data-photo-id="${escapeHtml(String(p.id))}" data-photo-path="${escapeHtml(p.photo_path || "")}">
+              <a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </a>
+              <button type="button" class="admin-photo-delete" title="删除" data-delete-photo>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+              <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+              <div class="admin-photo-missing" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
+                <span>原图文件已丢失</span>
+                ${p.photo_path ? '<button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>' : ''}
+              </div>
+              <div class="admin-photo-meta">
+                <div class="photo-type">留言照片</div>
+                <div>上传者：${escapeHtml(p.uploaded_by || "—")}</div>
+                <div class="cell-muted">${formatDate(p.created_at)}</div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>`
+      : '<div style="margin-top:12px;padding:16px;border-radius:12px;background:rgba(31,53,82,0.04);color:#5f7385;text-align:center;font-size:14px;">暂无照片</div>';
+
+    const repliesHtml = replies.length
+      ? `<div style="display:flex;flex-direction:column;gap:10px;">
+          ${replies.map((r) => `
+            <div style="padding:12px 14px;border-radius:10px;background:rgba(31,53,82,0.03);border:1px solid rgba(31,53,82,0.06);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:13px;font-weight:700;color:#1f3552;">${escapeHtml(r.author || "未知")}</span>
+                <span style="font-size:12px;color:#728296;">${formatDate(r.created_at)}</span>
+              </div>
+              <div style="font-size:14px;line-height:1.6;color:#1f3552;white-space:pre-wrap;word-break:break-word;">${escapeHtml(r.content || "")}</div>
+            </div>
+          `).join("")}
+        </div>`
+      : '<div style="padding:16px;border-radius:12px;background:rgba(31,53,82,0.04);color:#5f7385;text-align:center;font-size:14px;">暂无追评</div>';
+
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="display:inline-block;padding:2px 10px;border-radius:999px;background:rgba(47,105,40,0.08);border:1px solid rgba(47,105,40,0.18);color:#2f4f66;font-size:12px;font-weight:700;">${typeLabel}</span>
+          <span style="color:#728296;font-size:13px;">${reporter} · ${time}</span>
+        </div>
+        <div style="font-size:15px;line-height:1.7;color:#1f3552;white-space:pre-wrap;word-break:break-word;">${content}</div>
+      </div>
+      <div style="border-top:1px solid rgba(31,53,82,0.08);padding-top:12px;">
+        <div style="font-size:13px;font-weight:700;color:#728296;margin-bottom:4px;" data-photo-count-label>照片（${photos.length} 张）</div>
+        ${photoHtml}
+      </div>
+      <div style="border-top:1px solid rgba(31,53,82,0.08);padding-top:12px;margin-top:12px;">
+        <div style="font-size:13px;font-weight:700;color:#728296;margin-bottom:8px;">追评（${replies.length} 条）</div>
+        ${repliesHtml}
+      </div>
+    `;
+
+    // 绑定弹窗内照片事件
+    body.querySelectorAll("[data-delete-photo]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const item = btn.closest("[data-photo-id]");
+        if (!item) return;
+        const photoId = item.dataset.photoId;
+        const photoPath = item.dataset.photoPath;
+        if (!photoId) return;
+
+        const confirmed = await adminConfirm(
+          `确认删除这张照片吗？删除后不可恢复。`,
+          { title: "删除照片", okText: "确认删除", cancelText: "取消", isDanger: true }
+        );
+        if (!confirmed) return;
+
+        try {
+          const { data: deletedPhoto, error: deleteError } = await supabaseClient.rpc("delete_object_photo_safely", {
+            p_photo_id: Number(photoId)
+          });
+          if (deleteError) throw deleteError;
+          const approvedPath = deletedPhoto?.photoPath || deletedPhoto?.photo_path || photoPath;
+          if (approvedPath) {
+            await ignoreMissingTable("照片文件", async () => {
+              const { error } = await supabaseClient.storage.from(PHOTO_BUCKET).remove([approvedPath]);
+              if (error) throw error;
+            });
+          }
+          item.remove();
+          // 更新照片计数文字
+          const countLabel = body.querySelector("[data-photo-count-label]");
+          if (countLabel) {
+            const current = parseInt(countLabel.textContent.replace(/\D/g, ""), 10) || 0;
+            countLabel.textContent = `照片（${Math.max(0, current - 1)} 张）`;
+          }
+          showAdminNotice("照片已删除", "success");
+        } catch (error) {
+          console.error("删除照片失败：", error);
+          showAdminNotice(getAdminPhotoDeleteErrorMessage(error), "error");
+        }
+      });
+    });
+
+    body.querySelectorAll("[data-download-src]").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        downloadPhoto(link.dataset.downloadSrc);
+      });
+    });
+    body.querySelectorAll("[data-repair-photo]").forEach((button) => {
+      button.addEventListener("click", () => replaceMissingPhotoFile(button));
+    });
+  }
+
+  function bindMessageEvents() {
+    const tbody = $("adminMessageTableBody");
+    if (!tbody || tbody.dataset.bound) return;
+    tbody.dataset.bound = "1";
+    tbody.addEventListener("click", (event) => {
+      const viewBtn = event.target.closest("[data-view-message-id]");
+      if (viewBtn) {
+        showMessageDetailModal(viewBtn.dataset.viewMessageId);
+        return;
+      }
+      const deleteBtn = event.target.closest("[data-delete-message-id]");
+      if (deleteBtn) {
+        handleMessageDelete(deleteBtn);
+      }
+    });
+
+    // 弹窗关闭
+    const modal = $("adminMessageDetailModal");
+    const closeBtn = $("adminMessageDetailClose");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.add("is-hidden");
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        modal?.classList.add("is-hidden");
+      });
+    }
+
+    const sortSelect = $("adminMessageSortSelect");
+    if (sortSelect) {
+      sortSelect.value = messageBoardSortOrder;
+      sortSelect.addEventListener("change", (e) => {
+        messageBoardSortOrder = e.target.value;
+        renderMessages();
+      });
+    }
+  }
+
+  async function readCourseTable(table, columns = "*") {
+    if (!supabaseClient) return [];
+    try {
+      let query = supabaseClient.from(table).select(columns).eq("course_id", "mibu-village-planning");
+      if (table === "activity_events") query = query.order("occurred_at", { ascending: false });
+      const { data, error } = await query;
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.warn(`读取 ${table} 失败：`, error);
+      return [];
+    }
+  }
+
+  function readLocalActivityRows() {
+    try {
+      const key = window.ActivityLoggerModule?.STORAGE_KEY || "village_activity_events_v1";
+      const rows = JSON.parse(localStorage.getItem(key) || "[]");
+      return (Array.isArray(rows) ? rows : []).map((row) => ({
+        occurred_at: row.occurredAt,
+        student_name: row.studentName,
+        student_key: row.studentKey,
+        course_id: row.courseId,
+        group_id: row.groupId,
+        task_id: row.taskId,
+        space_id: row.spaceId,
+        action: row.action,
+        target_type: row.targetType,
+        target_id: row.targetId,
+        view_mode: row.viewMode
+      }));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function getGroupName(groupId) {
+    return courseGroupRows.find((group) => group.id === groupId)?.name || groupId || "—";
+  }
+
+  async function renderCourseGroups() {
+    const tbody = $("adminCourseGroupTableBody");
+    if (!tbody || !courseAdminService) return;
+    courseGroupRows = await courseAdminService.listGroups({ refresh: true });
+    const [memberships, progress] = await Promise.all([
+      readCourseTable("group_memberships"),
+      readCourseTable("task_progress")
+    ]);
+    const summaries = window.CourseAdminModule.summarizeGroups(courseGroupRows, memberships, progress);
+    $("adminCourseGroupCount").textContent = `共 ${summaries.length} 个小组`;
+    tbody.innerHTML = summaries.length
+      ? summaries.map((summary) => {
+          const group = courseGroupRows.find((item) => item.id === summary.id) || {};
+          const memberNames = memberships
+            .filter((row) => row.group_id === group.id)
+            .map((row) => row.student_name)
+            .filter(Boolean);
+          return `<tr>
+            <td>${escapeHtml(summary.name)}${memberNames.length ? `<div class="cell-muted">${escapeHtml(memberNames.join("、"))}</div>` : ""}</td>
+            <td><strong>${escapeHtml(group.joinCode || "—")}</strong></td>
+            <td>${summary.memberCount}</td>
+            <td>${summary.completedCount}</td>
+            <td>${group.locked ? "已锁定" : "开放加入"}</td>
+            <td>
+              <button class="admin-btn admin-delete-btn" type="button" data-copy-group-code="${escapeHtml(group.joinCode || "")}">复制组码</button>
+              <button class="admin-btn admin-delete-btn" type="button" data-course-group-lock="${escapeHtml(group.id)}" data-next-locked="${group.locked ? "false" : "true"}">${group.locked ? "重新开放" : "锁定成员"}</button>
+            </td>
+          </tr>`;
+        }).join("")
+      : '<tr><td colspan="6" class="admin-empty">暂未创建课程小组。</td></tr>';
+    renderActivityFilters();
+  }
+
+  function renderActivityFilters() {
+    const groupFilter = $("adminActivityGroupFilter");
+    const actionFilter = $("adminActivityActionFilter");
+    const taskFilter = $("adminActivityTaskFilter");
+    if (groupFilter) {
+      const selected = groupFilter.value;
+      groupFilter.innerHTML = '<option value="">全部小组</option>' + courseGroupRows
+        .map((group) => `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)}</option>`)
+        .join("");
+      groupFilter.value = selected;
+    }
+    if (actionFilter) {
+      const selected = actionFilter.value;
+      const actions = [...new Set(courseActivityRows.map((row) => row.action).filter(Boolean))].sort();
+      actionFilter.innerHTML = '<option value="">全部操作</option>' + actions
+        .map((action) => `<option value="${escapeHtml(action)}">${escapeHtml(action)}</option>`)
+        .join("");
+      actionFilter.value = selected;
+    }
+    if (taskFilter) {
+      const selected = taskFilter.value;
+      const tasks = window.CourseModelModule?.DEFAULT_COURSE?.tasks || [];
+      taskFilter.innerHTML = '<option value="">全部任务</option>' + tasks
+        .map((task) => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`)
+        .join("");
+      taskFilter.value = selected;
+    }
+  }
+
+  function getFilteredActivityRows() {
+    return window.CourseAdminModule.filterActivityEvents(courseActivityRows, {
+      groupId: $("adminActivityGroupFilter")?.value || "",
+      student: $("adminActivityStudentFilter")?.value || "",
+      action: $("adminActivityActionFilter")?.value || "",
+      taskId: $("adminActivityTaskFilter")?.value || "",
+      dateFrom: $("adminActivityDateFrom")?.value || "",
+      dateTo: $("adminActivityDateTo")?.value || ""
+    });
+  }
+
+  function renderActivityRows() {
+    const tbody = $("adminActivityTableBody");
+    if (!tbody) return;
+    const rows = getFilteredActivityRows();
+    $("adminActivityCount").textContent = `共 ${rows.length} 条记录`;
+    tbody.innerHTML = rows.length
+      ? rows.map((row) => `<tr>
+          <td>${escapeHtml(formatDate(row.occurred_at))}</td>
+          <td>${escapeHtml(row.student_name || "—")}</td>
+          <td>${escapeHtml(getGroupName(row.group_id))}</td>
+          <td>${escapeHtml(row.task_id || "—")}</td>
+          <td>${escapeHtml(row.action || "—")}</td>
+          <td>${escapeHtml([row.target_type, row.target_id].filter(Boolean).join(" / ") || "—")}</td>
+          <td>${escapeHtml(row.view_mode || "—")}</td>
+        </tr>`).join("")
+      : '<tr><td colspan="7" class="admin-empty">没有符合条件的操作记录。</td></tr>';
+  }
+
+  async function loadCourseActivity() {
+    const remoteRows = await readCourseTable("activity_events");
+    const merged = new Map();
+    [...readLocalActivityRows(), ...remoteRows].forEach((row) => {
+      const key = row.client_event_id || row.event_id || `${row.occurred_at}:${row.student_name}:${row.action}:${row.target_id || ""}`;
+      merged.set(key, row);
+    });
+    courseActivityRows = [...merged.values()].sort((a, b) => String(b.occurred_at || "").localeCompare(String(a.occurred_at || "")));
+    renderActivityFilters();
+    renderActivityRows();
+  }
+
+  function downloadActivityCsv() {
+    const csv = window.CourseAdminModule.exportEventsCsv(getFilteredActivityRows());
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `课程操作记录-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyTextToClipboard(value) {
+    const text = String(value || "");
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    input.remove();
+  }
+
+  function bindCourseAdminEvents() {
+    const form = $("adminCreateGroupForm");
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = "1";
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const group = await courseAdminService.createGroup($("adminGroupNameInput").value, $("adminGroupCodeInput").value);
+          await courseAdminLogger?.record("group_created", { type: "group", id: group.id }, { groupName: group.name, joinCode: group.joinCode });
+          courseAdminLogger?.flush().catch(() => {});
+          form.reset();
+          showAdminNotice(`已创建 ${group.name}，组码为 ${group.joinCode}。`, "success");
+          await renderCourseGroups();
+        } catch (error) {
+          showAdminNotice(error?.message || "创建小组失败。", "error");
+        }
+      });
+    }
+    $("adminCourseGroupTableBody")?.addEventListener("click", async (event) => {
+      const copyButton = event.target.closest("[data-copy-group-code]");
+      if (copyButton) {
+        await copyTextToClipboard(copyButton.dataset.copyGroupCode || "");
+        showAdminNotice("组码已复制。", "success");
+        return;
+      }
+      const button = event.target.closest("[data-course-group-lock]");
+      if (!button) return;
+      const nextLocked = button.dataset.nextLocked === "true";
+      await courseAdminService.setGroupLocked(button.dataset.courseGroupLock, nextLocked);
+      await courseAdminLogger?.record(nextLocked ? "group_locked" : "group_unlocked", {
+        type: "group",
+        id: button.dataset.courseGroupLock
+      });
+      courseAdminLogger?.flush().catch(() => {});
+      await renderCourseGroups();
+    });
+    [
+      $("adminActivityGroupFilter"),
+      $("adminActivityStudentFilter"),
+      $("adminActivityActionFilter"),
+      $("adminActivityTaskFilter"),
+      $("adminActivityDateFrom"),
+      $("adminActivityDateTo")
+    ]
+      .filter(Boolean)
+      .forEach((control) => {
+        const eventName = control.tagName === "INPUT" ? "input" : "change";
+        control.addEventListener(eventName, renderActivityRows);
+      });
+    $("adminActivityExportBtn")?.addEventListener("click", downloadActivityCsv);
+  }
+
+  async function initializeCourseAdmin() {
+    if (!window.CourseServiceModule || !window.CourseAdminModule) return;
+    courseAdminService = window.CourseServiceModule.createCourseService({
+      supabaseClient,
+      actorName: getCurrentUser()?.name || "管理员"
+    });
+    courseAdminLogger = window.ActivityLoggerModule?.createActivityLogger({
+      storage: localStorage,
+      supabaseClient,
+      getContext: () => ({
+        actor: { studentKey: "admin::管理员", name: getCurrentUser()?.name || "管理员" },
+        courseId: "mibu-village-planning",
+        teachingProjectId: "00000000-0000-4000-8000-000000000003",
+        villageId: "00000000-0000-4000-8000-000000000001",
+        spaceId: "practice-shared-00000000-0000-4000-8000-000000000003"
+      })
+    }) || null;
+    bindCourseAdminEvents();
+    await renderCourseGroups();
+    await loadCourseActivity();
+  }
+
+  async function initializeVillageAdmin() {
+    if (villageAdminController || !supabaseClient || !window.VillageAdminModule
+      || !window.VillageClientModule || !window.VillageBoundaryModule) return;
+    const root = $("adminVillageRoot");
+    if (!root) return;
+    const client = window.VillageClientModule.createVillageClient({ supabaseClient });
+    villageAdminClient = client;
+    const boundary = window.VillageBoundaryModule.createBoundaryController();
+    const geoprocessing = window.GeoprocessingClientModule?.createGeoprocessingClient({ supabaseClient }) || null;
+    villageAdminController = window.VillageAdminModule.createVillageAdminController({
+      root,
+      client,
+      boundary,
+      geoprocessing,
+      supabaseClient,
+      notify: showAdminNotice,
+      confirm: (message) => adminConfirm(message, { title: "操作确认", okText: "确认", isDanger: false })
+    });
+    await villageAdminController.mount();
+    latestVillageAdminState = villageAdminController.getState();
+  }
+
+  function ensureAdminTabInitialized(tab) {
+    const cacheKey = tab === "courseGroups" || tab === "activity" ? "course" : tab;
+    if (adminTabPromises.has(cacheKey)) return adminTabPromises.get(cacheKey);
+    const task = (async () => {
+      if (tab === "users") {
+        bindTableEvents();
+        await renderTable();
+      } else if (tab === "photos") {
+        bindPhotoEvents();
+        await renderPhotos();
+      } else if (tab === "messages") {
+        bindMessageEvents();
+        await renderMessages();
+      } else if (tab === "villages") {
+        await initializeVillageAdmin();
+      } else if (tab === "surveyReview") {
+        await initializeVillageAdmin();
+        await initializeSurveyAdmin(villageAdminClient, latestVillageAdminState);
+      } else if (tab === "groupPlans") {
+        await initializeVillageAdmin();
+        await initializeGroupPlanAdmin(latestVillageAdminState);
+      } else if (tab === "courseGroups" || tab === "activity") {
+        await initializeCourseAdmin();
+      }
+    })().catch((error) => {
+      adminTabPromises.delete(cacheKey);
+      console.warn(`后台页签 ${tab} 初始化失败：`, error);
+      showAdminNotice(error?.message || "当前管理模块暂时无法加载。", "warning");
+      throw error;
+    });
+    adminTabPromises.set(cacheKey, task);
+    return task;
+  }
+
+  async function initializeGroupPlanAdmin(villageState) {
+    if (groupPlanAdminController || !supabaseClient || !window.GroupPlanAdminModule) return;
+    const root = $("adminGroupPlanRoot");
+    if (!root) return;
+    const context = window.GroupPlanAdminModule.resolveGroupPlanAdminContext(villageState || {});
+    if (!context) {
+      root.innerHTML = '<div class="admin-empty">当前教学项目尚未绑定正式村庄。完成村庄发布与绑定后，这里会列出全部课程小组。</div>';
+      return;
+    }
+    groupPlanAdminController = window.GroupPlanAdminModule.createGroupPlanAdminController({
+      root,
+      supabaseClient,
+      notify: showAdminNotice,
+      confirm: (message) => adminConfirm(message, {
+        title: "小组方案管理",
+        okText: "确认执行",
+        cancelText: "取消",
+        isDanger: false
+      })
+    });
+    await groupPlanAdminController.mount(context);
+  }
+
+  async function initializeSurveyAdmin(villageClient, villageState) {
+    if (surveyAdminController || !supabaseClient || !window.SurveyAdminModule) return;
+    const root = $("adminSurveyRoot");
+    if (!root) return;
+    const activeContext = villageState?.context || await villageClient.getActiveContext().catch(() => null);
+    const context = window.SurveyAdminModule.resolveFormalSharedContext(activeContext || {});
+    if (!context) {
+      root.innerHTML = '<div class="admin-empty">当前教学项目尚未同时绑定正式村庄和全班共享现状空间。请先在“村庄与项目”完成发布与绑定。</div>';
+      return;
+    }
+    surveyAdminController = window.SurveyAdminModule.createSurveyAdminController({
+      root,
+      supabaseClient,
+      notify: showAdminNotice
+    });
+    await surveyAdminController.mount(context);
+  }
+
+  function bindAdminTabs() {
+    const menu = document.querySelector(".admin-menu");
+    if (!menu || menu.dataset.bound) return;
+    menu.dataset.bound = "1";
+    menu.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-admin-tab]");
+      if (!btn) return;
+      const tab = btn.dataset.adminTab;
+      menu.querySelectorAll(".admin-menu-item").forEach((item) => item.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".admin-tab-panel").forEach((panel) => panel.classList.remove("active"));
+      const targetByTab = {
+        users: $("adminTabUsers"),
+        photos: $("adminTabPhotos"),
+        messages: $("adminTabMessages"),
+        courseGroups: $("adminTabCourseGroups"),
+        villages: $("adminTabVillages"),
+        surveyReview: $("adminTabSurveyReview"),
+        groupPlans: $("adminTabGroupPlans"),
+        activity: $("adminTabActivity")
+      };
+      const target = targetByTab[tab];
+      if (target) target.classList.add("active");
+      if (tab === "groupPlans") history.replaceState(null, "", "#group-plans");
+      void ensureAdminTabInitialized(tab);
+    });
+  }
+
+  function bindReturnToPlatform() {
+    document.querySelectorAll("[data-return-platform]").forEach((link) => {
+      if (link.dataset.bound) return;
+      link.dataset.bound = "1";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        let cameFromPlatform = false;
+        try {
+          const referrer = document.referrer ? new URL(document.referrer) : null;
+          cameFromPlatform = Boolean(referrer && referrer.origin === location.origin && /\/index\.html$/.test(referrer.pathname));
+        } catch (_) { /* use fallback below */ }
+        if (cameFromPlatform && history.length > 1) history.back();
+        else location.replace("./index.html?returnFromAdmin=1");
+      });
+    });
+  }
+
+  function init() {
+    const user = getCurrentUser();
+    const isAdmin = window.AccessControlModule?.isAdminUser(user) === true;
+
+    const locked = $("adminLocked");
+    const content = $("adminContent");
+
+    if (!isAdmin) {
+      if (locked) locked.style.display = "";
+      if (content) content.style.display = "none";
+      document.title = "权限不足 - 后台管理";
+      return;
+    }
+
+    if (locked) locked.style.display = "none";
+    if (content) content.style.display = "";
+    document.title = "后台管理 - 村庄规划互动平台";
+    bindAdminTabs();
+    bindReturnToPlatform();
+    if (location.hash === "#group-plans") {
+      document.querySelector('[data-admin-tab="groupPlans"]')?.click();
+    } else {
+      void ensureAdminTabInitialized("users");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>乡村建筑 3D 生成器</title>
+  <link rel="stylesheet" href="./style.css?v=20260911-photo-lifecycle-fix" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <h1>乡村建筑 3D 生成器</h1>
+        <p>从实拍图取得标准正立面，生成可下载、可替换的贴图白模建筑</p>
+      </div>
+      <div class="top-actions">
+        <button id="generateBtn" class="primary">生成 3D 建筑</button>
+        <button id="downloadBtn" disabled>下载 GLB</button>
+        <button id="sendBtn" disabled>替换原建筑</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <section class="card source-card" aria-label="标准正立面获取方式">
+          <h2>选择处理方式</h2>
+          <button class="source-button active" type="button" data-facade-source="local_worker"><strong>工作站自动处理</strong><span>4090 自动校正与建模</span></button>
+          <button class="source-button" type="button" data-facade-source="external_prompt"><strong>外部 AI 辅助</strong><span>复制提示词，上传处理结果</span></button>
+          <button class="source-button" type="button" data-facade-source="cloud_api"><strong>云端 API</strong><span id="cloudCapabilityLabel">正在检查配置…</span></button>
+        </section>
+
+        <section class="card config-card">
+          <h2>基础参数</h2>
+          <div class="form-grid">
+            <label>
+              <span>建筑长度 L</span>
+              <input id="lengthInput" type="number" min="3" step="0.1" />
+            </label>
+            <label>
+              <span>建筑宽度 W</span>
+              <input id="widthInput" type="number" min="3" step="0.1" />
+            </label>
+          </div>
+          <div id="photoHeightSummary" class="photo-height-summary" hidden>
+            <span>建筑高度</span>
+            <strong>裁剪屋顶后，将按正立面比例自动计算</strong>
+          </div>
+          <p id="configHint" class="hint">长度和进深读取自当前地图建筑，也可以在生成前手动调整。</p>
+        </section>
+
+        <section id="photoSection" class="card photo-card">
+          <div class="section-title">
+            <h2>建筑实拍图</h2>
+            <span>先正立面化，再裁屋顶并生成模型</span>
+          </div>
+          <div id="photoServiceState" class="photo-service-state" data-tone="checking" data-source-panel="local_worker">
+            <span class="photo-service-dot" aria-hidden="true"></span>
+            <p id="photoServiceMessage">正在连接 4090 远程生成队列…</p>
+            <button id="recoverPhotoBtn" type="button" class="secondary" hidden>
+              重新处理当前照片
+            </button>
+          </div>
+          <div class="external-correction" data-source-panel="external_prompt" hidden>
+            <p>把原图和下列提示词发送给豆包；完成后将返回的标准正立面上传到下方素材库。</p>
+            <textarea id="correctionPrompt" rows="4" readonly></textarea>
+            <div class="external-correction-actions">
+              <a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包</a>
+              <button id="copyPromptBtn" type="button">复制提示词</button>
+            </div>
+          </div>
+          <div id="cloudSourcePanel" class="cloud-source-panel" data-source-panel="cloud_api" hidden>
+            <strong>千问云端标准化</strong>
+            <p id="cloudSourceMessage">正在检查管理员配置。密钥只保存在服务端，不会发送到浏览器。</p>
+          </div>
+          <section id="existingPhotoMaterials" class="existing-photo-materials" aria-live="polite">
+            <div class="existing-photo-heading">
+              <strong>已有建筑照片</strong>
+              <span id="existingPhotoMaterialState">正在读取当前建筑的照片…</span>
+            </div>
+            <div id="existingPhotoMaterialList" class="existing-photo-list" hidden></div>
+          </section>
+          <label class="upload-box" for="photoInput">
+            <strong>上传建筑实拍图</strong>
+            <span id="photoUploadHint">仅一张 JPG / PNG，不超过 10 MB；照片会保存到当前建筑素材库</span>
+            <input id="photoInput" type="file" accept="image/jpeg,image/png" />
+          </label>
+          <ol id="photoSteps" class="photo-steps" aria-label="照片处理步骤">
+            <li data-step="upload">1. 上传照片</li>
+            <li data-step="identify">2. 识别并清理</li>
+            <li data-step="rectify">3. H0 正立面化</li>
+            <li data-step="crop">4. 裁剪屋顶</li>
+            <li data-step="generate">5. 生成模型</li>
+          </ol>
+          <div class="standard-facade-preview">
+            <div id="photoPreviewEmpty">尚未选择图片</div>
+            <img id="photoPreview" alt="标准正立面图预览" hidden />
+            <div id="roofCropShade" class="roof-crop-shade" hidden></div>
+            <button id="roofCropHandle" class="roof-crop-handle" type="button" hidden>
+              <span>拖到屋顶下沿</span>
+            </button>
+          </div>
+          <p class="crop-hint">正立面预处理完成后，只需拖动一条线切掉屋顶；左右空白会自动识别。</p>
+          <div id="photoFallbackActions" class="photo-fallback-actions" hidden>
+            <p>自动校正未完成，照片仍然保留。你可以继续使用原图，或重新选择照片。</p>
+            <div>
+              <button id="useOriginalBtn" type="button" class="secondary">使用原图继续</button>
+              <button id="retryPhotoBtn" type="button" class="secondary">重新选择照片</button>
+            </div>
+          </div>
+          <div id="roofAnalysisSummary" class="roof-analysis-summary" data-tone="idle" aria-live="polite">
+            拖动屋顶线后自动匹配屋顶
+          </div>
+          <details id="roofAdvanced" class="roof-advanced">
+            <summary>高级设置</summary>
+            <div class="roof-options">
+              <label class="roof-type-field">
+                <span>生成屋顶</span>
+                <select id="roofTypeInput">
+                  <option value="hip" selected>四坡屋顶</option>
+                  <option value="gable">双坡屋顶</option>
+                  <option value="flat">平屋顶</option>
+                </select>
+              </label>
+              <label class="roof-type-field">
+                <span>屋顶材质</span>
+                <select id="roofMaterialInput">
+                  <option value="gray_tile" selected>岭南灰瓦</option>
+                  <option value="asphalt_shingle">沥青瓦</option>
+                  <option value="terracotta_tile">陶瓦</option>
+                </select>
+              </label>
+              <label class="roof-type-field">
+                <span>屋顶坡度</span>
+                <select id="roofPitchInput">
+                  <option value="low">低坡</option>
+                  <option value="standard" selected>标准坡</option>
+                  <option value="high">高坡</option>
+                </select>
+              </label>
+            </div>
+          </details>
+          <button id="photoGenerateBtn" class="primary photo-generate" type="button" disabled>
+            按当前主体范围生成模型
+          </button>
+        </section>
+
+        <section class="card status-card">
+          <h2>任务状态</h2>
+          <div class="progress"><div id="progressFill"></div></div>
+          <div id="statusText" class="status-text">等待选择建筑照片。</div>
+          <div id="downloadLink" class="download-link"></div>
+        </section>
+      </aside>
+
+      <section class="panel right-panel">
+        <div class="panel-header">
+          <h2>3D 预览</h2>
+          <span id="activeLabel">当前：-</span>
+        </div>
+        <div id="viewer" class="three-wrap"></div>
+      </section>
+    </main>
+  </div>
+  <script src="./photo-workflow.js?v=20260805-photo-upload-fix"></script>
+  <script src="./photo-material-bridge.js?v=20260812-existing-photos"></script>
+  <script src="./facade-queue-client.js?v=20260908-linux-worker"></script>
+  <script src="./facade-source-mode.js?v=20260911-three-sources"></script>
+  <script src="./facade-cloud-client.js?v=20260911-qwen-adapter"></script>
+  <script type="module" src="./app.js?v=20260911-photo-lifecycle-fix"></script>
+</body>
+</html>
