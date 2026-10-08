@@ -1,0 +1,35 @@
+{
+  "image": "input.jpg",
+  "occlusion_mask": "occlusion-mask.png",
+  "output_size": [1200, 1500],
+  "base_quad": [
+    [0.145, 0.095],
+    [0.940, 0.120],
+    [0.965, 0.825],
+    [0.055, 0.815]
+  ],
+  "layers": [
+    {
+      "name": "upper-balcony",
+      "source_quad": [
+        [0.155, 0.115],
+        [0.915, 0.145],
+        [0.940, 0.270],
+        [0.135, 0.255]
+      ],
+      "destination_box": [0.012, 0.031, 0.993, 0.246],
+      "feather_px": 10
+    },
+    {
+      "name": "middle-balcony",
+      "source_quad": [
+        [0.120, 0.285],
+        [0.940, 0.300],
+        [0.955, 0.445],
+        [0.085, 0.435]
+      ],
+      "destination_box": [0.000, 0.281, 1.000, 0.506],
+      "feather_px": 10
+    }
+  ]
+}

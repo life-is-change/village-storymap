@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 页面基础设置：声明字符集、移动端缩放方式和浏览器标签页标题 -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>村庄规划互动平台（教学）</title>
+  <script src="features/ui/homepage-entry-bootstrap.js?v=20261008-entry-auth-lock"></script>
+  <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
+
+  <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
+  <link rel="stylesheet" href="style.css?v=20260924-figure-ground-diagnostics" />
+  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260920-layer-library" />
+  <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="features/ui/page-restore-guard.js?v=20260921-home-entry-bfcache"></script>
+
+  <!-- Cesium 3D 运行时改为进入 3D 视图时按需加载，避免首页被 3D 引擎拖慢。 -->
+</head>
+<body>
+  <!-- 全局提示容器：JS 会把成功/失败提示消息插入到这里 -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- 应用外壳：包住整个平台的主界面，内部再分为顶部栏、左侧栏、中间内容和右侧详情栏 -->
+  <div class="app-shell">
+    <div class="app-card">
+      <!-- 顶部栏：显示平台标题、返回首页按钮、当前用户和当前模式 -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <!-- 返回首页按钮：由 app.js 绑定点击事件，切回首页总览 -->
+          <button id="homeBtn" class="home-btn" title="返回首页">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </button>
+          <div>
+            <h1>村庄规划互动平台（教学）</h1>
+
+          </div>
+        </div>
+        <div class="topbar-right">
+          <!-- 登录后显示当前用户问候；statusBadge 同时承担“当前模式显示”和“进入平台”的点击入口 -->
+          <div id="userGreetingBadge" class="topbar-user-badge" style="display:none;"></div>
+          <div id="statusBadge" class="topbar-badge">当前模式：首页</div>
+        </div>
+      </header>
+
+      <!-- 主布局：课程阶段轨道、阶段情境栏、2D/3D 工作区和对象信息栏 -->
+      <div id="mainLayout" class="main-layout mode-overview">
+        <!-- 最左侧课程阶段轨道：常驻显示，按钮负责展开/收起相邻情境栏 -->
+        <aside id="courseTaskSidebar" class="course-task-sidebar" aria-label="课程阶段">
+          <div class="course-task-rail">
+            <button
+              id="courseTaskToggleBtn"
+              type="button"
+              class="course-task-toggle"
+              aria-expanded="true"
+              title="收起阶段情境"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m15 6-6 6 6 6"></path>
+              </svg>
+            </button>
+            <nav id="courseTaskNav" class="course-task-nav" aria-label="课程阶段导航"></nav>
+          </div>
+        </aside>
+
+        <!-- 阶段情境栏：替代旧菜单，只显示当前阶段成果、资料与建议操作 -->
+        <aside id="courseContextPanel" class="story-panel course-context-panel" aria-label="阶段情境">
+          <div class="course-context-panel-header">
+            <div>
+              <span>当前课程</span>
+              <h2>米埗村规划实践</h2>
+            </div>
+          </div>
+          <div id="courseWorkbenchContent" class="course-workbench-content"></div>
+        </aside>
+
+        <!-- 中间主内容区：同一时间只显示一个 content-view，例如首页、2D 地图或 3D 模型 -->
+        <main class="center-panel">
+          <!-- 稳定工作区上下文：课程阶段、空间与 2D/3D 均在这里切换 -->
+          <div id="workspaceContextBar" class="workspace-context-bar" aria-label="当前工作区">
+            <button id="floatingHomeBtn" class="map-floating-home-btn" type="button" title="返回首页" aria-label="返回首页">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+            </button>
+            <div class="workspace-context-identity">
+              <span id="workspaceVillageLabel">米埗村</span>
+              <strong id="workspaceStageLabel">课程实践</strong>
+            </div>
+            <div id="projectHeaderSelect" class="workspace-project-select" aria-label="当前村庄项目"></div>
+            <div id="spaceHeaderSelect" class="workspace-space-select" aria-label="当前空间"></div>
+            <div id="workspaceSpaceActions" class="workspace-space-actions" aria-label="空间管理">
+              <button id="addSpaceTopBtn" class="workspace-icon-btn" type="button" data-add-space title="新增空间" aria-label="新增空间">＋</button>
+              <button id="renameCurrentSpaceBtn" class="workspace-icon-btn" type="button" data-space-rename-trigger="" title="重命名当前空间" aria-label="重命名当前空间">✎</button>
+              <button id="deleteCurrentSpaceBtn" class="workspace-icon-btn workspace-delete-space-btn" type="button" data-space-delete="" title="删除当前空间" aria-label="删除当前空间">⌫</button>
+            </div>
+            <div id="workspaceViewModeSwitch" class="workspace-view-mode-switch" aria-label="视图切换"></div>
+            <div id="surveyReviewPanelRoot" class="survey-review-panel-root" hidden></div>
+            <button id="classDiscussionBtn" type="button" class="workspace-action-btn workspace-action-btn-secondary" title="打开班级讨论">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a4 4 0 0 1-4 4H8l-5 3v-6a7 7 0 0 1-1-4V8a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4z"></path>
+              </svg>
+              <span>班级讨论</span>
+            </button>
+            <button id="projectSettingsBtn" type="button" class="workspace-settings-btn" aria-expanded="false" title="图层与项目设置">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"></path>
+              </svg>
+              <span>图层与项目设置</span>
+            </button>
+          </div>
+
+          <!-- 项目设置抽屉：承载空间、图层、问题、工具与导出等全局能力 -->
+          <aside id="projectSettingsDrawer" class="project-settings-drawer" aria-hidden="true" aria-label="图层与项目设置">
+            <header>
+              <div><span>当前项目</span><h2>图层与项目设置</h2></div>
+              <button id="projectSettingsCloseBtn" type="button" title="关闭设置">×</button>
+            </header>
+            <div class="project-settings-body">
+              <section id="groupBaselinePanelMount" class="group-baseline-panel" aria-label="小组方案基线" hidden></section>
+              <div id="spaceList" class="space-list-panel active"></div>
+            </div>
+          </aside>
+
+          <!-- 浮动控制区：进入地图/模型视图后，提供用户提示的浮动按钮 -->
+          <div id="mapFloatingControls" class="map-floating-controls">
+            <div id="floatingUserGreetingBadge" class="map-floating-user-badge" style="display:none;"></div>
+          </div>
+
+          <!-- 右侧面板收起按钮：用于给地图/模型视图腾出更多空间 -->
+          <button id="rightPanelToggleBtn" type="button" class="map-side-toggle map-side-toggle-right" title="收起右栏">▶</button>
+
+          <!-- 首页视图：默认 active。这里通过 iframe 嵌入 homepage/dist 里的 React 首页 -->
+          <section id="overviewView" class="content-view active">
+            <div class="home-landing-shell" style="position:relative;">
+              <!-- 嵌入式首页构建产物：源码在 homepage/index.html 和 homepage/src/ 中 -->
+              <iframe
+                id="homeLandingFrame"
+                class="home-landing-frame"
+                src="./homepage/dist/index.html?v=20261008-entry-auth-lock"
+                title="村庄规划互动平台首页"
+                data-entry-role="embedded-homepage-build"
+                data-source-entry="homepage/index.html"
+              ></iframe>
+              <!-- 旧版浮动登录按钮，目前由 auth-system.js/app.js 控制显示状态，通常保持隐藏 -->
+              <button id="authLoginBtn" type="button" class="auth-floating-btn" style="display:none;" title="点击登录/注册"></button>
+            </div>
+
+            <!-- 旧账号系统兼容桥：保留这些隐藏控件，供老逻辑读取/同步账号，不作为主要界面展示 -->
+            <div class="legacy-identity-bridge" aria-hidden="true">
+              <select id="identitySelect" class="identity-select"></select>
+              <button id="confirmIdentityBtn" type="button">确认账号</button>
+              <button id="createIdentityBtn" type="button">创建新账号</button>
+              <button id="deleteIdentityBtn" type="button">删除账号</button>
+              <p id="identityCurrentText">当前账号：未选择</p>
+            </div>
+          </section>
+
+          <!-- 2D 地图视图：OpenLayers 地图容器和测量/重置视角等控件 -->
+          <section id="plan2dView" class="content-view">
+            <div class="map-frame">
+              <!-- OpenLayers 会挂载到这个容器里，图层、要素和交互都由 JS 初始化 -->
+              <div id="map2d" class="map2d-container"></div>
+              <div id="map2dLoading" class="map2d-loading" role="status" aria-live="polite" hidden>
+                <span class="map2d-loading-spinner" aria-hidden="true"></span>
+                <strong>正在加载 2D 地图…</strong>
+              </div>
+              <!-- 测量结果显示区：测距时由 app.js 更新文本 -->
+              <div id="measure2dReadout" class="map-measure-readout"></div>
+            </div>
+          </section>
+          <!-- 2D 刷新按钮：刷新社区任务与留言板 -->
+          <button id="btnRefreshCommunityTask" class="map-recenter-btn map-refresh-btn" title="刷新留言">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </button>
+          <!-- 2D 测量按钮：进入距离测量模式 -->
+          <button id="measure2dBtn" class="map-recenter-btn map-measure-btn" title="测量距离">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l14-4 4 14-14 4z"></path>
+              <path d="M7 8l2 2M10 7l2 2M13 6l2 2M6 11l2 2M5 14l2 2"></path>
+            </svg>
+          </button>
+          <!-- 2D 动态比例尺：根据当前缩放级别与地图中心纬度实时更新 -->
+          <div id="mapScaleBar" class="map-scale-bar" style="--scale-width: 96px;" aria-label="地图比例尺">
+            <div id="mapScaleLabel" class="map-scale-label">100 m</div>
+            <div class="map-scale-line"></div>
+          </div>
+          <!-- 2D 重置视角按钮：回到村庄中心/默认缩放级别 -->
+          <button id="recenterBtn" class="map-recenter-btn" title="重置视角">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+            </svg>
+          </button>
+
+          <!-- 3D 模型视图：Cesium 场景容器和 3D 测量/重置视角等控件 -->
+          <section id="model3dView" class="content-view">
+            <div class="model-frame">
+              <!-- Cesium 会挂载到这个容器里，用于显示地形、建筑白模和替换模型 -->
+              <div id="cesiumContainer" class="cesium-container"></div>
+              <!-- 3D 测量结果显示区 -->
+              <div id="measure3dReadout" class="map-measure-readout"></div>
+              <!-- 3D 操作提示：告诉用户如何移动、缩放、旋转场景 -->
+              <div id="model3dHint" class="model-3d-hint">
+                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
+              </div>
+            </div>
+          </section>
+          <section id="sceneStudioMount" class="scene-studio-host" aria-label="公共空间设计工作室" hidden></section>
+          <!-- 3D 测量按钮：进入三维距离测量模式 -->
+          <button id="measure3dBtn" class="map-recenter-btn map-measure-btn" title="测量距离">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7l14-4 4 14-14 4z"></path>
+              <path d="M7 8l2 2M10 7l2 2M13 6l2 2M6 11l2 2M5 14l2 2"></path>
+            </svg>
+          </button>
+          <button id="reality3dToggleBtn" class="map-recenter-btn map-reality-toggle-btn" type="button" aria-label="显示实景模型" title="显示实景模型" aria-pressed="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18v12H3z"></path>
+              <path d="m6 15 3-3 2 2 3-4 4 5"></path>
+            </svg>
+          </button>
+          <!-- 3D 重置视角按钮：将相机飞回村庄默认观察位置 -->
+          <button id="recenter3dBtn" class="map-recenter-btn" title="重置视角">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+            </svg>
+          </button>
+        </main>
+
+        <!-- 右侧对象信息与协作栏 -->
+        <aside class="detail-panel">
+          <div class="panel-header">
+            <h2>对象信息与协作</h2>
+            <p id="detailSubtitle">选择地图对象后查看属性、照片、讨论与历史。</p>
+          </div>
+
+          <div id="reality3dSidebarMount" class="reality-3d-sidebar-mount">
+            <aside id="reality3dPanel" class="reality-3d-panel" aria-label="村庄实景模型">
+              <header id="reality3dTitlebar" class="reality-3d-titlebar">
+                <div class="reality-3d-title-copy">
+                  <span class="reality-3d-live-dot" aria-hidden="true"></span>
+                  <strong id="reality3dTitle">村庄实景对照</strong>
+                </div>
+                <div class="reality-3d-actions">
+                  <button id="reality3dTerrainBtn" type="button" aria-label="切换实景地形" title="切换实景地形" aria-pressed="true">⌁</button>
+                  <button id="reality3dResetBtn" type="button" aria-label="重置实景视角" title="重置实景视角">⌖</button>
+                  <button id="reality3dExpandBtn" type="button" aria-label="放大实景窗口" title="放大实景窗口" aria-pressed="false">↗</button>
+                  <button id="reality3dFullscreenBtn" type="button" aria-label="实景模型全屏" title="实景模型全屏">⛶</button>
+                  <button id="reality3dCloseBtn" type="button" aria-label="关闭实景窗口" title="关闭实景窗口">×</button>
+                </div>
+              </header>
+              <div class="reality-3d-stage">
+                <div id="reality3dContainer" class="reality-3d-container"></div>
+                <div id="reality3dStatus" class="reality-3d-status" role="status" aria-live="polite" data-state="idle">
+                  等待加载实景模型
+                </div>
+                <button id="reality3dRetryBtn" class="reality-3d-retry" type="button" hidden>重试</button>
+                <button id="reality3dResizeHandle" class="reality-3d-resize-handle" type="button" aria-label="调整实景窗口大小" title="拖动调整窗口大小"></button>
+              </div>
+            </aside>
+          </div>
+
+          <div id="infoPanel" class="info-panel empty">
+            <div class="placeholder-block">
+              <h3>尚未选择对象</h3>
+              <p>选择建筑、道路、照片或问题点后，在此查看相关信息。</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- Cesium Ion 访问令牌：用于加载 Cesium 的在线资源/服务 -->
+  <!-- 提示：如果浏览器控制台出现 "api.cesium.com ... 404" 且 3D 地形无法加载，说明此 token 已失效。
+       请前往 https://ion.cesium.com/ 登录后创建新的 Access Token，并替换下面的值。 -->
+  <script>
+    window.CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0NjdlZDk3My1hYjQ3LTQ0M2MtODdjMC04NDAyZWZjM2EwMzEiLCJpZCI6ODY2NjEsInN1YiI6Im1lbW9yeSBoZWkiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidmlsbGFnZS1zdG9yeW1hcCIsImlhdCI6MTc4NjYwNDQ5Mn0.e2jNJ7K4ceZKQZkR3F_Qc4LKyiuzKNaQltdMTUfpSzw";
+  </script>
+
+  <!-- OpenLayers 固定为项目本地 10.8.0 浏览器构建，避免首次进入 2D 时并发请求 23 个远程模块。 -->
+  <script src="assets/vendor/openlayers-10.8.0/ol.js"></script>
+  <script>
+    window.__loadOpenLayers = function loadOpenLayers() {
+      if (window.__olReady) return window.__olReady;
+
+      window.__olReady = Promise.resolve().then(() => {
+        if (!window.ol) throw new Error("本地 OpenLayers 10.8.0 加载失败");
+        window.ol.proj.useGeographic();
+        window.__OL__ = {
+          Map: window.ol.Map,
+          View: window.ol.View,
+          Feature: window.ol.Feature,
+          GeoJSON: window.ol.format.GeoJSON,
+          TileLayer: window.ol.layer.Tile,
+          ImageLayer: window.ol.layer.Image,
+          VectorLayer: window.ol.layer.Vector,
+          OSM: window.ol.source.OSM,
+          XYZ: window.ol.source.XYZ,
+          ImageStatic: window.ol.source.ImageStatic,
+          VectorSource: window.ol.source.Vector,
+          Draw: window.ol.interaction.Draw,
+          Point: window.ol.geom.Point,
+          Style: window.ol.style.Style,
+          Fill: window.ol.style.Fill,
+          Stroke: window.ol.style.Stroke,
+          Text: window.ol.style.Text,
+          Modify: window.ol.interaction.Modify,
+          Translate: window.ol.interaction.Translate,
+          Snap: window.ol.interaction.Snap,
+          Collection: window.ol.Collection,
+          CircleStyle: window.ol.style.Circle,
+          fromLonLat: window.ol.proj.fromLonLat,
+          transformExtent: window.ol.proj.transformExtent
+        };
+        return window.__OL__;
+      });
+
+      return window.__olReady;
+    };
+  </script>
+
+  <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 启动；3D 脚本进入 3D 时再按需加载 -->
+  <script defer src="features/auth/supabase-auth-model.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="features/auth/access-control.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="auth-system.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="community-tasks.js"></script>
+  <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
+  <script defer src="features/ui/map-style.js?v=20260908-survey-status"></script>
+  <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
+  <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
+  <script defer src="features/ui/view-switcher.js?v=20261007-wait-chain2"></script>
+  <script defer src="features/ui/surface-intent-controller.js?v=20260921-home-intent-lock"></script>
+  <script defer src="features/ui/platform-entry-controller.js?v=20261005-entry-paint"></script>
+  <script defer src="features/ui/scene-studio-startup.js?v=20261007-wait-chain2"></script>
+  <script defer src="features/theory/theory-practice-context.js?v=20260825-theory-context"></script>
+  <script defer src="features/course/course-model.js"></script>
+  <script defer src="features/course/course-service.js"></script>
+  <script defer src="features/course/activity-logger.js?v=20260911-admin-history-cleanup"></script>
+  <script defer src="features/villages/village-model.js?v=20260907-practice-catalog"></script>
+  <script defer src="features/ui/homepage-context.js?v=20260924-fast-villages"></script>
+  <script defer src="features/villages/village-client.js?v=20260924-parallel-context"></script>
+  <script defer src="features/villages/project-switcher.js?v=20260908-switch-queue"></script>
+  <script defer src="features/course/course-workspace-adapter.js?v=20261005-personal-storage"></script>
+  <script defer src="features/data/personal-edit-version.js?v=20260810-version-guard"></script>
+  <script defer src="features/data/group-baseline-client.js?v=20260906-group-baseline"></script>
+  <script defer src="features/data/group-plan-resolver.js?v=20260906-group-plan"></script>
+  <script defer src="features/ui/group-baseline-panel.js?v=20260906-group-baseline"></script>
+  <script defer src="features/data/village-dataset-resolver.js?v=20260907-village-runtime-fix"></script>
+  <script defer src="features/data/effective-building-features.js?v=20260810-space-alignment"></script>
+  <script defer src="features/3d/village-3d-config.js"></script>
+  <script defer src="features/3d/3d-edit-policy.js?v=20260907-shared-admin-3d"></script>
+  <script defer src="features/data/personal-space-client.js?v=20260810-platform-fix"></script>
+  <script defer src="features/ui/personal-layer-versions.js?v=20260810-platform-fix"></script>
+  <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-context.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/village-preview.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/ui/course-workbench.js?v=20261007-wait-chain2"></script>
+  <script defer src="features/survey/survey-review-model.js"></script>
+  <script defer src="features/survey/survey-activity-model.js?v=20260908-survey-markers"></script>
+  <script defer src="features/survey/survey-review-client.js?v=20260911-practice-review"></script>
+  <script defer src="features/survey/survey-review-panel.js?v=20260911-survey-layout-fix"></script>
+  <script defer src="features/survey/survey-realtime-controller.js"></script>
+  <script defer src="features/data/data-service.js?v=20260911-photo-security"></script>
+  <script defer src="features/data/feature-edit-session.js"></script>
+  <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
+  <script defer src="features/data/copy-space-seed.js"></script>
+  <script defer src="features/object-collaboration/object-comments.js"></script>
+  <script defer src="features/object-collaboration/object-info-deps.js"></script>
+  <script defer src="features/sync/supabase-sync-manager.js"></script>
+  <script defer src="features/map-editing/geometry-editor.js?v=20260723-contour-ui"></script>
+  <script defer src="features/map-editing/survey-review-overlay.js?v=20260908-survey-status"></script>
+  <script defer src="features/mc/mc-bridge.js"></script>
+  <script defer src="features/map-editing/map-hover-handler.js"></script>
+  <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
+  <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
+  <script defer src="features/map-editing/overlay-renderer.js?v=20261007-wait-chain2"></script>
+  <script defer src="3D_scenes_edit/domain/scene-document.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20260920-layer-library"></script>
+  <script defer src="3D_scenes_edit/domain/geometry-rules.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/persistence/scene-edit-client.js"></script>
+  <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/persistence/autosave-controller.js"></script>
+  <script defer src="3D_scenes_edit/assets/scene-asset-library.js?v=20260921-top-view"></script>
+  <script defer src="3D_scenes_edit/assets/model-top-view-thumbnail.js?v=20260921-top-view-fix2"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20260921-top-view"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20260920-layer-library"></script>
+  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js?v=20260921-projection-fix"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20260920-layer-library"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-to-cesium.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20260916-scene-studio-assets6"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-transform-bridge.js"></script>
+  <script defer src="3D_scenes_edit/interaction_3d/cesium-ground-picker.js"></script>
+  <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20260916-scene-studio-assets6"></script>
+  <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20260916-scene-studio-assets4"></script>
+  <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20261007-wait-chain2"></script>
+  <script defer src="3D_scenes_edit/index.js?v=20260921-top-view"></script>
+  <script defer src="app.js?v=20261008-entry-auth-lock"></script>
+  <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
+  <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title">确认</h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customConfirmMessage"></p>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customConfirmCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customConfirmOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义输入弹窗模板：替代浏览器原生 prompt，用于输入名称等短文本 -->
+  <div id="customPromptModal" class="custom-modal-overlay is-hidden">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <h3 class="custom-modal-title"><span id="customPromptTitleText">输入</span><span id="customPromptError" class="custom-modal-title-error" style="display:none"></span></h3>
+      </div>
+      <div class="custom-modal-body">
+        <p class="custom-modal-message" id="customPromptMessage"></p>
+        <div class="custom-modal-input-wrap">
+          <input type="text" id="customPromptInput" class="custom-modal-input" />
+          <span id="customPromptCount" class="custom-modal-input-count"></span>
+        </div>
+      </div>
+      <div class="custom-modal-footer">
+        <button id="customPromptCancel" class="custom-modal-btn custom-modal-btn-cancel">取消</button>
+        <button id="customPromptOk" class="custom-modal-btn custom-modal-btn-ok">确认</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

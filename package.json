@@ -1,0 +1,8 @@
+{
+  "name": "village-storymap",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Integrated village planning platform regression entry",
+  "scripts": { "test": "node scripts/test.mjs" },
+  "engines": { "node": ">=22" }
+}

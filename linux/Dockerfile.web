@@ -1,0 +1,9 @@
+FROM python:3.11-alpine AS public-assets
+WORKDIR /src
+COPY . /src/
+RUN python linux/scripts/stage-web.py /src /public
+
+FROM nginx:1.28-alpine
+COPY linux/nginx.gpu.conf /etc/nginx/conf.d/default.conf
+COPY --from=public-assets /public/ /usr/share/nginx/html/
+HEALTHCHECK --interval=15s --timeout=3s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1

@@ -1,0 +1,58 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Dependencies and build caches
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+.cache/
+.superpowers/
+.worktrees/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest*/
+pytest-cache-files-*/
+.test-tmp*/
+.vite/
+
+# Local delivery copies and agent state; retain on disk, not in source history
+/discussion-delivery-20261007/
+/release-transfer/
+/.agents/
+/.codex/
+
+# Local facade generator runtime
+rural_house_generator/runtime_storage/
+rural_house_generator/backend/.env
+rural_house_generator/backend/.env.*
+
+# Geoprocessing server runtime and large local assets
+server/.env
+server/runtime/
+server/environment/*.explicit.txt
+*.pth
+*.pbf
+*.tif
+*.tif.ovr
+
+# Local DJI Terra photogrammetry source/tiles
+terra_b3dms.zip
+terra_b3dms/
