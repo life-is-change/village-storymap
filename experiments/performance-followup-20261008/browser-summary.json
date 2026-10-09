@@ -1,0 +1,242 @@
+[
+  {
+    "file": "sample-1791464621338592100.json",
+    "label": "4060-followup-before-cold-studio-round1",
+    "phases": [
+      {
+        "at_ms": 24011,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 1321,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 24014,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 1842,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 65606,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 69868,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 4268,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  },
+  {
+    "file": "sample-1791464698539127700.json",
+    "label": "4060-followup-before-cold-studio-round2",
+    "phases": [
+      {
+        "at_ms": 18931,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 1406,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 18933,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 1974,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 19436,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 22776,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 3342,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  },
+  {
+    "file": "sample-1791465196283178800.json",
+    "label": "4060-followup-before-cold-studio-round3",
+    "phases": [
+      {
+        "at_ms": 9757,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 1293,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 9759,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 8623,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 110138,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 113307,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 3170,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  },
+  {
+    "file": "sample-1791465289219320300.json",
+    "label": "4060-followup-after-cold-studio-round1",
+    "phases": [
+      {
+        "at_ms": 36444,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 1091,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 36447,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 1461,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 89908,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 92294,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 2389,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  },
+  {
+    "file": "sample-1791465406178939100.json",
+    "label": "4060-followup-after-cold-studio-round2",
+    "phases": [
+      {
+        "at_ms": 7289,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 962,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 7291,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 6593,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 67795,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 69802,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 2007,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  },
+  {
+    "file": "sample-1791465524168797400.json",
+    "label": "4060-followup-after-cold-studio-round3",
+    "phases": [
+      {
+        "at_ms": 4254,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 1482,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 4256,
+        "kind": "phase",
+        "name": "enterCoursePlatform",
+        "duration_ms": 3897,
+        "failed": false,
+        "failure_code": null
+      },
+      {
+        "at_ms": 114281,
+        "kind": "phase",
+        "name": "overlay_render",
+        "duration_ms": 0,
+        "failed": false,
+        "failure_code": null,
+        "visibility_only": false
+      },
+      {
+        "at_ms": 117186,
+        "kind": "phase",
+        "name": "openSceneStudioWorkspace",
+        "duration_ms": 2907,
+        "failed": false,
+        "failure_code": null
+      }
+    ]
+  }
+]

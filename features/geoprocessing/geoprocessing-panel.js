@@ -98,6 +98,7 @@
       ${run?.status === "completed" ? `<div class="geoprocessing-result-card" data-artifact-list>正在生成安全下载链接…</div>
         <div class="geoprocessing-result-actions">
           <button type="button" data-preview-run>在地图中预览</button>
+          <button type="button" data-refresh-artifacts>刷新下载链接</button>
           ${run?.imported
             ? '<button type="button" data-run-saved disabled>已保存到个人空间</button>'
             : '<button type="button" data-save-run>保存到我的个人空间</button>'}
@@ -156,50 +157,102 @@
     let run = null;
     let unsubscribe = null;
     let artifacts = [];
+    let destroyed = false;
+    let runMarkup = null;
+    let artifactHtml = null;
+    let artifactRevision = 0;
+    let artifactRequest = null;
     let currentSourceStatus = sourceStatus;
     const submissionGuard = createSubmissionGuard();
     function showMessage(message) {
       const node = container.querySelector("[data-geoprocessing-message]");
       if (node) node.textContent = message;
     }
-    async function loadArtifactLinks() {
+    async function loadArtifactLinks({ force = false } = {}) {
       const slot = container.querySelector("[data-artifact-list]");
-      if (!slot || !run?.id) return;
+      if (destroyed || !slot || run?.status !== "completed") return;
+      if (artifactRequest) return artifactRequest;
+      if (artifactHtml !== null && !force) { slot.innerHTML = artifactHtml; return; }
+      const runId = run.id;
+      const revision = artifactRevision;
+      const isCurrent = () => !destroyed && artifactRevision === revision && run?.id === runId && run?.status === "completed";
+      const request = (async () => {
       try {
-        artifacts = await client.listArtifacts(run.id);
-        const links = await Promise.all(artifacts.map(async (artifact) => {
+        const nextArtifacts = await client.listArtifacts(runId);
+        if (!isCurrent()) return;
+        const links = await Promise.all(nextArtifacts.map(async (artifact) => {
           const signed = await client.createArtifactUrl(artifact.storage_path);
-          const url = signed?.signedUrl || signed?.signedURL || "#";
+          const url = signed?.signedUrl || signed?.signedURL;
+          if (!url) throw new Error("ARTIFACT_SIGNED_URL_REQUIRED");
           return `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener"><span>${escapeHtml(getArtifactLabel(artifact.artifact_type))}</span><strong>${Number(artifact.feature_count || 0)} 个要素</strong></a></li>`;
         }));
-        slot.innerHTML = `<strong>个人成果</strong><ul>${links.join("")}</ul>`;
+        if (!isCurrent()) return;
+        artifacts = nextArtifacts;
+        artifactHtml = links.length ? `<strong>个人成果</strong><ul>${links.join("")}</ul>` : "任务已完成，暂未找到成果文件。请稍后刷新下载链接。";
       } catch (_) {
-        slot.textContent = "成果链接暂时不可用，请稍后重试。";
+        if (!isCurrent()) return;
+        if (artifactHtml === null) artifactHtml = "成果链接暂时不可用，请点击刷新下载链接重试。";
+        else showMessage("下载链接刷新失败，已保留现有成果。请稍后重试。");
       }
+      if (isCurrent()) {
+        const currentSlot = container.querySelector("[data-artifact-list]");
+        if (currentSlot) currentSlot.innerHTML = artifactHtml;
+      }
+      })();
+      artifactRequest = request;
+      try { await request; }
+      finally { if (artifactRequest === request) artifactRequest = null; }
+    }
+    function stopSubscription() {
+      const stop = unsubscribe;
+      unsubscribe = null;
+      stop?.();
+    }
+    function watchRun(runId) {
+      stopSubscription();
+      unsubscribe = client.subscribe(runId, next => {
+        if (!destroyed && run?.id === runId) updateRun(next);
+      });
+      if (!isActiveRun(run)) stopSubscription();
     }
     function updateRun(next) {
+      if (destroyed || !next) return;
       const previous = run;
-      run = next;
+      if (previous?.id === next.id && ["completed", "failed", "canceled"].includes(previous.status) && isActiveRun(next)) return;
+      if (previous?.id !== next.id) {
+        artifactRevision++;
+        artifactRequest = null;
+        artifactHtml = null;
+        artifacts = [];
+      }
+      run = previous?.id === next.id ? { ...next, imported: previous.imported || next.imported } : next;
       const old = container.querySelector("[data-geoprocessing-run-slot]");
-      if (old) old.innerHTML = renderRunStatus(run);
+      const markup = renderRunStatus(run);
+      if (old && markup !== runMarkup) {
+        old.innerHTML = markup;
+        runMarkup = markup;
+        const slot = container.querySelector("[data-artifact-list]");
+        if (slot && artifactHtml !== null) slot.innerHTML = artifactHtml;
+      }
       const submitButton = container.querySelector(".geoprocessing-submit");
       if (submitButton) submitButton.disabled = currentSourceStatus?.state !== "ready" || submissionGuard.isSubmitting() || isActiveRun(run);
       if (run?.status === "completed") {
-        loadArtifactLinks();
+        if (artifactHtml === null) void loadArtifactLinks();
         if (shouldNotifyCompletion(previous, run)) onCompleted?.(run);
       }
+      if (!isActiveRun(run)) stopSubscription();
     }
     async function restore() {
       try {
         const latest = await restoreLatestRun({ client, villageId });
-        if (!latest) return;
+        if (!latest || destroyed || run) return;
         const imported = latest.status === "completed" && typeof client.isRunImported === "function"
           ? await client.isRunImported(latest.id)
           : false;
+        if (destroyed || run) return;
         updateRun({ ...latest, imported });
         if (isActiveRun(latest)) {
-          unsubscribe?.();
-          unsubscribe = client.subscribe(latest.id, updateRun);
+          watchRun(latest.id);
         }
       } catch (_) {
         showMessage("历史任务暂时无法恢复，可继续提交新任务。");
@@ -238,8 +291,7 @@
         if (!submission.accepted) return;
         const runId = submission.value;
         updateRun({ id: runId, status: "queued", progress: 0 });
-        unsubscribe?.();
-        unsubscribe = client.subscribe(runId, updateRun);
+        watchRun(runId);
         showMessage("任务已进入队列");
       } catch (error) {
         showMessage(formatSubmissionError(error));
@@ -248,6 +300,8 @@
       }
     }
     async function click(event) {
+      if (destroyed) return;
+      if (event.target.closest("[data-refresh-artifacts]")) await loadArtifactLinks({ force: true });
       if (event.target.closest("[data-aoi-start]")) {
         try {
           currentSourceStatus = await client.getSourceStatus(villageId);
@@ -293,7 +347,9 @@
         restore();
       },
       destroy() {
-        unsubscribe?.();
+        destroyed = true;
+        artifactRevision++;
+        stopSubscription();
         container.removeEventListener("click", click);
         container.innerHTML = "";
       },

@@ -93,6 +93,13 @@ const state = {
   facadeUnsubscribe: null,
   facadePollTimer: null,
   facadePollDelay: 2000,
+  facadeInitializationPromise: null,
+  facadeInitializationKey: '',
+  facadeInitializationClient: null,
+  facadeSubmissionPromise: null,
+  facadeRunRevision: 0,
+  facadeResultPending: false,
+  photoSelectionPending: false,
   cloudClient: null,
   cloudCapability: { available: false },
   cloudRunId: '',
@@ -155,6 +162,12 @@ function bindEvents() {
   els.generateBtn.addEventListener('click', generatePhotoModel);
   els.downloadBtn.addEventListener('click', downloadGlb);
   els.sendBtn.addEventListener('click', replaceOriginalBuilding);
+  window.addEventListener('pagehide', () => {
+    clearFacadePollTimer();
+    state.facadeRunRevision += 1;
+    state.facadeUnsubscribe?.();
+    state.facadeUnsubscribe = null;
+  });
 }
 
 function requestExistingPhotoMaterials() {
@@ -235,6 +248,7 @@ function renderExistingPhotoMaterials(message, isError = false) {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = '使用这张';
+    button.disabled = Boolean(state.photoSelectionPending);
     button.addEventListener('click', () => useExistingPhotoMaterial(photo, button));
     image.addEventListener('error', () => {
       card.classList.add('is-missing');
@@ -251,6 +265,8 @@ function renderExistingPhotoMaterials(message, isError = false) {
 }
 
 async function useExistingPhotoMaterial(photo, button) {
+  if (state.photoSelectionPending) return;
+  state.photoSelectionPending = true;
   button.disabled = true;
   button.classList.add('is-loading');
   button.textContent = '提交中…';
@@ -264,15 +280,19 @@ async function useExistingPhotoMaterial(photo, button) {
     console.error('提交已有建筑照片失败：', error);
     setStatus(`已有照片提交失败：${error.message}`, true);
   } finally {
+    state.photoSelectionPending = false;
     button.disabled = false;
     button.classList.remove('is-loading');
     button.textContent = '使用这张';
+    renderExistingPhotoMaterials(`已选择照片 ${state.selectedPhotoId}`);
   }
 }
 
 async function initializeFacadeQueue(context) {
   if (String(context.sourceCode || '').trim() !== state.targetCode) return;
   if (!context.hasAuthenticatedSession) {
+    state.photoServiceStatus = 'unauthenticated';
+    renderPhotoServiceState();
     setStatus('登录会话已失效，请重新登录平台后再打开生成器。', true);
     return;
   }
@@ -283,6 +303,22 @@ async function initializeFacadeQueue(context) {
     setStatus('未取得平台登录会话，请从已登录的平台重新打开生成器。', true);
     return;
   }
+  const key = JSON.stringify([context.courseId, context.spaceId || state.targetSpace, state.targetCode]);
+  if (state.facadeInitializationPromise && state.facadeInitializationKey === key
+      && state.facadeInitializationClient === openerClient) return state.facadeInitializationPromise;
+  if (state.facadeQueue && state.photoJobId && state.facadeInitializationKey === key
+      && state.facadeInitializationClient === openerClient) return pollFacadeRun();
+  state.facadeInitializationKey = key;
+  state.facadeInitializationClient = openerClient;
+  const pending = initializeFacadeQueueConnection(context, openerClient);
+  state.facadeInitializationPromise = pending;
+  try { await pending; }
+  finally {
+    if (state.facadeInitializationPromise === pending) state.facadeInitializationPromise = null;
+  }
+}
+
+async function initializeFacadeQueueConnection(context, openerClient) {
   state.facadeContext = {
     courseId: String(context.courseId || ''),
     spaceId: String(context.spaceId || state.targetSpace),
@@ -293,21 +329,31 @@ async function initializeFacadeQueue(context) {
     return;
   }
   state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient);
+  const queue = state.facadeQueue;
+  const facadeContext = state.facadeContext;
   state.cloudClient = FacadeCloudClient.createFacadeCloudClient(openerClient);
-  await refreshCloudCapability();
+  state.photoServiceStatus = 'checking';
+  renderPhotoServiceState();
+  void refreshCloudCapability();
   try {
-    const availability = await state.facadeQueue.getWorkerAvailability();
+    const availability = await queue.getWorkerAvailability();
+    if (state.facadeQueue !== queue) return;
     state.photoServiceStatus = availability?.available ? 'online' : 'offline';
-  } catch (_error) {
-    state.photoServiceStatus = 'offline';
+  } catch (error) {
+    if (state.facadeQueue !== queue) return;
+    console.warn('读取 4090 立面服务状态失败：', error);
+    state.photoServiceStatus = 'error';
   }
   renderPhotoServiceState();
   try {
-    const latest = await state.facadeQueue.findLatestRun({
-      spaceId: state.facadeContext.spaceId,
+    const query = {
+      spaceId: facadeContext.spaceId,
       objectCode: state.targetCode
-    });
-    if (PhotoWorkflow.shouldRestoreFacadeRun(latest)) await attachFacadeRun(latest);
+    };
+    const latest = await queue.findActiveRun(query) || await queue.findLatestRun(query);
+    if (state.facadeQueue === queue && !state.photoJobId && PhotoWorkflow.shouldRestoreFacadeRun(latest)) {
+      await attachFacadeRun(latest);
+    }
   } catch (error) {
     console.warn('恢复正立面任务失败：', error);
   }
@@ -328,11 +374,16 @@ async function handleUploadedPhotoRecord(payload) {
   state.selectedPhotoId = photo.id;
   state.photoFile = null;
   renderExistingPhotoMaterials('新照片已保存，正在提交处理');
-  if (state.pendingCloudResultUpload) {
-    state.pendingCloudResultUpload = false;
-    await submitFacadePhoto(photo);
-  } else {
-    await processPhotoRecord(photo);
+  try {
+    if (state.pendingCloudResultUpload) {
+      state.pendingCloudResultUpload = false;
+      await submitFacadePhoto(photo);
+    } else {
+      await processPhotoRecord(photo);
+    }
+  } catch (error) {
+    console.error('提交新建筑照片失败：', error);
+    setStatus(`照片已保存，但未提交处理：${error.message}`, true);
   }
 }
 
@@ -342,45 +393,126 @@ async function processPhotoRecord(photo) {
 }
 
 async function submitFacadePhoto(photo) {
+  if (state.facadeSubmissionPromise) return state.facadeSubmissionPromise;
+  const pending = performFacadePhotoSubmission(photo);
+  state.facadeSubmissionPromise = pending;
+  try { return await pending; }
+  finally {
+    if (state.facadeSubmissionPromise === pending) state.facadeSubmissionPromise = null;
+  }
+}
+
+async function performFacadePhotoSubmission(photo) {
+  if (state.facadeInitializationPromise) await state.facadeInitializationPromise;
   if (!state.facadeQueue || !state.facadeContext) {
     throw new Error('平台登录上下文尚未就绪');
   }
-  const runId = await state.facadeQueue.submit({
+  const queue = state.facadeQueue;
+  const query = { spaceId: state.facadeContext.spaceId, objectCode: state.targetCode };
+  async function restoreActiveRun() {
+    const existing = await queue.findActiveRun(query);
+    if (!existing) return false;
+    await attachFacadeRun(existing);
+    setStatus(existing.status === 'awaiting_crop'
+      ? '当前建筑已有未结束任务，已恢复原照片。请确认屋顶线后点击生成；本次未重复提交新照片。'
+      : '当前建筑已有未结束任务，已恢复原任务进度；本次未重复提交新照片。');
+    return true;
+  }
+  if (await restoreActiveRun()) return;
+  let runId;
+  try {
+    runId = await queue.submit({
     courseId: state.facadeContext.courseId,
     spaceId: state.facadeContext.spaceId,
     objectCode: state.targetCode,
     photoId: Number(photo.id)
-  });
-  const run = await state.facadeQueue.getRun(runId);
+    });
+  } catch (error) {
+    if (!String(error?.message || '').includes('TOO_MANY_ACTIVE_FACADE_RUNS')) throw error;
+    // Another window may have submitted while this window was querying.
+    if (await restoreActiveRun()) return;
+    throw new Error('当前账号已有 2 个未结束的立面任务。请回到对应建筑，确认屋顶线并完成生成，或等待正在处理的任务结束后再提交。');
+  }
+  // The RPC succeeded: retain the id even if the subsequent read is interrupted.
+  state.photoJobId = String(runId);
+  let run;
+  try { run = await queue.getRun(runId); }
+  catch (error) {
+    console.warn('任务已提交，读取初始进度失败：', error);
+    await attachFacadeRun({ id: runId, photo_id: Number(photo.id), status: 'queued_rectification' });
+    setStatus('任务已进入 4090 队列，暂时无法读取进度，正在自动重试；请勿重复提交。');
+    return;
+  }
   await attachFacadeRun(run);
 }
 
 async function attachFacadeRun(run) {
+  clearFacadePollTimer();
+  state.facadeRunRevision = (state.facadeRunRevision || 0) + 1;
+  const revision = state.facadeRunRevision;
   state.currentFacadeRun = run;
   state.photoJobId = String(run?.id || '');
   state.photoWorkflowState = String(run?.status || 'idle');
   renderPhotoServiceState();
+  const runId = state.photoJobId;
+  const queue = state.facadeQueue;
   state.facadeUnsubscribe?.();
-  state.facadeUnsubscribe = state.facadeQueue.subscribe(state.photoJobId, (event) => {
-    if (event?.new) void applyFacadeRun(event.new);
-  });
-  await applyFacadeRun(run);
-  scheduleFacadePoll();
+  state.facadeUnsubscribe = null;
+  try {
+    state.facadeUnsubscribe = queue.subscribe(runId, (event) => {
+      if (!isCurrentFacadeRun(runId, queue, revision) || event?.new?.id !== runId) return;
+      void applyFacadeRun(event.new).catch(error => console.warn('更新立面任务预览失败：', error));
+    });
+  } catch (error) {
+    console.warn('实时任务订阅失败，将使用轮询恢复进度：', error);
+  }
+  if (run.photo_id != null) {
+    state.selectedPhotoId = String(run.photo_id);
+    if (state.photoMaterials?.length) renderExistingPhotoMaterials(`当前任务使用照片 ${state.selectedPhotoId}`);
+  }
+  try { await applyFacadeRun(run); }
+  catch (error) {
+    console.warn('任务已恢复，读取预览失败：', error);
+    setStatus('任务已恢复，预览暂时读取失败，正在重试；请勿重复提交。', true);
+  } finally {
+    if (isCurrentFacadeRun(runId, queue, revision)) scheduleFacadePoll();
+  }
+}
+
+function isCurrentFacadeRun(runId, queue, revision) {
+  return state.facadeQueue === queue && state.photoJobId === String(runId)
+    && state.facadeRunRevision === revision;
+}
+
+function isCurrentFacadeResult(run, queue, revision) {
+  const current = state.currentFacadeRun;
+  return isCurrentFacadeRun(run?.id, queue, revision)
+    && Number(current?.generation_revision || 0) === Number(run?.generation_revision || 0)
+    && (run?.status !== 'completed' || current?.status === 'completed');
 }
 
 async function applyFacadeRun(run) {
+  const queue = state.facadeQueue, revision = state.facadeRunRevision;
+  if (!isCurrentFacadeRun(run?.id, queue, revision)) return;
+  if (Number(run?.generation_revision || 0) < Number(state.currentFacadeRun?.generation_revision || 0)) return;
+  if (state.currentFacadeRun?.status === 'completed' && run.status !== 'completed'
+      && Number(run.generation_revision || 0) === Number(state.currentFacadeRun.generation_revision || 0)) return;
   state.currentFacadeRun = run;
+  state.facadeResultPending = PhotoWorkflow.canConfirmCrop(run);
   state.photoWorkflowState = String(run?.status || 'idle');
   const presentation = PhotoWorkflow.facadeStatusPresentation(run, state.photoServiceStatus);
   setProgress(presentation.progress, presentation.message);
   setStatus(presentation.message, run?.status === 'failed');
   renderFacadeStep(run?.status);
   if (PhotoWorkflow.canConfirmCrop(run)) {
-    await loadRectifiedPreview(run);
+    await loadRectifiedPreview(run, queue, revision);
+    if (!isCurrentFacadeResult(run, queue, revision)) return;
   }
   if (run?.status === 'completed') {
-    await loadCompletedFacadeModel(run);
+    await loadCompletedFacadeModel(run, queue, revision);
+    if (!isCurrentFacadeResult(run, queue, revision)) return;
   }
+  state.facadeResultPending = false;
   els.photoFallbackActions.hidden = run?.status !== 'failed';
   if (presentation.terminal) clearFacadePollTimer();
 }
@@ -393,19 +525,23 @@ function renderFacadeStep(status) {
   else if (status === 'failed') setPhotoStep('rectify', true);
 }
 
-async function facadeArtifact(runId, artifactType) {
-  const artifacts = await state.facadeQueue.listArtifacts(runId);
+async function facadeArtifact(runId, artifactType, queue = state.facadeQueue) {
+  const artifacts = await queue.listArtifacts(runId);
   return [...(artifacts || [])]
     .reverse()
     .find((item) => item.artifact_type === artifactType) || null;
 }
 
-async function loadRectifiedPreview(run) {
-  const artifact = await facadeArtifact(run.id, 'rectified_preview');
+async function loadRectifiedPreview(run, queue = state.facadeQueue, revision = state.facadeRunRevision) {
+  const artifact = await facadeArtifact(run.id, 'rectified_preview', queue);
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
   if (!artifact) throw new Error('正立面预处理未返回预览图');
-  const url = await state.facadeQueue.createArtifactUrl(artifact.storage_path);
+  const url = await queue.createArtifactUrl(artifact.storage_path);
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
+  const image = await loadImage(url);
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
   state.rectifiedUrl = url;
-  state.photoImage = await loadImage(url);
+  state.photoImage = image;
   els.photoPreview.src = url;
   els.photoPreview.hidden = false;
   els.photoPreviewEmpty.hidden = true;
@@ -426,15 +562,27 @@ async function loadRectifiedPreview(run) {
   els.activeLabel.textContent = '规范正立面：等待确认屋顶线';
 }
 
-async function loadCompletedFacadeModel(run) {
-  const artifact = await facadeArtifact(run.id, 'building_glb');
+async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision = state.facadeRunRevision) {
+  const artifact = await facadeArtifact(run.id, 'building_glb', queue);
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
   if (!artifact) throw new Error('任务已完成，但未找到 GLB');
-  const url = await state.facadeQueue.createArtifactUrl(artifact.storage_path);
+  const url = await queue.createArtifactUrl(artifact.storage_path);
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`GLB 下载失败（${response.status}）`);
   const blob = await response.blob();
   const arrayBuffer = await blob.arrayBuffer();
+  if (!isCurrentFacadeResult(run, queue, revision)) return;
   const group = await parseGlb(arrayBuffer);
+  if (!isCurrentFacadeResult(run, queue, revision)) {
+    group.traverse(obj => {
+      obj.geometry?.dispose();
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const material of materials) { material?.map?.dispose(); material?.dispose?.(); }
+    });
+    return;
+  }
+  clearCurrentUrl();
   replaceModel(group);
   frameModel(group);
   state.currentBlob = blob;
@@ -460,7 +608,7 @@ async function loadCompletedFacadeModel(run) {
   setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
 }
 
-function setFacadeSource(source) {
+function setFacadeSource(source, { preserveStatus = false } = {}) {
   state.facadeSource = FacadeSourceMode.normalizeSource(source);
   els.sourceButtons.forEach((button) => {
     const active = button.dataset.facadeSource === state.facadeSource;
@@ -483,7 +631,7 @@ function setFacadeSource(source) {
   els.generateBtn.textContent = '生成正立面贴图建筑';
   els.configHint.textContent = '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面比例自动计算。';
   els.activeLabel.textContent = FacadeSourceMode.SOURCES[state.facadeSource].label;
-  setStatus(messages[state.facadeSource]);
+  if (!preserveStatus) setStatus(messages[state.facadeSource]);
   renderPhotoServiceState();
 }
 
@@ -497,7 +645,7 @@ async function refreshCloudCapability() {
   const message = FacadeSourceMode.cloudUnavailableMessage(state.cloudCapability);
   els.cloudCapabilityLabel.textContent = state.cloudCapability.available ? '千问已配置' : '管理员尚未启用';
   els.cloudSourceMessage.textContent = message || '千问已由管理员配置。每次重新生成都会产生一次新的图像调用费用。';
-  setFacadeSource(state.facadeSource);
+  setFacadeSource(state.facadeSource, { preserveStatus: Boolean(state.photoJobId || state.cloudRunId) });
 }
 
 async function submitCloudFacade(photo) {
@@ -716,28 +864,39 @@ function renderPhotoServiceState() {
   els.photoServiceState.dataset.tone = online ? 'online' : 'offline';
   els.photoServiceMessage.textContent = online
     ? '4090 远程生成队列已连接。'
-    : '等待平台登录会话或 4090 队列连接。';
+    : !state.facadeQueue || state.photoServiceStatus === 'unauthenticated'
+      ? '未连接平台登录会话，请从已登录的平台重新打开生成器。'
+      : state.photoServiceStatus === 'checking'
+        ? '正在检查 4090 立面队列连接…'
+        : state.photoServiceStatus === 'error'
+          ? '立面服务状态查询失败，请检查网络连接后重试。'
+          : '4090 立面处理服务未报告在线，请联系管理员检查立面 Worker。';
   els.recoverPhotoBtn.hidden = online && !failed;
 }
 
 async function pollFacadeRun() {
   clearFacadePollTimer();
   if (!state.facadeQueue || !state.photoJobId || document.hidden) return;
+  const queue = state.facadeQueue, runId = state.photoJobId, revision = state.facadeRunRevision;
   try {
     const [run, availability] = await Promise.all([
-      state.facadeQueue.getRun(state.photoJobId),
-      state.facadeQueue.getWorkerAvailability()
+      queue.getRun(runId),
+      queue.getWorkerAvailability()
     ]);
+    if (!isCurrentFacadeRun(runId, queue, revision)) return;
     state.photoServiceStatus = availability?.available ? 'online' : 'offline';
-    state.facadePollDelay = 2000;
     await applyFacadeRun(run);
+    if (!isCurrentFacadeRun(runId, queue, revision)) return;
+    state.facadePollDelay = 2000;
   } catch (error) {
+    if (!isCurrentFacadeRun(runId, queue, revision)) return;
     console.warn('轮询正立面任务失败：', error);
-    state.photoServiceStatus = 'offline';
+    state.photoServiceStatus = 'error';
     state.facadePollDelay = Math.min(15000, Math.max(2000, state.facadePollDelay * 1.6));
     renderPhotoServiceState();
   }
-  if (!['completed', 'failed', 'canceled'].includes(state.currentFacadeRun?.status)) {
+  if (isCurrentFacadeRun(runId, queue, revision) && (state.facadeResultPending
+      || !['completed', 'failed', 'canceled'].includes(state.currentFacadeRun?.status))) {
     scheduleFacadePoll();
   }
 }
@@ -821,6 +980,9 @@ async function generatePhotoModel() {
     return;
   }
 
+  const queue = state.facadeQueue, runId = state.photoJobId;
+  state.facadeRunRevision += 1;
+  clearFacadePollTimer();
   try {
     setPhotoStep('generate');
     els.generateBtn.disabled = true;
@@ -829,22 +991,26 @@ async function generatePhotoModel() {
     els.sendBtn.disabled = true;
     clearCurrentUrl();
 
-    await state.facadeQueue.confirmCrop(state.photoJobId, {
+    await queue.confirmCrop(runId, {
       cropTop: state.cropTop,
       roofType: els.roofTypeInput.value,
       buildingWidth: Number(els.lengthInput.value),
       buildingDepth: Number(els.widthInput.value)
     });
+    if (state.facadeQueue !== queue || state.photoJobId !== runId) return;
     state.photoWorkflowState = 'queued_generation';
     setProgress(55, '已确认屋顶线，等待 4090 生成模型…');
-    const run = await state.facadeQueue.getRun(state.photoJobId);
-    await applyFacadeRun(run);
+    const run = await queue.getRun(runId);
+    if (state.facadeQueue !== queue || state.photoJobId !== runId) return;
+    await attachFacadeRun(run);
     scheduleFacadePoll(0);
   } catch (error) {
+    if (state.facadeQueue !== queue || state.photoJobId !== runId) return;
     console.error(error);
     setProgress(0, '生成失败');
     setStatus(`提交生成失败：${String(error?.message || error)}`, true);
   } finally {
+    if (state.facadeQueue === queue && state.photoJobId === runId) scheduleFacadePoll(0);
     els.generateBtn.disabled = false;
     renderRoofAnalysis();
   }
@@ -1004,6 +1170,8 @@ async function replaceOriginalBuilding() {
     return;
   }
 
+  if (state.modelSavePending) return;
+  state.modelSavePending = true;
   try {
     els.sendBtn.disabled = true;
     setStatus('正在把生成模型发送回主平台...');
@@ -1018,13 +1186,10 @@ async function replaceOriginalBuilding() {
       glbBuffer,
       metrics: state.currentModelInfo.metrics
     });
-    window.opener.postMessage(
-      message,
-      window.location.origin,
-      [glbBuffer]
-    );
+    message.payload.requestId = crypto.randomUUID();
+    await sendModelAndWaitForSave(message, glbBuffer);
 
-    setStatus('模型已发送，正在返回 3D 模块...');
+    setStatus('模型已保存，正在返回 3D 模块...');
     try {
       window.opener.focus();
     } catch (_) {}
@@ -1033,8 +1198,35 @@ async function replaceOriginalBuilding() {
     console.error(err);
     setStatus(`同步失败：${err.message}`, true);
   } finally {
+    state.modelSavePending = false;
     els.sendBtn.disabled = false;
   }
+}
+
+function sendModelAndWaitForSave(message, glbBuffer) {
+  return new Promise((resolve, reject) => {
+    const opener = window.opener;
+    let timer;
+    const cleanup = () => {
+      window.removeEventListener('message', onReply);
+      window.clearTimeout(timer);
+    };
+    const onReply = event => {
+      if (event.origin !== window.location.origin || event.source !== opener
+          || event.data?.type !== 'village-house-generator:model-saved'
+          || event.data?.payload?.requestId !== message.payload.requestId) return;
+      cleanup();
+      if (event.data.payload.saved) resolve();
+      else reject(new Error(event.data.payload.error || '主平台未完成模型保存，请重试。'));
+    };
+    window.addEventListener('message', onReply);
+    timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('未收到主平台保存确认。请先在平台核对模型库；当前 GLB 仍可下载。'));
+    }, 90000);
+    try { opener.postMessage(message, window.location.origin, [glbBuffer]); }
+    catch (error) { cleanup(); reject(error); }
+  });
 }
 
 function loadImage(src) {

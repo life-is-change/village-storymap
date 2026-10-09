@@ -39,12 +39,15 @@
     let scheduled = false;
     let idlePromise = null;
     let resolveIdle = null;
+    let rejectIdle = null;
+    let failure = null;
     let latestPayload = {};
 
     function ensureIdlePromise() {
       if (!idlePromise) {
-        idlePromise = new Promise((resolve) => {
+        idlePromise = new Promise((resolve, reject) => {
           resolveIdle = resolve;
+          rejectIdle = reject;
         });
       }
       return idlePromise;
@@ -52,10 +55,13 @@
 
     function completeIfIdle() {
       if (running || scheduled || completedRequestId < latestRequestId || !resolveIdle) return;
-      const resolve = resolveIdle;
+      const resolve = resolveIdle, reject = rejectIdle, error = failure;
       resolveIdle = null;
+      rejectIdle = null;
+      failure = null;
       idlePromise = null;
-      resolve();
+      if (error) reject(error);
+      else resolve();
     }
 
     async function drain() {
@@ -66,7 +72,11 @@
         while (completedRequestId < latestRequestId) {
           const id = latestRequestId;
           const payload = latestPayload;
-          await render({ id, payload, isCurrent: () => id === latestRequestId });
+          try {
+            await render({ id, payload, isCurrent: () => id === latestRequestId });
+          } catch (error) {
+            if (id === latestRequestId) failure = error;
+          }
           completedRequestId = id;
         }
       } finally {
@@ -84,6 +94,7 @@
 
     return {
       request(payload = {}) {
+        failure = null;
         latestRequestId += 1;
         latestPayload = payload;
         const pending = ensureIdlePromise();
@@ -101,9 +112,25 @@
     await Promise.all((layerKeys || []).map((layerKey) => ensureLayerLoaded(layerKey)));
   }
 
+  function createLayerSnapshotCache() {
+    let spaceId = null;
+    let layers = new Map();
+    return {
+      clear() { spaceId = null; layers = new Map(); },
+      read(id, keys) {
+        return new Map(spaceId === id
+          ? (keys || [...layers.keys()]).filter(key => layers.has(key)).map(key => [key, layers.get(key)])
+          : []);
+      },
+      commit(id, nextLayers) { spaceId = id; layers = new Map(nextLayers); }
+    };
+  }
+  // Lifetime follows the vector source; discarded sources cannot retain a village.
+  const snapshotsBySource = new WeakMap();
   let lastRenderedSpaceId = null;
 
   const api = {
+    createLayerSnapshotCache,
     createLatestOverlayRefreshController,
     ensureStaticLayersLoaded,
     planIncrementalLayerUpdate,
@@ -140,19 +167,27 @@
           : ["elevationBands", "contours", "water", "road", "building"])
         : [...selectedLayers];
 
+      const snapshot = snapshotsBySource.get(currentVectorSource) || createLayerSnapshotCache();
+      if (refreshOptions.forceFullRebuild) snapshot.clear();
+      const retained = options.visibilityOnly && !refreshOptions.forceFullRebuild
+        ? snapshot.read(currentSpaceId, effectiveLayerKeys) : new Map();
+      const currentFeatures = currentVectorSource.getFeatures();
+      const currentKeys = new Set(currentFeatures.map(feature => feature.get("layerKey")));
+      const retainedFeatures = [...retained].filter(([key]) => !currentKeys.has(key)).flatMap(([, items]) => items);
+      const failedLayers = new Set();
       const incrementalPlan = planIncrementalLayerUpdate(
-        currentVectorSource.getFeatures(),
+        [...currentFeatures, ...retainedFeatures],
         effectiveLayerKeys,
         refreshOptions
       );
       incrementalPlan.reusedFeatures.forEach((feature) => nextVectorSource.addFeature(feature));
-      const layerKeysToBuild = incrementalPlan.layerKeysToBuild;
+      const layerKeysToBuild = incrementalPlan.layerKeysToBuild.filter(key => !retained.has(key));
 
-      await ensureStaticLayersLoaded({
+      const staticLayersReady = ensureStaticLayersLoaded({
         layerKeys: layerKeysToBuild,
         isPersonalSpace: deps.isCurrentSpacePersonal(),
         ensureLayerLoaded: deps.ensureLayerLoaded
-      });
+      }).then(() => null, error => ({ error }));
 
       const format = new GeoJSON();
       let personalRowsByLayer = null;
@@ -195,6 +230,9 @@
           }
         }));
       }
+
+      const staticResult = await staticLayersReady;
+      if (staticResult?.error) throw staticResult.error;
 
       if (deps.shouldShowVillageFillForCurrentSpace()) {
         const fillRawFeature = deps.buildVillageFillRawFeature();
@@ -560,15 +598,32 @@
             nextVectorSource.addFeature(olFeature);
           });
         } catch (layerError) {
+          failedLayers.add(layerKey);
           console.warn(`渲染图层失败（${layerKey}）：`, layerError);
           continue;
         }
       }
 
-      if (refreshRequest && !refreshRequest.isCurrent()) {
+      if (deps.getCurrentSpaceId() !== currentSpaceId || (refreshRequest && !refreshRequest.isCurrent())) {
         return { stale: true };
       }
 
+      const nextSnapshots = snapshot.read(currentSpaceId);
+      // Also retain dynamically configured keys, including successfully empty layers.
+      for (const key of effectiveLayerKeys) {
+        if (failedLayers.has(key) || sharedRowsByLayer.get(key)?.error) continue;
+        nextSnapshots.set(key, nextVectorSource.getFeatures().filter(feature => feature.get("layerKey") === key));
+      }
+      // Previously hidden keys can be absent from layerConfigs in adapters.
+      for (const feature of currentFeatures) {
+        const key = feature.get("layerKey");
+        if (!effectiveLayerKeys.includes(key) && key !== "communityTask" && !refreshOptions.forceFullRebuild) {
+          if (!nextSnapshots.has(key)) nextSnapshots.set(key, currentFeatures.filter(item => item.get("layerKey") === key));
+        }
+      }
+      snapshot.commit(currentSpaceId, nextSnapshots);
+      snapshotsBySource.set(nextVectorSource, snapshot);
+      snapshotsBySource.set(currentVectorSource, snapshot);
       if (typeof deps.setPlanVectorSource === "function" && typeof planVectorLayer.setSource === "function") {
         deps.setPlanVectorSource(nextVectorSource);
         planVectorLayer.setSource(nextVectorSource);

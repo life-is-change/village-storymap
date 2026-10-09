@@ -12,6 +12,7 @@ function fakeSupabase() {
     signedCalls: [],
     channelConfig: null,
     removed: null,
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'owner-1' } } }, error: null }) },
     rpc(name, args) {
       this.rpcCalls.push({ name, args });
       const data = name === 'submit_facade_run' ? 'run-1'
@@ -25,6 +26,7 @@ function fakeSupabase() {
       const chain = {
         select: () => chain,
         eq: (key, value) => { call.filters.push([key, value]); return chain; },
+        in: (key, value) => { call.filters.push([key, value]); return chain; },
         order: (key, options) => { call.order = [key, options]; return chain; },
         limit: (value) => { call.limit = value; return chain; },
         single: () => Promise.resolve({ data: { id: 'run-1' }, error: null }),
@@ -130,4 +132,35 @@ test('generator loads facade queue client before application module', () => {
   const app = html.indexOf('app.js');
   assert.ok(queueClient >= 0);
   assert.ok(app > queueClient);
+});
+
+test('reopening the same run across clients cannot reuse an already subscribed channel', () => {
+  const channels = new Map();
+  const removed = [];
+  const fake = {
+    channel(name) {
+      if (channels.has(name)) return channels.get(name);
+      const channel = { subscribed: false, on() {
+        if (this.subscribed) throw new Error('cannot add postgres_changes callbacks after subscribe()');
+        return this;
+      }, subscribe() { this.subscribed = true; return this; } };
+      channels.set(name, channel);
+      return channel;
+    },
+    removeChannel(channel) { removed.push(channel); return new Promise(() => {}); }
+  };
+  const stop = createFacadeQueueClient(fake).subscribe('old-run', () => {});
+  stop();
+  assert.doesNotThrow(() => createFacadeQueueClient(fake).subscribe('old-run', () => {}));
+  assert.equal(channels.size, 2);
+  assert.notEqual([...channels.values()][1], removed[0]);
+});
+
+test('active run lookup is scoped to the signed-in owner even for an administrator', async () => {
+  const fake = fakeSupabase();
+  await createFacadeQueueClient(fake).findActiveRun({ spaceId: 'S', objectCode: 'H' });
+  assert.ok(fake.tableCalls[0].filters.some(([key, value]) => key === 'owner_id' && value === 'owner-1'));
+  const statuses = fake.tableCalls[0].filters.find(([key]) => key === 'status')[1];
+  assert.ok(statuses.includes('awaiting_crop'));
+  assert.ok(!statuses.includes('completed'));
 });

@@ -1,0 +1,359 @@
+{
+  "label": "4060-before-studio-round2",
+  "date": "2026-10-08T08:15:52.228Z",
+  "records": [
+    {
+      "at_ms": 2421614,
+      "kind": "action",
+      "name": "round-start",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2421614,
+      "kind": "environment",
+      "name": "browser",
+      "duration_ms": 0,
+      "visibility": "visible",
+      "width": 842,
+      "height": 930,
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "at_ms": 2421876,
+      "kind": "action",
+      "name": "场景设计",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2421876,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2421876,
+      "kind": "phase",
+      "name": "ensureVillage3DLoaded",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2421885,
+      "kind": "phase",
+      "name": "ensureSelectedLayersLoaded",
+      "duration_ms": 9,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2421885,
+      "kind": "phase",
+      "name": "refresh2DOverlay",
+      "duration_ms": 1,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2421887,
+      "kind": "overlay_state",
+      "name": "rendered-features",
+      "duration_ms": 0,
+      "total": 211,
+      "layers": {
+        "building": 194,
+        "road": 14,
+        "water": 2,
+        "__village_fill": 1
+      },
+      "content_digest": "5c43b81b",
+      "parallel_reads": true
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 1452,
+      "status": 200
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1452,
+      "status": 200
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1451,
+      "start_ms": 2421885,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 1451,
+      "start_ms": 2421885,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2423338,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2423354,
+      "kind": "phase",
+      "name": "3d_enter",
+      "duration_ms": 1478,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2423354,
+      "kind": "phase",
+      "name": "scene_studio_prepare",
+      "duration_ms": 1478,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2423936,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 582,
+      "status": 200
+    },
+    {
+      "at_ms": 2424020,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 84
+    },
+    {
+      "at_ms": 2424021,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 666,
+      "start_ms": 2423354,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2424752,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 1394,
+      "status": 200
+    },
+    {
+      "at_ms": 2424753,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 732,
+      "status": 200
+    },
+    {
+      "at_ms": 2424753,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2424753,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 1393,
+      "start_ms": 2423358,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2424753,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 731,
+      "start_ms": 2424021,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2424753,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 2424755,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 2,
+      "status": 200
+    },
+    {
+      "at_ms": 2424755,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2424756,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 1,
+      "start_ms": 2424753,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2425183,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 431,
+      "status": 200
+    },
+    {
+      "at_ms": 2425184,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2425185,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 430,
+      "start_ms": 2424753,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2425187,
+      "kind": "fetch_headers",
+      "name": "local:json",
+      "duration_ms": 2,
+      "status": 200
+    },
+    {
+      "at_ms": 2425187,
+      "kind": "body_read_parse",
+      "name": "local:json",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 2425188,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 2,
+      "start_ms": 2425185,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2425667,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 480,
+      "status": 200
+    },
+    {
+      "at_ms": 2425667,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2425668,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 479,
+      "start_ms": 2425188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431518,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 5851,
+      "status": 200
+    },
+    {
+      "at_ms": 2431519,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2431528,
+      "kind": "phase",
+      "name": "openSceneStudioWorkspace",
+      "duration_ms": 9653,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2431528,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 5840,
+      "start_ms": 2425668,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 1,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 1,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 1,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 1,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 1,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2431543,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 2431530,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

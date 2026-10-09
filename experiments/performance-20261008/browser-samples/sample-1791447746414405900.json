@@ -1,0 +1,96 @@
+{
+  "label": "4060-before-switch-mibu-warm",
+  "date": "2026-10-08T08:22:26.412Z",
+  "records": [
+    {
+      "at_ms": 3083869,
+      "kind": "action",
+      "name": "round-start",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 3083869,
+      "kind": "environment",
+      "name": "browser",
+      "duration_ms": 0,
+      "visibility": "visible",
+      "width": 842,
+      "height": 930,
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "at_ms": 3084128,
+      "kind": "action",
+      "name": "select-change",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 3084128,
+      "kind": "phase",
+      "name": "dataset_signed_urls",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 3087172,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/ensure_context_space",
+      "duration_ms": 3044,
+      "status": 200
+    },
+    {
+      "at_ms": 3087172,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/ensure_context_space",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 3087173,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/ensure_context_space",
+      "duration_ms": 3043,
+      "start_ms": 3084128,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 3092547,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 5375,
+      "status": 200
+    },
+    {
+      "at_ms": 3201698,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 109151
+    },
+    {
+      "at_ms": 3201699,
+      "kind": "phase",
+      "name": "prepareVillageContext",
+      "duration_ms": 117571,
+      "failed": true,
+      "failure_code": "SUPABASE_ERROR"
+    },
+    {
+      "at_ms": 3201700,
+      "kind": "phase",
+      "name": "switch_village",
+      "duration_ms": 117572,
+      "failed": true,
+      "failure_code": "SUPABASE_ERROR"
+    },
+    {
+      "at_ms": 3201700,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 114525,
+      "start_ms": 3087172,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

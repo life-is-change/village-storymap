@@ -1,0 +1,410 @@
+{
+  "label": "4060-after-v3-3d-round3",
+  "date": "2026-10-08T08:45:04.031Z",
+  "records": [
+    {
+      "at_ms": 293456,
+      "kind": "action",
+      "name": "round-start",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 293456,
+      "kind": "environment",
+      "name": "browser",
+      "duration_ms": 0,
+      "visibility": "visible",
+      "width": 1280,
+      "height": 720,
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "at_ms": 293979,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 760,
+      "status": 200
+    },
+    {
+      "at_ms": 293979,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 759,
+      "status": 200
+    },
+    {
+      "at_ms": 294008,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 30
+    },
+    {
+      "at_ms": 294009,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 757,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294009,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 758,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294009,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 30
+    },
+    {
+      "at_ms": 294282,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1063,
+      "status": 200
+    },
+    {
+      "at_ms": 294282,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1063,
+      "status": 200
+    },
+    {
+      "at_ms": 294282,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1063,
+      "status": 200
+    },
+    {
+      "at_ms": 294282,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 294282,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1062,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294282,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1062,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294283,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1062,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294283,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 294283,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 294312,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1092,
+      "status": 200
+    },
+    {
+      "at_ms": 294572,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 260
+    },
+    {
+      "at_ms": 294572,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1352,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294572,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 860,
+      "status": 200
+    },
+    {
+      "at_ms": 294572,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 294573,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 859,
+      "start_ms": 293713,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294623,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1404,
+      "status": 200
+    },
+    {
+      "at_ms": 294623,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 910,
+      "status": 200
+    },
+    {
+      "at_ms": 294623,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 294624,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1403,
+      "start_ms": 293219,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294624,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 909,
+      "start_ms": 293713,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 294624,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 294639,
+      "kind": "phase",
+      "name": "3d_enter",
+      "duration_ms": 944,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 295124,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 482,
+      "status": 200
+    },
+    {
+      "at_ms": 295124,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 295124,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 481,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295135,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 492,
+      "status": 200
+    },
+    {
+      "at_ms": 295135,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 295135,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 492,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295145,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 502,
+      "status": 200
+    },
+    {
+      "at_ms": 295182,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 37
+    },
+    {
+      "at_ms": 295182,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 537,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295182,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 539,
+      "status": 200
+    },
+    {
+      "at_ms": 295182,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 539,
+      "status": 200
+    },
+    {
+      "at_ms": 295182,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 295182,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 538,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295182,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 538,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295182,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 295234,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 592,
+      "status": 200
+    },
+    {
+      "at_ms": 295654,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 419
+    },
+    {
+      "at_ms": 295654,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1011,
+      "start_ms": 294642,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295654,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1012,
+      "status": 200
+    },
+    {
+      "at_ms": 295706,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 51
+    },
+    {
+      "at_ms": 295706,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1062,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 295706,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1063,
+      "status": 200
+    },
+    {
+      "at_ms": 295782,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 76
+    },
+    {
+      "at_ms": 295783,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1139,
+      "start_ms": 294643,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 296054,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 400,
+      "status": 200
+    },
+    {
+      "at_ms": 296054,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 296055,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 399,
+      "start_ms": 295654,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

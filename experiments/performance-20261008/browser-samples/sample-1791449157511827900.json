@@ -1,0 +1,1698 @@
+{
+  "label": "4060-after-v3-studio-round1",
+  "date": "2026-10-08T08:45:57.508Z",
+  "records": [
+    {
+      "at_ms": 312317,
+      "kind": "action",
+      "name": "round-start",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 312317,
+      "kind": "environment",
+      "name": "browser",
+      "duration_ms": 0,
+      "visibility": "visible",
+      "width": 1280,
+      "height": 720,
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "at_ms": 312569,
+      "kind": "action",
+      "name": "场景设计",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 312573,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 312573,
+      "kind": "phase",
+      "name": "ensureVillage3DLoaded",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 312581,
+      "kind": "phase",
+      "name": "ensureSelectedLayersLoaded",
+      "duration_ms": 7,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 312581,
+      "kind": "phase",
+      "name": "overlay_render",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 312581,
+      "kind": "phase",
+      "name": "refresh2DOverlay",
+      "duration_ms": 1,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 312582,
+      "kind": "overlay_state",
+      "name": "rendered-features",
+      "duration_ms": 0,
+      "total": 211,
+      "layers": {
+        "building": 194,
+        "road": 14,
+        "water": 2,
+        "__village_fill": 1
+      },
+      "content_digest": "5c43b81b",
+      "parallel_reads": true
+    },
+    {
+      "at_ms": 315036,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2978,
+      "status": 200
+    },
+    {
+      "at_ms": 315038,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 315038,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2975,
+      "start_ms": 312058,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315054,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2996,
+      "status": 200
+    },
+    {
+      "at_ms": 315060,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 2479,
+      "status": 200
+    },
+    {
+      "at_ms": 315060,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 3002,
+      "status": 200
+    },
+    {
+      "at_ms": 315063,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 9
+    },
+    {
+      "at_ms": 315064,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2994,
+      "start_ms": 312058,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315067,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 8
+    },
+    {
+      "at_ms": 315067,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 2995,
+      "start_ms": 312059,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315067,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 2473,
+      "start_ms": 312581,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315068,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 8
+    },
+    {
+      "at_ms": 315086,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 3027,
+      "status": 201
+    },
+    {
+      "at_ms": 315086,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 315087,
+      "kind": "resource",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 3026,
+      "start_ms": 312059,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315087,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 3028,
+      "status": 200
+    },
+    {
+      "at_ms": 315087,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 315087,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 3027,
+      "start_ms": 312059,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315125,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2544,
+      "status": 200
+    },
+    {
+      "at_ms": 315126,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 3067,
+      "status": 200
+    },
+    {
+      "at_ms": 315127,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 315205,
+      "kind": "phase",
+      "name": "3d_enter",
+      "duration_ms": 2632,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 315206,
+      "kind": "phase",
+      "name": "scene_studio_prepare",
+      "duration_ms": 2633,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 315232,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2543,
+      "start_ms": 312581,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315232,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 100,
+      "start_ms": 315126,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315301,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 175
+    },
+    {
+      "at_ms": 315307,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 3240,
+      "start_ms": 312059,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315927,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 700,
+      "status": 200
+    },
+    {
+      "at_ms": 315927,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 315931,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 695,
+      "start_ms": 315227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 315966,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 761,
+      "status": 200
+    },
+    {
+      "at_ms": 316202,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 236
+    },
+    {
+      "at_ms": 316205,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 993,
+      "start_ms": 315205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 316372,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 444,
+      "status": 200
+    },
+    {
+      "at_ms": 316398,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 26
+    },
+    {
+      "at_ms": 316405,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 468,
+      "start_ms": 315928,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 316407,
+      "kind": "fetch_headers",
+      "name": "local:json",
+      "duration_ms": 4,
+      "status": 200
+    },
+    {
+      "at_ms": 316407,
+      "kind": "body_read_parse",
+      "name": "local:json",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 316407,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 3,
+      "start_ms": 316402,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 316639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 437,
+      "status": 200
+    },
+    {
+      "at_ms": 316640,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 316649,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 432,
+      "start_ms": 316205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 316851,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 449,
+      "status": 200
+    },
+    {
+      "at_ms": 316852,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 449,
+      "status": 200
+    },
+    {
+      "at_ms": 316852,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 316852,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 447,
+      "start_ms": 316403,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317266,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 414
+    },
+    {
+      "at_ms": 317405,
+      "kind": "phase",
+      "name": "openSceneStudioWorkspace",
+      "duration_ms": 4836,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 317466,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 860,
+      "start_ms": 316404,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317466,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 139,
+      "start_ms": 317266,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317466,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 60,
+      "start_ms": 317405,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 5,
+      "start_ms": 317423,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 4,
+      "start_ms": 317424,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 3,
+      "start_ms": 317426,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 3,
+      "start_ms": 317426,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 3,
+      "start_ms": 317427,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317628,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 3,
+      "start_ms": 317428,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 317629,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 154,
+      "start_ms": 317474,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 320490,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1441,
+      "start_ms": 317629,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 320490,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1418,
+      "start_ms": 319071,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 321889,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 5,
+      "start_ms": 320348,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 321889,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 6,
+      "start_ms": 320349,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 321889,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1391,
+      "start_ms": 320497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 223,
+      "start_ms": 319062,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 209,
+      "start_ms": 319063,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 220,
+      "start_ms": 319063,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 207,
+      "start_ms": 319063,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 208,
+      "start_ms": 319064,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 181,
+      "start_ms": 319064,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 267,
+      "start_ms": 319065,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 376,
+      "start_ms": 319065,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 372,
+      "start_ms": 319065,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 376,
+      "start_ms": 319065,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 371,
+      "start_ms": 319066,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 375,
+      "start_ms": 319066,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 370,
+      "start_ms": 319067,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 445,
+      "start_ms": 319067,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 431,
+      "start_ms": 319067,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 465,
+      "start_ms": 319068,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 464,
+      "start_ms": 319069,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 441,
+      "start_ms": 319069,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 571,
+      "start_ms": 320349,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 323348,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1450,
+      "start_ms": 321890,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 324800,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 1384,
+      "start_ms": 321678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 324800,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1450,
+      "start_ms": 323349,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 326052,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 2029,
+      "start_ms": 321678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 326052,
+      "kind": "resource",
+      "name": "elevation3d.arcgis.com:resource",
+      "duration_ms": 4,
+      "start_ms": 324591,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 326052,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1238,
+      "start_ms": 324802,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 328779,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1408,
+      "start_ms": 326052,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 328779,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1310,
+      "start_ms": 327469,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 331205,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1102,
+      "start_ms": 328782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 331205,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1312,
+      "start_ms": 329892,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334358,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1597,
+      "start_ms": 331207,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334358,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1541,
+      "start_ms": 332817,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 137,
+      "start_ms": 328771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 134,
+      "start_ms": 328771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 134,
+      "start_ms": 328771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 130,
+      "start_ms": 328771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 9,
+      "start_ms": 328772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 8,
+      "start_ms": 328772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328774,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 133,
+      "start_ms": 328774,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328775,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328775,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 6,
+      "start_ms": 328775,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 95,
+      "start_ms": 328775,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328776,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328776,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 328777,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 190,
+      "start_ms": 328778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 192,
+      "start_ms": 328778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 334359,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 184,
+      "start_ms": 328779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 337213,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1281,
+      "start_ms": 334360,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 337213,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1568,
+      "start_ms": 335645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 340453,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1524,
+      "start_ms": 337228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 340453,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1699,
+      "start_ms": 338754,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 343351,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1569,
+      "start_ms": 340462,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 343351,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1311,
+      "start_ms": 342040,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 503,
+      "start_ms": 338738,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 95,
+      "start_ms": 338739,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 63,
+      "start_ms": 338740,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 88,
+      "start_ms": 338741,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 503,
+      "start_ms": 338742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 84,
+      "start_ms": 338743,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 117,
+      "start_ms": 338745,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 147,
+      "start_ms": 338746,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 359,
+      "start_ms": 338747,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 150,
+      "start_ms": 338748,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 174,
+      "start_ms": 338748,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344782,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 229,
+      "start_ms": 338749,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344782,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 228,
+      "start_ms": 338749,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344782,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 226,
+      "start_ms": 338749,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 344782,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1419,
+      "start_ms": 343361,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 346129,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 93,
+      "start_ms": 340451,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 346129,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 86,
+      "start_ms": 340451,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 346129,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 85,
+      "start_ms": 340452,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 346129,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 90,
+      "start_ms": 340452,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 346129,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1343,
+      "start_ms": 344785,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 349193,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1518,
+      "start_ms": 346130,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 349193,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1537,
+      "start_ms": 347655,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 352165,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1586,
+      "start_ms": 349197,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 352165,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1372,
+      "start_ms": 350792,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1603,
+      "start_ms": 352171,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1247,
+      "start_ms": 353779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 58,
+      "start_ms": 349185,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 54,
+      "start_ms": 349185,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 62,
+      "start_ms": 349186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 223,
+      "start_ms": 349187,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 279,
+      "start_ms": 349188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 84,
+      "start_ms": 349189,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 108,
+      "start_ms": 349189,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 319,
+      "start_ms": 349190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 138,
+      "start_ms": 349190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 185,
+      "start_ms": 349191,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 180,
+      "start_ms": 349192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 355027,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 336,
+      "start_ms": 349192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 350778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 350778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 350778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 12,
+      "start_ms": 350781,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 12,
+      "start_ms": 350782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 12,
+      "start_ms": 350782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 356519,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1485,
+      "start_ms": 355033,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 359182,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1311,
+      "start_ms": 356520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 359182,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1341,
+      "start_ms": 357840,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 361463,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 1301,
+      "start_ms": 359184,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 361463,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 966,
+      "start_ms": 360496,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 283,
+      "start_ms": 361470,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 285,
+      "start_ms": 361762,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 359172,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 14,
+      "start_ms": 359172,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 99,
+      "start_ms": 359173,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 73,
+      "start_ms": 359174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 76,
+      "start_ms": 359175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 61,
+      "start_ms": 359175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 64,
+      "start_ms": 359176,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 67,
+      "start_ms": 359177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 120,
+      "start_ms": 359177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 136,
+      "start_ms": 359178,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 228,
+      "start_ms": 359179,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 359179,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 360481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362048,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 360481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362337,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 822,
+      "start_ms": 360481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362337,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 360483,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362337,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 360484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362337,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 360485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362337,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 288,
+      "start_ms": 362049,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362896,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 277,
+      "start_ms": 362338,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 362896,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 278,
+      "start_ms": 362618,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363448,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 276,
+      "start_ms": 362897,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363448,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 273,
+      "start_ms": 363174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 278,
+      "start_ms": 363448,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 270,
+      "start_ms": 363727,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 112,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 114,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 150,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 127,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 130,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 127,
+      "start_ms": 362895,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 181,
+      "start_ms": 362896,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 363998,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 271,
+      "start_ms": 362896,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 364260,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 261,
+      "start_ms": 363998,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 364769,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 255,
+      "start_ms": 364260,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 364769,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 251,
+      "start_ms": 364518,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 365280,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 254,
+      "start_ms": 364769,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 365280,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 256,
+      "start_ms": 365023,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

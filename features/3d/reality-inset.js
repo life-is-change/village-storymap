@@ -86,19 +86,29 @@
     return { left, top, width: size.width, height: size.height };
   }
 
-  function getRealityRenderQuality(devicePixelRatio = 1) {
+  function getRealityRenderQuality(devicePixelRatio = 1, mode = 'balanced') {
+    const sharp = mode === 'sharp';
     return {
       resolutionScale: Math.min(
         Math.max(toFiniteNumber(devicePixelRatio, 1), 1),
-        2
+        sharp ? 2 : 1
       ),
       tilesetOptions: {
-        maximumScreenSpaceError: 4,
-        dynamicScreenSpaceError: false,
+        maximumScreenSpaceError: sharp ? 4 : 8,
+        dynamicScreenSpaceError: !sharp,
         cacheBytes: 256 * 1024 * 1024,
-        preloadFlightDestinations: true
+        preloadFlightDestinations: sharp
       }
     };
+  }
+
+  function applyRenderActivity(viewer, active) {
+    if (!viewer || viewer.isDestroyed?.()) return;
+    viewer.useDefaultRenderLoop = !!active;
+    if (active) {
+      viewer.resize();
+      viewer.scene.requestRender();
+    }
   }
 
   function resolveImmediateSurfaceHeight(cachedHeight, renderedHeight) {
@@ -224,6 +234,7 @@
     let tilesetPromise = null;
     let pendingProxyRecords = [];
     let visible = true;
+    let hostActive = options.hostActive !== false;
     let destroyed = false;
     let controlsBound = false;
     let terrainEnabled = config.terrainEnabled;
@@ -266,11 +277,13 @@
       panel?.classList.toggle("is-hidden", !visible);
       toggleButton?.classList.toggle("is-active", visible);
       toggleButton?.setAttribute("aria-pressed", visible ? "true" : "false");
-      if (viewer && visible) {
-        viewer.resize();
-        viewer.scene.requestRender();
-      }
+      applyRenderActivity(viewer, visible && hostActive);
       return visible;
+    }
+
+    function setHostActive(active) {
+      hostActive = !!active;
+      applyRenderActivity(viewer, visible && hostActive);
     }
 
     function show() {
@@ -555,7 +568,7 @@
       // photogrammetry mesh; mixed terrain LOD otherwise makes parts look buried.
       instance.scene.globe.depthTestAgainstTerrain = false;
       instance.scene.fxaa = false;
-      const quality = getRealityRenderQuality(root.devicePixelRatio);
+      const quality = getRealityRenderQuality(root.devicePixelRatio, root.__REALITY_RENDER_QUALITY);
       instance.resolutionScale = quality.resolutionScale;
       instance.camera.percentageChanged = 0.02;
       return instance;
@@ -590,7 +603,7 @@
       setStatus(`正在加载${config.title || "村庄实景模型"}…`, "loading");
 
       tilesetPromise = (async () => {
-        const quality = getRealityRenderQuality(root.devicePixelRatio);
+        const quality = getRealityRenderQuality(root.devicePixelRatio, root.__REALITY_RENDER_QUALITY);
         const nextTileset = await CesiumRef.Cesium3DTileset.fromIonAssetId(
           config.ionAssetId,
           quality.tilesetOptions
@@ -861,6 +874,7 @@
       if (enterPromise) return enterPromise;
       enterPromise = (async () => {
         if (!viewer) viewer = createViewer();
+        applyRenderActivity(viewer, visible && hostActive);
         if (pendingProxyRecords.length) applyProxyRecords(pendingProxyRecords);
         const terrainTask = terrainEnabled ? setTerrainEnabled(true) : Promise.resolve(false);
         await Promise.allSettled([terrainTask, loadTileset()]);
@@ -899,6 +913,7 @@
 
     return {
       enter,
+      setHostActive,
       show,
       hide,
       toggle,
@@ -919,6 +934,7 @@
     clampPanelSize,
     calculatePanelResize,
     getRealityRenderQuality,
+    applyRenderActivity,
     shouldCreateTerrainProvider,
     resolveImmediateSurfaceHeight,
     resolveRealityTargetHeight,

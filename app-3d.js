@@ -63,7 +63,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR = 6;
   const PERF_RESOLUTION_SCALE_CAP = 1.0;
   const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
-  const REALITY_FOCUS_SETTLE_MS = 850;
   const ENABLE_ION_WORLD_IMAGERY = false;
   const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
   const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
@@ -72,6 +71,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   let viewer = null;
   let initialized = false;
+  let startupCameraKey = null;
+  let startupCameraPending = false;
+  let startupCameraCancelled = false;
+  let startupCameraFocus = null;
   let buildingsDataSource = null;
   let loadedBuildingsSpaceId = null;
   let loadedBuildingRevision = -1;
@@ -97,6 +100,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let groupModelLibrary = null;
   let currentLibraryAssets = [];
   let currentLibraryBinding = null;
+  let entityInfoRevision = 0;
 
   let showReplacementBase = false;
   let showReplacementAnchor = false;
@@ -324,8 +328,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       library.listAssets(scope),
       objectCode ? library.getBinding(scope.spaceId, objectCode) : Promise.resolve(null)
     ]);
-    currentLibraryAssets = assets;
-    currentLibraryBinding = binding;
     return { library, scope, assets, binding };
   }
 
@@ -768,6 +770,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       Cesium,
       config,
       docked: true,
+      hostActive: window.__is3DViewActive !== false,
       panel,
       host: byId("model3dView"),
       container: byId("reality3dContainer"),
@@ -849,7 +852,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       void showEntityInfo(entity)
         .then(() => viewer?.scene.requestRender())
         .catch((error) => console.error("Failed to load 3D building details:", error));
-    }, REALITY_FOCUS_SETTLE_MS);
+    }, 0);
   }
 
   function normalizeCode(value) {
@@ -1083,6 +1086,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function loadText(url) {
+    if (window.__loadDatasetText) return window.__loadDatasetText(url);
     return fetch(url).then((res) => {
       if (!res.ok) throw new Error(`读取文件失败：${url}`);
       return res.text();
@@ -1248,7 +1252,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
     });
   }
 
+  let imageryLoadGeneration = 0;
   async function addViewerImageryLayers(canUseIonServices) {
+    const generation = ++imageryLoadGeneration;
+    const targetViewer = viewer;
+    const loadKey = get3DLoadKey();
+    const isCurrentImagery = () => viewer === targetViewer && !viewer?.isDestroyed?.()
+      && generation === imageryLoadGeneration && get3DLoadKey() === loadKey;
     if (!viewer) return;
 
     viewer.imageryLayers.removeAll();
@@ -1261,9 +1271,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     // Always add a full-globe local base first, so terrain tiles never render with stretched single-tile artifacts.
     try {
       const naturalEarthProvider = await createNaturalEarthBaseProvider();
+      if (!isCurrentImagery()) return;
       naturalEarthLayer = viewer.imageryLayers.addImageryProvider(naturalEarthProvider);
       hasImagery = true;
     } catch (error) {
+      if (!isCurrentImagery()) return;
       console.warn("加载 NaturalEarthII 本地底图失败：", error);
     }
 
@@ -1276,6 +1288,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           ONLINE_RESOURCE_TIMEOUT_MS,
           "在线卫星影像服务响应超时"
         );
+        if (!isCurrentImagery()) return;
         const ionLayer = viewer.imageryLayers.addImageryProvider(provider);
         if (naturalEarthLayer) {
           // Keep local base only as safety net; hide it once Ion imagery is available.
@@ -1285,6 +1298,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         hasImagery = true;
         hasGlobalOnlineImagery = true;
       } catch (error) {
+        if (!isCurrentImagery()) return;
         console.warn("在线卫星底图加载失败：", error?.message || error);
         ionServicesLikelyBlocked = true;
       }
@@ -1318,6 +1332,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           ONLINE_RESOURCE_TIMEOUT_MS,
           "ArcGIS 在线卫星影像服务响应超时"
         );
+        if (!isCurrentImagery()) return;
         const arcGisLayer = viewer.imageryLayers.addImageryProvider(arcGisProvider);
         if (naturalEarthLayer) {
           naturalEarthLayer.show = false;
@@ -1327,6 +1342,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         hasGlobalOnlineImagery = true;
         console.log("ArcGIS 在线卫星影像加载成功");
       } catch (arcGisError) {
+        if (!isCurrentImagery()) return;
         console.warn("ArcGIS 在线卫星影像加载失败：", arcGisError?.message || arcGisError);
       }
     }
@@ -1364,12 +1380,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     try {
       const localProvider = await createSingleTileImageryProvider(georef.imageUrl, localRect);
+      if (!isCurrentImagery()) return;
       const localLayer = viewer.imageryLayers.addImageryProvider(localProvider);
       viewer.imageryLayers.raiseToTop(localLayer);
       // 正射影像只覆盖 world file 所定义的米埗村范围，并始终压在全球底图之上。
       localLayer.alpha = 1.0;
       hasImagery = true;
     } catch (error) {
+      if (!isCurrentImagery()) return;
       console.warn("无法加载本地正射影像，3D 白模将使用纯色地球底图。", error);
     }
 
@@ -2812,11 +2830,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
       if (!code) return;
       const entity = entityMap.get(normalizeCode(code));
       if (!entity) return;
-      pending.push(applyModelStateToEntity(entity, state));
+      pending.push({ entity, state });
     });
 
     if (pending.length) {
-      await Promise.allSettled(pending);
+      await window.EffectiveBuildingFeaturesModule.runBoundedTasks(pending, async ({ entity, state }) => {
+        if (entityMap.get(normalizeCode(entity.__sourceCode)) !== entity) return;
+        await applyModelStateToEntity(entity, state);
+      }, { concurrency: 3, isCurrent: () => getActualLinkedSpaceIdFor3D() === spaceId }).catch(error => console.warn('恢复临时模型失败：', error));
     }
   }
 
@@ -2832,11 +2853,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
         const library = getGroupModelLibrary();
         return { library, bindings: await library.listBindings(linkedSpaceId) };
       }).catch((error) => ({ error }));
+      const isCurrent = () => getActualLinkedSpaceIdFor3D() === linkedSpaceId;
+      const queueOptions = { concurrency: 3, key: item => normalizeCode(item.object_code), isCurrent };
       const edits = await fetchCurrentSpaceAllEdits();
-      for (const item of edits) {
+      if (!isCurrent()) return;
+      await window.EffectiveBuildingFeaturesModule.runBoundedTasks(edits, async (item) => {
         const code = normalizeCode(item.object_code);
         const entity = entityMap.get(code);
-        if (!entity) continue;
+        if (!entity || !isCurrent()) return;
 
         const data = item.data || {};
         const nextHeight = data["建筑高度"] ?? data["房屋高度"] ?? data.height;
@@ -2847,17 +2871,19 @@ const ENABLE_SUPABASE_SYNC = (() => {
         if (!data.modelAssetId) {
           await applyModelStateToEntity(entity, data);
         }
-      }
+      }, queueOptions);
 
       try {
         const result = await bindingsReady;
+        if (!isCurrent()) return;
         if (result.error) throw result.error;
         const { library, bindings } = result;
-        for (const binding of bindings) {
+        await window.EffectiveBuildingFeaturesModule.runBoundedTasks(bindings, async (binding) => {
           const entity = entityMap.get(normalizeCode(binding.object_code));
           const asset = binding.group_model_assets;
-          if (!entity || !asset?.storage_path) continue;
+          if (!entity || !asset?.storage_path || !isCurrent()) return;
           const signedUrl = await library.createSignedUrl(asset);
+          if (!isCurrent() || entityMap.get(normalizeCode(binding.object_code)) !== entity) return;
           const transform = binding.transform || {};
           await applyModelStateToEntity(entity, {
             modelAssetId: binding.asset_id,
@@ -2871,14 +2897,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
             modelOffsetY: transform.offsetY ?? 0,
             modelStretchX: transform.stretchX ?? 1,
             modelStretchY: transform.stretchY ?? 1,
-            modelSnapToBase: "1"
+            modelExpectedHeight: transform.expectedHeight ?? '',
+            modelExpectedLength: transform.expectedLength ?? '',
+            modelExpectedWidth: transform.expectedWidth ?? '',
+            modelSnapToBase: transform.snapToBase === false ? '0' : '1'
           });
-        }
+        }, queueOptions);
       } catch (error) {
         console.warn("恢复空间模型库绑定失败：", error);
       }
     }
 
+    if (getActualLinkedSpaceIdFor3D() !== linkedSpaceId) return;
     await applyRuntimeGeneratedModelsForSpace(linkedSpaceId);
 
     update3DStatusText();
@@ -3047,15 +3077,25 @@ const ENABLE_SUPABASE_SYNC = (() => {
     entityMap.clear();
     terrainHeightCache.clear();
 
-    const mainResources = getMain3DResources();
-    const buildingUrl = mainResources.buildingUrl || GEOJSON_URL;
-    await loadCSVRows(mainResources.buildingUrl ? null : CSV_URL);
-
-    let featureCollection = null;
-
+    const loadKey = get3DLoadKey();
+    const isStartupCamera = startupCameraKey === loadKey;
+    startupCameraFocus = null;
+    if (!isStartupCamera) positionVillageCamera();
+    startupCameraKey = null;
+    const isCurrentLoad = () => get3DLoadKey() === loadKey;
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const linkedSpace = getLinked2DSpaceFor3D();
-    const geojsonText = await loadText(buildingUrl);
+    const mainResources = getMain3DResources();
+    const buildingUrl = mainResources.buildingUrl || GEOJSON_URL;
+    const personalSpace = ["course_personal", "practice_personal", "formal_personal"].includes(linkedSpace?.spaceType);
+    const [, geojsonText, scopedBuildingRows] = await Promise.all([
+      loadCSVRows(mainResources.buildingUrl ? null : CSV_URL),
+      loadText(buildingUrl),
+      personalSpace ? list3DPersonalBuildings(linkedSpaceId) : list3DBuildingsFromDb()
+    ]);
+    if (!isCurrentLoad()) return;
+    let featureCollection = null;
+
     let baseCollection = JSON.parse(geojsonText);
     if (window.VillageDatasetResolverModule?.normalizeFeatureCollection) {
       baseCollection = window.VillageDatasetResolverModule.normalizeFeatureCollection(baseCollection, "building");
@@ -3063,8 +3103,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const resolver = window.EffectiveBuildingFeaturesModule;
     if (!resolver) throw new Error("EFFECTIVE_BUILDING_FEATURES_MODULE_REQUIRED");
 
-    if (["course_personal", "practice_personal", "formal_personal"].includes(linkedSpace?.spaceType)) {
-      const personalRows = await list3DPersonalBuildings(linkedSpaceId);
+    if (personalSpace) {
+      const personalRows = scopedBuildingRows;
       featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
         baseFeatures: baseCollection.features,
         personalRows,
@@ -3072,7 +3112,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         getBaseCode: (feature) => getRoadCodeFromFeatureLike(feature)
       });
     } else {
-      const dbRows = await list3DBuildingsFromDb();
+      const dbRows = scopedBuildingRows;
       featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
         baseFeatures: baseCollection.features,
         dbRows,
@@ -3083,13 +3123,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
       });
     }
 
-    buildingsDataSource = await Cesium.GeoJsonDataSource.load(featureCollection, {
+    if (!isCurrentLoad()) return;
+    const nextBuildingsDataSource = await Cesium.GeoJsonDataSource.load(featureCollection, {
       clampToGround: false,
       stroke: OUTLINE_COLOR,
       fill: BASE_COLOR,
       strokeWidth: 1.2
     });
 
+    if (!isCurrentLoad()) { nextBuildingsDataSource.destroy?.(); return; }
+    buildingsDataSource = nextBuildingsDataSource;
     viewer.dataSources.add(buildingsDataSource);
 
     const entities = buildingsDataSource.entities.values || [];
@@ -3107,8 +3150,20 @@ const ENABLE_SUPABASE_SYNC = (() => {
       entityMap.set(sourceCode, entity);
     });
 
+    if (entities.length && !(isStartupCamera && startupCameraCancelled)) {
+      const focusViewer = viewer;
+      const focusSource = buildingsDataSource;
+      const focus = () => {
+        if (!isCurrentLoad() || viewer !== focusViewer || buildingsDataSource !== focusSource || !is3DViewActive()) return;
+        void focusViewer.flyTo(focusSource, { duration: 0.6, offset: getOverviewCameraOffset() });
+      };
+      if (isStartupCamera && startupCameraPending) startupCameraFocus = focus;
+      else focus();
+    }
     await applyTerrainHeights(entities);
+    if (!isCurrentLoad()) return;
     await applyCurrent3DSpaceToScene();
+    if (!isCurrentLoad()) return;
     const realityController = syncRealityBuildingProxies();
     void realityController?.enter().catch((error) => {
       console.warn("村庄实景模型后台加载失败：", error?.message || error);
@@ -3117,13 +3172,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
     loadedBuildingRevision = Number(window.__buildingGeometryRevision || 0);
     loadRoadsInBackground("after-load-buildings");
 
-    if (entities.length) {
-      viewer.flyTo(buildingsDataSource, {
-        duration: 1.0,
-        offset: getOverviewCameraOffset()
-      });
-    }
-
     viewer.scene.requestRender();
   }
 
@@ -3131,44 +3179,50 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   async function showEntityInfo(entity) {
     const infoPanel = getInfoPanel();
-    if (!infoPanel || !entity) return;
-
+    if (!infoPanel || !entity || !is3DViewActive()) return;
+    const requestId = ++entityInfoRevision;
     const sourceCode = entity.__sourceCode || "";
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const isCurrent = () => requestId === entityInfoRevision
+      && activeEntity === entity && is3DViewActive()
+      && getActualLinkedSpaceIdFor3D() === linkedSpaceId;
     const allowEdit = get3DEditPolicy().canEditModel;
-
     const baseRow = buildBase3DRow(entity);
 
-    let mergedRow = baseRow;
+    // Show the picked object immediately; editing stays unavailable until its
+    // current cloud values arrive, so a stale base row cannot be saved.
+    currentSelectedEntityCode = sourceCode;
+    update3DStatusText();
+    infoPanel.classList.remove("empty");
+    infoPanel.innerHTML = `<div class="info-card" role="status" aria-live="polite">
+      <h3 class="house-title">建筑 ${escapeHtml(sourceCode)}</h3>
+      <p>正在加载建筑属性与模型信息…</p>
+    </div>`;
 
-    try {
-      // Fetch shared fields from 2D namespace
-      const fetchObjectEdits = window.__fetchObjectEdits;
-      const objectType2D = `building__${linkedSpaceId}`;
-      const sharedEditData = fetchObjectEdits
-        ? await fetchObjectEdits(sourceCode, objectType2D)
-        : null;
-
-      // Fetch 3D-specific fields (建筑高度, model state)
-      const editData3D = await fetchSingle3DEdit(sourceCode);
-
-      // Merge: 3D-specific data first, then shared fields override (for synchronization)
-      mergedRow = mergeRow(baseRow, { ...editData3D, ...sharedEditData });
-    } catch (error) {
-      console.warn("Error fetching entity edit data:", error);
-      // Continue with baseRow if fetching fails
+    const fetchObjectEdits = window.__fetchObjectEdits;
+    const [sharedResult, editResult, libraryResult] = await Promise.allSettled([
+      Promise.resolve().then(() => fetchObjectEdits?.(sourceCode, `building__${linkedSpaceId}`) || null),
+      Promise.resolve().then(() => fetchSingle3DEdit(sourceCode)),
+      Promise.resolve().then(() => refreshCurrentModelLibrary(sourceCode))
+    ]);
+    if (!isCurrent()) return;
+    for (const result of [sharedResult, editResult, libraryResult]) {
+      if (result.status === "rejected") console.warn("读取建筑详情失败：", result.reason);
     }
-
-    const runtimeGeneratedState = getRuntimeGeneratedModelState(linkedSpaceId, sourceCode);
-    if (runtimeGeneratedState) {
-      mergedRow = mergeRow(mergedRow, runtimeGeneratedState);
-    }
-
-    {
+    const sharedEditData = sharedResult.status === "fulfilled" ? sharedResult.value : null;
+    const editData3D = editResult.status === "fulfilled" ? editResult.value : null;
+    let mergedRow = mergeRow(baseRow, { ...editData3D, ...sharedEditData });
+    let runtimeGeneratedState = getRuntimeGeneratedModelState(linkedSpaceId, sourceCode);
+    const libraryData = libraryResult.status === "fulfilled" ? libraryResult.value : null;
+    currentLibraryAssets = libraryData?.assets || [];
+    currentLibraryBinding = libraryData?.binding || null;
+    if (libraryData?.binding?.group_model_assets && !runtimeGeneratedState) {
       try {
-        const { library, binding } = await refreshCurrentModelLibrary(sourceCode);
-        if (binding?.group_model_assets) {
-          const signedUrl = await library.createSignedUrl(binding.group_model_assets);
+        const { library, binding } = libraryData;
+        const signedUrl = await library.createSignedUrl(binding.group_model_assets);
+        if (!isCurrent()) return;
+        runtimeGeneratedState = getRuntimeGeneratedModelState(linkedSpaceId, sourceCode);
+        if (!runtimeGeneratedState) {
           const transform = binding.transform || {};
           mergedRow = mergeRow(mergedRow, {
             modelPreset: "",
@@ -3182,24 +3236,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
             modelOffsetX: transform.offsetX ?? mergedRow.modelOffsetX ?? "0",
             modelOffsetY: transform.offsetY ?? mergedRow.modelOffsetY ?? "0",
             modelStretchX: transform.stretchX ?? mergedRow.modelStretchX ?? "1",
-            modelStretchY: transform.stretchY ?? mergedRow.modelStretchY ?? "1"
+            modelStretchY: transform.stretchY ?? mergedRow.modelStretchY ?? "1",
+            modelExpectedHeight: transform.expectedHeight ?? mergedRow.modelExpectedHeight ?? '',
+            modelExpectedLength: transform.expectedLength ?? mergedRow.modelExpectedLength ?? '',
+            modelExpectedWidth: transform.expectedWidth ?? mergedRow.modelExpectedWidth ?? '',
+            modelSnapToBase: transform.snapToBase === false ? '0' : '1'
           });
           await applyModelStateToEntity(entity, mergedRow);
         }
       } catch (error) {
         console.warn("读取小组模型库失败：", error);
-        currentLibraryAssets = [];
-        currentLibraryBinding = null;
       }
     }
-
-    currentSelectedEntityCode = sourceCode;
-    update3DStatusText();
-
-    infoPanel.classList.remove("empty");
+    if (!isCurrent()) return;
+    runtimeGeneratedState = getRuntimeGeneratedModelState(linkedSpaceId, sourceCode);
+    if (runtimeGeneratedState) mergedRow = mergeRow(mergedRow, runtimeGeneratedState);
     infoPanel.innerHTML = `
       ${buildModelReplaceCardHtmlV3(mergedRow, allowEdit)}
-
       <div class="info-card">
         <h3 class="house-title">3D 模型说明</h3>
         <div class="house-row">当前空间：${escapeHtml(linkedSpaceId || "current")}</div>
@@ -3207,7 +3260,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
         <div class="house-row">当前挤出高度：${escapeHtml(String(entity.__buildingHeight ?? DEFAULT_HEIGHT))} m</div>
       </div>
     `;
-
     bindEntityInfoEventsV3(entity, baseRow, allowEdit);
   }
 
@@ -3264,41 +3316,65 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const expectedLength = clampNumber(payload?.modelMetrics?.length, 0.1, 300, NaN);
     const expectedWidth = clampNumber(payload?.modelMetrics?.width, 0.1, 300, NaN);
 
-    const blob = new Blob([glbBuffer], { type: "model/gltf-binary" });
-    const runtimeUrl = URL.createObjectURL(blob);
-
-    const runtimeState = {
-      modelPreset: "",
-      modelUrl: runtimeUrl,
-      modelScale: String(scale),
-      modelHeading: String(heading),
-      modelHeightOffset: String(heightOffset),
-      modelOffsetX: String(offsetX),
-      modelOffsetY: String(offsetY),
-      modelStretchX: String(stretchX),
-      modelStretchY: String(stretchY),
-      modelExpectedHeight: Number.isFinite(expectedHeight) ? String(expectedHeight) : "",
-      modelExpectedLength: Number.isFinite(expectedLength) ? String(expectedLength) : "",
-      modelExpectedWidth: Number.isFinite(expectedWidth) ? String(expectedWidth) : "",
-      modelSnapToBase: snapToBase ? "1" : "0"
+    const respond = (saved, error = '') => {
+      try {
+        event.source?.postMessage({
+          type: 'village-house-generator:model-saved',
+          payload: { requestId: String(payload.requestId || ''), saved, error }
+        }, window.location.origin);
+      } catch (replyError) { console.warn('发送模型保存确认失败：', replyError); }
     };
-
-    setRuntimeGeneratedModelState(targetSpaceId, sourceCode, runtimeState);
-
-    if (targetSpaceId === linkedSpaceId) {
+    try {
+      if (targetSpaceId !== linkedSpaceId) throw new Error('主平台已切换空间，请回到原空间后重新应用模型。');
+      if (!get3DEditPolicy().canEditModel) throw new Error('当前空间没有模型编辑权限。');
+      const scope = getCurrentModelLibraryScope();
+      const library = getGroupModelLibrary();
+      if (scope.spaceId !== targetSpaceId) throw new Error('模型库与目标空间不一致，请重新打开生成器。');
+      const modelName = `正立面建筑-${sourceCode}-${String(payload.presetId || 'generated').slice(0, 60)}`;
+      const file = new File([glbBuffer], `${modelName}.glb`, { type: 'model/gltf-binary' });
+      const transform = {
+        scale, heading, heightOffset, offsetX, offsetY, stretchX, stretchY, snapToBase,
+        expectedHeight: Number.isFinite(expectedHeight) ? expectedHeight : null,
+        expectedLength: Number.isFinite(expectedLength) ? expectedLength : null,
+        expectedWidth: Number.isFinite(expectedWidth) ? expectedWidth : null
+      };
+      const { asset, signedUrl } = await window.GroupModelLibraryModule.uploadAndPlaceModel({
+        library, file, name: modelName, scope, spaceId: targetSpaceId, objectCode: sourceCode, transform
+      });
+      const modelState = {
+        modelPreset: '', modelAssetId: asset.id, modelAssetName: asset.name,
+        modelStoragePath: asset.storage_path, modelUrl: signedUrl,
+        modelScale: String(scale), modelHeading: String(heading), modelHeightOffset: String(heightOffset),
+        modelOffsetX: String(offsetX), modelOffsetY: String(offsetY),
+        modelStretchX: String(stretchX), modelStretchY: String(stretchY),
+        modelExpectedHeight: Number.isFinite(expectedHeight) ? String(expectedHeight) : '',
+        modelExpectedLength: Number.isFinite(expectedLength) ? String(expectedLength) : '',
+        modelExpectedWidth: Number.isFinite(expectedWidth) ? String(expectedWidth) : '',
+        modelSnapToBase: snapToBase ? '1' : '0'
+      };
+      // Storage and the building binding are durable now. Rendering is optional:
+      // a failed Cesium load must not falsely report that saving failed.
+      respond(true);
+      if (getActualLinkedSpaceIdFor3D() !== targetSpaceId) return;
+      setRuntimeGeneratedModelState(targetSpaceId, sourceCode, modelState);
       const entity = entityMap.get(sourceCode);
       if (entity) {
-        await applyModelStateToEntity(entity, runtimeState);
-
-        if (activeEntity && normalizeCode(activeEntity.__sourceCode) === sourceCode) {
-          await showEntityInfo(entity);
-          const statusEl = byId("applyModelPresetStatus");
-          if (statusEl) statusEl.textContent = "已接收生成模型，白模已替换。";
-        }
+        if (activeEntity === entity) entityInfoRevision += 1;
+        try {
+          await applyModelStateToEntity(entity, modelState);
+          if (getActualLinkedSpaceIdFor3D() !== targetSpaceId) return;
+          if (activeEntity === entity) {
+            await showEntityInfo(entity);
+            const statusEl = byId('applyModelPresetStatus');
+            if (statusEl) statusEl.textContent = '模型已保存并绑定当前建筑，刷新后会从模型库恢复。';
+          }
+        } catch (renderError) { console.warn('模型已保存，当前场景加载失败：', renderError); }
       }
+      viewer?.scene.requestRender();
+    } catch (error) {
+      console.error('保存生成建筑模型失败：', error);
+      respond(false, String(error?.message || error));
     }
-
-    viewer?.scene.requestRender();
   }
 
   async function fetchHouseGeneratorPhotoMaterials(sourceCode, spaceId) {
@@ -3515,9 +3591,29 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const getCurrentMergedRow = async () => {
       const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+      const binding = currentLibraryBinding?.space_id === linkedSpaceId
+        && normalizeCode(currentLibraryBinding.object_code) === normalizeCode(entity.__sourceCode)
+        ? currentLibraryBinding : null;
       const existingEditData = (await fetchSingle3DEdit(entity.__sourceCode)) || {};
-      const baseMerged = { ...(baseRow || {}), ...existingEditData };
+      let baseMerged = { ...(baseRow || {}), ...existingEditData };
       const runtimeState = getRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+      if (!runtimeState && binding?.group_model_assets?.storage_path) {
+        const transform = binding.transform || {};
+        baseMerged = mergeRow(baseMerged, {
+          modelPreset: '', modelAssetId: binding.asset_id,
+          modelAssetName: binding.group_model_assets.name,
+          modelStoragePath: binding.group_model_assets.storage_path,
+          modelUrl: await getGroupModelLibrary().createSignedUrl(binding.group_model_assets),
+          modelScale: transform.scale ?? 1, modelHeading: transform.heading ?? 0,
+          modelHeightOffset: transform.heightOffset ?? 0,
+          modelOffsetX: transform.offsetX ?? 0, modelOffsetY: transform.offsetY ?? 0,
+          modelStretchX: transform.stretchX ?? 1, modelStretchY: transform.stretchY ?? 1,
+          modelExpectedHeight: transform.expectedHeight ?? '',
+          modelExpectedLength: transform.expectedLength ?? '',
+          modelExpectedWidth: transform.expectedWidth ?? '',
+          modelSnapToBase: transform.snapToBase === false ? '0' : '1'
+        });
+      }
       return {
         linkedSpaceId,
         runtimeState,
@@ -3548,6 +3644,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
               spaceId: linkedSpaceId,
               objectCode: entity.__sourceCode,
               transform: {
+                ...(currentLibraryBinding.transform || {}),
                 scale: payload.modelScale,
                 heading: payload.modelHeading,
                 heightOffset: payload.modelHeightOffset,
@@ -3557,6 +3654,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
                 stretchY: payload.modelStretchY
               }
             });
+            if (runtimeState) setRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode, payload);
           } else if (runtimeState) {
             setRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode, payload);
           } else {
@@ -4028,6 +4126,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   }
 
+  function positionVillageCamera({ duration = 0, complete, cancel } = {}) {
+    if (!viewer) return;
+    const extent = getMain3DResources().initialExtent;
+    const georef = Array.isArray(extent) && extent.length === 4
+      ? { minX: extent[0], minY: extent[1], maxX: extent[2], maxY: extent[3] }
+      : getBasemapGeoref();
+    const camera = window.Village3DConfigModule.resolveVillageCamera([georef.minX, georef.minY, georef.maxX, georef.maxY]);
+    const center = Cesium.Cartesian3.fromDegrees(camera.centerLongitude, camera.centerLatitude);
+    viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(center, 100), {
+      offset: new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(camera.headingDegrees),
+        Cesium.Math.toRadians(camera.pitchDegrees), camera.range),
+      duration, complete, cancel
+    });
+    viewer.scene.requestRender();
+  }
+
   async function initViewer() {
     if (initialized) return;
 
@@ -4070,6 +4185,20 @@ const ENABLE_SUPABASE_SYNC = (() => {
     };
 
     viewer = new Cesium.Viewer("cesiumContainer", viewerOptions);
+    viewer.scene.requestRender();
+    await new Promise(resolve => (window.requestAnimationFrame || (fn => window.setTimeout(fn, 0)))(resolve));
+    startupCameraKey = get3DLoadKey();
+    startupCameraPending = true;
+    startupCameraCancelled = false;
+    positionVillageCamera({ duration: 0.65,
+      complete: () => {
+        startupCameraPending = false;
+        const focus = startupCameraFocus;
+        startupCameraFocus = null;
+        focus?.();
+      },
+      cancel: () => { startupCameraPending = false; startupCameraCancelled = true; startupCameraFocus = null; }
+    });
     viewer.scene.renderError.addEventListener((scene, error) => {
       console.error("[Cesium renderError]", error);
     });
@@ -4104,10 +4233,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     bindClickEvents();
     ensureRealityInsetController();
     initialized = true;
+    setRenderActive(window.__is3DViewActive !== false);
   }
 
   async function enter() {
     await initViewer();
+    setRenderActive(window.__is3DViewActive !== false);
     bindHouseGeneratorMessageBridge();
 
     const linkedSpaceId = get3DLoadKey();
@@ -4171,7 +4302,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
       || { ...FALLBACK_BASEMAP_GEOREF };
     basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
     const canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
-    await addViewerImageryLayers(canUseIonServices);
+    positionVillageCamera();
+    void addViewerImageryLayers(canUseIonServices).catch(error => {
+      console.warn("后台刷新 3D 影像图层失败：", error?.message || error);
+    });
     await loadBuildings();
     
     if (savedSelectedCode && entityMap.has(normalizeCode(savedSelectedCode))) {
@@ -4269,6 +4403,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   function getViewer() {
     return viewer;
+  }
+
+  function setRenderActive(active) {
+    window.VillageRealityInsetModule?.applyRenderActivity?.(viewer, active);
+    realityInsetController?.setHostActive?.(active);
   }
 
   function setRealityInsetVisible(visible) {
@@ -4372,6 +4511,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     toggleMeasureMode,
     recenter,
     getViewer,
+    setRenderActive,
     setRealityInsetVisible,
     isRealityInsetVisible,
     focusSceneBoundary,

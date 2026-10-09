@@ -1,0 +1,4380 @@
+(function () {
+  const GEOJSON_URL = "data/buildings.geojson";
+  const ROAD_GEOJSON_URL = "data/roads.geojson";
+  const CSV_URL = "data/houses.csv";
+
+  const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
+// 默认开启 Supabase；如需临时切回纯本地模式，可将 village_enable_supabase 设为 "false"。
+const ENABLE_SUPABASE_SYNC = (() => {
+  try {
+    return localStorage.getItem("village_enable_supabase") !== "false";
+  } catch (_) {
+    return true;
+  }
+})();
+  const OBJECT_EDITS_TABLE = "object_attribute_edits";
+  const OBJECT_PHOTOS_TABLE = "object_photos";
+  const PLANNING_FEATURES_TABLE = "planning_features";
+  const MODEL_BASE_SPACE_ID = "current_3d";
+  const MODEL_BASE_OBJECT_TYPE = "building_3d";
+
+  const CODE_FIELDS = ["房屋编码", "编码", "CODE", "Code", "code", "ID", "id", "NAME", "Name", "name"];
+  const NAME_FIELDS = ["房屋名称", "名称", "NAME", "Name", "name"];
+  const YEAR_FIELDS = ["建成年代", "年代", "year", "YEAR", "Year"];
+  const AREA_FIELDS = ["占地面积", "面积", "建筑面积", "area", "AREA", "Area"];
+  const FUNCTION_FIELDS = ["房屋功能信息", "房屋功能", "功能", "function", "FUNCTION"];
+  const STRUCTURE_FIELDS = ["房屋结构信息", "房屋结构", "结构", "structure", "STRUCTURE"];
+  const OWNER_FIELDS = ["户主信息", "户主", "owner", "OWNER", "Owner"];
+  const HEIGHT_FIELDS = ["建筑高度", "房屋高度", "height", "HEIGHT", "Height", "H", "h", "floors", "楼层", "层数"];
+
+  const DEFAULT_HEIGHT = 9;
+
+  const MODEL_EDITABLE_FIELDS = [
+    { key: "房屋编码", label: "房屋编码", type: "text" },
+    { key: "户主信息", label: "户主信息", type: "text" },
+    { key: "建成年代", label: "建成年代", type: "text" },
+    { key: "房屋结构信息", label: "房屋结构", type: "text" },
+    { key: "占地面积", label: "占地面积", type: "number", step: "0.01", suffix: "㎡" },
+    { key: "建筑高度", label: "建筑高度", type: "number", step: "0.01", suffix: "m" }
+  ];
+
+  const MODEL_SCALE_BASE = 0.1;
+  const HOUSE_GENERATOR_MESSAGE_TYPE = "village-house-generator:model-ready";
+  const HOUSE_GENERATOR_PHOTO_REQUEST_TYPE = "village-house-generator:request-photo-materials";
+  const HOUSE_GENERATOR_PHOTO_RESPONSE_TYPE = "village-house-generator:photo-materials";
+  const HOUSE_GENERATOR_FACADE_CONTEXT_TYPE = "village-house-generator:facade-context";
+  const HOUSE_GENERATOR_PHOTO_UPLOAD_REQUEST_TYPE = "village-house-generator:upload-photo";
+  const HOUSE_GENERATOR_PHOTO_UPLOAD_RESPONSE_TYPE = "village-house-generator:photo-uploaded";
+  const HOUSE_GENERATOR_DEFAULT_SCALE = 10;
+
+  const BASE_COLOR = Cesium.Color.WHITE.withAlpha(0.92);
+  const OUTLINE_COLOR = Cesium.Color.fromCssColorString("#c5ccd3");
+  const ACTIVE_COLOR = Cesium.Color.fromCssColorString("#90caf9").withAlpha(0.72);
+  const ACTIVE_OUTLINE_COLOR = Cesium.Color.fromCssColorString("#1565c0");
+  const REPLACED_BASE_COLOR = Cesium.Color.fromCssColorString("#90caf9").withAlpha(0.35);
+  const REPLACED_OUTLINE_COLOR = Cesium.Color.fromCssColorString("#1565c0");
+
+  // Initial 3D overview camera preset (global village view)
+  const OVERVIEW_CAMERA_HEADING_DEG = 10;
+  const OVERVIEW_CAMERA_PITCH_DEG = -52;
+  const OVERVIEW_CAMERA_RANGE = 780;
+  // 3D performance profile: keep interaction smooth on common laptops
+  const PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR = 6;
+  const PERF_RESOLUTION_SCALE_CAP = 1.0;
+  const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
+  const REALITY_FOCUS_SETTLE_MS = 850;
+  const ENABLE_ION_WORLD_IMAGERY = false;
+  const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
+  const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
+
+  const supabaseClient = window.VillageSupabaseClient || null;
+
+  let viewer = null;
+  let initialized = false;
+  let buildingsDataSource = null;
+  let loadedBuildingsSpaceId = null;
+  let loadedBuildingRevision = -1;
+  let roadsDataSource = null;
+  let roadEntitiesForWidthSync = [];
+  let clickHandler = null;
+  let roadWidthSyncRaf = 0;
+  let roadsLoadTask = null;
+  let roadsLoadToken = 0;
+  let ionServicesLikelyBlocked = false;
+  const terrainHeightCache = new Map();
+
+  let csvRows = [];
+  let rowMap = new Map();
+  let entityMap = new Map();
+  let replacementModelMap = new Map();
+  let replacementRequestTokenMap = new Map();
+  let runtimeGeneratedModelStateMap = new Map();
+  let runtimeGeneratedBlobUrlMap = new Map();
+  let activeEntity = null;
+  let houseGeneratorMessageBound = false;
+  let houseGeneratorMessageHandler = null;
+  let groupModelLibrary = null;
+  let currentLibraryAssets = [];
+  let currentLibraryBinding = null;
+
+  let showReplacementBase = false;
+  let showReplacementAnchor = false;
+
+  let currentInfoMode = "readonly";
+  let currentSelectedEntityCode = "";
+  let measureModeActive = false;
+  let measurePoints = [];
+  let measurePointEntities = [];
+  let measureLineEntity = null;
+  let measureLabelEntity = null;
+  let realityInsetController = null;
+  let realityInsetRevision = "";
+  let realitySelectionSyncing = false;
+  let deferredEntityInfoTimer = 0;
+
+  const FALLBACK_BASEMAP_GEOREF = {
+    imageUrl: "assets/orthophoto.webp",
+    minX: 113.65748461603198,
+    minY: 23.674477657916892,
+    maxX: 113.67092900422122,
+    maxY: 23.68110466469279
+  };
+  const FALLBACK_CONTEXT_BASEMAP_GEOREF = {
+    imageUrl: "assets/orthophoto_context.webp",
+    minX: 113.65782290370727,
+    minY: 23.673953510049095,
+    maxX: 113.66956512219454,
+    maxY: 23.680616048049092
+  };
+  let activeBasemapGeoref = null;
+  let basemapGeorefResolvePromise = null;
+  let activeContextBasemapGeoref = null;
+  let contextBasemapGeorefResolvePromise = null;
+
+  function normalizeBasemapGeoref(candidate) {
+    if (!candidate || typeof candidate !== "object") return null;
+
+    const minX = Number(candidate.minX);
+    const minY = Number(candidate.minY);
+    const maxX = Number(candidate.maxX);
+    const maxY = Number(candidate.maxY);
+    if (![minX, minY, maxX, maxY].every((v) => Number.isFinite(v))) return null;
+
+    return {
+      imageUrl: candidate.imageUrl || FALLBACK_BASEMAP_GEOREF.imageUrl,
+      minX,
+      minY,
+      maxX,
+      maxY
+    };
+  }
+
+  function getWorldFileUrl(imageUrl) {
+    if (!imageUrl || typeof imageUrl !== "string") return "";
+    return imageUrl.replace(/\.[^.]+$/i, ".pgw");
+  }
+
+  function loadImageSize(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => reject(new Error(`无法读取底图尺寸：${url}`));
+      img.src = url;
+    });
+  }
+
+  async function tryResolveBasemapGeorefFromWorldFile(imageUrl) {
+    const worldUrl = getWorldFileUrl(imageUrl);
+    if (!worldUrl) return null;
+
+    try {
+      const [worldText, size] = await Promise.all([
+        fetch(worldUrl).then((res) => {
+          if (!res.ok) throw new Error(`读取 world file 失败：${worldUrl}`);
+          return res.text();
+        }),
+        loadImageSize(imageUrl)
+      ]);
+
+      const rows = worldText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (rows.length < 6) {
+        throw new Error("world file 行数不足（需要 6 行）");
+      }
+
+      const A = Number(rows[0]);
+      const D = Number(rows[1]);
+      const B = Number(rows[2]);
+      const E = Number(rows[3]);
+      const C = Number(rows[4]);
+      const F = Number(rows[5]);
+
+      if (![A, B, C, D, E, F].every((v) => Number.isFinite(v))) {
+        throw new Error("world file 存在非数字参数");
+      }
+
+      if (Math.abs(B) > 1e-12 || Math.abs(D) > 1e-12) {
+        console.warn("检测到旋转 world file，3D 暂不支持旋转参数，已回退到非解析范围。");
+        return null;
+      }
+
+      const minX = C - A / 2;
+      const maxY = F - E / 2;
+      const maxX = minX + A * size.width;
+      const minY = maxY + E * size.height;
+
+      return {
+        imageUrl,
+        minX: Math.min(minX, maxX),
+        minY: Math.min(minY, maxY),
+        maxX: Math.max(minX, maxX),
+        maxY: Math.max(minY, maxY)
+      };
+    } catch (error) {
+      console.warn("3D 读取 orthophoto.pgw 失败，已回退到底图默认范围。", error);
+      return null;
+    }
+  }
+
+  async function ensureBasemapGeorefResolved() {
+    if (basemapGeorefResolvePromise) return basemapGeorefResolvePromise;
+
+    basemapGeorefResolvePromise = (async () => {
+      const candidate = normalizeBasemapGeoref(window.__BASEMAP_GEOREF);
+      const base = candidate || { ...FALLBACK_BASEMAP_GEOREF };
+      const resolved = await tryResolveBasemapGeorefFromWorldFile(base.imageUrl);
+      activeBasemapGeoref = resolved || base;
+      window.__BASEMAP_GEOREF = { ...activeBasemapGeoref };
+      return activeBasemapGeoref;
+    })();
+
+    return basemapGeorefResolvePromise;
+  }
+
+  async function ensureContextBasemapGeorefResolved() {
+    if (contextBasemapGeorefResolvePromise) return contextBasemapGeorefResolvePromise;
+
+    contextBasemapGeorefResolvePromise = (async () => {
+      const resolved = await tryResolveBasemapGeorefFromWorldFile(FALLBACK_CONTEXT_BASEMAP_GEOREF.imageUrl);
+      activeContextBasemapGeoref = resolved || { ...FALLBACK_CONTEXT_BASEMAP_GEOREF };
+      return activeContextBasemapGeoref;
+    })();
+
+    return contextBasemapGeorefResolvePromise;
+  }
+
+  function getBasemapGeoref() {
+    return normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
+      || activeBasemapGeoref
+      || { ...FALLBACK_BASEMAP_GEOREF };
+  }
+
+  function getContextBasemapGeoref() {
+    return activeContextBasemapGeoref || { ...FALLBACK_CONTEXT_BASEMAP_GEOREF };
+  }
+
+  function getLinked2DSpaceIdFor3D() {
+    return window.__active2DSpaceId || "current";
+  }
+
+  function getLinked2DSpaceFor3D() {
+    const spaceId = getLinked2DSpaceIdFor3D();
+    const spaces = typeof window.__get2DSpaces === "function" ? window.__get2DSpaces() : [];
+    return spaces.find((space) => String(space?.id) === String(spaceId)) || { id: spaceId };
+  }
+
+  function getActualLinkedSpaceIdFor3D() {
+    const space = getLinked2DSpaceFor3D();
+    return String(space?.actualSpaceId || space?.id || getLinked2DSpaceIdFor3D());
+  }
+
+  function get3DEditPolicy() {
+    const space = getLinked2DSpaceFor3D();
+    return window.ThreeDEditPolicyModule?.resolve3DEditPolicy({
+      space,
+      isAdmin: Boolean(window.__isAdmin3DActor?.()),
+      canManage: Boolean(window.__canManageActive3DSpace?.())
+    }) || {
+      actualSpaceId: getActualLinkedSpaceIdFor3D(),
+      canEditModel: false
+    };
+  }
+
+  function getActiveVillage3DContext() {
+    return window.__activeVillageContext || {};
+  }
+
+  function getMain3DResources() {
+    return window.Village3DConfigModule?.buildMain3dResources(
+      getActiveVillage3DContext().datasetResources || {}
+    ) || {};
+  }
+
+  function get3DLoadKey() {
+    const context = getActiveVillage3DContext();
+    return [context.teachingProjectId, context.villageId, getActualLinkedSpaceIdFor3D()].join("::");
+  }
+
+  function getGroupModelLibrary() {
+    if (groupModelLibrary) return groupModelLibrary;
+    if (!window.GroupModelLibraryModule) throw new Error("小组模型库模块未加载。");
+    groupModelLibrary = window.GroupModelLibraryModule.createGroupModelLibrary({
+      client: supabaseClient,
+      bucket: "group-models"
+    });
+    return groupModelLibrary;
+  }
+
+  function getCurrentModelLibraryScope() {
+    const space = getLinked2DSpaceFor3D();
+    return window.GroupModelLibraryModule.resolveLibraryScope({
+      space: { ...space, id: getActualLinkedSpaceIdFor3D() },
+      user: window.VillageAuth?.getCurrentUser?.() || null
+    });
+  }
+
+  async function refreshCurrentModelLibrary(objectCode) {
+    const library = getGroupModelLibrary();
+    const scope = getCurrentModelLibraryScope();
+    const [assets, binding] = await Promise.all([
+      library.listAssets(scope),
+      objectCode ? library.getBinding(scope.spaceId, objectCode) : Promise.resolve(null)
+    ]);
+    currentLibraryAssets = assets;
+    currentLibraryBinding = binding;
+    return { library, scope, assets, binding };
+  }
+
+  function makeDbBuildingFeatureCollection(rows) {
+    return {
+      type: "FeatureCollection",
+      features: rows.map((row) => ({
+        type: "Feature",
+        properties: {
+          房屋编码: row.object_code,
+          房屋名称: row.object_name || row.object_code,
+          ...(row.props || {})
+        },
+        geometry: row.geom
+      }))
+    };
+  }
+
+  function makeDbRoadFeatureCollection(rows) {
+    const isRenderableRoadGeometry = (geometry) => {
+      if (!geometry || typeof geometry !== "object") return false;
+      const type = geometry.type;
+      const coords = geometry.coordinates;
+      if (!type || !Array.isArray(coords)) return false;
+      if (type === "LineString") return coords.length >= 2;
+      if (type === "MultiLineString") {
+        return coords.some((line) => Array.isArray(line) && line.length >= 2);
+      }
+      if (type === "Polygon") {
+        return coords.some((ring) => Array.isArray(ring) && ring.length >= 4);
+      }
+      if (type === "MultiPolygon") {
+        return coords.some(
+          (poly) => Array.isArray(poly) && poly.some((ring) => Array.isArray(ring) && ring.length >= 4)
+        );
+      }
+      return false;
+    };
+
+    return {
+      type: "FeatureCollection",
+      features: rows
+        .filter((row) => row && isRenderableRoadGeometry(row.geom))
+        .map((row) => ({
+          type: "Feature",
+          properties: {
+            道路编码: row.object_code,
+            道路名称: row.object_name || row.object_code,
+            ...(row.props || {})
+          },
+          geometry: row.geom
+        }))
+    };
+  }
+
+  function getRoadCodeFromFeatureLike(featureLike) {
+    const props = featureLike?.properties || {};
+    const code =
+      props["道路编码"] ??
+      props["ROAD_CODE"] ??
+      props["road_code"] ??
+      props["osm_id"] ??
+      props["id"] ??
+      props["ID"] ??
+      props["NAME"] ??
+      props["name"] ??
+      props["Code"] ??
+      props["code"] ??
+      "";
+    return normalizeCode(code);
+  }
+
+  function getFeatureGeometryTypeStats(features) {
+    const stats = {};
+    (features || []).forEach((f) => {
+      const type = f?.geometry?.type || "Unknown";
+      stats[type] = (stats[type] || 0) + 1;
+    });
+    return stats;
+  }
+
+  async function list3DBuildingsFromDb() {
+    if (!supabaseClient) return [];
+
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId: linkedSpaceId });
+      return rows.filter((row) => row?.layer_key === "building");
+    }
+    let query = supabaseClient
+      .from(PLANNING_FEATURES_TABLE)
+      .select("*")
+      .eq("space_id", linkedSpaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
+      .eq("layer_key", "building")
+      .order("object_code", { ascending: true });
+
+    if (error) {
+      console.warn("3D 读取数据库建筑失败：", error);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async function list3DPersonalBuildings(spaceId) {
+    if (!supabaseClient) return [];
+    const { data: selections, error: selectionError } = await supabaseClient
+      .from("personal_layer_selections")
+      .select("current_version_id")
+      .eq("space_id", spaceId)
+      .eq("layer_key", "building")
+      .limit(1);
+    if (selectionError) throw selectionError;
+    const versionId = selections?.[0]?.current_version_id;
+    if (!versionId) return [];
+    const { data, error } = await supabaseClient
+      .from("personal_layer_features")
+      .select("*")
+      .eq("space_id", spaceId)
+      .eq("layer_version_id", versionId)
+      .eq("layer_key", "building")
+      .eq("is_deleted", false)
+      .order("object_code", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function list3DRoadsFromDb() {
+    if (!supabaseClient) return [];
+
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId: linkedSpaceId });
+      return rows.filter((row) => row?.layer_key === "road");
+    }
+    let query = supabaseClient
+      .from(PLANNING_FEATURES_TABLE)
+      .select("*")
+      .eq("space_id", linkedSpaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
+      .eq("layer_key", "road")
+      .or("is_deleted.is.null,is_deleted.eq.false")
+      .order("object_code", { ascending: true });
+
+    if (error) {
+      console.warn("3D 读取数据库道路失败：", error);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async function hasAny3DBuildingRowsForSpace(spaceId) {
+    if (!supabaseClient) return false;
+    const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId });
+      return rows.some((row) => row?.layer_key === "building");
+    }
+    let query = supabaseClient
+      .from(PLANNING_FEATURES_TABLE)
+      .select("id")
+      .eq("space_id", spaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
+      .eq("layer_key", "building")
+      .or("is_deleted.is.null,is_deleted.eq.false")
+      .limit(1);
+
+    if (error) {
+      console.warn("Failed to check whether 3D building rows are initialized:", error);
+      return false;
+    }
+
+    return Array.isArray(data) && data.length > 0;
+  }
+
+  async function hasAny3DRoadRowsForSpace(spaceId) {
+    if (!supabaseClient) return false;
+    const context = getActiveVillage3DContext();
+    if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
+      const rows = await window.__loadResolvedGroupPlan({ ...context, spaceId });
+      return rows.some((row) => row?.layer_key === "road");
+    }
+    let query = supabaseClient
+      .from(PLANNING_FEATURES_TABLE)
+      .select("id")
+      .eq("space_id", spaceId);
+    if (window.Village3DConfigModule?.hasCompleteVillageContext(context)) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId);
+    }
+    const { data, error } = await query
+      .eq("layer_key", "road")
+      .or("is_deleted.is.null,is_deleted.eq.false")
+      .limit(1);
+
+    if (error) {
+      console.warn("Failed to check whether 3D road rows are initialized:", error);
+      return false;
+    }
+
+    return Array.isArray(data) && data.length > 0;
+  }
+  
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function formatDistanceText(distanceMeters) {
+    const n = Number(distanceMeters);
+    if (!Number.isFinite(n) || n <= 0) return "0 m";
+    if (n >= 1000) return `${(n / 1000).toFixed(2)} km`;
+    return `${n.toFixed(1)} m`;
+  }
+
+  function set3DMeasureReadout(message = "", visible = false) {
+    const el = byId("measure3dReadout");
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle("show", !!visible);
+  }
+
+  function clear3DMeasureGraphics() {
+    if (!viewer) return;
+
+    measurePointEntities.forEach((entity) => {
+      try {
+        viewer.entities.remove(entity);
+      } catch (_) {
+      }
+    });
+    measurePointEntities = [];
+
+    if (measureLineEntity) {
+      try {
+        viewer.entities.remove(measureLineEntity);
+      } catch (_) {
+      }
+      measureLineEntity = null;
+    }
+
+    if (measureLabelEntity) {
+      try {
+        viewer.entities.remove(measureLabelEntity);
+      } catch (_) {
+      }
+      measureLabelEntity = null;
+    }
+  }
+
+  function getMeasurePickPosition(screenPosition) {
+    if (!viewer || !screenPosition) return null;
+    const scene = viewer.scene;
+
+    let picked = null;
+    if (scene.pickPositionSupported) {
+      try {
+        picked = scene.pickPosition(screenPosition);
+      } catch (_) {
+        picked = null;
+      }
+    }
+    if (Cesium.defined(picked)) return picked;
+
+    try {
+      return viewer.camera.pickEllipsoid(screenPosition, scene.globe.ellipsoid);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function calc3DMeasureDistanceMeters(points) {
+    if (!Array.isArray(points) || points.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < points.length; i += 1) {
+      total += Cesium.Cartesian3.distance(points[i - 1], points[i]);
+    }
+    return total;
+  }
+
+  function refresh3DMeasureEntities() {
+    if (!viewer || measurePoints.length < 1) return;
+
+    clear3DMeasureGraphics();
+
+    measurePointEntities = measurePoints.map((p) => viewer.entities.add({
+      position: p,
+      point: {
+        pixelSize: 8,
+        color: Cesium.Color.fromCssColorString("#f59e0b"),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    }));
+
+    if (measurePoints.length >= 2) {
+      measureLineEntity = viewer.entities.add({
+        polyline: {
+          positions: measurePoints.slice(),
+          width: 3,
+          material: Cesium.Color.fromCssColorString("#f59e0b"),
+          clampToGround: false
+        }
+      });
+    }
+
+    const totalMeters = calc3DMeasureDistanceMeters(measurePoints);
+    const latest = measurePoints[measurePoints.length - 1];
+    measureLabelEntity = viewer.entities.add({
+      position: latest,
+      label: {
+        text: `总长 ${formatDistanceText(totalMeters)}`,
+        font: "14px sans-serif",
+        fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK.withAlpha(0.85),
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -26),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        showBackground: true,
+        backgroundColor: Cesium.Color.fromCssColorString("rgba(31,53,82,0.8)")
+      }
+    });
+
+    set3DMeasureReadout(`总长：${formatDistanceText(totalMeters)}`, true);
+    viewer.scene.requestRender();
+  }
+
+  function handle3DMeasureClick(screenPosition) {
+    const pos = getMeasurePickPosition(screenPosition);
+    if (!pos) {
+      set3DMeasureReadout("未获取到地面点，请重新点击", true);
+      return;
+    }
+    measurePoints.push(pos);
+    refresh3DMeasureEntities();
+  }
+
+  function toggleMeasureMode(force = null) {
+    const next = force === null ? !measureModeActive : !!force;
+    const btn = byId("measure3dBtn");
+
+    if (!next) {
+      measureModeActive = false;
+      measurePoints = [];
+      clear3DMeasureGraphics();
+      set3DMeasureReadout("", false);
+      btn?.classList.remove("is-active");
+      viewer?.scene.requestRender();
+      return false;
+    }
+
+    measureModeActive = true;
+    measurePoints = [];
+    clear3DMeasureGraphics();
+    btn?.classList.add("is-active");
+    set3DMeasureReadout("测量中：左键逐点，双击结束", true);
+    viewer?.scene.requestRender();
+    return true;
+  }
+
+  function getInfoPanel() {
+    return byId("infoPanel");
+  }
+
+  function getStatusBadge() {
+    return byId("statusBadge");
+  }
+
+  function getDetailSubtitle() {
+    return byId("detailSubtitle");
+  }
+
+  function is3DViewActive() {
+    const view = byId("model3dView");
+    return !!(view && view.classList.contains("active"));
+  }
+
+  function get3DHintEl() {
+    return byId("model3dHint");
+  }
+
+  function set3DHintText(message) {
+    const hintEl = get3DHintEl();
+    if (!hintEl) return;
+    hintEl.textContent = String(message || "").trim() || DEFAULT_3D_HINT_TEXT;
+  }
+
+  async function selectMainBuildingFromReality(sourceCode) {
+    if (realitySelectionSyncing) return false;
+    const entity = entityMap.get(normalizeCode(sourceCode));
+    if (!entity?.polygon) return false;
+
+    realitySelectionSyncing = true;
+    try {
+      setActiveEntity(entity);
+      await showEntityInfo(entity);
+      viewer?.scene.requestRender();
+      return true;
+    } finally {
+      realitySelectionSyncing = false;
+    }
+  }
+
+  function ensureRealityInsetController() {
+    const moduleApi = window.VillageRealityInsetModule;
+    if (!moduleApi || typeof moduleApi.createController !== "function") return null;
+
+    const context = getActiveVillage3DContext();
+    const config = window.Village3DConfigModule?.resolveRealityConfigForContext(context)
+      || moduleApi.normalizeConfig(context.village?.realityModel || context.datasetResources?.realityModel || null);
+    const nextRevision = `${context.villageId || ""}::${config.revision || config.ionAssetId || "none"}`;
+    if (realityInsetController && realityInsetRevision === nextRevision) return realityInsetController;
+    realityInsetController?.destroy?.();
+    realityInsetController = null;
+    realityInsetRevision = nextRevision;
+
+    const panel = byId("reality3dPanel");
+    realityInsetController = moduleApi.createController({
+      Cesium,
+      config,
+      docked: true,
+      panel,
+      host: byId("model3dView"),
+      container: byId("reality3dContainer"),
+      statusEl: byId("reality3dStatus"),
+      titleEl: byId("reality3dTitle"),
+      titlebar: byId("reality3dTitlebar"),
+      toggleButton: byId("reality3dToggleBtn"),
+      expandButton: byId("reality3dExpandBtn"),
+      resizeHandle: byId("reality3dResizeHandle"),
+      fullscreenButton: byId("reality3dFullscreenBtn"),
+      resetButton: byId("reality3dResetBtn"),
+      terrainButton: byId("reality3dTerrainBtn"),
+      closeButton: byId("reality3dCloseBtn"),
+      retryButton: byId("reality3dRetryBtn"),
+      onBuildingSelected: (sourceCode) => {
+        void selectMainBuildingFromReality(sourceCode);
+      }
+    });
+    return realityInsetController;
+  }
+
+  function buildRealityProxyRecords() {
+    const now = Cesium.JulianDate.now();
+    const records = [];
+    entityMap.forEach((entity, code) => {
+      if (!entity?.polygon?.hierarchy) return;
+      const hierarchy = entity.polygon.hierarchy.getValue(now);
+      const positions = (hierarchy?.positions || []).map((position) =>
+        Cesium.Cartesian3.clone(position)
+      );
+      if (positions.length < 3) return;
+      const center = getEntityCenterCartographic(entity);
+      if (!center) return;
+      const footprint = getEntityFootprintSizeMeters(
+        entity,
+        estimateEntityFootprintHeadingDeg(entity)
+      );
+      const horizontalRadius = footprint
+        ? Math.hypot(footprint.sizeX, footprint.sizeY) / 2
+        : 6;
+      records.push({
+        code,
+        name: getEntityDisplayName(entity, code),
+        positions,
+        longitude: center.longitude,
+        latitude: center.latitude,
+        horizontalRadius: Number.isFinite(horizontalRadius)
+          ? Math.max(1, horizontalRadius)
+          : 6,
+        baseHeight: Number.isFinite(entity.__terrainHeight) ? entity.__terrainHeight : 0,
+        height: Number.isFinite(entity.__buildingHeight) ? entity.__buildingHeight : DEFAULT_HEIGHT
+      });
+    });
+    return records;
+  }
+
+  function syncRealityBuildingProxies() {
+    const controller = ensureRealityInsetController();
+    controller?.syncBuildingProxies(buildRealityProxyRecords());
+    return controller;
+  }
+
+  function focusRealityBuilding(entity) {
+    if (realitySelectionSyncing || !entity?.__sourceCode) return;
+    const controller = ensureRealityInsetController();
+    void controller?.focusBuilding(entity.__sourceCode);
+  }
+
+  function scheduleEntityInfoAfterRealityFocus(entity) {
+    if (deferredEntityInfoTimer) {
+      window.clearTimeout(deferredEntityInfoTimer);
+    }
+
+    const sourceCode = normalizeCode(entity?.__sourceCode);
+    deferredEntityInfoTimer = window.setTimeout(() => {
+      deferredEntityInfoTimer = 0;
+      if (!sourceCode || normalizeCode(activeEntity?.__sourceCode) !== sourceCode) return;
+
+      void showEntityInfo(entity)
+        .then(() => viewer?.scene.requestRender())
+        .catch((error) => console.error("Failed to load 3D building details:", error));
+    }, REALITY_FOCUS_SETTLE_MS);
+  }
+
+  function normalizeCode(value) {
+    if (typeof window.normalizeCode === "function") {
+      return window.normalizeCode(value);
+    }
+    return String(value || "")
+      .trim()
+      .replace(/\uFEFF/g, "")
+      .replace(/\s+/g, "")
+      .replace(/-/g, "")
+      .replace(/\s+/g, "")
+      .toUpperCase();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function pickFirstValue(obj, fields) {
+    if (!obj) return "";
+    for (const field of fields) {
+      if (obj[field] !== undefined && obj[field] !== null && String(obj[field]).trim() !== "") {
+        return obj[field];
+      }
+    }
+    return "";
+  }
+
+  function parseMaybeNumber(value) {
+    if (value === undefined || value === null || value === "") return NaN;
+    const str = String(value).trim();
+
+    const direct = Number(str);
+    if (!Number.isNaN(direct)) return direct;
+
+    const matched = str.match(/-?\d+(\.\d+)?/);
+    if (matched) {
+      const num = Number(matched[0]);
+      if (!Number.isNaN(num)) return num;
+    }
+    return NaN;
+  }
+
+  function toFiniteNumber(value, fallback) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  }
+
+  function makeRuntimeGeneratedModelKey(spaceId, sourceCode) {
+    const normalizedSpaceId = String(spaceId || "current").trim() || "current";
+    const normalizedCode = normalizeCode(sourceCode);
+    return `${normalizedSpaceId}::${normalizedCode}`;
+  }
+
+  function revokeRuntimeGeneratedBlobUrlByKey(key) {
+    const oldUrl = runtimeGeneratedBlobUrlMap.get(key);
+    if (oldUrl && String(oldUrl).startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(oldUrl);
+      } catch (_) {}
+    }
+    runtimeGeneratedBlobUrlMap.delete(key);
+  }
+
+  function clearRuntimeGeneratedModelState(spaceId, sourceCode) {
+    const key = makeRuntimeGeneratedModelKey(spaceId, sourceCode);
+    runtimeGeneratedModelStateMap.delete(key);
+    revokeRuntimeGeneratedBlobUrlByKey(key);
+  }
+
+  function setRuntimeGeneratedModelState(spaceId, sourceCode, modelState) {
+    const key = makeRuntimeGeneratedModelKey(spaceId, sourceCode);
+    const previousUrl = runtimeGeneratedBlobUrlMap.get(key) || "";
+    if (!modelState) {
+      revokeRuntimeGeneratedBlobUrlByKey(key);
+      runtimeGeneratedModelStateMap.delete(key);
+      return;
+    }
+
+    runtimeGeneratedModelStateMap.set(key, modelState);
+    const url = String(modelState.modelUrl || "");
+    if (previousUrl && previousUrl !== url) {
+      revokeRuntimeGeneratedBlobUrlByKey(key);
+    } else if (!url.startsWith("blob:")) {
+      runtimeGeneratedBlobUrlMap.delete(key);
+    }
+    if (url.startsWith("blob:")) {
+      runtimeGeneratedBlobUrlMap.set(key, url);
+    }
+  }
+
+  function getRuntimeGeneratedModelState(spaceId, sourceCode) {
+    const key = makeRuntimeGeneratedModelKey(spaceId, sourceCode);
+    return runtimeGeneratedModelStateMap.get(key) || null;
+  }
+
+  function clearAllRuntimeGeneratedModels() {
+    const keys = Array.from(runtimeGeneratedBlobUrlMap.keys());
+    keys.forEach((key) => {
+      revokeRuntimeGeneratedBlobUrlByKey(key);
+    });
+    runtimeGeneratedModelStateMap.clear();
+  }
+
+  function getRoadWidthFromEntity(entity) {
+    const props = entityPropertiesToPlainObject(entity);
+    const n = parseMaybeNumber(
+      props["道路宽度"] ??
+      props["width"] ??
+      props["宽度"] ??
+      props["WIDTH"] ??
+      props["road_width"] ??
+      props["閬撹矾瀹斤拷"] ??
+      4
+    );
+    const widthMeters = Number.isFinite(n) ? Math.max(1, Math.min(20, n)) : 4;
+    return widthMeters;
+  }
+
+  function getRoadMidpointCartesian(entity) {
+    if (!entity?.polyline?.positions) return null;
+    try {
+      const positions = entity.polyline.positions.getValue(Cesium.JulianDate.now());
+      if (!Array.isArray(positions) || positions.length < 2) return null;
+      const midIndex = Math.floor(positions.length / 2);
+      return positions[midIndex] || positions[0] || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function update3DRoadPolylineWidths() {
+    if (!viewer || !Array.isArray(roadEntitiesForWidthSync) || !roadEntitiesForWidthSync.length) return;
+
+    const scene = viewer.scene;
+    const w = scene?.drawingBufferWidth || 1920;
+    const h = scene?.drawingBufferHeight || 1080;
+
+    roadEntitiesForWidthSync.forEach((entity) => {
+      if (!entity?.polyline) return;
+      const widthMeters = Number(entity.__roadWidthMeters);
+      if (!Number.isFinite(widthMeters) || widthMeters <= 0) return;
+
+      const mid = entity.__roadMidpoint || getRoadMidpointCartesian(entity);
+      if (!mid) return;
+      entity.__roadMidpoint = mid;
+
+      const mpp = viewer.camera.getPixelSize(new Cesium.BoundingSphere(mid, 1), w, h);
+      if (!Number.isFinite(mpp) || mpp <= 0) return;
+
+      const pixelWidth = widthMeters / mpp;
+      entity.polyline.width = Math.max(2.5, Math.min(26, pixelWidth));
+    });
+  }
+
+  function scheduleRoadWidthSync() {
+    if (!viewer) return;
+    if (roadWidthSyncRaf) return;
+    roadWidthSyncRaf = requestAnimationFrame(() => {
+      roadWidthSyncRaf = 0;
+      update3DRoadPolylineWidths();
+    });
+  }
+
+  function getOverviewCameraOffset() {
+    const extent = getMain3DResources().initialExtent;
+    const camera = extent && window.Village3DConfigModule?.resolveVillageCamera
+      ? window.Village3DConfigModule.resolveVillageCamera(extent)
+      : null;
+    return new Cesium.HeadingPitchRange(
+      Cesium.Math.toRadians(camera?.headingDegrees ?? OVERVIEW_CAMERA_HEADING_DEG),
+      Cesium.Math.toRadians(camera?.pitchDegrees ?? OVERVIEW_CAMERA_PITCH_DEG),
+      camera?.range ?? OVERVIEW_CAMERA_RANGE
+    );
+  }
+
+  function clampNumber(value, min, max, fallback) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.min(max, Math.max(min, num));
+  }
+
+  function toBooleanFlag(value, fallback = false) {
+    if (value === undefined || value === null || value === "") return fallback;
+    if (typeof value === "boolean") return value;
+    const normalized = String(value).trim().toLowerCase();
+    if (["1", "true", "yes", "y", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "n", "off"].includes(normalized)) return false;
+    return fallback;
+  }
+
+  function normalizeStretch(value, fallback = 1) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return clampNumber(num, 0.1, 20, fallback);
+  }
+
+  function normalizeStoredModelScale(value, fallback = 1) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+
+    if (num > 0 && num <= 0.2) {
+      return num / MODEL_SCALE_BASE;
+    }
+
+    return num;
+  }
+
+  function readBuildingHeightFromObject(obj) {
+    if (window.Village3DConfigModule?.resolveBuildingHeight) {
+      return window.Village3DConfigModule.resolveBuildingHeight(obj, DEFAULT_HEIGHT);
+    }
+    for (const field of HEIGHT_FIELDS) {
+      if (!(field in obj)) continue;
+      const value = obj[field];
+      const num = parseMaybeNumber(value);
+      if (!Number.isNaN(num)) {
+        if (field === "floors" || field === "楼层" || field === "层数") {
+          return Math.max(1, num) * 3;
+        }
+        return Math.max(1, num);
+      }
+    }
+    return DEFAULT_HEIGHT;
+  }
+
+  function loadText(url) {
+    return fetch(url).then((res) => {
+      if (!res.ok) throw new Error(`读取文件失败：${url}`);
+      return res.text();
+    });
+  }
+
+  function withTimeout(promise, timeoutMs, message) {
+    let timer = null;
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  }
+
+  function hasUsableCesiumIonToken() {
+    return !!(
+      window.CESIUM_ION_TOKEN &&
+      !String(window.CESIUM_ION_TOKEN).includes("你的")
+    );
+  }
+
+  async function createSingleTileImageryProvider(url, rectangle) {
+    if (
+      Cesium.SingleTileImageryProvider &&
+      typeof Cesium.SingleTileImageryProvider.fromUrl === "function"
+    ) {
+      return Cesium.SingleTileImageryProvider.fromUrl(url, { rectangle });
+    }
+
+    return new Cesium.SingleTileImageryProvider({
+      url,
+      rectangle
+    });
+  }
+
+  async function createNaturalEarthBaseProvider() {
+    const naturalEarthUrl = Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII");
+    if (
+      Cesium.TileMapServiceImageryProvider &&
+      typeof Cesium.TileMapServiceImageryProvider.fromUrl === "function"
+    ) {
+      return Cesium.TileMapServiceImageryProvider.fromUrl(naturalEarthUrl);
+    }
+    return new Cesium.TileMapServiceImageryProvider({
+      url: naturalEarthUrl
+    });
+  }
+
+  async function createArcGisWorldImageryProvider() {
+    const arcGisWorldImageryUrl =
+      "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer";
+    if (
+      Cesium.ArcGisMapServerImageryProvider &&
+      typeof Cesium.ArcGisMapServerImageryProvider.fromUrl === "function"
+    ) {
+      return Cesium.ArcGisMapServerImageryProvider.fromUrl(arcGisWorldImageryUrl, {
+        enablePickFeatures: false
+      });
+    }
+    return new Cesium.ArcGisMapServerImageryProvider({
+      url: arcGisWorldImageryUrl,
+      enablePickFeatures: false
+    });
+  }
+
+  function createTianDiTuWorldImageryProvider() {
+    const url = `https://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TDT_TOKEN}`;
+    return new Cesium.UrlTemplateImageryProvider({
+      url,
+      tilingScheme: new Cesium.WebMercatorTilingScheme(),
+      minimumLevel: 0,
+      maximumLevel: 18
+    });
+  }
+
+  async function createArcGisTerrainProvider() {
+    const arcGisTerrainUrl =
+      "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer";
+    if (
+      Cesium.ArcGISTiledElevationTerrainProvider &&
+      typeof Cesium.ArcGISTiledElevationTerrainProvider.fromUrl === "function"
+    ) {
+      return Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(arcGisTerrainUrl);
+    }
+    if (Cesium.ArcGISTiledElevationTerrainProvider) {
+      return new Cesium.ArcGISTiledElevationTerrainProvider({
+        url: arcGisTerrainUrl
+      });
+    }
+    throw new Error("当前 Cesium 版本不支持 ArcGISTiledElevationTerrainProvider");
+  }
+
+  async function loadPreferredTerrainProviderInBackground(canUseIonServices) {
+    if (!viewer) return;
+
+    let nextTerrainProvider = null;
+    let nextCanUseIonServices = canUseIonServices;
+
+    if (nextCanUseIonServices) {
+      try {
+        nextTerrainProvider = await withTimeout(
+          Cesium.createWorldTerrainAsync(),
+          ONLINE_RESOURCE_TIMEOUT_MS,
+          "在线地形服务响应超时"
+        );
+        console.log("在线地形已在后台加载成功");
+      } catch (error) {
+        console.warn("后台加载在线地形失败：", error?.message || error);
+        ionServicesLikelyBlocked = true;
+        nextCanUseIonServices = false;
+      }
+    }
+
+    if (!nextTerrainProvider) {
+      try {
+        nextTerrainProvider = await withTimeout(
+          createArcGisTerrainProvider(),
+          ONLINE_RESOURCE_TIMEOUT_MS,
+          "ArcGIS 在线地形服务响应超时"
+        );
+        console.log("ArcGIS 在线地形已在后台加载成功");
+      } catch (arcGisTerrainError) {
+        console.warn("后台加载 ArcGIS 在线地形失败：", arcGisTerrainError?.message || arcGisTerrainError);
+      }
+    }
+
+    if (!viewer || !nextTerrainProvider) return;
+    try {
+      viewer.terrainProvider = nextTerrainProvider;
+      terrainHeightCache.clear();
+      if (buildingsDataSource?.entities?.values?.length) {
+        await applyTerrainHeights(buildingsDataSource.entities.values);
+      }
+      viewer.scene.requestRender();
+    } catch (error) {
+      console.warn("应用后台地形失败：", error?.message || error);
+    }
+  }
+
+  async function createOpenStreetMapImageryProvider() {
+    const osmUrl = "https://tile.openstreetmap.org/";
+    if (
+      Cesium.OpenStreetMapImageryProvider &&
+      typeof Cesium.OpenStreetMapImageryProvider.fromUrl === "function"
+    ) {
+      return Cesium.OpenStreetMapImageryProvider.fromUrl(osmUrl);
+    }
+    return new Cesium.OpenStreetMapImageryProvider({
+      url: osmUrl
+    });
+  }
+
+  function createSolidColorBaseImageryProvider(colorHex = "#dfe8ee") {
+    const color = Cesium.Color.fromCssColorString(String(colorHex || "#dfe8ee").trim() || "#dfe8ee");
+    return new Cesium.GridImageryProvider({
+      cells: 1,
+      color,
+      glowColor: color,
+      backgroundColor: color
+    });
+  }
+
+  async function addViewerImageryLayers(canUseIonServices) {
+    if (!viewer) return;
+
+    viewer.imageryLayers.removeAll();
+
+    let hasImagery = false;
+
+    let naturalEarthLayer = null;
+    let hasGlobalOnlineImagery = false;
+
+    // Always add a full-globe local base first, so terrain tiles never render with stretched single-tile artifacts.
+    try {
+      const naturalEarthProvider = await createNaturalEarthBaseProvider();
+      naturalEarthLayer = viewer.imageryLayers.addImageryProvider(naturalEarthProvider);
+      hasImagery = true;
+    } catch (error) {
+      console.warn("加载 NaturalEarthII 本地底图失败：", error);
+    }
+
+    if (canUseIonServices && ENABLE_ION_WORLD_IMAGERY) {
+      try {
+        const provider = await withTimeout(
+          Cesium.createWorldImageryAsync({
+            style: Cesium.IonWorldImageryStyle.AERIAL
+          }),
+          ONLINE_RESOURCE_TIMEOUT_MS,
+          "在线卫星影像服务响应超时"
+        );
+        const ionLayer = viewer.imageryLayers.addImageryProvider(provider);
+        if (naturalEarthLayer) {
+          // Keep local base only as safety net; hide it once Ion imagery is available.
+          naturalEarthLayer.show = false;
+        }
+        viewer.imageryLayers.raiseToTop(ionLayer);
+        hasImagery = true;
+        hasGlobalOnlineImagery = true;
+      } catch (error) {
+        console.warn("在线卫星底图加载失败：", error?.message || error);
+        ionServicesLikelyBlocked = true;
+      }
+    }
+
+    if (canUseIonServices && !ENABLE_ION_WORLD_IMAGERY) {
+      console.warn("已禁用 Cesium Ion 全球影像，3D 底图将优先使用 ArcGIS / 本地正射图以避免跨域瓦片问题。");
+    }
+
+    if (!hasGlobalOnlineImagery) {
+      // 复用 2D 模块的天地图卫星瓦片，提供地形全范围的连续影像底图。
+      try {
+        const tianDiTuLayer = viewer.imageryLayers.addImageryProvider(createTianDiTuWorldImageryProvider());
+        if (naturalEarthLayer) {
+          naturalEarthLayer.show = false;
+        }
+        viewer.imageryLayers.raiseToTop(tianDiTuLayer);
+        hasImagery = true;
+        hasGlobalOnlineImagery = true;
+        console.log("天地图全球卫星影像加载成功");
+      } catch (tdtError) {
+        console.warn("天地图全球卫星影像加载失败：", tdtError?.message || tdtError);
+      }
+    }
+
+    if (!hasGlobalOnlineImagery) {
+      // 天地图不可用时，再尝试 ArcGIS 全球卫星影像。
+      try {
+        const arcGisProvider = await withTimeout(
+          createArcGisWorldImageryProvider(),
+          ONLINE_RESOURCE_TIMEOUT_MS,
+          "ArcGIS 在线卫星影像服务响应超时"
+        );
+        const arcGisLayer = viewer.imageryLayers.addImageryProvider(arcGisProvider);
+        if (naturalEarthLayer) {
+          naturalEarthLayer.show = false;
+        }
+        viewer.imageryLayers.raiseToTop(arcGisLayer);
+        hasImagery = true;
+        hasGlobalOnlineImagery = true;
+        console.log("ArcGIS 在线卫星影像加载成功");
+      } catch (arcGisError) {
+        console.warn("ArcGIS 在线卫星影像加载失败：", arcGisError?.message || arcGisError);
+      }
+    }
+
+    if (!hasGlobalOnlineImagery) {
+      // OSM 在当前网络环境下容易超时并导致底图闪断，这里直接跳过，
+      // 保持 NaturalEarth + 本地正射影像作为稳定回退。
+      if (naturalEarthLayer) {
+        naturalEarthLayer.show = true;
+      }
+      console.warn("已跳过 OSM 在线底图回退，使用本地/内置底图保持稳定显示。");
+    }
+
+    const mainResources = getMain3DResources();
+    const dynamicExtent = mainResources.initialExtent;
+    const georef = mainResources.imageryUrl && Array.isArray(dynamicExtent)
+      ? {
+          imageUrl: mainResources.imageryUrl,
+          minX: dynamicExtent[0], minY: dynamicExtent[1],
+          maxX: dynamicExtent[2], maxY: dynamicExtent[3]
+        }
+      : getBasemapGeoref();
+    const rectValues = [georef.minX, georef.minY, georef.maxX, georef.maxY].map((v) => Number(v));
+    const validRect = rectValues.every((v) => Number.isFinite(v)) && georef.minX < georef.maxX && georef.minY < georef.maxY;
+    if (!validRect) {
+      console.warn("本地正射影像范围无效，已跳过加载。", georef);
+      return;
+    }
+    const localRect = Cesium.Rectangle.fromDegrees(
+      georef.minX,
+      georef.minY,
+      georef.maxX,
+      georef.maxY
+    );
+
+    try {
+      const localProvider = await createSingleTileImageryProvider(georef.imageUrl, localRect);
+      const localLayer = viewer.imageryLayers.addImageryProvider(localProvider);
+      viewer.imageryLayers.raiseToTop(localLayer);
+      // 正射影像只覆盖 world file 所定义的米埗村范围，并始终压在全球底图之上。
+      localLayer.alpha = 1.0;
+      hasImagery = true;
+    } catch (error) {
+      console.warn("无法加载本地正射影像，3D 白模将使用纯色地球底图。", error);
+    }
+
+    if (!hasImagery && viewer.scene?.globe) {
+      try {
+        const solidBaseProvider = createSolidColorBaseImageryProvider("#c8d8e8");
+        viewer.imageryLayers.addImageryProvider(solidBaseProvider);
+      } catch (error) {
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#c8d8e8");
+      }
+    }
+  }
+
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (ch === '"') {
+        if (inQuotes && next === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        row.push(cell);
+        cell = "";
+      } else if ((ch === "\n" || ch === "\r") && !inQuotes) {
+        if (ch === "\r" && next === "\n") i += 1;
+        row.push(cell);
+        cell = "";
+        if (row.some((item) => String(item).trim() !== "")) rows.push(row);
+        row = [];
+      } else {
+        cell += ch;
+      }
+    }
+
+    if (cell.length || row.length) {
+      row.push(cell);
+      if (row.some((item) => String(item).trim() !== "")) rows.push(row);
+    }
+
+    if (!rows.length) return [];
+
+    const headers = rows[0].map((h) => String(h || "").trim().replace(/^\uFEFF/, ""));
+    return rows.slice(1).map((values) => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header] = String(values[index] ?? "").trim();
+      });
+      return obj;
+    });
+  }
+
+  async function loadCSVRows(url = CSV_URL) {
+    if (!url) {
+      csvRows = [];
+      rowMap = new Map();
+      return;
+    }
+    try {
+      const text = await loadText(url);
+      csvRows = parseCSV(text);
+    } catch (error) {
+      console.warn("读取 CSV 失败，将只使用 GeoJSON 属性：", error);
+      csvRows = [];
+    }
+
+    rowMap = new Map();
+    csvRows.forEach((row) => {
+      const code = normalizeCode(pickFirstValue(row, CODE_FIELDS));
+      if (code) rowMap.set(code, row);
+    });
+  }
+
+  function entityPropertiesToPlainObject(entity) {
+    const result = {};
+    if (!entity || !entity.properties || !entity.properties.propertyNames) return result;
+
+    entity.properties.propertyNames.forEach((name) => {
+      try {
+        result[name] = entity.properties[name]?.getValue(Cesium.JulianDate.now());
+      } catch (error) {
+        result[name] = "";
+      }
+    });
+    return result;
+  }
+
+  function getEntitySourceCode(entity) {
+    const props = entityPropertiesToPlainObject(entity);
+    return pickFirstValue(props, CODE_FIELDS);
+  }
+
+  function getEntityDisplayName(entity, fallbackCode = "") {
+    const props = entityPropertiesToPlainObject(entity);
+    return pickFirstValue(props, NAME_FIELDS) || fallbackCode || "Unnamed Building";
+  }
+
+  function setEntityDefaultStyle(entity) {
+    if (!entity || !entity.polygon) return;
+    entity.polygon.material = BASE_COLOR;
+    entity.polygon.outline = true;
+    entity.polygon.outlineColor = OUTLINE_COLOR;
+    entity.polygon.outlineWidth = 1.2;
+  }
+
+  function setEntityActiveStyle(entity) {
+    if (!entity || !entity.polygon) return;
+    entity.polygon.material = ACTIVE_COLOR;
+    entity.polygon.outline = true;
+    entity.polygon.outlineColor = ACTIVE_OUTLINE_COLOR;
+    entity.polygon.outlineWidth = 2.5;
+  }
+
+  function setEntityReplacementVisual(entity, hasReplacement, hasRenderableReplacement = hasReplacement) {
+    if (!entity || !entity.polygon) return;
+
+    if (hasReplacement) {
+      // Default behavior: hide base when replacement model is visible.
+      // If user explicitly enables "show blue base", or replacement model is missing,
+      // keep base visible with replacement styling.
+      if (showReplacementBase || !hasRenderableReplacement) {
+        entity.show = true;
+        entity.polygon.fill = true;
+        entity.polygon.material = activeEntity === entity ? ACTIVE_COLOR : REPLACED_BASE_COLOR;
+        entity.polygon.outline = true;
+        entity.polygon.outlineColor = activeEntity === entity ? ACTIVE_OUTLINE_COLOR : REPLACED_OUTLINE_COLOR;
+        entity.polygon.outlineWidth = activeEntity === entity ? 2.5 : 2.0;
+      } else {
+        entity.show = false;
+        entity.polygon.fill = false;
+        entity.polygon.outline = false;
+      }
+      return;
+    }
+
+    entity.show = true;
+    entity.polygon.fill = true;
+
+    if (activeEntity === entity) {
+      setEntityActiveStyle(entity);
+    } else {
+      setEntityDefaultStyle(entity);
+    }
+  }
+
+  function refreshAllEntityVisualStates() {
+    entityMap.forEach((entity, key) => {
+      if (!entity || !entity.polygon) return;
+
+      const replacementItem = replacementModelMap.get(key) || null;
+      const hasReplacement = !!replacementItem;
+      const hasRenderableReplacement = !!replacementItem?.primitive;
+      setEntityReplacementVisual(entity, hasReplacement, hasRenderableReplacement);
+    });
+
+    viewer?.scene.requestRender();
+  }
+
+  function clearActiveEntity() {
+    activeEntity = null;
+    refreshAllEntityVisualStates();
+  }
+
+  function setActiveEntity(entity) {
+    if (activeEntity === entity) return;
+    activeEntity = entity;
+    // Expose to 2D for selection sync
+    window.__active3DEntityCode = entity?.__sourceCode || null;
+    refreshAllEntityVisualStates();
+  }
+
+  function getEntityCenterCartographic(entity) {
+    if (!entity || !entity.polygon || !entity.polygon.hierarchy) return null;
+
+    const hierarchy = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now());
+    if (!hierarchy || !hierarchy.positions || hierarchy.positions.length < 3) return null;
+
+    let positions = hierarchy.positions.slice();
+
+    if (positions.length >= 2) {
+      const first = Cesium.Cartographic.fromCartesian(positions[0]);
+      const last = Cesium.Cartographic.fromCartesian(positions[positions.length - 1]);
+
+      const samePoint =
+        Math.abs(first.longitude - last.longitude) < 1e-12 &&
+        Math.abs(first.latitude - last.latitude) < 1e-12;
+
+      if (samePoint) {
+        positions = positions.slice(0, -1);
+      }
+    }
+
+    if (positions.length < 3) return null;
+
+    let lon0 = 0;
+    let lat0 = 0;
+    const cartographics = positions.map((p) => Cesium.Cartographic.fromCartesian(p));
+    cartographics.forEach((c) => {
+      lon0 += c.longitude;
+      lat0 += c.latitude;
+    });
+    lon0 /= cartographics.length;
+    lat0 /= cartographics.length;
+
+    const R = 6378137;
+    const cosLat0 = Math.cos(lat0);
+
+    const pts = cartographics.map((c) => ({
+      x: (c.longitude - lon0) * R * cosLat0,
+      y: (c.latitude - lat0) * R
+    }));
+
+    let area2 = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      const cross = pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      area2 += cross;
+      cx += (pts[i].x + pts[j].x) * cross;
+      cy += (pts[i].y + pts[j].y) * cross;
+    }
+
+    if (Math.abs(area2) < 1e-8) {
+      return new Cesium.Cartographic(lon0, lat0, 0);
+    }
+
+    cx /= (3 * area2);
+    cy /= (3 * area2);
+
+    return new Cesium.Cartographic(
+      lon0 + cx / (R * cosLat0),
+      lat0 + cy / R,
+      0
+    );
+  }
+
+  function getEntityFootprintSizeMeters(entity, headingDeg = 0) {
+    if (!entity?.polygon?.hierarchy) return null;
+
+    const hierarchy = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now());
+    const positions = hierarchy?.positions || [];
+    if (positions.length < 3) return null;
+
+    const center = getEntityCenterCartographic(entity);
+    if (!center) return null;
+
+    const origin = Cesium.Cartesian3.fromRadians(center.longitude, center.latitude, center.height || 0);
+    const enuFrame = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+    const inverseEnu = Cesium.Matrix4.inverse(enuFrame, new Cesium.Matrix4());
+    if (!inverseEnu) return null;
+
+    const headingRad = Cesium.Math.toRadians(toFiniteNumber(headingDeg, 0));
+    const cosH = Math.cos(headingRad);
+    const sinH = Math.sin(headingRad);
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    const alignedPoints = [];
+
+    positions.forEach((position) => {
+      const local = Cesium.Matrix4.multiplyByPoint(inverseEnu, position, new Cesium.Cartesian3());
+      const alignedX = local.x * cosH - local.y * sinH;
+      const alignedY = local.x * sinH + local.y * cosH;
+      alignedPoints.push({ x: alignedX, y: alignedY });
+      minX = Math.min(minX, alignedX);
+      maxX = Math.max(maxX, alignedX);
+      minY = Math.min(minY, alignedY);
+      maxY = Math.max(maxY, alignedY);
+    });
+
+    let sizeX = maxX - minX;
+    let sizeY = maxY - minY;
+    if (alignedPoints.length >= 4) {
+      const first = alignedPoints[0];
+      const last = alignedPoints[alignedPoints.length - 1];
+      const pts =
+        Math.hypot(first.x - last.x, first.y - last.y) < 0.01
+          ? alignedPoints.slice(0, -1)
+          : alignedPoints.slice();
+      const xEdgeLengths = [];
+      const yEdgeLengths = [];
+
+      for (let i = 0; i < pts.length; i += 1) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const length = Math.hypot(dx, dy);
+        if (!Number.isFinite(length) || length <= 0.05) continue;
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          xEdgeLengths.push(length);
+        } else {
+          yEdgeLengths.push(length);
+        }
+      }
+
+      const averageMainOppositeEdges = (values) => {
+        const sorted = values
+          .filter((value) => Number.isFinite(value) && value > 0.05)
+          .sort((a, b) => b - a);
+        if (sorted.length < 2) return NaN;
+        return (sorted[0] + sorted[1]) / 2;
+      };
+
+      const averagedX = averageMainOppositeEdges(xEdgeLengths);
+      const averagedY = averageMainOppositeEdges(yEdgeLengths);
+      if (Number.isFinite(averagedX) && averagedX > 0.01) sizeX = averagedX;
+      if (Number.isFinite(averagedY) && averagedY > 0.01) sizeY = averagedY;
+    }
+
+    if (!Number.isFinite(sizeX) || !Number.isFinite(sizeY) || sizeX <= 0.01 || sizeY <= 0.01) {
+      return null;
+    }
+
+    return {
+      sizeX,
+      sizeY
+    };
+  }
+
+  function estimateEntityFootprintHeadingDeg(entity) {
+    if (!entity?.polygon?.hierarchy) return 0;
+
+    const hierarchy = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now());
+    let positions = (hierarchy?.positions || []).slice();
+    if (positions.length < 2) return 0;
+
+    if (positions.length >= 2) {
+      const first = Cesium.Cartographic.fromCartesian(positions[0]);
+      const last = Cesium.Cartographic.fromCartesian(positions[positions.length - 1]);
+      const samePoint =
+        Math.abs(first.longitude - last.longitude) < 1e-12 &&
+        Math.abs(first.latitude - last.latitude) < 1e-12;
+      if (samePoint) positions = positions.slice(0, -1);
+    }
+
+    const center = getEntityCenterCartographic(entity);
+    if (!center || positions.length < 2) return 0;
+
+    const origin = Cesium.Cartesian3.fromRadians(center.longitude, center.latitude, center.height || 0);
+    const enuFrame = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+    const inverseEnu = Cesium.Matrix4.inverse(enuFrame, new Cesium.Matrix4());
+    if (!inverseEnu) return 0;
+
+    let bestHeadingDeg = 0;
+    let bestLength = 0;
+
+    for (let i = 0; i < positions.length; i += 1) {
+      const a = Cesium.Matrix4.multiplyByPoint(inverseEnu, positions[i], new Cesium.Cartesian3());
+      const b = Cesium.Matrix4.multiplyByPoint(
+        inverseEnu,
+        positions[(i + 1) % positions.length],
+        new Cesium.Cartesian3()
+      );
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.hypot(dx, dy);
+      if (length > bestLength) {
+        bestLength = length;
+        bestHeadingDeg = Cesium.Math.toDegrees(Math.atan2(dy, dx));
+      }
+    }
+
+    return bestHeadingDeg;
+  }
+
+  async function applyTerrainHeights(entities) {
+    if (!entities.length || !viewer) return;
+
+    const applyEntityHeights = (entity, terrainHeightValue) => {
+      if (!entity || !entity.polygon) return;
+      const sourceCode = entity.__sourceCode || "";
+      const baseRow = rowMap.get(normalizeCode(sourceCode)) || null;
+      const props = entityPropertiesToPlainObject(entity);
+
+      const height = baseRow
+        ? readBuildingHeightFromObject(baseRow)
+        : readBuildingHeightFromObject(props);
+
+      const terrainHeight = Number.isFinite(terrainHeightValue) ? Math.max(0, terrainHeightValue) : 0;
+
+      entity.__terrainHeight = terrainHeight;
+      entity.__baseHeight = height;
+      entity.__buildingHeight = height;
+
+      entity.polygon.height = terrainHeight;
+      entity.polygon.extrudedHeight = terrainHeight + height;
+    };
+
+    const cartographics = [];
+    const refs = [];
+
+    entities.forEach((entity) => {
+      const cacheKey = normalizeCode(entity?.__sourceCode || "");
+      if (cacheKey && terrainHeightCache.has(cacheKey)) {
+        applyEntityHeights(entity, terrainHeightCache.get(cacheKey));
+        return;
+      }
+
+      const center = getEntityCenterCartographic(entity);
+      if (center) {
+        cartographics.push(center);
+        refs.push(entity);
+      }
+    });
+
+    if (!cartographics.length) return;
+
+    const terrainProvider = viewer.terrainProvider;
+    const isEllipsoidTerrainProvider =
+      !!(Cesium.EllipsoidTerrainProvider && terrainProvider instanceof Cesium.EllipsoidTerrainProvider);
+    const canSampleMostDetailed = !!(
+      terrainProvider &&
+      !isEllipsoidTerrainProvider &&
+      typeof Cesium.sampleTerrainMostDetailed === "function"
+    );
+    if (!canSampleMostDetailed) {
+      entities.forEach((entity) => {
+        const cacheKey = normalizeCode(entity?.__sourceCode || "");
+        if (cacheKey && !terrainHeightCache.has(cacheKey)) {
+          terrainHeightCache.set(cacheKey, 0);
+        }
+        applyEntityHeights(entity, 0);
+      });
+      return;
+    }
+
+    try {
+      const sampled = await Cesium.sampleTerrainMostDetailed(terrainProvider, cartographics);
+      sampled.forEach((cartographic, index) => {
+        const entity = refs[index];
+        const terrainHeight = Number.isFinite(cartographic.height) ? Math.max(0, cartographic.height) : 0;
+        const cacheKey = normalizeCode(entity?.__sourceCode || "");
+        if (cacheKey) terrainHeightCache.set(cacheKey, terrainHeight);
+        applyEntityHeights(entity, terrainHeight);
+      });
+    } catch (error) {
+      console.warn("Terrain sampling failed, fallback to 0 base height:", error);
+
+      entities.forEach((entity) => {
+        const cacheKey = normalizeCode(entity?.__sourceCode || "");
+        if (cacheKey && !terrainHeightCache.has(cacheKey)) {
+          terrainHeightCache.set(cacheKey, 0);
+        }
+        applyEntityHeights(entity, 0);
+      });
+    }
+  }
+
+  function isBaseModelSpace(spaceId) {
+    return spaceId === MODEL_BASE_SPACE_ID;
+  }
+
+  function getModelEditNamespaceObjectType(spaceId) {
+    if (!spaceId || isBaseModelSpace(spaceId)) return null;
+    return `${MODEL_BASE_OBJECT_TYPE}__${spaceId}`;
+  }
+
+  function getModelStateFromRow(row) {
+    return {
+      modelPreset: row?.modelPreset || "",
+      modelAssetId: row?.modelAssetId || "",
+      modelAssetName: row?.modelAssetName || "",
+      modelUrl: row?.modelUrl || "",
+      modelStoragePath: row?.modelStoragePath || "",
+      modelScale: normalizeStoredModelScale(row?.modelScale, 1),
+      modelHeading: toFiniteNumber(row?.modelHeading, 0),
+      modelHeightOffset: toFiniteNumber(row?.modelHeightOffset, 0),
+      modelOffsetX: toFiniteNumber(row?.modelOffsetX, 0),
+      modelOffsetY: toFiniteNumber(row?.modelOffsetY, 0),
+      modelStretchX: normalizeStretch(row?.modelStretchX, 1),
+      modelStretchY: normalizeStretch(row?.modelStretchY, 1),
+      modelExpectedHeight: toFiniteNumber(row?.modelExpectedHeight, NaN),
+      modelExpectedLength: toFiniteNumber(row?.modelExpectedLength, NaN),
+      modelExpectedWidth: toFiniteNumber(row?.modelExpectedWidth, NaN),
+      modelSnapToBase: toBooleanFlag(row?.modelSnapToBase, true)
+    };
+  }
+
+  function buildModelPayloadPatchFromPreset(presetId, existingRow = {}, manualOverrides = {}) {
+    if (!presetId) {
+      return {
+        ...(existingRow || {}),
+        modelPreset: "",
+        modelUrl: "",
+        modelStoragePath: "",
+        modelScale: "",
+        modelHeading: "",
+        modelHeightOffset: "",
+        modelOffsetX: "",
+        modelOffsetY: "",
+        modelStretchX: "",
+        modelStretchY: "",
+        modelExpectedHeight: "",
+        modelExpectedLength: "",
+        modelExpectedWidth: "",
+        modelSnapToBase: "1"
+      };
+    }
+
+    const nextScale = manualOverrides.modelScale ?? 1;
+    const nextHeading = manualOverrides.modelHeading ?? 0;
+    const nextHeightOffset = manualOverrides.modelHeightOffset ?? 0;
+    const nextOffsetX = manualOverrides.modelOffsetX ?? 0;
+    const nextOffsetY = manualOverrides.modelOffsetY ?? 0;
+    const nextStretchX = manualOverrides.modelStretchX ?? 1;
+    const nextStretchY = manualOverrides.modelStretchY ?? 1;
+    const nextSnapToBase = true;
+
+    return {
+      ...(existingRow || {}),
+      modelPreset: "",
+      modelAssetId: presetId,
+      modelAssetName: manualOverrides.modelAssetName || "",
+      modelUrl: manualOverrides.modelUrl || "",
+      modelStoragePath: manualOverrides.modelStoragePath || "",
+      modelScale: String(nextScale),
+      modelHeading: String(nextHeading),
+      modelHeightOffset: String(nextHeightOffset),
+      modelOffsetX: String(nextOffsetX),
+      modelOffsetY: String(nextOffsetY),
+      modelStretchX: String(nextStretchX),
+      modelStretchY: String(nextStretchY),
+      modelExpectedHeight: "",
+      modelExpectedLength: "",
+      modelExpectedWidth: "",
+      modelSnapToBase: nextSnapToBase ? "1" : "0"
+    };
+  }
+
+  function getBaseRowForEntity(entity) {
+    const code = normalizeCode(entity?.__sourceCode || "");
+    return rowMap.get(code) || null;
+  }
+
+  function buildModelPayloadPatchFromExistingState(existingRow = {}, manualOverrides = {}) {
+    const currentState = getModelStateFromRow(existingRow);
+    const hasModel = !!(currentState.modelPreset || currentState.modelUrl);
+
+    if (!hasModel) {
+      return {
+        ...(existingRow || {}),
+        modelPreset: "",
+        modelUrl: "",
+        modelStoragePath: "",
+        modelScale: "",
+        modelHeading: "",
+        modelHeightOffset: "",
+        modelOffsetX: "",
+        modelOffsetY: "",
+        modelStretchX: "",
+        modelStretchY: "",
+        modelExpectedHeight: "",
+        modelExpectedLength: "",
+        modelExpectedWidth: "",
+        modelSnapToBase: "1"
+      };
+    }
+
+    const nextScale = manualOverrides.modelScale ?? currentState.modelScale ?? 1;
+    const nextHeading = manualOverrides.modelHeading ?? currentState.modelHeading ?? 0;
+    const nextHeightOffset = manualOverrides.modelHeightOffset ?? currentState.modelHeightOffset ?? 0;
+    const nextOffsetX = manualOverrides.modelOffsetX ?? currentState.modelOffsetX ?? 0;
+    const nextOffsetY = manualOverrides.modelOffsetY ?? currentState.modelOffsetY ?? 0;
+    const nextStretchX = manualOverrides.modelStretchX ?? currentState.modelStretchX ?? 1;
+    const nextStretchY = manualOverrides.modelStretchY ?? currentState.modelStretchY ?? 1;
+    const nextSnapToBase = manualOverrides.modelSnapToBase ?? currentState.modelSnapToBase ?? true;
+
+    return {
+      ...(existingRow || {}),
+      modelPreset: currentState.modelPreset || "",
+      modelAssetId: currentState.modelAssetId || "",
+      modelAssetName: currentState.modelAssetName || "",
+      modelUrl: currentState.modelUrl || "",
+      modelStoragePath: currentState.modelStoragePath || "",
+      modelScale: String(nextScale),
+      modelHeading: String(nextHeading),
+      modelHeightOffset: String(nextHeightOffset),
+      modelOffsetX: String(nextOffsetX),
+      modelOffsetY: String(nextOffsetY),
+      modelStretchX: String(nextStretchX),
+      modelStretchY: String(nextStretchY),
+      modelExpectedHeight: Number.isFinite(currentState.modelExpectedHeight) ? String(currentState.modelExpectedHeight) : "",
+      modelExpectedLength: Number.isFinite(currentState.modelExpectedLength) ? String(currentState.modelExpectedLength) : "",
+      modelExpectedWidth: Number.isFinite(currentState.modelExpectedWidth) ? String(currentState.modelExpectedWidth) : "",
+      modelSnapToBase: nextSnapToBase ? "1" : "0"
+    };
+  }
+
+  function buildBase3DRow(entity) {
+    const sourceCode = entity?.__sourceCode || "";
+    const displayName = entity?.__displayName || sourceCode || "Unnamed Building";
+    const baseRow = getBaseRowForEntity(entity) || {};
+    const props = entityPropertiesToPlainObject(entity);
+    const baseHeight = Number.isFinite(entity?.__buildingHeight) ? entity.__buildingHeight : readBuildingHeightFromObject(baseRow || props);
+
+    return {
+      "房屋编码": pickFirstValue(baseRow, CODE_FIELDS) || sourceCode || "",
+      "房屋名称": pickFirstValue(baseRow, NAME_FIELDS) || displayName || "",
+      "建成年代": pickFirstValue(baseRow, YEAR_FIELDS) || "",
+      "建筑高度": baseHeight,
+      "房屋功能信息": pickFirstValue(baseRow, FUNCTION_FIELDS) || "",
+      "房屋结构信息": pickFirstValue(baseRow, STRUCTURE_FIELDS) || "",
+      "占地面积": pickFirstValue(baseRow, AREA_FIELDS) || "",
+      "户主信息": pickFirstValue(baseRow, OWNER_FIELDS) || "",
+      modelPreset: "",
+      modelUrl: "",
+      modelScale: "",
+      modelHeading: "",
+      modelHeightOffset: "",
+      modelOffsetX: "",
+      modelOffsetY: "",
+      modelStretchX: "",
+      modelStretchY: "",
+      modelExpectedHeight: "",
+      modelExpectedLength: "",
+      modelExpectedWidth: "",
+      modelSnapToBase: "1"
+    };
+  }
+
+  function getEntityAutoHeading(entity) {
+    const props = entityPropertiesToPlainObject(entity);
+    const storedHeading = Number(props.cesium);
+    return Number.isFinite(storedHeading) ? storedHeading : estimateEntityFootprintHeadingDeg(entity);
+  }
+
+  function mergeRow(baseRow, editData) {
+    return { ...(baseRow || {}), ...(editData || {}) };
+  }
+
+  function buildModelReplaceCardHtmlV3(row, allowEdit) {
+    const modelState = getModelStateFromRow(row);
+    const hasPlacedModel = !!(modelState.modelAssetId || modelState.modelUrl);
+    const modelStatusText = hasPlacedModel
+      ? `已替换为 ${modelState.modelAssetName || currentLibraryBinding?.group_model_assets?.name || "自定义模型"}`
+      : "白模";
+    const modelCards = currentLibraryAssets.length
+      ? currentLibraryAssets.map((asset) => {
+          const assetName = asset.name || "未命名模型";
+          const isActive = asset.id === (modelState.modelAssetId || currentLibraryBinding?.asset_id);
+          return `
+          <article class="group-model-card ${isActive ? "is-active" : ""}">
+            <div class="group-model-card-header">
+              <div class="group-model-card-copy">
+                <strong title="${escapeHtml(assetName)}">${escapeHtml(assetName)}</strong>
+                <div class="group-model-card-meta">
+                  ${isActive ? '<span class="group-model-card-status">使用中</span>' : ""}
+                  <span class="group-model-card-size">${escapeHtml(((Number(asset.file_size) || 0) / 1024 / 1024).toFixed(1))} MB</span>
+                </div>
+              </div>
+              <button class="group-model-delete-btn" type="button" aria-label="删除模型 ${escapeHtml(assetName)}" title="删除模型" data-delete-model-asset-id="${escapeHtml(asset.id)}">删除</button>
+            </div>
+            <div class="group-model-card-actions">
+              <button class="upload-btn group-model-apply-btn" type="button" data-model-asset-id="${escapeHtml(asset.id)}">${isActive ? "重新应用" : "应用模型"}</button>
+            </div>
+          </article>
+        `;
+        }).join("")
+      : `<div class="group-model-empty">当前模型库为空，可上传一个 GLB 模型。</div>`;
+
+    return `
+      <div class="info-card">
+        ${
+          allowEdit
+            ? `
+              <div class="model-toolbox-section">
+                <div class="model-toolbox-header">
+                  <h4 class="model-toolbox-title">修改模型</h4>
+                  <p class="model-toolbox-desc">本小组成员共享该模型库；无小组时仅本人可见。仅支持不超过 50 MB 的 GLB。</p>
+                </div>
+
+                <div class="group-model-upload-panel">
+                  <label class="group-model-file-picker" for="groupModelUploadInput">
+                    <span class="group-model-file-icon" aria-hidden="true">＋</span>
+                    <span class="group-model-file-copy">
+                      <strong>选择 GLB 模型</strong>
+                      <span id="groupModelSelectedFileName">尚未选择文件 · 最大 50 MB</span>
+                    </span>
+                  </label>
+                  <input id="groupModelUploadInput" class="group-model-file-input" type="file" accept=".glb,model/gltf-binary" />
+                  <div class="group-model-upload-actions">
+                    <button id="groupModelUploadBtn" class="upload-btn" type="button" disabled>上传模型</button>
+                    <button id="refreshGroupModelLibraryBtn" class="model-library-refresh-btn" type="button" aria-label="刷新模型库" title="刷新模型库">↻</button>
+                  </div>
+                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status">上传后会立即应用到当前建筑，并保留在模型库供其他建筑复用。</div>
+                </div>
+
+                <div class="model-library-toolbar">
+                  <span>可用模型</span>
+                  <span>${currentLibraryAssets.length} 个</span>
+                </div>
+                <div class="group-model-library-list">${modelCards}</div>
+
+                <div class="model-action-grid">
+                  <button id="openHouseGeneratorBtn" class="model-utility-btn" type="button">从照片生成模型</button>
+                  <button id="removeModelPresetBtn" class="model-utility-btn model-restore-btn" type="button">恢复白模</button>
+                </div>
+              </div>
+
+              <div class="model-toolbox-section">
+                <div class="model-toolbox-header">
+                  <h4 class="model-toolbox-title">调整模型</h4>
+                  <p class="model-toolbox-desc">修改后直接生效，不再需要单独点击保存。</p>
+                </div>
+
+                <div class="model-adjust-grid">
+                  <label class="form-row">
+                    <span class="form-label">模型缩放</span>
+                    <span class="form-input-wrap">
+                      <input id="modelScaleInput" class="form-input" type="number" step="0.01" value="${escapeHtml(String(modelState.modelScale || 1))}" />
+                      <span class="form-suffix">倍</span>
+                    </span>
+                  </label>
+
+                  <label class="form-row">
+                    <span class="form-label">抬高偏移</span>
+                    <span class="form-input-wrap">
+                      <input id="modelHeightOffsetInput" class="form-input" type="number" step="0.1" value="${escapeHtml(String(modelState.modelHeightOffset || 0))}" />
+                      <span class="form-suffix">m</span>
+                    </span>
+                  </label>
+
+                  <div class="form-row model-adjust-grid-span">
+                    <span class="form-label">旋转角度</span>
+                    <div class="model-rotate-row">
+                      <button id="rotateModelLeft90Btn" class="upload-btn secondary-btn model-mini-btn" type="button">左旋转 90°</button>
+                      <button id="rotateModelRight90Btn" class="upload-btn secondary-btn model-mini-btn" type="button">右旋转 90°</button>
+                    </div>
+                  </div>
+
+                  <label class="form-row model-adjust-grid-span">
+                    <span class="form-label">自定义旋转角度</span>
+                    <span class="form-input-wrap model-input-compact-wrap">
+                      <input id="modelHeadingInput" class="form-input model-input-compact" type="number" step="1" value="${escapeHtml(String(modelState.modelHeading || 0))}" />
+                      <span class="form-suffix">度</span>
+                    </span>
+                  </label>
+
+                  <div class="form-row model-adjust-grid-span">
+                    <span class="form-label">拉伸</span>
+                    <div class="model-paired-row">
+                      <label class="model-paired-item">
+                        <span class="model-paired-tag">X</span>
+                        <span class="form-input-wrap model-input-compact-wrap">
+                          <input id="modelStretchXInput" class="form-input model-input-compact" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchX || 1))}" />
+                          <span class="form-suffix">倍</span>
+                        </span>
+                      </label>
+                      <label class="model-paired-item">
+                        <span class="model-paired-tag">Y</span>
+                        <span class="form-input-wrap model-input-compact-wrap">
+                          <input id="modelStretchYInput" class="form-input model-input-compact" type="number" min="0.1" max="20" step="0.01" value="${escapeHtml(String(modelState.modelStretchY || 1))}" />
+                          <span class="form-suffix">倍</span>
+                        </span>
+                      </label>
+                    </div>
+                    <div class="model-inline-actions">
+                      <button id="autoFitModelStretchBtn" class="upload-btn secondary-btn model-inline-btn" type="button">自动适配拉伸</button>
+                    </div>
+                  </div>
+
+                  <div class="form-row model-adjust-grid-span">
+                    <span class="form-label">偏移</span>
+                    <div class="model-paired-row">
+                      <label class="model-paired-item">
+                        <span class="model-paired-tag">东-西</span>
+                        <span class="form-input-wrap model-input-compact-wrap">
+                          <input id="modelOffsetXInput" class="form-input model-input-compact" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetX || 0))}" />
+                          <span class="form-suffix">m</span>
+                        </span>
+                      </label>
+                      <label class="model-paired-item">
+                        <span class="model-paired-tag">南-北</span>
+                        <span class="form-input-wrap model-input-compact-wrap">
+                          <input id="modelOffsetYInput" class="form-input model-input-compact" type="number" step="0.1" value="${escapeHtml(String(modelState.modelOffsetY || 0))}" />
+                          <span class="form-suffix">m</span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="model-visual-toggle-group">
+                  <label class="model-visual-toggle">
+                    <span class="form-label">显示蓝色白模</span>
+                    <input id="toggleReplacementBase" type="checkbox" ${showReplacementBase ? "checked" : ""} />
+                  </label>
+                  <label class="model-visual-toggle">
+                    <span class="form-label">显示红点锚点</span>
+                    <input id="toggleReplacementAnchor" type="checkbox" ${showReplacementAnchor ? "checked" : ""} />
+                  </label>
+                </div>
+
+                <div id="applyModelPresetStatus" class="save-status"></div>
+              </div>
+            `
+            : `
+              <div class="house-row">当前为空间只读状态，暂不支持 3D 模型替换与调整。</div>
+            `
+        }
+
+        <div class="house-row">当前状态：${escapeHtml(modelStatusText)}</div>
+        ${hasPlacedModel ? `<div class="house-row">当前模型来源：${escapeHtml(modelState.modelAssetName || currentLibraryBinding?.group_model_assets?.name || "自定义模型")}</div>` : ""}
+        <div class="house-row">调整说明：修改缩放、旋转、抬高、拉伸和偏移后会直接生效。</div>
+      </div>
+    `;
+  }
+
+  function collect3DFormData() {
+    const form = byId("model3dEditForm");
+    if (!form) return null;
+
+    const formData = new FormData(form);
+    const payload = {};
+
+    MODEL_EDITABLE_FIELDS.forEach((field) => {
+      let value = formData.get(field.key);
+      if (typeof value === "string") value = value.trim();
+      payload[field.key] = value || "";
+    });
+
+    return payload;
+  }
+
+  function update3DStatusText() {
+    const statusBadge = getStatusBadge();
+    const detailSubtitle = getDetailSubtitle();
+    
+    // 从 window 获取当前空间信息（由 app.js 同步）
+    const spaces = typeof window.__get2DSpaces === 'function' ? window.__get2DSpaces() : [];
+    const currentSpaceId = window.__active2DSpaceId || 'current';
+    const currentSpace = spaces.find(s => s.id === currentSpaceId) || { title: "村庄现状" };
+
+    if (statusBadge) {
+      if (currentSelectedEntityCode && activeEntity) {
+        const name = activeEntity.__displayName || activeEntity.__sourceCode || "Unnamed Building";
+        statusBadge.textContent = `当前模式：村庄 3D 模型｜空间：${currentSpace?.title || "村庄现状"}｜已选建筑：${name}`;
+      } else {
+        statusBadge.textContent = `当前模式：村庄 3D 模型｜空间：${currentSpace?.title || "村庄现状"}`;
+      }
+    }
+
+    if (detailSubtitle) {
+      if (currentSelectedEntityCode && activeEntity) {
+        const name = activeEntity.__displayName || activeEntity.__sourceCode || "Unnamed Building";
+        detailSubtitle.textContent = `当前查看：3D 建筑 - ${name}`;
+      } else {
+        detailSubtitle.textContent = "当前显示地形与可点击建筑白模";
+      }
+    }
+  }
+
+  async function fetchCurrentSpaceAllEdits() {
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
+    if (!objectType || !supabaseClient) return [];
+
+    const { data, error } = await supabaseClient
+      .from(OBJECT_EDITS_TABLE)
+      .select("object_code,data")
+      .eq("object_type", objectType);
+
+    if (error) {
+      console.warn("Failed to fetch current 3D space edits:", error);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  async function fetchSingle3DEdit(sourceCode) {
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
+    if (!objectType || !supabaseClient || !sourceCode) return null;
+
+    const { data, error } = await supabaseClient
+      .from(OBJECT_EDITS_TABLE)
+      .select("data")
+      .eq("object_code", sourceCode)
+      .eq("object_type", objectType)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("Failed to fetch single 3D edit record:", error);
+      return null;
+    }
+
+    return data?.data || null;
+  }
+
+  async function saveSingle3DEdit(sourceCode, payload) {
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
+    if (!objectType) {
+      throw new Error("Current base space is read-only and cannot be saved.");
+    }
+    if (!supabaseClient) {
+      throw new Error("Supabase is not configured.");
+    }
+
+    const { error } = await supabaseClient
+      .from(OBJECT_EDITS_TABLE)
+      .upsert(
+        [
+          {
+            object_code: sourceCode,
+            object_type: objectType,
+            data: payload,
+            updated_at: new Date().toISOString()
+          }
+        ],
+        { onConflict: "object_code,object_type" }
+      );
+
+    if (error) throw error;
+  }
+
+  function resetSceneToBaseHeights() {
+    clearAllReplacementModels();
+
+    entityMap.forEach((entity) => {
+      if (!entity || !entity.polygon) return;
+
+      const terrainHeight = Number.isFinite(entity.__terrainHeight) ? entity.__terrainHeight : 0;
+      const baseHeight = Number.isFinite(entity.__baseHeight) ? entity.__baseHeight : DEFAULT_HEIGHT;
+
+      entity.__buildingHeight = baseHeight;
+      entity.polygon.height = terrainHeight;
+      entity.polygon.extrudedHeight = terrainHeight + baseHeight;
+      setEntityReplacementVisual(entity, false);
+    });
+
+    viewer?.scene.requestRender();
+  }
+
+  function applyHeightToEntity(entity, nextHeight) {
+    if (!entity || !entity.polygon) return false;
+
+    const terrainHeight = Number.isFinite(entity.__terrainHeight) ? entity.__terrainHeight : 0;
+    const safeHeight = Number.isNaN(parseMaybeNumber(nextHeight))
+      ? (Number.isFinite(entity.__baseHeight) ? entity.__baseHeight : DEFAULT_HEIGHT)
+      : Math.max(1, parseMaybeNumber(nextHeight));
+
+    entity.__buildingHeight = safeHeight;
+    entity.polygon.height = terrainHeight;
+    entity.polygon.extrudedHeight = terrainHeight + safeHeight;
+
+    const key = normalizeCode(entity.__sourceCode || "");
+    const replacementItem = replacementModelMap.get(key) || null;
+    setEntityReplacementVisual(entity, !!replacementItem, !!replacementItem?.primitive);
+
+    return true;
+  }
+
+  function clearAllReplacementModels() {
+    if (!viewer) {
+      replacementModelMap.clear();
+      replacementRequestTokenMap.clear();
+      return;
+    }
+
+    replacementModelMap.forEach((item) => {
+      try {
+        if (item?.primitive) {
+          viewer.scene.primitives.remove(item.primitive);
+          if (typeof item.primitive.destroy === "function" && !item.primitive.isDestroyed?.()) {
+            try { item.primitive.destroy(); } catch (_) {}
+          }
+        }
+        if (item?.pointEntity) {
+          viewer.entities.remove(item.pointEntity);
+        }
+      } catch (error) {
+        console.warn("Failed to remove replacement model:", error);
+      }
+    });
+
+    replacementModelMap.clear();
+    replacementRequestTokenMap.clear();
+
+    entityMap.forEach((entity) => {
+      if (!entity || !entity.polygon) return;
+      entity.show = true;
+    });
+
+    refreshAllEntityVisualStates();
+    refreshReplacementAnchorVisibility();
+    viewer.scene.requestRender();
+  }
+
+  function removeReplacementModel(sourceCode) {
+    const key = normalizeCode(sourceCode);
+    replacementRequestTokenMap.set(key, Symbol(`cancel_${key}`));
+
+    const existing = replacementModelMap.get(key);
+
+    if (existing && viewer) {
+      try {
+        if (existing.primitive) {
+          viewer.scene.primitives.remove(existing.primitive);
+          if (typeof existing.primitive.destroy === "function" && !existing.primitive.isDestroyed?.()) {
+            try { existing.primitive.destroy(); } catch (_) {}
+          }
+        }
+        if (existing.pointEntity) {
+          viewer.entities.remove(existing.pointEntity);
+        }
+      } catch (error) {
+        console.warn("Failed to delete replacement model:", error);
+      }
+    }
+
+    replacementModelMap.delete(key);
+
+    refreshAllEntityVisualStates();
+    refreshReplacementAnchorVisibility();
+    viewer?.scene.requestRender();
+  }
+
+  function refreshReplacementAnchorVisibility() {
+    replacementModelMap.forEach((item) => {
+      if (item?.pointEntity) {
+        item.pointEntity.show = !!showReplacementAnchor;
+      }
+    });
+    viewer?.scene.requestRender();
+  }
+
+  function getModelEntityPosition(entity, modelState = {}) {
+    const center = getEntityCenterCartographic(entity);
+    if (!center) return null;
+
+    const terrainHeight = Number.isFinite(entity?.__terrainHeight) ? entity.__terrainHeight : 0;
+    const heightOffset = toFiniteNumber(modelState.modelHeightOffset, 0);
+
+    return Cesium.Cartesian3.fromRadians(
+      center.longitude,
+      center.latitude,
+      terrainHeight + heightOffset
+    );
+  }
+
+  function getDesiredModelBaseHeight(entity, modelState = {}) {
+    const terrainHeight = Number.isFinite(entity?.__terrainHeight) ? entity.__terrainHeight : 0;
+    const heightOffset = toFiniteNumber(modelState.modelHeightOffset, 0);
+    return terrainHeight + heightOffset;
+  }
+
+  function resolveExpectedModelHeightMeters(entity, modelState = {}) {
+    const byState = toFiniteNumber(modelState.modelExpectedHeight, NaN);
+    if (Number.isFinite(byState) && byState > 0.1) return byState;
+
+    const byEntity = toFiniteNumber(entity?.__buildingHeight, NaN);
+    if (Number.isFinite(byEntity) && byEntity > 0.1) return byEntity;
+
+    return NaN;
+  }
+
+  function applyLocalOffsetToMatrix(matrix, offsetX, offsetY, offsetZ) {
+    const translation = new Cesium.Cartesian3(
+      toFiniteNumber(offsetX, 0),
+      toFiniteNumber(offsetY, 0),
+      toFiniteNumber(offsetZ, 0)
+    );
+
+    const result = Cesium.Matrix4.clone(matrix, new Cesium.Matrix4());
+    Cesium.Matrix4.multiplyByTranslation(result, translation, result);
+    return result;
+  }
+
+  function applyLocalScaleToMatrix(matrix, scaleX, scaleY, scaleZ) {
+    const scale = new Cesium.Cartesian3(
+      Math.max(0.001, toFiniteNumber(scaleX, 1)),
+      Math.max(0.001, toFiniteNumber(scaleY, 1)),
+      Math.max(0.001, toFiniteNumber(scaleZ, 1))
+    );
+
+    const result = Cesium.Matrix4.clone(matrix, new Cesium.Matrix4());
+    Cesium.Matrix4.multiplyByScale(result, scale, result);
+    return result;
+  }
+
+  function alignPrimitiveBottomToBaseHeight(primitive, modelMatrix, desiredBaseHeight, expectedHeightMeters = NaN) {
+    if (!primitive || !modelMatrix || !Number.isFinite(desiredBaseHeight)) return modelMatrix;
+
+    try {
+      const boundingSphere = primitive.boundingSphere;
+      if (!boundingSphere || !Number.isFinite(boundingSphere.radius)) return modelMatrix;
+
+      const centerCartographic = Cesium.Cartographic.fromCartesian(boundingSphere.center);
+      if (!centerCartographic || !Number.isFinite(centerCartographic.height)) return modelMatrix;
+
+      let currentBottomHeight = centerCartographic.height - boundingSphere.radius;
+      if (Number.isFinite(expectedHeightMeters) && expectedHeightMeters > 0.1) {
+        currentBottomHeight = centerCartographic.height - expectedHeightMeters / 2;
+      }
+      const deltaHeight = desiredBaseHeight - currentBottomHeight;
+
+      if (!Number.isFinite(deltaHeight) || Math.abs(deltaHeight) < 0.005) {
+        return modelMatrix;
+      }
+
+      return applyLocalOffsetToMatrix(modelMatrix, 0, 0, deltaHeight);
+    } catch (error) {
+      console.warn("Failed to align model bottom:", error);
+      return modelMatrix;
+    }
+  }
+
+  function getEntityFootprintSize(entity) {
+    if (!entity?.polygon?.hierarchy) return null;
+    const hierarchy = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now());
+    const positions = hierarchy?.positions || [];
+    if (positions.length < 3) return null;
+
+    const cartographics = positions.map((p) => Cesium.Cartographic.fromCartesian(p));
+    let lon0 = 0;
+    let lat0 = 0;
+    cartographics.forEach((c) => {
+      lon0 += c.longitude;
+      lat0 += c.latitude;
+    });
+    lon0 /= cartographics.length;
+    lat0 /= cartographics.length;
+
+    const R = 6378137;
+    const cosLat0 = Math.max(1e-6, Math.cos(lat0));
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    cartographics.forEach((c) => {
+      const x = (c.longitude - lon0) * R * cosLat0;
+      const y = (c.latitude - lat0) * R;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    });
+
+    const width = Math.max(0.1, maxX - minX);
+    const depth = Math.max(0.1, maxY - minY);
+    return { width, depth };
+  }
+
+  function getAutoFitScaleXY(entity, primitive) {
+    const footprint = getEntityFootprintSize(entity);
+    const radius = primitive?.boundingSphere?.radius;
+    if (!footprint || !Number.isFinite(radius) || radius <= 0) {
+      return { x: 1, y: 1 };
+    }
+
+    const modelDiameter = Math.max(0.1, radius * 2);
+    // Raw fit factor based on footprint vs. current model footprint proxy.
+    const rawX = footprint.width / modelDiameter;
+    const rawY = footprint.depth / modelDiameter;
+
+    // Soften auto-fit to avoid aggressive over-stretch on certain GLB origins/sizes.
+    const damp = (v) => {
+      const eased = Math.pow(Math.max(0.01, v), 0.6);
+      const blended = 1 + (eased - 1) * 0.75;
+      return clampNumber(blended, 0.35, 2.8, 1);
+    };
+
+    return {
+      x: damp(rawX),
+      y: damp(rawY)
+    };
+  }
+
+  async function addOrUpdateReplacementModel(entity, modelState = {}) {
+    if (!viewer || !entity) return false;
+
+    const key = normalizeCode(entity.__sourceCode || "");
+    if (!key) return false;
+
+    const modelUrl = modelState.modelUrl || "";
+    if (!modelUrl) {
+      removeReplacementModel(key);
+      return false;
+    }
+
+    removeReplacementModel(key);
+
+    const requestToken = Symbol(`request_${key}_${Date.now()}`);
+    replacementRequestTokenMap.set(key, requestToken);
+
+    const anchorPosition = getModelEntityPosition(entity, modelState);
+    if (!anchorPosition) return false;
+
+    const uiScale = Math.max(0.1, toFiniteNumber(modelState.modelScale, 1));
+    const stretchX = normalizeStretch(modelState.modelStretchX, 1);
+    const stretchY = normalizeStretch(modelState.modelStretchY, 1);
+    const snapToBase = toBooleanFlag(modelState.modelSnapToBase, true);
+    const desiredBaseHeight = getDesiredModelBaseHeight(entity, modelState);
+    const buildingHeadingDeg = getEntityAutoHeading(entity);
+    const modelHeadingCorrectionDeg = toFiniteNumber(modelState.modelHeading, 0);
+    const headingDeg = buildingHeadingDeg + modelHeadingCorrectionDeg;
+    const heading = Cesium.Math.toRadians(headingDeg);
+
+    const offsetX = toFiniteNumber(modelState.modelOffsetX, 0);
+    const offsetY = toFiniteNumber(modelState.modelOffsetY, 0);
+
+    const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
+    let modelMatrix = Cesium.Transforms.headingPitchRollToFixedFrame(
+      anchorPosition,
+      hpr
+    );
+
+    modelMatrix = applyLocalOffsetToMatrix(modelMatrix, offsetX, offsetY, 0);
+    const baseScale = uiScale * MODEL_SCALE_BASE;
+    const expectedModelHeightMeters = resolveExpectedModelHeightMeters(entity, modelState);
+    const expectedModelHeightWorld = Number.isFinite(expectedModelHeightMeters)
+      ? Math.max(0.1, expectedModelHeightMeters * baseScale)
+      : NaN;
+    modelMatrix = applyLocalScaleToMatrix(
+      modelMatrix,
+      baseScale * stretchX,
+      baseScale * stretchY,
+      baseScale
+    );
+
+    const pointEntity = viewer.entities.add({
+      position: anchorPosition,
+      show: showReplacementAnchor,
+      point: {
+        pixelSize: 8,
+        color: Cesium.Color.RED,
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 1,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+    pointEntity.__isReplacementAnchor = true;
+    pointEntity.__sourceCode = key;
+
+    try {
+      const primitive = await Cesium.Model.fromGltfAsync({
+        url: modelUrl,
+        modelMatrix,
+        scale: 1,
+        minimumPixelSize: 0,
+        maximumScale: undefined,
+        incrementallyLoadTextures: true,
+        runAnimations: true
+      });
+
+      if (replacementRequestTokenMap.get(key) !== requestToken) {
+        try {
+          if (pointEntity) viewer.entities.remove(pointEntity);
+        } catch (_) {}
+
+        try {
+          if (typeof primitive.destroy === "function" && !primitive.isDestroyed?.()) {
+            primitive.destroy();
+          }
+        } catch (_) {}
+
+        console.log("Discarded stale model request:", key);
+        return false;
+      }
+
+      primitive.__isReplacementModel = true;
+      primitive.__sourceCode = key;
+
+      viewer.scene.primitives.add(primitive);
+
+      const applyPostLoadAdjustments = () => {
+        try {
+          if (replacementRequestTokenMap.get(key) !== requestToken) {
+            try {
+              viewer.scene.primitives.remove(primitive);
+              if (typeof primitive.destroy === "function" && !primitive.isDestroyed?.()) {
+                primitive.destroy();
+              }
+            } catch (_) {}
+            return;
+          }
+
+          let adjustedMatrix = primitive.modelMatrix || modelMatrix;
+          const hasGeneratedMetrics =
+            Number.isFinite(modelState.modelExpectedLength) &&
+            Number.isFinite(modelState.modelExpectedWidth);
+          const fitScale = hasGeneratedMetrics
+            ? window.EffectiveBuildingFeaturesModule.getFootprintScaleFromExpected(
+                getEntityFootprintSizeMeters(entity, buildingHeadingDeg),
+                modelState.modelExpectedLength,
+                modelState.modelExpectedWidth
+              )
+            : getAutoFitScaleXY(entity, primitive);
+          adjustedMatrix = applyLocalScaleToMatrix(adjustedMatrix, fitScale.x, fitScale.y, 1);
+          primitive.modelMatrix = adjustedMatrix;
+
+          const updateAnchorPoint = (matrix) => {
+            if (!pointEntity || !matrix) return;
+            pointEntity.position = Cesium.Matrix4.getTranslation(
+              matrix,
+              new Cesium.Cartesian3()
+            );
+          };
+
+          const runSnapPass = () => {
+            const baseMatrix = primitive.modelMatrix || adjustedMatrix;
+            const snappedMatrix = alignPrimitiveBottomToBaseHeight(
+              primitive,
+              baseMatrix,
+              desiredBaseHeight,
+              expectedModelHeightWorld
+            );
+            primitive.modelMatrix = snappedMatrix;
+            adjustedMatrix = snappedMatrix;
+            updateAnchorPoint(snappedMatrix);
+          };
+
+          if (snapToBase) {
+            runSnapPass();
+            setTimeout(() => {
+              if (replacementRequestTokenMap.get(key) !== requestToken) return;
+              runSnapPass();
+              viewer.scene.requestRender();
+            }, 90);
+            setTimeout(() => {
+              if (replacementRequestTokenMap.get(key) !== requestToken) return;
+              runSnapPass();
+              viewer.scene.requestRender();
+            }, 220);
+          } else {
+            updateAnchorPoint(adjustedMatrix);
+          }
+
+          primitive.debugShowBoundingVolume = false;
+          primitive.silhouetteColor = Cesium.Color.YELLOW;
+          primitive.silhouetteSize = 1.0;
+
+          console.log("GLB loaded successfully:", modelUrl);
+          viewer.scene.requestRender();
+        } catch (err) {
+          console.error("模型加载后处理失败：", err);
+          viewer.scene.requestRender();
+        }
+      };
+
+      if (primitive.ready) {
+        applyPostLoadAdjustments();
+      } else {
+        primitive.readyEvent.addEventListener(() => {
+          applyPostLoadAdjustments();
+        });
+      }
+
+      primitive.errorEvent.addEventListener((error) => {
+        console.error("GLB loading failed:", modelUrl, error);
+        if (replacementRequestTokenMap.get(key) !== requestToken) return;
+        try {
+          viewer.scene.primitives.remove(primitive);
+          if (pointEntity) viewer.entities.remove(pointEntity);
+        } catch (_) {}
+        replacementModelMap.set(key, { primitive: null, pointEntity: null });
+        setEntityReplacementVisual(entity, false, false);
+        refreshReplacementAnchorVisibility();
+        viewer.scene.requestRender();
+      });
+
+      replacementModelMap.set(key, {
+        primitive,
+        pointEntity
+      });
+
+      refreshAllEntityVisualStates();
+      refreshReplacementAnchorVisibility();
+      viewer.scene.requestRender();
+
+      return true;
+    } catch (error) {
+      console.error("Cesium.Model.fromGltfAsync failed:", modelUrl, error);
+
+      if (replacementRequestTokenMap.get(key) === requestToken) {
+        replacementModelMap.set(key, {
+          primitive: null,
+          pointEntity
+        });
+
+        setEntityReplacementVisual(entity, true, false);
+        viewer.scene.requestRender();
+      } else {
+        try {
+          if (pointEntity) viewer.entities.remove(pointEntity);
+        } catch (_) {}
+      }
+
+      return false;
+    }
+  }
+
+  async function applyModelStateToEntity(entity, row) {
+    if (!entity) return;
+
+    const modelState = getModelStateFromRow(row);
+    if (modelState.modelUrl) {
+      const fallback = window.GroupModelLibraryModule?.applyOptionalModelWithWhiteFallback;
+      if (!fallback) {
+        await addOrUpdateReplacementModel(entity, modelState);
+        return;
+      }
+      const result = await fallback({
+        loadModel: () => addOrUpdateReplacementModel(entity, modelState),
+        setWhiteModelVisible: (visible) => {
+          if (visible) setEntityReplacementVisual(entity, false, false);
+        }
+      });
+      if (!result.applied) console.warn("可选 GLB 加载失败，已保留建筑白模：", result.error);
+    } else {
+      removeReplacementModel(entity.__sourceCode || "");
+    }
+  }
+
+  async function applyRuntimeGeneratedModelsForSpace(spaceId) {
+    const prefix = `${String(spaceId || "current").trim() || "current"}::`;
+    const pending = [];
+
+    runtimeGeneratedModelStateMap.forEach((state, key) => {
+      if (!key.startsWith(prefix)) return;
+      const code = key.slice(prefix.length);
+      if (!code) return;
+      const entity = entityMap.get(normalizeCode(code));
+      if (!entity) return;
+      pending.push(applyModelStateToEntity(entity, state));
+    });
+
+    if (pending.length) {
+      await Promise.allSettled(pending);
+    }
+  }
+
+  async function applyCurrent3DSpaceToScene() {
+    resetSceneToBaseHeights();
+
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    if (linkedSpaceId) {
+      // Both reads target the same captured space. Applying edits still precedes bindings.
+      // Capture optional binding failures immediately so a slow edit read cannot cause
+      // an unhandled rejection; preserve the existing warning/fallback below.
+      const bindingsReady = Promise.resolve().then(async () => {
+        const library = getGroupModelLibrary();
+        return { library, bindings: await library.listBindings(linkedSpaceId) };
+      }).catch((error) => ({ error }));
+      const edits = await fetchCurrentSpaceAllEdits();
+      for (const item of edits) {
+        const code = normalizeCode(item.object_code);
+        const entity = entityMap.get(code);
+        if (!entity) continue;
+
+        const data = item.data || {};
+        const nextHeight = data["建筑高度"] ?? data["房屋高度"] ?? data.height;
+        if (nextHeight !== undefined && nextHeight !== null && String(nextHeight).trim() !== "") {
+          applyHeightToEntity(entity, nextHeight);
+        }
+
+        if (!data.modelAssetId) {
+          await applyModelStateToEntity(entity, data);
+        }
+      }
+
+      try {
+        const result = await bindingsReady;
+        if (result.error) throw result.error;
+        const { library, bindings } = result;
+        for (const binding of bindings) {
+          const entity = entityMap.get(normalizeCode(binding.object_code));
+          const asset = binding.group_model_assets;
+          if (!entity || !asset?.storage_path) continue;
+          const signedUrl = await library.createSignedUrl(asset);
+          const transform = binding.transform || {};
+          await applyModelStateToEntity(entity, {
+            modelAssetId: binding.asset_id,
+            modelAssetName: asset.name || "",
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path,
+            modelScale: transform.scale ?? 1,
+            modelHeading: transform.heading ?? 0,
+            modelHeightOffset: transform.heightOffset ?? 0,
+            modelOffsetX: transform.offsetX ?? 0,
+            modelOffsetY: transform.offsetY ?? 0,
+            modelStretchX: transform.stretchX ?? 1,
+            modelStretchY: transform.stretchY ?? 1,
+            modelSnapToBase: "1"
+          });
+        }
+      } catch (error) {
+        console.warn("恢复空间模型库绑定失败：", error);
+      }
+    }
+
+    await applyRuntimeGeneratedModelsForSpace(linkedSpaceId);
+
+    update3DStatusText();
+    viewer?.scene.requestRender();
+  }
+
+  async function loadRoads() {
+    if (!viewer) {
+      await initViewer();
+    }
+
+    if (roadsDataSource) {
+      viewer.dataSources.remove(roadsDataSource, true);
+      roadsDataSource = null;
+    }
+    roadEntitiesForWidthSync = [];
+
+    let featureCollection = null;
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const roadUrl = getMain3DResources().roadUrl || ROAD_GEOJSON_URL;
+    {
+      const dbRows = await list3DRoadsFromDb();
+      const hasAnyDbRows = await hasAny3DRoadRowsForSpace(linkedSpaceId);
+      const dbFeatureCollection = makeDbRoadFeatureCollection(dbRows);
+      const dbFeatures = Array.isArray(dbFeatureCollection?.features) ? dbFeatureCollection.features : [];
+
+      const localGeojsonText = await loadText(roadUrl);
+      const localFeatureCollection = JSON.parse(localGeojsonText);
+      const localFeatures = Array.isArray(localFeatureCollection?.features) ? localFeatureCollection.features : [];
+
+      // Keep local fallback roads in planning spaces, while DB rows with same code take precedence.
+      const dbCodeSet = new Set();
+      dbFeatures.forEach((f) => {
+        const code = getRoadCodeFromFeatureLike(f);
+        if (code) dbCodeSet.add(code);
+      });
+
+      const mergedLocal = localFeatures.filter((f) => {
+        const code = getRoadCodeFromFeatureLike(f);
+        if (!code) return true;
+        return !dbCodeSet.has(code);
+      });
+
+      const mergedFeatures = [...dbFeatures, ...mergedLocal];
+
+      if (hasAnyDbRows || dbRows.length) {
+        featureCollection = {
+          type: "FeatureCollection",
+          features: mergedFeatures
+        };
+        if (!dbFeatures.length) {
+          console.warn("3D 道路数据存在但几何不可渲染，已回退到当前村庄V0道路。");
+        }
+      } else {
+        featureCollection = localFeatureCollection;
+      }
+
+      console.info("[3D roads] space=" + linkedSpaceId, {
+        dbRows: dbRows.length,
+        dbRenderable: dbFeatures.length,
+        local: localFeatures.length,
+        merged: Array.isArray(featureCollection?.features) ? featureCollection.features.length : 0,
+        dbCodesSample: dbRows.slice(0, 8).map((r) => r?.object_code || "").filter(Boolean),
+        geomTypes: getFeatureGeometryTypeStats(featureCollection?.features || [])
+      });
+    }
+
+    roadsDataSource = await Cesium.GeoJsonDataSource.load(featureCollection, {
+      clampToGround: true,
+      stroke: Cesium.Color.fromCssColorString("#1565c0").withAlpha(0.95),
+      fill: Cesium.Color.fromCssColorString("#64b5f6").withAlpha(0.28),
+      strokeWidth: 2.4
+    });
+
+    viewer.dataSources.add(roadsDataSource);
+
+    const roadEntities = roadsDataSource.entities.values || [];
+    let polylineCount = 0;
+    let polygonCount = 0;
+    let corridorCount = 0;
+    const ROAD_SURFACE_COLOR = Cesium.Color.fromCssColorString("#4f8fca").withAlpha(0.52);
+    const ROAD_EDGE_COLOR = Cesium.Color.fromCssColorString("#1f5f9e").withAlpha(0.95);
+    const ROAD_CENTERLINE_COLOR = Cesium.Color.fromCssColorString("#1f5f9e").withAlpha(0.45);
+    roadEntities.forEach((entity) => {
+      if (!entity) return;
+      entity.__isRoadEntity = true;
+
+      if (entity.polyline) {
+        polylineCount += 1;
+        const widthMeters = getRoadWidthFromEntity(entity);
+        entity.__roadWidthMeters = widthMeters;
+        entity.__roadMidpoint = getRoadMidpointCartesian(entity);
+        entity.polyline.clampToGround = true;
+
+        // LineString roads in source data are centerlines.
+        // Render them as meter-based road surfaces in 3D via corridor.
+        entity.corridor = new Cesium.CorridorGraphics({
+          positions: entity.polyline.positions,
+          width: Math.max(1, widthMeters),
+          material: ROAD_SURFACE_COLOR,
+          outline: true,
+          outlineColor: ROAD_EDGE_COLOR,
+          classificationType: Cesium.ClassificationType.TERRAIN
+        });
+        corridorCount += 1;
+
+        // Keep a subtle centerline for selection/readability, but color-match it to road edges.
+        entity.polyline.width = 1.2;
+        entity.polyline.material = ROAD_CENTERLINE_COLOR;
+      }
+
+      if (entity.polygon) {
+        polygonCount += 1;
+        entity.polygon.material = ROAD_SURFACE_COLOR;
+        entity.polygon.outline = true;
+        entity.polygon.outlineColor = ROAD_EDGE_COLOR;
+        entity.polygon.outlineWidth = 1.5;
+        entity.polygon.perPositionHeight = false;
+        entity.polygon.height = undefined;
+        entity.polygon.extrudedHeight = undefined;
+      }
+    });
+
+    console.info("[3D roads] entities", {
+      total: roadEntities.length,
+      polyline: polylineCount,
+      polygon: polygonCount,
+      corridor: corridorCount
+    });
+
+    scheduleRoadWidthSync();
+  }
+
+  function loadRoadsInBackground(reason = "") {
+    const token = ++roadsLoadToken;
+    roadsLoadTask = (async () => {
+      try {
+        await loadRoads();
+        if (token !== roadsLoadToken) return;
+        viewer?.scene.requestRender();
+      } catch (error) {
+        if (token !== roadsLoadToken) return;
+        console.warn(`3D 道路后台加载失败（${reason || "unknown"}）：`, error);
+      }
+    })();
+    return roadsLoadTask;
+  }
+
+  async function loadBuildingsNow() {
+    if (!viewer) {
+      await initViewer();
+    }
+
+    clearAllReplacementModels();
+    clearActiveEntity();
+
+    if (buildingsDataSource) {
+      viewer.dataSources.remove(buildingsDataSource, true);
+      buildingsDataSource = null;
+    }
+    if (roadsDataSource) {
+      viewer.dataSources.remove(roadsDataSource, true);
+      roadsDataSource = null;
+    }
+
+    entityMap.clear();
+    terrainHeightCache.clear();
+
+    const mainResources = getMain3DResources();
+    const buildingUrl = mainResources.buildingUrl || GEOJSON_URL;
+    await loadCSVRows(mainResources.buildingUrl ? null : CSV_URL);
+
+    let featureCollection = null;
+
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const linkedSpace = getLinked2DSpaceFor3D();
+    const geojsonText = await loadText(buildingUrl);
+    let baseCollection = JSON.parse(geojsonText);
+    if (window.VillageDatasetResolverModule?.normalizeFeatureCollection) {
+      baseCollection = window.VillageDatasetResolverModule.normalizeFeatureCollection(baseCollection, "building");
+    }
+    const resolver = window.EffectiveBuildingFeaturesModule;
+    if (!resolver) throw new Error("EFFECTIVE_BUILDING_FEATURES_MODULE_REQUIRED");
+
+    if (["course_personal", "practice_personal", "formal_personal"].includes(linkedSpace?.spaceType)) {
+      const personalRows = await list3DPersonalBuildings(linkedSpaceId);
+      featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
+        baseFeatures: baseCollection.features,
+        personalRows,
+        isPersonalSpace: true,
+        getBaseCode: (feature) => getRoadCodeFromFeatureLike(feature)
+      });
+    } else {
+      const dbRows = await list3DBuildingsFromDb();
+      featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
+        baseFeatures: baseCollection.features,
+        dbRows,
+        getBaseCode: (feature) => {
+          const props = feature?.properties || {};
+          return CODE_FIELDS.map((field) => props[field]).find((value) => value != null) || "";
+        }
+      });
+    }
+
+    buildingsDataSource = await Cesium.GeoJsonDataSource.load(featureCollection, {
+      clampToGround: false,
+      stroke: OUTLINE_COLOR,
+      fill: BASE_COLOR,
+      strokeWidth: 1.2
+    });
+
+    viewer.dataSources.add(buildingsDataSource);
+
+    const entities = buildingsDataSource.entities.values || [];
+    entities.forEach((entity) => {
+      if (!entity || !entity.polygon) return;
+
+      const rawSourceCode = String(getEntitySourceCode(entity) || "").trim();
+      const sourceCode = normalizeCode(rawSourceCode);
+      if (!sourceCode) return;
+
+      entity.__sourceCode = sourceCode;
+      entity.__photoSourceCode = rawSourceCode;
+      entity.__isBuildingEntity = true;
+      setEntityDefaultStyle(entity);
+      entityMap.set(sourceCode, entity);
+    });
+
+    await applyTerrainHeights(entities);
+    await applyCurrent3DSpaceToScene();
+    const realityController = syncRealityBuildingProxies();
+    void realityController?.enter().catch((error) => {
+      console.warn("村庄实景模型后台加载失败：", error?.message || error);
+    });
+    loadedBuildingsSpaceId = get3DLoadKey();
+    loadedBuildingRevision = Number(window.__buildingGeometryRevision || 0);
+    loadRoadsInBackground("after-load-buildings");
+
+    if (entities.length) {
+      viewer.flyTo(buildingsDataSource, {
+        duration: 1.0,
+        offset: getOverviewCameraOffset()
+      });
+    }
+
+    viewer.scene.requestRender();
+  }
+
+  const loadBuildings = window.EffectiveBuildingFeaturesModule.createSerialTaskRunner(loadBuildingsNow);
+
+  async function showEntityInfo(entity) {
+    const infoPanel = getInfoPanel();
+    if (!infoPanel || !entity) return;
+
+    const sourceCode = entity.__sourceCode || "";
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const allowEdit = get3DEditPolicy().canEditModel;
+
+    const baseRow = buildBase3DRow(entity);
+
+    let mergedRow = baseRow;
+
+    try {
+      // Fetch shared fields from 2D namespace
+      const fetchObjectEdits = window.__fetchObjectEdits;
+      const objectType2D = `building__${linkedSpaceId}`;
+      const sharedEditData = fetchObjectEdits
+        ? await fetchObjectEdits(sourceCode, objectType2D)
+        : null;
+
+      // Fetch 3D-specific fields (建筑高度, model state)
+      const editData3D = await fetchSingle3DEdit(sourceCode);
+
+      // Merge: 3D-specific data first, then shared fields override (for synchronization)
+      mergedRow = mergeRow(baseRow, { ...editData3D, ...sharedEditData });
+    } catch (error) {
+      console.warn("Error fetching entity edit data:", error);
+      // Continue with baseRow if fetching fails
+    }
+
+    const runtimeGeneratedState = getRuntimeGeneratedModelState(linkedSpaceId, sourceCode);
+    if (runtimeGeneratedState) {
+      mergedRow = mergeRow(mergedRow, runtimeGeneratedState);
+    }
+
+    {
+      try {
+        const { library, binding } = await refreshCurrentModelLibrary(sourceCode);
+        if (binding?.group_model_assets) {
+          const signedUrl = await library.createSignedUrl(binding.group_model_assets);
+          const transform = binding.transform || {};
+          mergedRow = mergeRow(mergedRow, {
+            modelPreset: "",
+            modelAssetId: binding.asset_id,
+            modelAssetName: binding.group_model_assets.name || "",
+            modelUrl: signedUrl,
+            modelStoragePath: binding.group_model_assets.storage_path || "",
+            modelScale: transform.scale ?? mergedRow.modelScale ?? "1",
+            modelHeading: transform.heading ?? mergedRow.modelHeading ?? "0",
+            modelHeightOffset: transform.heightOffset ?? mergedRow.modelHeightOffset ?? "0",
+            modelOffsetX: transform.offsetX ?? mergedRow.modelOffsetX ?? "0",
+            modelOffsetY: transform.offsetY ?? mergedRow.modelOffsetY ?? "0",
+            modelStretchX: transform.stretchX ?? mergedRow.modelStretchX ?? "1",
+            modelStretchY: transform.stretchY ?? mergedRow.modelStretchY ?? "1"
+          });
+          await applyModelStateToEntity(entity, mergedRow);
+        }
+      } catch (error) {
+        console.warn("读取小组模型库失败：", error);
+        currentLibraryAssets = [];
+        currentLibraryBinding = null;
+      }
+    }
+
+    currentSelectedEntityCode = sourceCode;
+    update3DStatusText();
+
+    infoPanel.classList.remove("empty");
+    infoPanel.innerHTML = `
+      ${buildModelReplaceCardHtmlV3(mergedRow, allowEdit)}
+
+      <div class="info-card">
+        <h3 class="house-title">3D 模型说明</h3>
+        <div class="house-row">当前空间：${escapeHtml(linkedSpaceId || "current")}</div>
+        <div class="house-row">地形高程：${escapeHtml((entity.__terrainHeight ?? 0).toFixed(2))} m</div>
+        <div class="house-row">当前挤出高度：${escapeHtml(String(entity.__buildingHeight ?? DEFAULT_HEIGHT))} m</div>
+      </div>
+    `;
+
+    bindEntityInfoEventsV3(entity, baseRow, allowEdit);
+  }
+
+  function openHouseGeneratorForEntity(entity, statusEl) {
+    const sourceCode = String(entity?.__photoSourceCode || entity?.__sourceCode || "").trim();
+    const sourceName = String(entity?.__displayName || sourceCode || "").trim();
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+
+    const generatorUrl = new URL("rural_house_generator/index.html", window.location.href);
+    generatorUrl.searchParams.set("mode", "photo");
+    if (sourceCode) generatorUrl.searchParams.set("targetCode", sourceCode);
+    if (linkedSpaceId) generatorUrl.searchParams.set("targetSpace", linkedSpaceId);
+    if (sourceName) generatorUrl.searchParams.set("targetName", sourceName);
+    const footprintHeadingDeg = estimateEntityFootprintHeadingDeg(entity);
+    const footprint = getEntityFootprintSizeMeters(entity, footprintHeadingDeg);
+    if (footprint) {
+      generatorUrl.searchParams.set("targetLength", footprint.sizeX.toFixed(3));
+      generatorUrl.searchParams.set("targetDepth", footprint.sizeY.toFixed(3));
+    }
+
+    const opened = window.open(generatorUrl.toString(), "_blank");
+    if (!opened && statusEl) {
+      statusEl.textContent = "打开失败：请允许浏览器弹出新窗口。";
+    }
+    return !!opened;
+  }
+
+  async function handleHouseGeneratorModelMessage(event) {
+    const message = event?.data;
+    if (!message || typeof message !== "object") return;
+    if (message.type !== HOUSE_GENERATOR_MESSAGE_TYPE) return;
+
+    const origin = String(event.origin || "");
+    if (origin && origin !== "null" && origin !== window.location.origin) return;
+
+    const payload = message.payload || {};
+    const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+    const targetSpaceId = String(payload.spaceId || linkedSpaceId || "current").trim() || "current";
+    const fallbackCode = activeEntity?.__sourceCode || currentSelectedEntityCode;
+    const sourceCode = normalizeCode(payload.sourceCode || fallbackCode);
+    const glbBuffer = payload.glbBuffer;
+
+    if (!sourceCode || !(glbBuffer instanceof ArrayBuffer)) return;
+
+    const scale = clampNumber(payload.modelScale, 0.1, 120, HOUSE_GENERATOR_DEFAULT_SCALE);
+    const heading = clampNumber(payload.modelHeading, -360, 360, 0);
+    const heightOffset = clampNumber(payload.modelHeightOffset, -100, 300, 0);
+    const offsetX = clampNumber(payload.modelOffsetX, -200, 200, 0);
+    const offsetY = clampNumber(payload.modelOffsetY, -200, 200, 0);
+    const stretchX = clampNumber(payload.modelStretchX, 0.1, 20, 1);
+    const stretchY = clampNumber(payload.modelStretchY, 0.1, 20, 1);
+    const snapToBase = payload.modelSnapToBase === undefined ? true : toBooleanFlag(payload.modelSnapToBase, true);
+    const expectedHeight = clampNumber(payload?.modelMetrics?.totalHeight, 0.1, 300, NaN);
+    const expectedLength = clampNumber(payload?.modelMetrics?.length, 0.1, 300, NaN);
+    const expectedWidth = clampNumber(payload?.modelMetrics?.width, 0.1, 300, NaN);
+
+    const blob = new Blob([glbBuffer], { type: "model/gltf-binary" });
+    const runtimeUrl = URL.createObjectURL(blob);
+
+    const runtimeState = {
+      modelPreset: "",
+      modelUrl: runtimeUrl,
+      modelScale: String(scale),
+      modelHeading: String(heading),
+      modelHeightOffset: String(heightOffset),
+      modelOffsetX: String(offsetX),
+      modelOffsetY: String(offsetY),
+      modelStretchX: String(stretchX),
+      modelStretchY: String(stretchY),
+      modelExpectedHeight: Number.isFinite(expectedHeight) ? String(expectedHeight) : "",
+      modelExpectedLength: Number.isFinite(expectedLength) ? String(expectedLength) : "",
+      modelExpectedWidth: Number.isFinite(expectedWidth) ? String(expectedWidth) : "",
+      modelSnapToBase: snapToBase ? "1" : "0"
+    };
+
+    setRuntimeGeneratedModelState(targetSpaceId, sourceCode, runtimeState);
+
+    if (targetSpaceId === linkedSpaceId) {
+      const entity = entityMap.get(sourceCode);
+      if (entity) {
+        await applyModelStateToEntity(entity, runtimeState);
+
+        if (activeEntity && normalizeCode(activeEntity.__sourceCode) === sourceCode) {
+          await showEntityInfo(entity);
+          const statusEl = byId("applyModelPresetStatus");
+          if (statusEl) statusEl.textContent = "已接收生成模型，白模已替换。";
+        }
+      }
+    }
+
+    viewer?.scene.requestRender();
+  }
+
+  async function fetchHouseGeneratorPhotoMaterials(sourceCode, spaceId) {
+    if (!supabaseClient || !sourceCode) return [];
+    const normalizedSourceCode = normalizeCode(sourceCode);
+    const objectTypes = ["building"];
+    if (spaceId && spaceId !== "current") objectTypes.push(`building__${spaceId}`);
+
+    const context = getActiveVillage3DContext();
+    let query = supabaseClient
+      .from(OBJECT_PHOTOS_TABLE)
+      .select("*")
+      .in("object_type", objectTypes);
+    if (context.teachingProjectId && context.villageId) {
+      query = query
+        .eq("teaching_project_id", context.teachingProjectId)
+        .eq("village_id", context.villageId)
+        .eq("space_id", spaceId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const seen = new Set();
+    return (data || [])
+      .filter((item) => normalizeCode(item?.object_code) === normalizedSourceCode)
+      .map((item) => ({
+        id: String(item?.id ?? "").trim(),
+        url: String(item?.photo_url || "").trim(),
+        hasPhotoPath: Boolean(item?.photo_path),
+        uploadedAt: String(item?.uploaded_at || "").trim(),
+        uploadedBy: String(item?.uploaded_by || "").trim()
+      }))
+      .filter((item) => {
+        if (!item.url) return false;
+        const key = item.id ? `id:${item.id}` : `url:${item.url}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => (Date.parse(b.uploadedAt) || 0) - (Date.parse(a.uploadedAt) || 0));
+  }
+
+  async function handleHouseGeneratorPhotoRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_PHOTO_REQUEST_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin && origin !== "null" && origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+
+    const payload = message.payload || {};
+    // Photo rows use the exact 2D object_code, including separators such as "building-v4-5".
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || "current").trim() || "current";
+    let photos = [];
+    let errorMessage = "";
+    try {
+      photos = await fetchHouseGeneratorPhotoMaterials(sourceCode, spaceId);
+    } catch (error) {
+      console.warn("读取建筑已有照片失败：", error);
+      errorMessage = String(error?.message || "读取已有照片失败");
+    }
+
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_PHOTO_RESPONSE_TYPE,
+      payload: { sourceCode, spaceId, photos, error: errorMessage }
+    }, origin && origin !== "null" ? origin : "*");
+  }
+
+  async function handleHouseGeneratorFacadeContextRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_FACADE_CONTEXT_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+
+    const payload = message.payload || {};
+    const context = getActiveVillage3DContext();
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || getActualLinkedSpaceIdFor3D() || "current").trim() || "current";
+    let hasAuthenticatedSession = false;
+    try {
+      const sessionResult = await supabaseClient?.auth?.getSession?.();
+      hasAuthenticatedSession = Boolean(sessionResult?.data?.session);
+    } catch (_) {}
+
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_FACADE_CONTEXT_TYPE,
+      payload: {
+        supabaseUrl: SUPABASE_URL,
+        publishableKey: SUPABASE_PUBLISHABLE_KEY,
+        courseId: String(context.courseId || window.CourseModelModule?.DEFAULT_COURSE?.id || ""),
+        teachingProjectId: String(context.teachingProjectId || ""),
+        villageId: String(context.villageId || ""),
+        sourceCode,
+        spaceId,
+        hasAuthenticatedSession
+      }
+    }, window.location.origin);
+  }
+
+  async function uploadHouseGeneratorPhoto(file, sourceCode, spaceId) {
+    if (!supabaseClient) throw new Error("当前未配置 Supabase。");
+    if (!(file instanceof Blob) || !sourceCode) throw new Error("照片或建筑编码无效。");
+    const context = getActiveVillage3DContext();
+    if (!context.teachingProjectId || !context.villageId) throw new Error("课程村庄上下文不完整。");
+    const authenticatedName = String(
+      window.VillageAuth?.getCurrentDisplayName?.()
+      || window.VillageAuth?.getCurrentUser?.()?.name
+      || ""
+    ).trim();
+    if (!authenticatedName) throw new Error("当前登录用户缺少显示名称，请重新登录后再上传。");
+    const extension = String(file.name || "photo.jpg").split(".").pop().toLowerCase();
+    const safeExtension = ["jpg", "jpeg", "png"].includes(extension) ? extension : "jpg";
+    const safeCode = normalizeCode(sourceCode).replace(/[^a-zA-Z0-9_-]/g, "-") || "building";
+    const storagePath = `${context.teachingProjectId}/${context.villageId}/${spaceId}/building/${safeCode}_${Date.now()}.${safeExtension}`;
+    const bucket = supabaseClient.storage.from("house-photos");
+    const { error: uploadError } = await bucket.upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+    if (uploadError) throw uploadError;
+    const publicUrl = bucket.getPublicUrl(storagePath)?.data?.publicUrl || "";
+    const insert = await supabaseClient
+      .from(OBJECT_PHOTOS_TABLE)
+      .insert({
+        object_code: sourceCode,
+        object_type: "building",
+        photo_url: publicUrl,
+        photo_path: storagePath,
+        uploaded_by: authenticatedName,
+        survey_layer_key: "building",
+        teaching_project_id: context.teachingProjectId,
+        village_id: context.villageId,
+        space_id: spaceId
+      })
+      .select("*")
+      .single();
+    if (insert.error) {
+      await bucket.remove([storagePath]);
+      throw insert.error;
+    }
+    return {
+      id: String(insert.data?.id ?? ""),
+      url: String(insert.data?.photo_url || publicUrl),
+      hasPhotoPath: Boolean(insert.data?.photo_path || storagePath),
+      uploadedAt: String(insert.data?.uploaded_at || new Date().toISOString()),
+      uploadedBy: String(insert.data?.uploaded_by || authenticatedName)
+    };
+  }
+
+  async function handleHouseGeneratorPhotoUploadRequest(event) {
+    const message = event?.data;
+    if (!message || message.type !== HOUSE_GENERATOR_PHOTO_UPLOAD_REQUEST_TYPE) return;
+    const origin = String(event.origin || "");
+    if (origin !== window.location.origin) return;
+    if (!event.source || typeof event.source.postMessage !== "function") return;
+    const payload = message.payload || {};
+    const sourceCode = String(payload.sourceCode || "").trim();
+    const spaceId = String(payload.spaceId || getActualLinkedSpaceIdFor3D() || "current").trim() || "current";
+    let photo = null;
+    let errorMessage = "";
+    try {
+      photo = await uploadHouseGeneratorPhoto(payload.file, sourceCode, spaceId);
+    } catch (error) {
+      console.warn("生成器照片上传失败：", error);
+      errorMessage = String(error?.message || "照片上传失败");
+    }
+    event.source.postMessage({
+      type: HOUSE_GENERATOR_PHOTO_UPLOAD_RESPONSE_TYPE,
+      payload: { sourceCode, spaceId, photo, error: errorMessage }
+    }, window.location.origin);
+  }
+
+  function bindHouseGeneratorMessageBridge() {
+    if (houseGeneratorMessageBound) return;
+    houseGeneratorMessageBound = true;
+    houseGeneratorMessageHandler = (event) => {
+      void handleHouseGeneratorModelMessage(event);
+      void handleHouseGeneratorPhotoRequest(event);
+      void handleHouseGeneratorFacadeContextRequest(event);
+      void handleHouseGeneratorPhotoUploadRequest(event);
+    };
+    window.addEventListener("message", houseGeneratorMessageHandler);
+  }
+
+  function readModelTransformInputs() {
+    const scaleEl = byId("modelScaleInput");
+    const scaleRangeEl = byId("modelScaleRange");
+    const headingEl = byId("modelHeadingInput");
+    const offsetEl = byId("modelHeightOffsetInput");
+    const stretchXEl = byId("modelStretchXInput");
+    const stretchYEl = byId("modelStretchYInput");
+    const offsetXEl = byId("modelOffsetXInput");
+    const offsetYEl = byId("modelOffsetYInput");
+
+    const scaleValue = scaleEl?.value ?? scaleRangeEl?.value;
+    return {
+      modelScale: clampNumber(scaleValue, 0.1, 120, 1),
+      modelHeading: clampNumber(headingEl?.value, -360, 360, 0),
+      modelHeightOffset: clampNumber(offsetEl?.value, -100, 300, 0),
+      modelStretchX: clampNumber(stretchXEl?.value, 0.1, 20, 1),
+      modelStretchY: clampNumber(stretchYEl?.value, 0.1, 20, 1),
+      modelOffsetX: clampNumber(offsetXEl?.value, -200, 200, 0),
+      modelOffsetY: clampNumber(offsetYEl?.value, -200, 200, 0)
+    };
+  }
+
+  function bindEntityInfoEventsV3(entity, baseRow, allowEdit) {
+    if (!allowEdit) return;
+
+    const statusEl = byId("applyModelPresetStatus");
+    const restoreButtons = [byId("removeModelPresetBtn"), byId("removeModelPresetBtnSecondary")].filter(Boolean);
+    let applyTimer = 0;
+
+    const getCurrentMergedRow = async () => {
+      const linkedSpaceId = getActualLinkedSpaceIdFor3D();
+      const existingEditData = (await fetchSingle3DEdit(entity.__sourceCode)) || {};
+      const baseMerged = { ...(baseRow || {}), ...existingEditData };
+      const runtimeState = getRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+      return {
+        linkedSpaceId,
+        runtimeState,
+        mergedRow: runtimeState ? mergeRow(baseMerged, runtimeState) : baseMerged
+      };
+    };
+
+    const pushCurrentTransform = async (options = {}) => {
+      const { immediate = false, statusText = "调整已生效。" } = options;
+      if (applyTimer) {
+        clearTimeout(applyTimer);
+        applyTimer = 0;
+      }
+
+      const run = async () => {
+        try {
+          const { linkedSpaceId, runtimeState, mergedRow } = await getCurrentMergedRow();
+          const currentModelState = getModelStateFromRow(mergedRow);
+          if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
+            if (statusEl) statusEl.textContent = "请先从模型库替换模型，或先生成一个模型。";
+            return;
+          }
+
+          const payload = buildModelPayloadPatchFromExistingState(mergedRow, readModelTransformInputs());
+          if (currentLibraryBinding?.asset_id) {
+            await getGroupModelLibrary().placeAsset({
+              assetId: currentLibraryBinding.asset_id,
+              spaceId: linkedSpaceId,
+              objectCode: entity.__sourceCode,
+              transform: {
+                scale: payload.modelScale,
+                heading: payload.modelHeading,
+                heightOffset: payload.modelHeightOffset,
+                offsetX: payload.modelOffsetX,
+                offsetY: payload.modelOffsetY,
+                stretchX: payload.modelStretchX,
+                stretchY: payload.modelStretchY
+              }
+            });
+          } else if (runtimeState) {
+            setRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode, payload);
+          } else {
+            await saveSingle3DEdit(entity.__sourceCode, payload);
+          }
+
+          await applyModelStateToEntity(entity, payload);
+          if (statusEl) statusEl.textContent = statusText;
+          viewer?.scene.requestRender();
+        } catch (error) {
+          console.error("Failed to auto-apply model transform:", error);
+          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
+        }
+      };
+
+      if (immediate) {
+        await run();
+        return;
+      }
+
+      applyTimer = window.setTimeout(() => {
+        applyTimer = 0;
+        void run();
+      }, 180);
+    };
+
+    const autoFitStretchAndRotationSafe = async () => {
+      const { mergedRow } = await getCurrentMergedRow();
+      const currentModelState = getModelStateFromRow(mergedRow);
+      if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
+        if (statusEl) statusEl.textContent = "请先替换一个模型，再执行自动适配。";
+        return;
+      }
+
+      const headingInput = byId("modelHeadingInput");
+      const scaleInput = byId("modelScaleInput");
+      const stretchXInput = byId("modelStretchXInput");
+      const stretchYInput = byId("modelStretchYInput");
+
+      const uiScale = Math.max(0.1, toFiniteNumber(scaleInput?.value, currentModelState.modelScale || 1));
+      const baseScale = uiScale * MODEL_SCALE_BASE;
+      let expectedLength = toFiniteNumber(currentModelState.modelExpectedLength, NaN);
+      let expectedWidth = toFiniteNumber(currentModelState.modelExpectedWidth, NaN);
+      const key = normalizeCode(entity.__sourceCode || "");
+      const primitive = replacementModelMap.get(key)?.primitive || null;
+      const currentStretchX = normalizeStretch(currentModelState.modelStretchX, 1);
+      const currentStretchY = normalizeStretch(currentModelState.modelStretchY, 1);
+
+      if (!Number.isFinite(expectedLength) || !Number.isFinite(expectedWidth) || expectedLength <= 0.1 || expectedWidth <= 0.1) {
+        const radius = primitive?.boundingSphere?.radius;
+        const rawDiameter = Number.isFinite(radius) && radius > 0
+          ? (radius * 2) / Math.max(0.001, baseScale * Math.max(currentStretchX, currentStretchY, 1))
+          : NaN;
+
+        if (!Number.isFinite(rawDiameter) || rawDiameter <= 0.1) {
+          if (statusEl) statusEl.textContent = "当前模型缺少原始长宽信息，暂时无法自动适配。";
+          return;
+        }
+
+        expectedLength = rawDiameter;
+        expectedWidth = rawDiameter;
+      }
+
+      const buildingHeadingDeg = getEntityAutoHeading(entity);
+      const footprintHeadingDeg = estimateEntityFootprintHeadingDeg(entity);
+      const candidates = [0, 90]
+        .map((extraDeg) => {
+          const correctionDeg = footprintHeadingDeg - buildingHeadingDeg + extraDeg;
+          const footprint = getEntityFootprintSizeMeters(entity, footprintHeadingDeg + extraDeg);
+          if (!footprint) return null;
+
+          const stretchX = clampNumber(footprint.sizeX / Math.max(0.1, expectedLength * baseScale), 0.1, 20, 1);
+          const stretchY = clampNumber(footprint.sizeY / Math.max(0.1, expectedWidth * baseScale), 0.1, 20, 1);
+          const score = Math.abs(Math.log(stretchX)) + Math.abs(Math.log(stretchY));
+          return { correctionDeg, footprint, stretchX, stretchY, score };
+        })
+        .filter(Boolean);
+
+      if (!candidates.length) {
+        if (statusEl) statusEl.textContent = "未能读取白模底座范围，无法自动适配。";
+        return;
+      }
+
+      candidates.sort((a, b) => a.score - b.score);
+      const best = candidates[0];
+      if (headingInput) headingInput.value = best.correctionDeg.toFixed(1).replace(/\.0$/, "");
+      if (stretchXInput) stretchXInput.value = best.stretchX.toFixed(3).replace(/\.?0+$/, "");
+      if (stretchYInput) stretchYInput.value = best.stretchY.toFixed(3).replace(/\.?0+$/, "");
+
+      await pushCurrentTransform({
+        immediate: true,
+        statusText: `已自动适配平面重合：旋转 ${best.correctionDeg.toFixed(1)}°，拉伸 X≈${best.stretchX.toFixed(2)}，Y≈${best.stretchY.toFixed(2)}。`
+      });
+    };
+
+    const autoFitStretchAndRotation = async () => {
+      const { mergedRow } = await getCurrentMergedRow();
+      const currentModelState = getModelStateFromRow(mergedRow);
+      if (!(currentModelState.modelPreset || currentModelState.modelUrl)) {
+        if (statusEl) statusEl.textContent = "请先替换一个模型，再执行自动适配。";
+        return;
+      }
+
+      const expectedLength = toFiniteNumber(currentModelState.modelExpectedLength, NaN);
+      const expectedWidth = toFiniteNumber(currentModelState.modelExpectedWidth, NaN);
+      if (!Number.isFinite(expectedLength) || !Number.isFinite(expectedWidth) || expectedLength <= 0.1 || expectedWidth <= 0.1) {
+        if (statusEl) statusEl.textContent = "当前模型缺少原始长宽信息，暂时无法自动适配。";
+        return;
+      }
+
+      const headingInput = byId("modelHeadingInput");
+      const scaleInput = byId("modelScaleInput");
+      const stretchXInput = byId("modelStretchXInput");
+      const stretchYInput = byId("modelStretchYInput");
+
+      const buildingHeadingDeg = getEntityAutoHeading(entity);
+      const footprintHeadingDeg = estimateEntityFootprintHeadingDeg(entity);
+      const uiScale = Math.max(0.1, toFiniteNumber(scaleInput?.value, currentModelState.modelScale || 1));
+      const baseScale = uiScale * MODEL_SCALE_BASE;
+
+      const candidates = [0, 90]
+        .map((extraDeg) => {
+          const correctionDeg = footprintHeadingDeg - buildingHeadingDeg + extraDeg;
+          const footprint = getEntityFootprintSizeMeters(entity, footprintHeadingDeg + extraDeg);
+          if (!footprint) return null;
+
+          const stretchX = clampNumber(footprint.sizeX / Math.max(0.1, expectedLength * baseScale), 0.1, 20, 1);
+          const stretchY = clampNumber(footprint.sizeY / Math.max(0.1, expectedWidth * baseScale), 0.1, 20, 1);
+          const score = Math.abs(Math.log(stretchX)) + Math.abs(Math.log(stretchY));
+
+          return { correctionDeg, footprint, stretchX, stretchY, score };
+        })
+        .filter(Boolean);
+
+      if (!candidates.length) {
+        if (statusEl) statusEl.textContent = "未能读取白模底座范围，无法自动适配。";
+        return;
+      }
+
+      candidates.sort((a, b) => a.score - b.score);
+      const best = candidates[0];
+
+      if (headingInput) headingInput.value = best.correctionDeg.toFixed(1).replace(/\.0$/, "");
+      if (stretchXInput) stretchXInput.value = best.stretchX.toFixed(3).replace(/\.?0+$/, "");
+      if (stretchYInput) stretchYInput.value = best.stretchY.toFixed(3).replace(/\.?0+$/, "");
+
+      await pushCurrentTransform({
+        immediate: true,
+        statusText: `已自动适配平面重合：旋转≈${best.correctionDeg.toFixed(1)}°，拉伸 X≈${best.stretchX.toFixed(2)}，Y≈${best.stretchY.toFixed(2)}。`
+      });
+    };
+
+    const restoreWhiteModel = async () => {
+      if (applyTimer) {
+        clearTimeout(applyTimer);
+        applyTimer = 0;
+      }
+      restoreButtons.forEach((btn) => {
+        btn.disabled = true;
+      });
+      if (statusEl) statusEl.textContent = "正在恢复白模...";
+
+      try {
+        const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
+        const payload = buildModelPayloadPatchFromPreset("", mergedRow);
+
+        await window.GroupModelLibraryModule.restoreBuildingModel({
+          library: getGroupModelLibrary(),
+          spaceId: linkedSpaceId,
+          objectCode: entity.__sourceCode,
+          clearLegacy: () => saveSingle3DEdit(entity.__sourceCode, payload)
+        });
+        clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+        removeReplacementModel(entity.__sourceCode);
+        if (statusEl) statusEl.textContent = "已恢复为白模。";
+        await showEntityInfo(entity);
+      } catch (error) {
+        console.error("Failed to restore white model:", error);
+        if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
+      } finally {
+        restoreButtons.forEach((btn) => {
+          btn.disabled = false;
+        });
+      }
+    };
+
+    document.querySelectorAll(".group-model-apply-btn").forEach((button) => {
+      button.onclick = async () => {
+        const asset = currentLibraryAssets.find((item) => item.id === button.dataset.modelAssetId);
+        if (!asset) return;
+        button.disabled = true;
+        if (statusEl) statusEl.textContent = "正在替换建筑模型...";
+        try {
+          const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
+          const signedUrl = await getGroupModelLibrary().createSignedUrl(asset);
+          const inputs = readModelTransformInputs();
+          await getGroupModelLibrary().placeAsset({
+            assetId: asset.id,
+            spaceId: linkedSpaceId,
+            objectCode: entity.__sourceCode,
+            transform: {
+              scale: inputs.modelScale ?? 1,
+              heading: inputs.modelHeading ?? 0,
+              heightOffset: inputs.modelHeightOffset ?? 0,
+              offsetX: inputs.modelOffsetX ?? 0,
+              offsetY: inputs.modelOffsetY ?? 0,
+              stretchX: inputs.modelStretchX ?? 1,
+              stretchY: inputs.modelStretchY ?? 1
+            }
+          });
+          const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
+            ...inputs,
+            modelAssetName: asset.name,
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path
+          });
+          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+          await saveSingle3DEdit(entity.__sourceCode, payload);
+          await applyModelStateToEntity(entity, payload);
+          if (statusEl) statusEl.textContent = "模型已替换并记录操作。";
+          await showEntityInfo(entity);
+        } catch (error) {
+          console.error("Failed to apply library model:", error);
+          if (statusEl) statusEl.textContent = `操作失败：${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      };
+    });
+
+    const uploadInput = byId("groupModelUploadInput");
+    const selectedFileName = byId("groupModelSelectedFileName");
+    const uploadStatus = byId("groupModelUploadStatus");
+    const uploadBtn = byId("groupModelUploadBtn");
+    if (uploadInput && uploadBtn) {
+      uploadInput.onchange = () => {
+        const file = uploadInput.files?.[0];
+        uploadBtn.disabled = !file;
+        if (selectedFileName) {
+          selectedFileName.textContent = file
+            ? `${file.name} · ${Math.max(0.1, file.size / 1024 / 1024).toFixed(1)} MB`
+            : "尚未选择文件 · 最大 50 MB";
+        }
+      };
+    }
+    if (uploadBtn) {
+      uploadBtn.onclick = async () => {
+        const file = uploadInput?.files?.[0];
+        if (!file) {
+          if (uploadStatus) uploadStatus.textContent = "请先选择一个 GLB 文件。";
+          return;
+        }
+        uploadBtn.disabled = true;
+        if (uploadStatus) uploadStatus.textContent = "正在上传并应用到当前建筑...";
+        try {
+          const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
+          const inputs = readModelTransformInputs();
+          const transform = {
+            scale: inputs.modelScale ?? 1,
+            heading: inputs.modelHeading ?? 0,
+            heightOffset: inputs.modelHeightOffset ?? 0,
+            offsetX: inputs.modelOffsetX ?? 0,
+            offsetY: inputs.modelOffsetY ?? 0,
+            stretchX: inputs.modelStretchX ?? 1,
+            stretchY: inputs.modelStretchY ?? 1
+          };
+          const { asset, signedUrl } = await window.GroupModelLibraryModule.uploadAndPlaceModel({
+            library: getGroupModelLibrary(),
+            file,
+            scope: getCurrentModelLibraryScope(),
+            spaceId: linkedSpaceId,
+            objectCode: entity.__sourceCode,
+            transform
+          });
+          const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
+            ...inputs,
+            modelAssetName: asset.name,
+            modelUrl: signedUrl,
+            modelStoragePath: asset.storage_path
+          });
+          clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
+          await saveSingle3DEdit(entity.__sourceCode, payload);
+          await applyModelStateToEntity(entity, payload);
+          if (uploadStatus) uploadStatus.textContent = "上传成功，已应用到当前建筑；切换其他建筑后可直接复用。";
+          await showEntityInfo(entity);
+        } catch (error) {
+          console.error("Failed to upload and apply library model:", error);
+          if (uploadStatus) uploadStatus.textContent = `上传失败：${error.message}`;
+          if (statusEl) statusEl.textContent = `上传失败：${error.message}`;
+        } finally {
+          uploadBtn.disabled = !uploadInput?.files?.[0];
+        }
+      };
+    }
+
+    const refreshLibraryBtn = byId("refreshGroupModelLibraryBtn");
+    if (refreshLibraryBtn) refreshLibraryBtn.onclick = () => showEntityInfo(entity);
+
+    document.querySelectorAll(".group-model-delete-btn").forEach((button) => {
+      button.onclick = async () => {
+        const asset = currentLibraryAssets.find((item) => item.id === button.dataset.deleteModelAssetId);
+        if (!asset || !window.confirm(`确认删除模型“${asset.name}”吗？正在使用的模型不能删除。`)) return;
+        button.disabled = true;
+        try {
+          await getGroupModelLibrary().deleteAsset(asset);
+          if (statusEl) statusEl.textContent = "模型已删除并记录操作。";
+          await showEntityInfo(entity);
+        } catch (error) {
+          if (statusEl) statusEl.textContent = `删除失败：${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      };
+    });
+
+    restoreButtons.forEach((btn) => {
+      btn.onclick = async () => restoreWhiteModel();
+    });
+
+    const openGeneratorBtn = byId("openHouseGeneratorBtn");
+    if (openGeneratorBtn) {
+      openGeneratorBtn.onclick = () => {
+        const opened = openHouseGeneratorForEntity(entity, statusEl);
+        if (opened && statusEl) {
+          statusEl.textContent = "已打开生成器。生成后点击“应用到主平台”，即可替换当前白模。";
+        }
+      };
+    }
+
+    const bindAutoApply = (id, eventName = "change", options = {}) => {
+      const el = byId(id);
+      if (!el) return;
+      el.addEventListener(eventName, () => {
+        void pushCurrentTransform(options);
+      });
+    };
+
+    bindAutoApply("modelScaleInput", "input");
+    bindAutoApply("modelHeightOffsetInput", "input");
+    bindAutoApply("modelHeadingInput", "input");
+    bindAutoApply("modelStretchXInput", "input");
+    bindAutoApply("modelStretchYInput", "input");
+    bindAutoApply("modelOffsetXInput", "input");
+    bindAutoApply("modelOffsetYInput", "input");
+
+    const autoFitStretchBtn = byId("autoFitModelStretchBtn");
+    if (autoFitStretchBtn) {
+      autoFitStretchBtn.onclick = async () => {
+        autoFitStretchBtn.disabled = true;
+        if (statusEl) statusEl.textContent = "正在自动适配...";
+        try {
+          await autoFitStretchAndRotationSafe();
+        } catch (error) {
+          console.error("Failed to auto-fit model stretch/rotation:", error);
+          if (statusEl) statusEl.textContent = `自动适配失败：${error.message}`;
+        } finally {
+          autoFitStretchBtn.disabled = false;
+        }
+      };
+    }
+
+    const rotateLeftBtn = byId("rotateModelLeft90Btn");
+    const rotateRightBtn = byId("rotateModelRight90Btn");
+    const headingInput = byId("modelHeadingInput");
+    if (rotateLeftBtn && headingInput) {
+      rotateLeftBtn.onclick = async () => {
+        const current = Number(headingInput.value || 0);
+        headingInput.value = String(current - 90);
+        await pushCurrentTransform({ immediate: true, statusText: "已左旋转 90°。" });
+      };
+    }
+    if (rotateRightBtn && headingInput) {
+      rotateRightBtn.onclick = async () => {
+        const current = Number(headingInput.value || 0);
+        headingInput.value = String(current + 90);
+        await pushCurrentTransform({ immediate: true, statusText: "已右旋转 90°。" });
+      };
+    }
+
+    const replacementBaseToggle = byId("toggleReplacementBase");
+    if (replacementBaseToggle) {
+      replacementBaseToggle.onchange = () => {
+        showReplacementBase = !!replacementBaseToggle.checked;
+        refreshAllEntityVisualStates();
+      };
+    }
+
+    const replacementAnchorToggle = byId("toggleReplacementAnchor");
+    if (replacementAnchorToggle) {
+      replacementAnchorToggle.onchange = () => {
+        showReplacementAnchor = !!replacementAnchorToggle.checked;
+        refreshReplacementAnchorVisibility();
+      };
+    }
+  }
+
+  function showEmpty3DInfo() {
+    const infoPanel = getInfoPanel();
+    if (!infoPanel) return;
+
+    const spaces = typeof window.__get2DSpaces === 'function' ? window.__get2DSpaces() : [];
+    const currentSpaceId = window.__active2DSpaceId || 'current';
+    const currentSpace = spaces.find(s => s.id === currentSpaceId) || { title: "村庄现状" };
+    
+    currentSelectedEntityCode = "";
+    update3DStatusText();
+
+    infoPanel.classList.add("empty");
+    infoPanel.innerHTML = "";
+  }
+
+  function bindClickEvents() {
+    if (!viewer) return;
+
+    if (clickHandler) {
+      clickHandler.destroy();
+      clickHandler = null;
+    }
+
+    clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+    clickHandler.setInputAction((movement) => {
+      if (measureModeActive) {
+        handle3DMeasureClick(movement.position);
+        return;
+      }
+
+      const picked = viewer.scene.pick(movement.position);
+
+      if (!Cesium.defined(picked)) {
+        clearActiveEntity();
+        showEmpty3DInfo();
+        viewer.scene.requestRender();
+        return;
+      }
+
+      let entity = null;
+
+      if (picked.id) {
+        if (picked.id.__isReplacementAnchor) {
+          entity = entityMap.get(normalizeCode(picked.id.__sourceCode || "")) || null;
+        } else if (picked.id.__isRoadEntity) {
+          entity = null;
+        } else if (picked.id.polygon && picked.id.__isBuildingEntity) {
+          entity = picked.id;
+        }
+      }
+
+      if (!entity && picked.primitive && picked.primitive.__isReplacementModel) {
+        entity = entityMap.get(normalizeCode(picked.primitive.__sourceCode || "")) || null;
+      }
+
+      if (!entity || !entity.polygon) {
+        clearActiveEntity();
+        showEmpty3DInfo();
+        viewer.scene.requestRender();
+        return;
+      }
+
+      setActiveEntity(entity);
+      focusRealityBuilding(entity);
+      scheduleEntityInfoAfterRealityFocus(entity);
+      viewer.scene.requestRender();
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    clickHandler.setInputAction(() => {
+      if (!measureModeActive) return;
+      toggleMeasureMode(false);
+    }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+  }
+
+  async function initViewer() {
+    if (initialized) return;
+
+    if (typeof Cesium === "undefined") {
+      throw new Error("Cesium not found. Please include Cesium.js in index.html first.");
+    }
+
+    if (!byId("cesiumContainer")) {
+      throw new Error("Cannot find #cesiumContainer. Please check the 3D container in index.html.");
+    }
+
+    await ensureBasemapGeorefResolved();
+
+    let canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
+    if (canUseIonServices) {
+      Cesium.Ion.defaultAccessToken = window.CESIUM_ION_TOKEN;
+    } else {
+      console.warn("Cesium Ion token 未配置，3D 将跳过在线地形/影像服务。");
+    }
+
+    // 3D 首屏不再等待在线地形服务；先用椭球体地形快速打开白模，
+    // 在线地形在 Viewer 创建后后台加载并替换，避免首次进入 3D 时长时间卡住。
+    const terrainProvider = new Cesium.EllipsoidTerrainProvider();
+
+    const viewerOptions = {
+      animation: false,
+      timeline: false,
+      baseLayer: false,
+      imageryProvider: false,
+      baseLayerPicker: false,
+      geocoder: false,
+      homeButton: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      fullscreenButton: false,
+      selectionIndicator: false,
+      infoBox: false,
+      shouldAnimate: false,
+      terrainProvider: terrainProvider
+    };
+
+    viewer = new Cesium.Viewer("cesiumContainer", viewerOptions);
+    viewer.scene.renderError.addEventListener((scene, error) => {
+      console.error("[Cesium renderError]", error);
+    });
+    viewer.scene.rethrowRenderErrors = false;
+    addViewerImageryLayers(canUseIonServices).catch((error) => {
+      console.warn("后台加载 3D 影像图层失败：", error?.message || error);
+    });
+    loadPreferredTerrainProviderInBackground(canUseIonServices);
+
+    // 统一设置无影像覆盖区域的底色为浅蓝灰，避免默认蓝色或异常色块
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#c8d8e8");
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    viewer.scene.globe.maximumScreenSpaceError = PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR;
+    viewer.scene.requestRenderMode = true;
+    viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+    // Disable post-process anti-aliasing and cap render scale to reduce first-open jank.
+    viewer.scene.fxaa = false;
+    if (viewer.scene.postProcessStages && viewer.scene.postProcessStages.fxaa) {
+      viewer.scene.postProcessStages.fxaa.enabled = false;
+    }
+    const deviceScale = Number(window.devicePixelRatio) || 1;
+    viewer.resolutionScale = Math.min(deviceScale, PERF_RESOLUTION_SCALE_CAP);
+    viewer.camera.percentageChanged = 0.01;
+    viewer.camera.changed.addEventListener(() => {
+      scheduleRoadWidthSync();
+    });
+
+    if (viewer.cesiumWidget && viewer.cesiumWidget.creditContainer) {
+      viewer.cesiumWidget.creditContainer.style.display = "none";
+    }
+
+    bindClickEvents();
+    ensureRealityInsetController();
+    initialized = true;
+  }
+
+  async function enter() {
+    await initViewer();
+    bindHouseGeneratorMessageBridge();
+
+    const linkedSpaceId = get3DLoadKey();
+    const currentRevision = Number(window.__buildingGeometryRevision || 0);
+    if (window.EffectiveBuildingFeaturesModule.shouldReloadBuildingSpace(
+      loadedBuildingsSpaceId,
+      linkedSpaceId,
+      !!buildingsDataSource
+    ) || loadedBuildingRevision !== currentRevision) {
+      await loadBuildings();
+    } else {
+      await applyCurrent3DSpaceToScene();
+      loadRoadsInBackground("enter-refresh");
+    }
+
+    setTimeout(() => {
+      if (viewer) {
+        viewer.resize();
+        viewer.scene.requestRender();
+      }
+    }, 60);
+
+    update3DStatusText();
+    const realityController = syncRealityBuildingProxies();
+    void realityController?.enter().catch((error) => {
+      console.warn("村庄实景模型进入失败：", error?.message || error);
+    });
+
+    // 与3D同步选中状态
+    try {
+      const selectedCode2D = window.__active2DSelectedCode;
+      if (selectedCode2D && entityMap && entityMap.has && entityMap.has(selectedCode2D)) {
+        const entity = entityMap.get(selectedCode2D);
+        if (entity) {
+          setActiveEntity(entity);
+          await showEntityInfo(entity);
+        } else {
+          showEmpty3DInfo();
+        }
+      } else if (!activeEntity) {
+        showEmpty3DInfo();
+      } else {
+        await showEntityInfo(activeEntity);
+      }
+    } catch (error) {
+      console.error("Error syncing selection from 2D:", error);
+      showEmpty3DInfo();
+    }
+
+  }
+
+  async function reload(selectCode) {
+    if (!initialized) {
+      await enter();
+      return;
+    }
+
+    const savedSelectedCode = selectCode || activeEntity?.__sourceCode;
+
+    activeBasemapGeoref = normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
+      || { ...FALLBACK_BASEMAP_GEOREF };
+    basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
+    const canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
+    await addViewerImageryLayers(canUseIonServices);
+    await loadBuildings();
+    
+    if (savedSelectedCode && entityMap.has(normalizeCode(savedSelectedCode))) {
+      const entity = entityMap.get(normalizeCode(savedSelectedCode));
+      setActiveEntity(entity);
+      await showEntityInfo(entity);
+    } else {
+      showEmpty3DInfo();
+    }
+
+    viewer.scene.requestRender();
+  }
+  
+  async function flyToCurrent3DBuildings() {
+    if (!viewer) {
+      console.warn("flyToCurrent3DBuildings: viewer not ready");
+      return;
+    }
+    
+    if (!buildingsDataSource) {
+      console.warn("flyToCurrent3DBuildings: buildingsDataSource not ready, using recenter");
+      recenter();
+      return;
+    }
+
+    const entities = buildingsDataSource.entities.values || [];
+    if (!entities.length) {
+      console.warn("flyToCurrent3DBuildings: no entities, using recenter");
+      recenter();
+      return;
+    }
+
+    try {
+      await viewer.flyTo(buildingsDataSource, {
+        duration: 0.9,
+        offset: getOverviewCameraOffset()
+      });
+    } catch (error) {
+      console.warn("3D 自动跳转当前建筑范围失败，尝试使用默认位置", error);
+      // 后备方案：飞到默认中心
+      recenter();
+    }
+  }
+
+  function flyToBuilding(sourceCode) {
+    const entity = entityMap.get(normalizeCode(sourceCode));
+    if (!viewer || !entity) return false;
+
+    viewer.flyTo(entity, {
+      duration: 1.2,
+      offset: new Cesium.HeadingPitchRange(0, -0.45, 120)
+    });
+    focusRealityBuilding(entity);
+
+    return true;
+  }
+
+  function recenter() {
+    if (!viewer) {
+      console.warn("recenter: viewer not ready");
+      return;
+    }
+
+    // 如果有建筑数据，使用与初始化一致的 flyTo 方法
+    if (buildingsDataSource) {
+      const entities = buildingsDataSource.entities.values || [];
+      if (entities.length > 0) {
+        viewer.flyTo(buildingsDataSource, {
+          duration: 0.9,
+          offset: getOverviewCameraOffset()
+        });
+        return;
+      }
+    }
+    
+    // 后备方案：建筑数据未加载时，飞到默认中心
+    const mainResources = getMain3DResources();
+    const extent = mainResources.initialExtent;
+    const georef = mainResources.imageryUrl && Array.isArray(extent)
+      ? { minX: extent[0], minY: extent[1], maxX: extent[2], maxY: extent[3] }
+      : getBasemapGeoref();
+    const center = Cesium.Cartesian3.fromDegrees(
+      (georef.minX + georef.maxX) / 2,
+      (georef.minY + georef.maxY) / 2
+    );
+    
+    viewer.camera.flyToBoundingSphere(
+      new Cesium.BoundingSphere(center, 100),
+      {
+        offset: getOverviewCameraOffset(),
+        duration: 0.9
+      }
+    );
+  }
+
+  function getViewer() {
+    return viewer;
+  }
+
+  function setRealityInsetVisible(visible) {
+    const controller = ensureRealityInsetController();
+    return visible ? controller?.show?.() : controller?.hide?.();
+  }
+
+  function isRealityInsetVisible() {
+    return !byId("reality3dPanel")?.classList?.contains?.("is-hidden");
+  }
+
+  function focusSceneBoundary(boundary) {
+    const points = boundary?.coordinates?.[0] || [];
+    if (!viewer || !points.length) return false;
+    const longitudes = points.map((point) => Number(point[0])).filter(Number.isFinite);
+    const latitudes = points.map((point) => Number(point[1])).filter(Number.isFinite);
+    if (!longitudes.length || !latitudes.length) return false;
+    viewer.camera.flyTo({
+      destination: Cesium.Rectangle.fromDegrees(
+        Math.min(...longitudes), Math.min(...latitudes), Math.max(...longitudes), Math.max(...latitudes)
+      )
+    });
+    return true;
+  }
+
+  function refreshBuildingHeight(sourceCode, nextHeight) {
+    const entity = entityMap.get(normalizeCode(sourceCode));
+    if (!entity || !entity.polygon) return false;
+
+    applyHeightToEntity(entity, nextHeight);
+    syncRealityBuildingProxies();
+    viewer?.scene.requestRender();
+    return true;
+  }
+
+  async function refreshEntityInfo(sourceCode) {
+    if (!sourceCode) return;
+    if (!is3DViewActive()) return;
+    if (!activeEntity || normalizeCode(activeEntity.__sourceCode) !== normalizeCode(sourceCode)) return;
+    await showEntityInfo(activeEntity);
+  }
+
+  function destroy() {
+    toggleMeasureMode(false);
+    if (deferredEntityInfoTimer) {
+      window.clearTimeout(deferredEntityInfoTimer);
+      deferredEntityInfoTimer = 0;
+    }
+    if (realityInsetController) {
+      realityInsetController.destroy();
+      realityInsetController = null;
+    }
+    roadsLoadToken += 1;
+    roadsLoadTask = null;
+    if (roadWidthSyncRaf) {
+      cancelAnimationFrame(roadWidthSyncRaf);
+      roadWidthSyncRaf = 0;
+    }
+
+    if (clickHandler) {
+      clickHandler.destroy();
+      clickHandler = null;
+    }
+
+    clearAllReplacementModels();
+    clearAllRuntimeGeneratedModels();
+
+    if (houseGeneratorMessageBound && houseGeneratorMessageHandler) {
+      window.removeEventListener("message", houseGeneratorMessageHandler);
+      houseGeneratorMessageHandler = null;
+      houseGeneratorMessageBound = false;
+    }
+
+    if (viewer) {
+      if (roadsDataSource) {
+        viewer.dataSources.remove(roadsDataSource, true);
+        roadsDataSource = null;
+      }
+      viewer.destroy();
+      viewer = null;
+    }
+
+    initialized = false;
+    buildingsDataSource = null;
+    loadedBuildingsSpaceId = null;
+    loadedBuildingRevision = -1;
+    roadsDataSource = null;
+    roadEntitiesForWidthSync = [];
+    clearActiveEntity();
+    entityMap.clear();
+    currentSelectedEntityCode = "";
+    set3DHintText(DEFAULT_3D_HINT_TEXT);
+  }
+
+  window.Village3D = {
+    enter,
+    reload,
+    flyToBuilding,
+    refreshBuildingHeight,
+    refreshEntityInfo,
+    toggleMeasureMode,
+    recenter,
+    getViewer,
+    setRealityInsetVisible,
+    isRealityInsetVisible,
+    focusSceneBoundary,
+    destroy
+  };
+})();

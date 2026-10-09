@@ -72,17 +72,19 @@ test('calculatePanelResize keeps the top-left anchor while growing to the pointe
   );
 });
 
-test('reality render quality favors sharp tiles without exceeding 2x DPR', () => {
+test('balanced inset quality caps pixels and reduces tile pressure on the main view', () => {
   assert.deepEqual(getRealityRenderQuality(2.5), {
-    resolutionScale: 2,
+    resolutionScale: 1,
     tilesetOptions: {
-      maximumScreenSpaceError: 4,
-      dynamicScreenSpaceError: false,
+      maximumScreenSpaceError: 8,
+      dynamicScreenSpaceError: true,
       cacheBytes: 256 * 1024 * 1024,
-      preloadFlightDestinations: true
+      preloadFlightDestinations: false
     }
   });
-  assert.equal(getRealityRenderQuality(1.25).resolutionScale, 1.25);
+  assert.equal(getRealityRenderQuality(1.25).resolutionScale, 1);
+  assert.equal(getRealityRenderQuality(2, 'sharp').resolutionScale, 2);
+  assert.equal(getRealityRenderQuality(2, 'sharp').tilesetOptions.maximumScreenSpaceError, 4);
 });
 
 test('building focus uses cached or already-rendered height without waiting for maximum LOD', () => {

@@ -1,0 +1,490 @@
+{
+  "label": "4060-after-v3-3d-round1",
+  "date": "2026-10-08T08:44:13.092Z",
+  "records": [
+    {
+      "at_ms": 217925,
+      "kind": "action",
+      "name": "round-start",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 217925,
+      "kind": "environment",
+      "name": "browser",
+      "duration_ms": 0,
+      "visibility": "visible",
+      "width": 1280,
+      "height": 720,
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Laptop GPU (0x000028A0) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    {
+      "at_ms": 218226,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218227,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218238,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218238,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 218223,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218238,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 218223,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218499,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 814,
+      "status": 200
+    },
+    {
+      "at_ms": 218505,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 7
+    },
+    {
+      "at_ms": 218506,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 807,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218582,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 359,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218589,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 904,
+      "status": 200
+    },
+    {
+      "at_ms": 218589,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 904,
+      "status": 200
+    },
+    {
+      "at_ms": 218589,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 904,
+      "status": 200
+    },
+    {
+      "at_ms": 218589,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218590,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 903,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218590,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 903,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218590,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 903,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218590,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218590,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218655,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 970,
+      "status": 200
+    },
+    {
+      "at_ms": 218655,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 970,
+      "status": 200
+    },
+    {
+      "at_ms": 218655,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218655,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 970,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218657,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 218658,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 971,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218658,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 973,
+      "status": 200
+    },
+    {
+      "at_ms": 218658,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 463,
+      "status": 200
+    },
+    {
+      "at_ms": 218658,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218659,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 972,
+      "start_ms": 217685,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218659,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 462,
+      "start_ms": 218195,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218659,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 218707,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 484,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218815,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 620,
+      "status": 200
+    },
+    {
+      "at_ms": 218815,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 218831,
+      "kind": "phase",
+      "name": "3d_enter",
+      "duration_ms": 652,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 218834,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 619,
+      "start_ms": 218195,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218922,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 624,
+      "start_ms": 218297,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 218932,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 634,
+      "start_ms": 218297,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219357,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1134,
+      "start_ms": 218222,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219358,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 524,
+      "status": 200
+    },
+    {
+      "at_ms": 219358,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 524,
+      "status": 200
+    },
+    {
+      "at_ms": 219358,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 524,
+      "status": 200
+    },
+    {
+      "at_ms": 219358,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 524,
+      "status": 200
+    },
+    {
+      "at_ms": 219358,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 524,
+      "status": 200
+    },
+    {
+      "at_ms": 219359,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 219359,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 524,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219359,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 219359,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 525,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219359,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 525,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219359,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 524,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219359,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 219360,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 219360,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 219360,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 525,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219398,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 565,
+      "status": 200
+    },
+    {
+      "at_ms": 219399,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 219399,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 564,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219446,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 613,
+      "status": 200
+    },
+    {
+      "at_ms": 219623,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 177
+    },
+    {
+      "at_ms": 219624,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 789,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219624,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 790,
+      "status": 200
+    },
+    {
+      "at_ms": 219624,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 219625,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 790,
+      "start_ms": 218834,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 219980,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 581,
+      "status": 200
+    },
+    {
+      "at_ms": 219980,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 219981,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 581,
+      "start_ms": 219399,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

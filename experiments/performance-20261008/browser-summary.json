@@ -1,0 +1,412 @@
+{
+  "hardware": "RTX 4060 Laptop GPU",
+  "live_results": {
+    "layer_restore": {
+      "before": {
+        "samples": [
+          {
+            "file": "sample-1791445796635841600.json",
+            "label": "4060-local-browser-warm",
+            "ms": 1103
+          },
+          {
+            "file": "sample-1791447482378304200.json",
+            "label": "4060-before-layer-round2",
+            "ms": 713
+          },
+          {
+            "file": "sample-1791447535228281600.json",
+            "label": "4060-before-layer-round3",
+            "ms": 648
+          }
+        ],
+        "median_ms": 713,
+        "min_ms": 648,
+        "max_ms": 1103
+      },
+      "after": {
+        "samples": [
+          {
+            "file": "sample-1791448880934059100.json",
+            "label": "4060-after-v3-layer-round1",
+            "ms": 2
+          },
+          {
+            "file": "sample-1791448926097790100.json",
+            "label": "4060-after-v3-layer-round2",
+            "ms": 2
+          },
+          {
+            "file": "sample-1791448949260047900.json",
+            "label": "4060-after-v3-layer-round3",
+            "ms": 2
+          }
+        ],
+        "median_ms": 2,
+        "min_ms": 2,
+        "max_ms": 2
+      }
+    },
+    "warm_3d": {
+      "before": {
+        "samples": [
+          {
+            "file": "sample-1791446290583250100.json",
+            "label": "4060-local-browser-warm",
+            "ms": 1874
+          },
+          {
+            "file": "sample-1791446572091317900.json",
+            "label": "4060-before-3d-round2",
+            "ms": 4462
+          },
+          {
+            "file": "sample-1791446772790427900.json",
+            "label": "4060-before-3d-round3",
+            "ms": 2386
+          }
+        ],
+        "median_ms": 2386,
+        "min_ms": 1874,
+        "max_ms": 4462
+      },
+      "after": {
+        "samples": [
+          {
+            "file": "sample-1791449053095728100.json",
+            "label": "4060-after-v3-3d-round1",
+            "ms": 652
+          },
+          {
+            "file": "sample-1791449085195534000.json",
+            "label": "4060-after-v3-3d-round2",
+            "ms": 1405
+          },
+          {
+            "file": "sample-1791449104033575300.json",
+            "label": "4060-after-v3-3d-round3",
+            "ms": 944
+          }
+        ],
+        "median_ms": 944,
+        "min_ms": 652,
+        "max_ms": 1405
+      }
+    },
+    "studio_open": {
+      "before": {
+        "samples": [
+          {
+            "file": "sample-1791446933447880400.json",
+            "label": "4060-before-studio",
+            "ms": 5832
+          },
+          {
+            "file": "sample-1791447352231523700.json",
+            "label": "4060-before-studio-round2",
+            "ms": 9653
+          },
+          {
+            "file": "sample-1791447389054622700.json",
+            "label": "4060-before-studio-round3",
+            "ms": 11605
+          }
+        ],
+        "median_ms": 9653,
+        "min_ms": 5832,
+        "max_ms": 11605
+      },
+      "after": {
+        "samples": [
+          {
+            "file": "sample-1791449157511827900.json",
+            "label": "4060-after-v3-studio-round1",
+            "ms": 4836
+          },
+          {
+            "file": "sample-1791449218191104700.json",
+            "label": "4060-after-v3-studio-round2",
+            "ms": 2522
+          },
+          {
+            "file": "sample-1791449277410703400.json",
+            "label": "4060-after-v3-studio-round3",
+            "ms": 3792
+          }
+        ],
+        "median_ms": 3792,
+        "min_ms": 2522,
+        "max_ms": 4836
+      }
+    }
+  },
+  "limits": [
+    "Warm repeated operations; independent real network requests vary.",
+    "Different browser viewport sizes occurred; do not infer FPS improvements.",
+    "First cold 3D enter was not instrumented; module-load time is not full 3D readiness.",
+    "Invalid old-script-cache samples are excluded; after labels must start 4060-after-v3-.",
+    "No real 100-building texture upload or GPU frame-rate benchmark."
+  ],
+  "village_switch": [
+    {
+      "file": "sample-1791447623013898400.json",
+      "label": "4060-before-switch-hongxing",
+      "phases": [
+        {
+          "at_ms": 3006000,
+          "kind": "phase",
+          "name": "dataset_signed_urls",
+          "duration_ms": 2479,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3007763,
+          "kind": "phase",
+          "name": "prepareVillageContext",
+          "duration_ms": 4242,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3007770,
+          "kind": "phase",
+          "name": "ensurePlanMap",
+          "duration_ms": 0,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3008431,
+          "kind": "phase",
+          "name": "initializeCoursePersonalSpace",
+          "duration_ms": 664,
+          "failed": true,
+          "failure_code": "PGRST202"
+        },
+        {
+          "at_ms": 3009521,
+          "kind": "phase",
+          "name": "course_refresh",
+          "duration_ms": 1754,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3033116,
+          "kind": "phase",
+          "name": "refresh2DOverlay",
+          "duration_ms": 25349,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3033117,
+          "kind": "phase",
+          "name": "commitVillageContext",
+          "duration_ms": 25354,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3033118,
+          "kind": "phase",
+          "name": "switch_village",
+          "duration_ms": 29597,
+          "failed": false,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "file": "sample-1791447746414405900.json",
+      "label": "4060-before-switch-mibu-warm",
+      "phases": [
+        {
+          "at_ms": 3084128,
+          "kind": "phase",
+          "name": "dataset_signed_urls",
+          "duration_ms": 0,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 3201699,
+          "kind": "phase",
+          "name": "prepareVillageContext",
+          "duration_ms": 117571,
+          "failed": true,
+          "failure_code": "SUPABASE_ERROR"
+        },
+        {
+          "at_ms": 3201700,
+          "kind": "phase",
+          "name": "switch_village",
+          "duration_ms": 117572,
+          "failed": true,
+          "failure_code": "SUPABASE_ERROR"
+        }
+      ]
+    },
+    {
+      "file": "sample-1791449340040675200.json",
+      "label": "4060-after-v3-switch-hongxing",
+      "phases": [
+        {
+          "at_ms": 489337,
+          "kind": "phase",
+          "name": "dataset_signed_urls",
+          "duration_ms": 2176,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 489339,
+          "kind": "phase",
+          "name": "prepareVillageContext",
+          "duration_ms": 2178,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 489358,
+          "kind": "phase",
+          "name": "ensurePlanMap",
+          "duration_ms": 2,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 491364,
+          "kind": "phase",
+          "name": "initializeCoursePersonalSpace",
+          "duration_ms": 2011,
+          "failed": true,
+          "failure_code": "PGRST202"
+        },
+        {
+          "at_ms": 491608,
+          "kind": "phase",
+          "name": "course_refresh",
+          "duration_ms": 2254,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 492839,
+          "kind": "phase",
+          "name": "overlay_render",
+          "duration_ms": 3483,
+          "failed": false,
+          "failure_code": null,
+          "visibility_only": false
+        },
+        {
+          "at_ms": 492842,
+          "kind": "phase",
+          "name": "refresh2DOverlay",
+          "duration_ms": 3487,
+          "failed": false,
+          "failure_code": null,
+          "visibility_only": false
+        },
+        {
+          "at_ms": 492848,
+          "kind": "phase",
+          "name": "commitVillageContext",
+          "duration_ms": 3509,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 492849,
+          "kind": "phase",
+          "name": "switch_village",
+          "duration_ms": 5688,
+          "failed": false,
+          "failure_code": null
+        }
+      ]
+    },
+    {
+      "file": "sample-1791449439288280800.json",
+      "label": "4060-after-v3-switch-mibu",
+      "phases": [
+        {
+          "at_ms": 548298,
+          "kind": "phase",
+          "name": "dataset_signed_urls",
+          "duration_ms": 0,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 549261,
+          "kind": "phase",
+          "name": "prepareVillageContext",
+          "duration_ms": 962,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 549263,
+          "kind": "phase",
+          "name": "ensurePlanMap",
+          "duration_ms": 0,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 551611,
+          "kind": "phase",
+          "name": "initializeCoursePersonalSpace",
+          "duration_ms": 2348,
+          "failed": true,
+          "failure_code": "PGRST202"
+        },
+        {
+          "at_ms": 551861,
+          "kind": "phase",
+          "name": "course_refresh",
+          "duration_ms": 2598,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 552133,
+          "kind": "phase",
+          "name": "overlay_render",
+          "duration_ms": 2870,
+          "failed": false,
+          "failure_code": null,
+          "visibility_only": false
+        },
+        {
+          "at_ms": 552133,
+          "kind": "phase",
+          "name": "refresh2DOverlay",
+          "duration_ms": 2870,
+          "failed": false,
+          "failure_code": null,
+          "visibility_only": false
+        },
+        {
+          "at_ms": 552135,
+          "kind": "phase",
+          "name": "commitVillageContext",
+          "duration_ms": 2874,
+          "failed": false,
+          "failure_code": null
+        },
+        {
+          "at_ms": 552135,
+          "kind": "phase",
+          "name": "switch_village",
+          "duration_ms": 3837,
+          "failed": false,
+          "failure_code": null
+        }
+      ]
+    }
+  ]
+}

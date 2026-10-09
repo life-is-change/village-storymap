@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "copiedAt": "2026-09-14",
+  "policy": "read-only-reference-never-loaded-by-production",
+  "sources": [
+    {
+      "id": "git-pre-delete",
+      "folder": "git_pre_delete",
+      "source": "git:008893caff37b0f6297ebc04318c8a5580b81685:building-assembler/",
+      "files": [
+        {
+          "name": "assembler.js",
+          "gitBlob": "c47eb03f5a818f98d4dd21684187a9a467db457f",
+          "bytes": 35088,
+          "sha256": "b4d38288584b80f1f7d2b5ccd69d9752b605527d9df28fd48e230168bffdf660"
+        },
+        {
+          "name": "components-library.json",
+          "gitBlob": "5f3bb104bf6e2608835b44bf95276329bcb5253c",
+          "bytes": 3919,
+          "sha256": "03d90b16cd150e64140a1c10402216e9fae536af645e9c32b345cac180748028"
+        },
+        {
+          "name": "index.html",
+          "gitBlob": "4ed1442013fa5fd5619ea925398450033c6af6e8",
+          "bytes": 7756,
+          "sha256": "d377776f8dbc7e6f305a2a1a78b34d52af4fd6452a65428e443e6f9c31481064"
+        },
+        {
+          "name": "style.css",
+          "gitBlob": "a43313f214e41375a41a4f5f9e802f4327dd0250",
+          "bytes": 5527,
+          "sha256": "af37cb10659f836c2ee5373d2a2c31c9340703237cdeaec60b5f9bda39ef4a60"
+        }
+      ]
+    },
+    {
+      "id": "cong-0526",
+      "folder": "cong_0526",
+      "source": "E:\\研究生工作\\332工作\\3D村庄规划网页\\village-storymap聪0526\\building-assembler\\",
+      "files": [
+        {
+          "name": "assembler.js",
+          "bytes": 63629,
+          "sha256": "55fe8c2aa60f5032dd0a0820fd666738873cc1b32300e931a2fd8dd508389e9e"
+        },
+        {
+          "name": "components-library.json",
+          "bytes": 3919,
+          "sha256": "03d90b16cd150e64140a1c10402216e9fae536af645e9c32b345cac180748028"
+        },
+        {
+          "name": "index.html",
+          "bytes": 8545,
+          "sha256": "211240b8088dc11d44f1039a63720ef8af09335093ca04bdfe8dab3b31357121"
+        },
+        {
+          "name": "style.css",
+          "bytes": 7185,
+          "sha256": "80caa836562df17dada7ba9269d0fd3b3c9740014f10906ae4e20528c9d1ba35"
+        }
+      ]
+    }
+  ]
+}

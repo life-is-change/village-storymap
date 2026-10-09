@@ -62,6 +62,31 @@
     return { x: clamp(currentX / originalLong), y: clamp(currentY / originalShort) };
   }
 
+  async function runBoundedTasks(items, task, { concurrency = 3, key, isCurrent = () => true } = {}) {
+    const groups = new Map();
+    (items || []).forEach((item, index) => {
+      const id = key ? key(item) : index;
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id).push({ item, index });
+    });
+    const queue = [...groups.values()], results = new Array((items || []).length);
+    let cursor = 0;
+    const errors = [];
+    async function worker() {
+      while (isCurrent() && cursor < queue.length) {
+        const group = queue[cursor++];
+        for (const { item, index } of group) {
+          if (!isCurrent()) break;
+          try { results[index] = await task(item, index); }
+          catch (error) { errors.push(error); }
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(queue.length, Math.max(1, Math.floor(Number(concurrency) || 1))) }, worker));
+    if (errors.length) throw errors[0];
+    return results;
+  }
+
   function createSerialTaskRunner(task) {
     let pending = Promise.resolve();
     return (...args) => {
@@ -72,6 +97,7 @@
   }
 
   return {
+    runBoundedTasks,
     createSerialTaskRunner,
     getFootprintScaleFromExpected,
     resolveEffectiveBuildingFeatureCollection,

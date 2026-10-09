@@ -4,6 +4,11 @@
   if (root) root.FacadeQueueClient = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function facadeQueueClientFactory() {
   const ARTIFACT_BUCKET = 'facade-generation';
+  const ACTIVE_STATUSES = [
+    'queued_rectification', 'claimed_rectification', 'rectifying', 'awaiting_crop',
+    'queued_generation', 'claimed_generation', 'generating', 'cancel_requested'
+  ];
+  let subscriptionSequence = 0;
 
   function unwrap(result) {
     if (result?.error) throw result.error;
@@ -12,6 +17,15 @@
 
   function createFacadeQueueClient(supabaseClient) {
     if (!supabaseClient) throw new TypeError('An authenticated Supabase client is required');
+
+    async function findRun({ spaceId, objectCode }, activeOnly) {
+      const session = unwrap(await supabaseClient.auth.getSession())?.session;
+      if (!session?.user?.id) return null;
+      let query = supabaseClient.from('facade_generation_runs').select('*')
+        .eq('owner_id', session.user.id).eq('space_id', spaceId).eq('object_code', objectCode);
+      if (activeOnly) query = query.in('status', ACTIVE_STATUSES);
+      return unwrap(await query.order('created_at', { ascending: false }).limit(1).maybeSingle());
+    }
 
     return {
       async submit({ courseId, spaceId, objectCode, photoId }) {
@@ -36,16 +50,8 @@
         return value || { available: false, last_seen_at: null };
       },
 
-      async findLatestRun({ spaceId, objectCode }) {
-        return unwrap(await supabaseClient
-          .from('facade_generation_runs')
-          .select('*')
-          .eq('space_id', spaceId)
-          .eq('object_code', objectCode)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle());
-      },
+      findLatestRun(context) { return findRun(context, false); },
+      findActiveRun(context) { return findRun(context, true); },
 
       async confirmCrop(runId, { cropTop, roofType, buildingWidth, buildingDepth }) {
         return unwrap(await supabaseClient.rpc('confirm_facade_crop', {
@@ -85,8 +91,12 @@
       },
 
       subscribe(runId, onChange) {
+        // Generator windows share the opener's SDK client. Reusing a channel name
+        // can return a channel whose subscribe() has already been called.
+        const suffix = globalThis.crypto?.randomUUID?.()
+          || `${Date.now()}-${Math.random().toString(36).slice(2)}-${++subscriptionSequence}`;
         const channel = supabaseClient
-          .channel(`facade-run-${runId}`)
+          .channel(`facade-run-${runId}-${suffix}`)
           .on('postgres_changes', {
             event: '*',
             schema: 'public',
@@ -94,7 +104,12 @@
             filter: `id=eq.${runId}`
           }, onChange)
           .subscribe();
-        return () => supabaseClient.removeChannel(channel);
+        let removed = false;
+        return () => {
+          if (removed) return;
+          removed = true;
+          return supabaseClient.removeChannel(channel);
+        };
       }
     };
   }

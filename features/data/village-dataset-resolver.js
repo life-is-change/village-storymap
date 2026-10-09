@@ -150,7 +150,54 @@
     };
   }
 
+  function datasetAssetKey({ userId = '', villageId = '', datasetId = '', url, baseUrl } = {}) {
+    const resource = new URL(url, baseUrl || 'http://localhost/');
+    if (resource.pathname.includes('/storage/v1/object/sign/')) resource.searchParams.delete('token');
+    return JSON.stringify([userId, villageId, datasetId, resource.href]);
+  }
+
+  function createDatasetAssetCache({ maxEntries = 16, maxBytes = 32 * 1024 * 1024, ttlMs = 300000, now = Date.now } = {}) {
+    const entries = new Map();
+    let bytes = 0, generation = 0;
+    function remove(key) {
+      const entry = entries.get(key);
+      if (entry) bytes -= entry.bytes || 0;
+      entries.delete(key);
+    }
+    return {
+      clear() { generation++; entries.clear(); bytes = 0; },
+      async read(key, load) {
+        let entry = entries.get(key);
+        if (entry && (entry.pending || now() - entry.at < ttlMs)) {
+          entries.delete(key); entries.set(key, entry);
+          return entry.pending || entry.value;
+        }
+        remove(key);
+        entry = { pending: null, bytes: 0 };
+        const startedGeneration = generation;
+        const pending = Promise.resolve().then(load).then(value => {
+          const size = typeof value === 'string' ? value.length * 2 : 0;
+          if (startedGeneration === generation && entries.get(key) === entry) {
+            if (size > maxBytes) remove(key);
+            else {
+              entry.pending = null; entry.value = value; entry.at = now(); entry.bytes = size; bytes += size;
+              while (entries.size > maxEntries || bytes > maxBytes) remove(entries.keys().next().value);
+            }
+          }
+          return value;
+        }).catch(error => { if (entries.get(key) === entry) remove(key); throw error; });
+        entry.pending = pending;
+        entries.set(key, entry);
+        // Bound pending entries too; evicted requests still settle for their callers.
+        while (entries.size > maxEntries) remove(entries.keys().next().value);
+        return pending;
+      }
+    };
+  }
+
   return {
+    createDatasetAssetCache,
+    datasetAssetKey,
     SUPPORTED_TYPES,
     collectStoragePaths,
     createSignedUrlMap,

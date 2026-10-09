@@ -189,6 +189,15 @@
     }
   }
 
+  async function loadStudioResources({ loadSeeds, loadAssets, loadVersions } = {}) {
+    const [seeds, assets, versions] = await Promise.all([
+      Promise.resolve().then(() => loadSeeds?.() || []),
+      Promise.resolve().then(() => loadAssets?.() || { ok: true, data: [] }),
+      Promise.resolve().then(() => loadVersions?.() || { ok: true, data: [] })
+    ]);
+    return { seeds: seeds || [], assets: assets?.ok ? (assets.data || []) : [], versions: versions?.ok ? (versions.data || []) : [] };
+  }
+
   async function create(options) {
     const contextCheck = validateContext(options?.context);
     const panel = Panel.createSceneStudioPanel({ root: options.root, onAction: (action) => dispatch?.(action), onRendered: options.onPanelRender });
@@ -252,14 +261,15 @@
     let previewAdapter = options.services?.preview || null;
     let cesiumEnvironment = null;
     let mode = "3d";
-    let assets = context.seedAssets || await loadSeedAssets(options.fetch || globalThis.fetch?.bind(globalThis));
-    if (client.listAssets) {
-      const listedAssets = await client.listAssets({ courseId: context.courseId, groupId: context.groupId });
-      if (listedAssets.ok) assets = [...assets, ...(listedAssets.data || []).map(Assets.toCatalogAsset).filter(Boolean)];
-    }
+    const resources = await loadStudioResources({
+      loadSeeds: () => context.seedAssets || loadSeedAssets(options.fetch || globalThis.fetch?.bind(globalThis)),
+      loadAssets: client.listAssets ? () => client.listAssets({ courseId: context.courseId, groupId: context.groupId }) : null,
+      loadVersions: client.listVersions ? () => client.listVersions(document.projectId) : null
+    });
+    let assets = [...resources.seeds, ...resources.assets.map(Assets.toCatalogAsset).filter(Boolean)];
     adapter.setAssets?.(assets);
     let activeAsset = assets.find((asset) => asset.category === "bench") || null;
-    let versions = [];
+    let versions = resources.versions;
     let comparisonIds = [];
     let comparisonAdapters = [];
     let interactionStatus = "";
@@ -267,10 +277,6 @@
     const schedulePreviewRender = createFrameScheduler(({ nextDocument, catalog }) => {
       if (previewAdapter && mode === "3d") void previewAdapter.render(nextDocument, catalog);
     }, requestFrame);
-    if (client.listVersions) {
-      const listedVersions = await client.listVersions(document.projectId);
-      if (listedVersions.ok) versions = listedVersions.data || [];
-    }
     const autosave = Autosave.createAutosaveController({
       save: (nextDocument) => client.saveDraft(nextDocument),
       localDraftStore: localStore,
@@ -593,8 +599,14 @@
     };
     const dispatch = createActionDispatcher({ controller, lifecycle });
     if (!document.selectionBoundary) controller.setTool("draw-boundary");
-    await lifecycle.switchMode("3d");
-    panel.focus();
+    const dispose = () => { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); };
+    try {
+      await lifecycle.switchMode("3d");
+      panel.focus();
+    } catch (error) {
+      dispose();
+      throw error;
+    }
     return {
       ok: true,
       getDocument: () => document,
@@ -606,10 +618,10 @@
       switchMode: (nextMode) => lifecycle.switchMode(nextMode),
       dispatch,
       async flush() { return autosave.flush(); },
-      dispose() { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); },
+      dispose,
       setAssets(nextAssets) { assets = nextAssets || []; adapter.setAssets?.(assets); activeAsset = assets.find((asset) => asset.id === activeAsset?.id) || assets.find((asset) => asset.category === "bench") || null; interactionBridge?.setAsset?.(activeAsset); render(); }
     };
   }
 
-  return { validateContext, buildDraftIdentity, chooseInitialDocument, needsBaselineBranch, patchForProperty, createObjectInputForTool, toolForAsset, toolRequires2D, createFrameScheduler, createActionDispatcher, create };
+  return { loadStudioResources, validateContext, buildDraftIdentity, chooseInitialDocument, needsBaselineBranch, patchForProperty, createObjectInputForTool, toolForAsset, toolRequires2D, createFrameScheduler, createActionDispatcher, create };
 });

@@ -90,7 +90,7 @@ test('main and reality viewers synchronize building proxies and selection by cod
   assert.match(app3d, /realityInsetController\.destroy\(\)/);
 });
 
-test('white-model clicks let the reality camera settle before refreshing sidebar data', () => {
+test('white-model clicks start reality focus before scheduling responsive sidebar data', () => {
   const app3d = read('app-3d.js');
   const handlerStart = app3d.indexOf('function bindClickEvents()');
   const handlerEnd = app3d.indexOf('\n  async function initViewer()', handlerStart);
@@ -107,9 +107,9 @@ test('white-model clicks let the reality camera settle before refreshing sidebar
   assert.doesNotMatch(
     handlerSource,
     /await showEntityInfo\(entity\)/,
-    'click handler must not run sidebar work during the reality camera flight'
+    'click handler must not await sidebar data during the reality camera flight'
   );
-  assert.match(app3d, /const REALITY_FOCUS_SETTLE_MS\s*=\s*850/);
+  assert.doesNotMatch(app3d, /const REALITY_FOCUS_SETTLE_MS\s*=\s*850/);
 });
 
 test('reality inset has terrain fallback and local photogrammetry stays outside Git', () => {

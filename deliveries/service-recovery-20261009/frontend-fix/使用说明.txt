@@ -1,0 +1,24 @@
+前端修复包（2026-10-09）
+====================
+立面 Worker 网络已按聊天中的日志确认恢复；本包只修复网页显示，不操作 Worker 或数据库。
+
+内容：
+- features/geoprocessing/geoprocessing-panel.js：完成成果区不再反复重建，保留下载链接刷新。
+- rural_house_generator/app.js：区分队列连接提示，本地连接不等待可选云能力。
+- apply-web-fix.sh：只更新 village-platform-web-1 的两个静态脚本，并备份原脚本。
+- SHA256SUMS：校验两个脚本完整性。
+
+在 4090 上的 Docker 网页使用：
+1. 将压缩包复制到服务器，解压到一个单独目录，不覆盖仓库其他文件。
+2. 进入解压后的 frontend-fix 目录，执行：
+   sudo bash apply-web-fix.sh
+3. 网页按 Ctrl+Shift+R 强制刷新，重新打开生成器。
+此脚本不重启服务，不改 8080/8081、Nginx配置或网址转发；校验目标确为本项目 web 服务后才写入。原脚本备份路径会打印。
+
+这是当前容器的临时热修复：容器重建时文件会回到镜像版本。
+正式持久更新应将两个修复纳入服务器源码并仅重新构建本项目 Web 镜像；本轮没有推送 GitHub或重建 Web 镜像。
+4060 的本地项目已修改，直接强制刷新。
+GitHub Pages 需发布包含修复的代码才生效。
+
+恢复热修复前文件：
+使用脚本打印的实际备份目录，以 docker cp 将 geoprocessing-panel.js 与 generator-app.js 分别复制回上述容器原路径；不涉及师姐的应用。

@@ -16,7 +16,7 @@
       return ready;
     };
   }
-  async function prepareSceneStudio(deps = {}) {
+  function startSceneStudioPreparation(deps = {}) {
     const baselineReady = Promise.resolve()
       .then(() => deps.ensurePlanMap?.())
       .then(() => deps.ensureSelectedLayersLoaded?.())
@@ -27,9 +27,16 @@
         await api?.enter?.();
         return api;
       });
+    // Observe both failures immediately even while the caller opens project
+    // metadata after baseline readiness. The caller still receives rejections.
+    void Promise.all([baselineReady, threeDReady]).catch(() => {});
+    return { baselineReady, threeDReady };
+  }
+  async function prepareSceneStudio(deps = {}) {
+    const { baselineReady, threeDReady } = startSceneStudioPreparation(deps);
     const [, api] = await Promise.all([baselineReady, threeDReady]);
     return api;
   }
 
-  return { prepareSceneStudio, create3DReadiness };
+  return { prepareSceneStudio, startSceneStudioPreparation, create3DReadiness };
 });

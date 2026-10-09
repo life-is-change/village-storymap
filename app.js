@@ -203,6 +203,9 @@ let overlayRefreshController = null;
 
 const layerDataCache = {};
 const layerDataLoadPromises = {};
+let layerDataGeneration = 0;
+let layerDataActorId = null;
+let datasetAssetCache = null;
 const buildingDbRowsCache = new Map();
 const buildingDbHasAnyCache = new Map();
 const roadDbRowsCache = new Map();
@@ -1877,8 +1880,15 @@ async function prepareVillageContext(entry) {
   const datasetPromise = village.publishedDataset && window.VillageDatasetResolverModule
     ? window.VillageDatasetResolverModule.createSignedUrlMap(supabaseClient, village.publishedDataset)
     : Promise.resolve(null);
-  await villageClient.ensurePersonalSpace(context);
-  const allSpaces = await villageClient.listSpaces(context);
+  let allSpaces = await villageClient.listSpaces(context);
+  const personalType = context.villageRole === "practice" ? "practice_personal" : "formal_personal";
+  const ownerId = activeVillageContext?.actor?.userId;
+  const ownPersonalExists = ownerId && allSpaces.some(space =>
+    space.spaceType === personalType && space.ownerId === ownerId);
+  if (!ownPersonalExists) {
+    await villageClient.ensurePersonalSpace(context);
+    allSpaces = await villageClient.listSpaces(context);
+  }
   const actor = {
     ...(activeVillageContext?.actor || {}),
     groupId: courseWorkbench?.getContext?.()?.group?.id || null,
@@ -1923,7 +1933,11 @@ async function unloadVillageContext() {
   geoprocessingAoiController = null;
   geoprocessingResultPreview = null;
   villagePreviewController = null;
+  layerDataGeneration++;
   Object.keys(layerDataCache).forEach((key) => delete layerDataCache[key]);
+  Object.keys(layerDataLoadPromises).forEach((key) => delete layerDataLoadPromises[key]);
+  // A new village must not queue behind the previous village's unfinished render.
+  overlayRefreshController = null;
   invalidateBuildingDbCache();
   invalidateRoadDbCache();
   invalidateCroplandDbCache();
@@ -3002,7 +3016,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20260908-shared-admin-3d", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261007-space-restore-parallel", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261009-generated-model-save", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3320,16 +3334,26 @@ async function openSceneStudioWorkspace() {
   try {
     switchMainView("model3d");
     const startup = window.SceneStudioStartupModule;
-    const api = startup?.prepareSceneStudio
-      ? await startup.prepareSceneStudio({ ensurePlanMap, ensureSelectedLayersLoaded, refresh2DOverlay, ensureVillage3DLoaded })
-      : await ensureVillage3DLoaded();
-    if (!startup?.prepareSceneStudio) await api.enter();
+    let prepared3D;
+    if (startup?.startSceneStudioPreparation) {
+      const preparation = startup.startSceneStudioPreparation({
+        ensurePlanMap, ensureSelectedLayersLoaded, refresh2DOverlay, ensureVillage3DLoaded
+      });
+      await preparation.baselineReady;
+      prepared3D = preparation.threeDReady;
+    } else {
+      const api = startup?.prepareSceneStudio
+        ? await startup.prepareSceneStudio({ ensurePlanMap, ensureSelectedLayersLoaded, refresh2DOverlay, ensureVillage3DLoaded })
+        : await ensureVillage3DLoaded();
+      if (!startup?.prepareSceneStudio) await api.enter();
+      prepared3D = api;
+    }
     const bridge = ensureSceneStudioPlatformBridge();
     if (!bridge) {
       focusMode?.exit?.();
       return showToast("公共空间设计模块尚未加载", "error");
     }
-    const result = await bridge.open(undefined, { prepared3D: api });
+    const result = await bridge.open(undefined, { prepared3D });
     if (!result.ok) {
       restoreSceneStudioViewportTargets();
       focusMode?.exit?.();
@@ -6429,15 +6453,40 @@ function getSmoothedRoadLineGeometry(feature) {
   return smoothGeom;
 }
 
+async function loadDatasetText(url) {
+  const resolver = window.VillageDatasetResolverModule;
+  if (!resolver?.createDatasetAssetCache) return fetchText(url);
+  datasetAssetCache ||= resolver.createDatasetAssetCache();
+  const key = resolver.datasetAssetKey({
+    userId: window.VillageAuth?.getCurrentUser?.()?.id || '',
+    villageId: activeVillageContext?.villageId || '',
+    datasetId: activeVillageContext?.datasetId || '',
+    url, baseUrl: window.location.href
+  });
+  return datasetAssetCache.read(key, () => fetchText(url));
+}
+window.__loadDatasetText = loadDatasetText;
+
 async function ensureLayerLoaded(layerKey) {
+  const actorId = window.VillageAuth?.getCurrentUser?.()?.id || '';
+  if (actorId !== layerDataActorId) {
+    layerDataActorId = actorId;
+    layerDataGeneration++;
+    Object.keys(layerDataCache).forEach(key => delete layerDataCache[key]);
+    Object.keys(layerDataLoadPromises).forEach(key => delete layerDataLoadPromises[key]);
+    datasetAssetCache?.clear();
+  }
   if (layerDataCache[layerKey]) return layerDataCache[layerKey];
   if (layerDataLoadPromises[layerKey]) return layerDataLoadPromises[layerKey];
 
+  const generation = layerDataGeneration;
+  const canPublish = () => generation === layerDataGeneration
+    && actorId === (window.VillageAuth?.getCurrentUser?.()?.id || '');
   const loading = (async () => {
 
     if (layerKey === "figureGround") {
       const result = { features: [], rows: [], rowIndex: new Map() };
-      layerDataCache[layerKey] = result;
+      if (canPublish()) layerDataCache[layerKey] = result;
       return result;
     }
 
@@ -6451,14 +6500,14 @@ async function ensureLayerLoaded(layerKey) {
     const dynamicGeojsonUrl = dynamicResources?.layers?.[layerKey] || null;
     if (usesDynamicDataset && !dynamicGeojsonUrl) {
       const result = { features: [], rows: [], rowIndex: new Map() };
-      layerDataCache[layerKey] = result;
+      if (canPublish()) layerDataCache[layerKey] = result;
       return result;
     }
     const geojsonUrl = dynamicGeojsonUrl || config.geojsonUrl;
     const tableUrl = dynamicGeojsonUrl ? null : config.tableUrl;
     const [geojson, csvText] = await Promise.all([
-      fetchJSON(geojsonUrl),
-      tableUrl ? fetchText(tableUrl).catch(() => "") : Promise.resolve("")
+      loadDatasetText(geojsonUrl).then(JSON.parse),
+      tableUrl ? loadDatasetText(tableUrl).catch(() => "") : Promise.resolve("")
     ]);
 
     const normalizedGeojson = window.VillageDatasetResolverModule?.normalizeFeatureCollection
@@ -6469,14 +6518,14 @@ async function ensureLayerLoaded(layerKey) {
     const rowIndex = buildRowIndex(rows, layerKey);
 
     const result = { features, rows, rowIndex };
-    layerDataCache[layerKey] = result;
+    if (canPublish()) layerDataCache[layerKey] = result;
     return result;
   })();
   layerDataLoadPromises[layerKey] = loading;
   try {
     return await loading;
   } finally {
-    delete layerDataLoadPromises[layerKey];
+    if (layerDataLoadPromises[layerKey] === loading) delete layerDataLoadPromises[layerKey];
   }
 }
 
@@ -6851,6 +6900,8 @@ function setActiveStoryItem(viewKey) {
 function switchMainView(viewKey) {
   if (!surfaceIntentController.canShow(viewKey)) return false;
   if (viewKey === "overview" && sceneStudioPlatformBridge?.getInstance?.()) closeSceneStudioWorkspace();
+  window.__is3DViewActive = viewKey === "model3d";
+  window.Village3D?.setRenderActive?.(window.__is3DViewActive);
   const isOverview = viewKey === "overview";
   const isMapView = viewKey === "plan2d" || viewKey === "model3d";
   const isEnteringMapFromOverview =
@@ -8165,7 +8216,11 @@ function ensurePlatformEntryController() {
         throw new Error("村庄上下文尚未加载完整，请刷新首页后重试。");
       }
       const workbenchReady = ensureCourseWorkbenchInitialized();
-      const [ , workbench ] = await Promise.all([ensurePlanMap(), workbenchReady]);
+      const mapReady = ensurePlanMap().then((map) => {
+        if (!isCurrent || isCurrent()) setPlanMapLoadingState(false);
+        return map;
+      });
+      const [ , workbench ] = await Promise.all([mapReady, workbenchReady]);
       if (isCurrent && !isCurrent()) return null;
       return workbench.getContext() || await workbench.showDashboard();
     },
@@ -8442,7 +8497,6 @@ async function init() {
 
     // 监听认证状态变化
     window.addEventListener("village-auth-change", async () => {
-      closeSceneStudioWorkspace();
       updateAuthButtonUI();
       const user = window.VillageAuth ? window.VillageAuth.getCurrentUser() : null;
       const displayName = user ? user.name : "";
@@ -8452,6 +8506,7 @@ async function init() {
       renderHomepageIdentityUi();
       const nextAccountKey = getAccountStorageKey("workspace-account");
       if (nextAccountKey !== activeWorkspaceAccountKey) {
+        closeSceneStudioWorkspace();
         activeWorkspaceAccountKey = nextAccountKey;
         await reloadWorkspaceForAuthenticatedAccount();
         return;

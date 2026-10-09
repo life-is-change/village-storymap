@@ -1,0 +1,3862 @@
+{
+  "label": "4060-followup-after-cold-studio-round2",
+  "date": "2026-10-08T13:16:46.174Z",
+  "records": [
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -30,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -30,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -30,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "probe",
+      "duration_ms": 15,
+      "start_ms": -30,
+      "transfer_bytes": 15363
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "cdn.jsdelivr.net:resource",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 17,
+      "start_ms": -29,
+      "transfer_bytes": 13242
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -29,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 41,
+      "start_ms": -29,
+      "transfer_bytes": 2029
+    },
+    {
+      "at_ms": 14,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 5,
+      "start_ms": 2,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 26,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 42,
+      "start_ms": -29,
+      "transfer_bytes": 6364
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 46,
+      "start_ms": -29,
+      "transfer_bytes": 4264
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 50,
+      "start_ms": -29,
+      "transfer_bytes": 9106
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 50,
+      "start_ms": -29,
+      "transfer_bytes": 14180
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 48,
+      "start_ms": -29,
+      "transfer_bytes": 27415
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 52,
+      "start_ms": -29,
+      "transfer_bytes": 5572
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 53,
+      "start_ms": -29,
+      "transfer_bytes": 33719
+    },
+    {
+      "at_ms": 51,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 60,
+      "start_ms": -29,
+      "transfer_bytes": 345554
+    },
+    {
+      "at_ms": 697,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 689,
+      "status": 200
+    },
+    {
+      "at_ms": 698,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 699,
+      "kind": "phase",
+      "name": "auth_ready",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 700,
+      "kind": "resource",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 688,
+      "start_ms": 8,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 700,
+      "kind": "view_state",
+      "name": "auth-refresh",
+      "duration_ms": 0,
+      "model3d": false,
+      "plan2d": true
+    },
+    {
+      "at_ms": 1432,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 733,
+      "status": 200
+    },
+    {
+      "at_ms": 1432,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 1434,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 731,
+      "start_ms": 699,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2130,
+      "kind": "fetch_headers",
+      "name": "supabase:auth/user",
+      "duration_ms": 697,
+      "status": 200
+    },
+    {
+      "at_ms": 2130,
+      "kind": "body_read_parse",
+      "name": "supabase:auth/user",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2131,
+      "kind": "resource",
+      "name": "supabase:auth/user",
+      "duration_ms": 695,
+      "start_ms": 1434,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 3989,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 2555,
+      "status": 200
+    },
+    {
+      "at_ms": 3989,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 3989,
+      "kind": "phase",
+      "name": "project_startup",
+      "duration_ms": 3290,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 3990,
+      "kind": "phase",
+      "name": "dataset_signed_urls",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 3990,
+      "kind": "resource",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 2554,
+      "start_ms": 1434,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 5168,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 1178,
+      "status": 200
+    },
+    {
+      "at_ms": 5168,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 5168,
+      "kind": "phase",
+      "name": "prepareVillageContext",
+      "duration_ms": 1179,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5173,
+      "kind": "phase",
+      "name": "commitVillageContext",
+      "duration_ms": 5,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5176,
+      "kind": "phase",
+      "name": "switch_village",
+      "duration_ms": 2,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5180,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 4,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5183,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 1177,
+      "start_ms": 3990,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 5773,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 600,
+      "status": 200
+    },
+    {
+      "at_ms": 5774,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 5774,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 599,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 5841,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 661,
+      "status": 404
+    },
+    {
+      "at_ms": 5909,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 68
+    },
+    {
+      "at_ms": 5909,
+      "kind": "phase",
+      "name": "initializeCoursePersonalSpace",
+      "duration_ms": 733,
+      "failed": true,
+      "failure_code": "PGRST202"
+    },
+    {
+      "at_ms": 5910,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 728,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 5986,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 812,
+      "status": 200
+    },
+    {
+      "at_ms": 5986,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 5986,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 811,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6245,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 1065,
+      "status": 200
+    },
+    {
+      "at_ms": 6245,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6245,
+      "kind": "resource",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 1064,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6315,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1141,
+      "status": 200
+    },
+    {
+      "at_ms": 6315,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1142,
+      "status": 200
+    },
+    {
+      "at_ms": 6315,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1142,
+      "status": 200
+    },
+    {
+      "at_ms": 6316,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1142,
+      "status": 200
+    },
+    {
+      "at_ms": 6316,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1136,
+      "status": 200
+    },
+    {
+      "at_ms": 6316,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 1136,
+      "status": 200
+    },
+    {
+      "at_ms": 6316,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1143,
+      "status": 200
+    },
+    {
+      "at_ms": 6316,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6316,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1138,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6316,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1137,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6317,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6317,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6317,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1138,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6317,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1138,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6317,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6320,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 4
+    },
+    {
+      "at_ms": 6320,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1139,
+      "start_ms": 5174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6320,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1133,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6320,
+      "kind": "resource",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 1132,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6320,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 4
+    },
+    {
+      "at_ms": 6325,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 3,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 6326,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 6328,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1148,
+      "status": 200
+    },
+    {
+      "at_ms": 6328,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 12
+    },
+    {
+      "at_ms": 6330,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 3
+    },
+    {
+      "at_ms": 6330,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1139,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6330,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 3,
+      "status": 200
+    },
+    {
+      "at_ms": 6331,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 3,
+      "status": 200
+    },
+    {
+      "at_ms": 6331,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 3,
+      "status": 200
+    },
+    {
+      "at_ms": 6331,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 3,
+      "status": 200
+    },
+    {
+      "at_ms": 6332,
+      "kind": "body_read_parse",
+      "name": "local:csv",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6332,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 4,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6332,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 6332,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 4,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6332,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 6332,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 4,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6332,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 6333,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 4,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6333,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 6,
+      "status": 200
+    },
+    {
+      "at_ms": 6333,
+      "kind": "body_read_parse",
+      "name": "local:csv",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6333,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 4,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6371,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 44,
+      "status": 404
+    },
+    {
+      "at_ms": 6435,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 44,
+      "start_ms": 6327,
+      "transfer_bytes": 635
+    },
+    {
+      "at_ms": 6655,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1475,
+      "status": 200
+    },
+    {
+      "at_ms": 6655,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6655,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1474,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6673,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1493,
+      "status": 200
+    },
+    {
+      "at_ms": 6673,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6673,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1492,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6724,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 412,
+      "status": 200
+    },
+    {
+      "at_ms": 6724,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6724,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 410,
+      "start_ms": 6312,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6862,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1682,
+      "status": 200
+    },
+    {
+      "at_ms": 6863,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 535,
+      "status": 200
+    },
+    {
+      "at_ms": 6863,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6863,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1681,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6863,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 6863,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 534,
+      "start_ms": 6328,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6874,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 546,
+      "status": 200
+    },
+    {
+      "at_ms": 6928,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 54
+    },
+    {
+      "at_ms": 6929,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 599,
+      "start_ms": 6328,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6930,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1750,
+      "status": 200
+    },
+    {
+      "at_ms": 6931,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 619,
+      "status": 200
+    },
+    {
+      "at_ms": 6931,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 6932,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1749,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6932,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 617,
+      "start_ms": 6312,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 6932,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 7018,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 690,
+      "status": 200
+    },
+    {
+      "at_ms": 7018,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 7018,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 689,
+      "start_ms": 6328,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7069,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 742,
+      "status": 200
+    },
+    {
+      "at_ms": 7069,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 742,
+      "status": 200
+    },
+    {
+      "at_ms": 7070,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 757,
+      "status": 200
+    },
+    {
+      "at_ms": 7070,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 743,
+      "status": 200
+    },
+    {
+      "at_ms": 7070,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 745,
+      "status": 200
+    },
+    {
+      "at_ms": 7070,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 7071,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 755,
+      "start_ms": 6312,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7071,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 741,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7071,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 739,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7071,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 739,
+      "start_ms": 6328,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7071,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 7071,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 7071,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 7071,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 7071,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 742,
+      "start_ms": 6326,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7135,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1955,
+      "status": 200
+    },
+    {
+      "at_ms": 7147,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 12
+    },
+    {
+      "at_ms": 7150,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1966,
+      "start_ms": 5180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7203,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 876,
+      "status": 200
+    },
+    {
+      "at_ms": 7220,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 16
+    },
+    {
+      "at_ms": 7220,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 892,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7220,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 908,
+      "status": 200
+    },
+    {
+      "at_ms": 7221,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 7221,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 908,
+      "start_ms": 6312,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7286,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 960,
+      "status": 200
+    },
+    {
+      "at_ms": 7286,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 357,
+      "status": 200
+    },
+    {
+      "at_ms": 7286,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 7286,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 959,
+      "start_ms": 6326,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7286,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 7289,
+      "kind": "phase",
+      "name": "overlay_render",
+      "duration_ms": 962,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 7289,
+      "kind": "phase",
+      "name": "refresh2DOverlay",
+      "duration_ms": 963,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 7290,
+      "kind": "overlay_state",
+      "name": "rendered-features",
+      "duration_ms": 0,
+      "total": 211,
+      "layers": {
+        "building": 194,
+        "road": 14,
+        "water": 2,
+        "__village_fill": 1
+      },
+      "content_digest": "5c43b81b",
+      "parallel_reads": true
+    },
+    {
+      "at_ms": 7290,
+      "kind": "phase",
+      "name": "openCoursePlanningWorkspace",
+      "duration_ms": 970,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 7291,
+      "kind": "phase",
+      "name": "enterCoursePlatform",
+      "duration_ms": 6593,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 7298,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 357,
+      "start_ms": 6929,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7305,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 978,
+      "status": 200
+    },
+    {
+      "at_ms": 7305,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 7305,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 978,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7374,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1047,
+      "status": 200
+    },
+    {
+      "at_ms": 7374,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 7374,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1046,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 7389,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1063,
+      "status": 200
+    },
+    {
+      "at_ms": 7390,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 7390,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1063,
+      "start_ms": 6326,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8054,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1727,
+      "status": 200
+    },
+    {
+      "at_ms": 8054,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 8054,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1726,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8072,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1745,
+      "status": 200
+    },
+    {
+      "at_ms": 8072,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 8072,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1744,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8322,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2010,
+      "status": 200
+    },
+    {
+      "at_ms": 8333,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 11
+    },
+    {
+      "at_ms": 8342,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2020,
+      "start_ms": 6312,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8488,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 1197,
+      "status": 201
+    },
+    {
+      "at_ms": 8488,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 8489,
+      "kind": "resource",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 1196,
+      "start_ms": 7291,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8548,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2222,
+      "status": 200
+    },
+    {
+      "at_ms": 8548,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 8548,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2221,
+      "start_ms": 6326,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8931,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2605,
+      "status": 200
+    },
+    {
+      "at_ms": 9041,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 110
+    },
+    {
+      "at_ms": 9050,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2714,
+      "start_ms": 6326,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9050,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2723,
+      "status": 200
+    },
+    {
+      "at_ms": 9050,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 9051,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 2714,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 9639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 3313,
+      "status": 200
+    },
+    {
+      "at_ms": 9640,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 9642,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 3311,
+      "start_ms": 6327,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 67794,
+      "kind": "action",
+      "name": "场景设计",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 67795,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 67795,
+      "kind": "phase",
+      "name": "ensureSelectedLayersLoaded",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 67795,
+      "kind": "phase",
+      "name": "overlay_render",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 67796,
+      "kind": "phase",
+      "name": "refresh2DOverlay",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 67797,
+      "kind": "overlay_state",
+      "name": "rendered-features",
+      "duration_ms": 0,
+      "total": 211,
+      "layers": {
+        "building": 194,
+        "road": 14,
+        "water": 2,
+        "__village_fill": 1
+      },
+      "content_digest": "5c43b81b",
+      "parallel_reads": true
+    },
+    {
+      "at_ms": 67834,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": 67795,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 67834,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": 67795,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 68246,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 684,
+      "status": 201
+    },
+    {
+      "at_ms": 68246,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 68246,
+      "kind": "resource",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 683,
+      "start_ms": 67562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68267,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 705,
+      "status": 200
+    },
+    {
+      "at_ms": 68267,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 68267,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 704,
+      "start_ms": 67562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68387,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 826,
+      "status": 200
+    },
+    {
+      "at_ms": 68387,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 68387,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 825,
+      "start_ms": 67561,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68421,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 859,
+      "status": 200
+    },
+    {
+      "at_ms": 68477,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 56
+    },
+    {
+      "at_ms": 68477,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 915,
+      "start_ms": 67562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68477,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 916,
+      "status": 200
+    },
+    {
+      "at_ms": 68478,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 916,
+      "status": 200
+    },
+    {
+      "at_ms": 68478,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 68478,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 915,
+      "start_ms": 67561,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68478,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 915,
+      "start_ms": 67561,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68478,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 68504,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 670,
+      "start_ms": 67833,
+      "transfer_bytes": 33207
+    },
+    {
+      "at_ms": 68505,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": 68505,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68524,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 16,
+      "start_ms": 68505,
+      "transfer_bytes": 166365
+    },
+    {
+      "at_ms": 68524,
+      "kind": "phase",
+      "name": "ensureVillage3DLoaded",
+      "duration_ms": 729,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 68528,
+      "kind": "fetch_headers",
+      "name": "local:resource",
+      "duration_ms": 4,
+      "status": 403
+    },
+    {
+      "at_ms": 68613,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 81,
+      "start_ms": 68524,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68613,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 2,
+      "start_ms": 68552,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68613,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 1,
+      "start_ms": 68556,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68613,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 1,
+      "start_ms": 68594,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68613,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 1,
+      "start_ms": 68596,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68623,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 3,
+      "start_ms": 68524,
+      "transfer_bytes": 649
+    },
+    {
+      "at_ms": 68628,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 4,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68630,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 4,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68633,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68633,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68633,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68633,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68674,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 27,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68690,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68680,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68690,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68680,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68691,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68684,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68691,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68684,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68752,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68747,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68752,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68747,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68753,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68747,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68753,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68747,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68755,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68751,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68771,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 969,
+      "status": 200
+    },
+    {
+      "at_ms": 68774,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 140,
+      "start_ms": 68623,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68776,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 5
+    },
+    {
+      "at_ms": 68776,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_projects",
+      "duration_ms": 960,
+      "start_ms": 67802,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68783,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68783,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68862,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68837,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68894,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68896,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68896,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68897,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68897,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68897,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68897,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68891,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68947,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68941,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68947,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68941,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68948,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68941,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68948,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68941,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68950,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68950,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68950,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68950,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68951,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68951,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68951,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 68946,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68965,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68962,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68965,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68962,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68968,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68962,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68968,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68963,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68973,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68970,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68975,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68970,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68975,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 68971,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 68975,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 68971,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69004,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69005,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69005,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69005,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69005,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69005,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69000,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69031,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69028,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69031,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69029,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69055,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69055,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69055,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69055,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69055,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69061,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69056,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69064,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69059,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69108,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69100,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69108,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69100,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69109,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69106,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69110,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69106,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69121,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69112,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69122,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69112,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69122,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69122,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69122,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69125,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69125,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69125,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69113,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69134,
+      "kind": "resource",
+      "name": "api.cesium.com:resource",
+      "duration_ms": 535,
+      "start_ms": 68597,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69142,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69136,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69143,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69136,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69143,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69137,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69143,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69137,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69143,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69137,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69143,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69137,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69147,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69141,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69147,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69141,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69154,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 379,
+      "status": 200
+    },
+    {
+      "at_ms": 69155,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 69156,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/scene_edit_load_project",
+      "duration_ms": 377,
+      "start_ms": 68776,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69158,
+      "kind": "fetch_headers",
+      "name": "local:json",
+      "duration_ms": 3,
+      "status": 200
+    },
+    {
+      "at_ms": 69158,
+      "kind": "body_read_parse",
+      "name": "local:json",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 69158,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 3,
+      "start_ms": 69155,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69160,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69157,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69172,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69170,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69176,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69171,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69180,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69181,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69181,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69181,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69193,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69187,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69194,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69196,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69196,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69196,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69196,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69196,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69188,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69197,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69198,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69198,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69199,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69199,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69199,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69192,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69202,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 605,
+      "status": 200
+    },
+    {
+      "at_ms": 69204,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69200,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69205,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69200,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69213,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69216,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69216,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69216,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69209,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69216,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69209,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69229,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69220,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69229,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69220,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69229,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69220,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69229,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69220,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69229,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69221,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69236,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69226,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69236,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69226,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69236,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69226,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69236,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69226,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69236,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69239,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69235,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69240,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69235,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69240,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69236,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69248,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69236,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69248,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69236,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69285,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69242,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69286,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69242,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69286,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69243,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69286,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69243,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69286,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69243,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69290,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 88
+    },
+    {
+      "at_ms": 69313,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 674,
+      "start_ms": 68597,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69313,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69247,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69313,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69247,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69313,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 69247,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69391,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 64,
+      "start_ms": 69313,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69391,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69285,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69391,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 69285,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 180,
+      "start_ms": 69171,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 216,
+      "start_ms": 69171,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 188,
+      "start_ms": 69174,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 217,
+      "start_ms": 69175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 219,
+      "start_ms": 69175,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 183,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69414,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 268,
+      "start_ms": 69134,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69414,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 69393,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69414,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 69394,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 69394,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 7,
+      "start_ms": 69394,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 8,
+      "start_ms": 69394,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69399,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69399,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69418,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 69399,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69448,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 237,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69448,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 238,
+      "start_ms": 69208,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69560,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 405,
+      "status": 200
+    },
+    {
+      "at_ms": 69561,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 405,
+      "status": 200
+    },
+    {
+      "at_ms": 69624,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 60,
+      "start_ms": 69561,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69624,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 392,
+      "start_ms": 69156,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69624,
+      "kind": "resource",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 398,
+      "start_ms": 69156,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69624,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_assets",
+      "duration_ms": 64
+    },
+    {
+      "at_ms": 69624,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/scene_edit_versions",
+      "duration_ms": 64
+    },
+    {
+      "at_ms": 69655,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 238,
+      "start_ms": 69409,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69656,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 240,
+      "start_ms": 69412,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69656,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 240,
+      "start_ms": 69413,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69666,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 353,
+      "status": 200
+    },
+    {
+      "at_ms": 69734,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 67,
+      "start_ms": 69666,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69734,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 350,
+      "start_ms": 69313,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69734,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 68
+    },
+    {
+      "at_ms": 69735,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69665,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69735,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 69666,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69738,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 425,
+      "status": 200
+    },
+    {
+      "at_ms": 69738,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 69802,
+      "kind": "phase",
+      "name": "openSceneStudioWorkspace",
+      "duration_ms": 2007,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 69802,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 423,
+      "start_ms": 69313,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69802,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 63,
+      "start_ms": 69738,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69824,
+      "kind": "resource",
+      "name": "local:glb",
+      "duration_ms": 2,
+      "start_ms": 69807,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69868,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69868,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 69816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 69931,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 261,
+      "start_ms": 69653,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

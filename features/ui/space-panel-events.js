@@ -170,8 +170,7 @@
           if (!deps.getPlan2dViewEl().classList.contains("active")) {
             await deps.switchTo2DView();
           } else {
-            await deps.refresh2DOverlay();
-            deps.showPlan2DOverview();
+            await deps.refresh2DOverlay({ visibilityOnly: true });
           }
         });
       });

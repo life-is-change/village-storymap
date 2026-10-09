@@ -1,0 +1,7453 @@
+{
+  "label": "4060-followup-after-building-click",
+  "date": "2026-10-08T13:21:53.096Z",
+  "records": [
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "probe",
+      "duration_ms": 18,
+      "start_ms": -36,
+      "transfer_bytes": 15363
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "cdn.jsdelivr.net:resource",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -36,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 19,
+      "start_ms": -36,
+      "transfer_bytes": 13242
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 8,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": -35,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 10,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 42,
+      "start_ms": -35,
+      "transfer_bytes": 2029
+    },
+    {
+      "at_ms": 11,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 43,
+      "start_ms": -35,
+      "transfer_bytes": 6364
+    },
+    {
+      "at_ms": 13,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 6,
+      "start_ms": 1,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 52,
+      "start_ms": -35,
+      "transfer_bytes": 4264
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 52,
+      "start_ms": -35,
+      "transfer_bytes": 9106
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 53,
+      "start_ms": -35,
+      "transfer_bytes": 14180
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 54,
+      "start_ms": -35,
+      "transfer_bytes": 27415
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 56,
+      "start_ms": -35,
+      "transfer_bytes": 5572
+    },
+    {
+      "at_ms": 28,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 56,
+      "start_ms": -35,
+      "transfer_bytes": 33719
+    },
+    {
+      "at_ms": 47,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 60,
+      "start_ms": -35,
+      "transfer_bytes": 345554
+    },
+    {
+      "at_ms": 718,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 711,
+      "status": 200
+    },
+    {
+      "at_ms": 735,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 17
+    },
+    {
+      "at_ms": 737,
+      "kind": "phase",
+      "name": "auth_ready",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 738,
+      "kind": "resource",
+      "name": "supabase:rest/v1/profiles",
+      "duration_ms": 727,
+      "start_ms": 7,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 739,
+      "kind": "view_state",
+      "name": "auth-refresh",
+      "duration_ms": 0,
+      "model3d": false,
+      "plan2d": true
+    },
+    {
+      "at_ms": 1515,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 778,
+      "status": 200
+    },
+    {
+      "at_ms": 1515,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 1516,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/get_active_project_context",
+      "duration_ms": 777,
+      "start_ms": 738,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2307,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 791,
+      "status": 200
+    },
+    {
+      "at_ms": 2307,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2307,
+      "kind": "resource",
+      "name": "supabase:rest/v1/villages",
+      "duration_ms": 790,
+      "start_ms": 1516,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 2988,
+      "kind": "fetch_headers",
+      "name": "supabase:auth/user",
+      "duration_ms": 1473,
+      "status": 200
+    },
+    {
+      "at_ms": 2989,
+      "kind": "body_read_parse",
+      "name": "supabase:auth/user",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 2989,
+      "kind": "phase",
+      "name": "project_startup",
+      "duration_ms": 2252,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2991,
+      "kind": "phase",
+      "name": "dataset_signed_urls",
+      "duration_ms": 1,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 2991,
+      "kind": "resource",
+      "name": "supabase:auth/user",
+      "duration_ms": 1472,
+      "start_ms": 1516,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 5763,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 2772,
+      "status": 200
+    },
+    {
+      "at_ms": 5764,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 5764,
+      "kind": "phase",
+      "name": "prepareVillageContext",
+      "duration_ms": 2774,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5770,
+      "kind": "phase",
+      "name": "commitVillageContext",
+      "duration_ms": 6,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5774,
+      "kind": "phase",
+      "name": "switch_village",
+      "duration_ms": 3,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5779,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 4,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 5782,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_spaces",
+      "duration_ms": 2771,
+      "start_ms": 2991,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 10395,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 4616,
+      "status": 404
+    },
+    {
+      "at_ms": 10395,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 10395,
+      "kind": "phase",
+      "name": "initializeCoursePersonalSpace",
+      "duration_ms": 4621,
+      "failed": true,
+      "failure_code": "PGRST202"
+    },
+    {
+      "at_ms": 10396,
+      "kind": "resource",
+      "name": "supabase:rest/v1/rpc/ensure_course_personal_space",
+      "duration_ms": 4615,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14149,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 8370,
+      "status": 200
+    },
+    {
+      "at_ms": 14149,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14149,
+      "kind": "resource",
+      "name": "supabase:rest/v1/group_memberships",
+      "duration_ms": 8368,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14161,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 8389,
+      "status": 200
+    },
+    {
+      "at_ms": 14161,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 14161,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 8388,
+      "start_ms": 5772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14779,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 9000,
+      "status": 200
+    },
+    {
+      "at_ms": 14779,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 9007,
+      "status": 200
+    },
+    {
+      "at_ms": 14779,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 14787,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 1,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 14788,
+      "kind": "phase",
+      "name": "ensurePlanMap",
+      "duration_ms": 0,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 14795,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 9005,
+      "start_ms": 5772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14795,
+      "kind": "resource",
+      "name": "supabase:rest/v1/task_progress",
+      "duration_ms": 8997,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14795,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 16
+    },
+    {
+      "at_ms": 14795,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 5,
+      "status": 200
+    },
+    {
+      "at_ms": 14795,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 6,
+      "status": 200
+    },
+    {
+      "at_ms": 14795,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 6,
+      "status": 200
+    },
+    {
+      "at_ms": 14795,
+      "kind": "fetch_headers",
+      "name": "local:geojson",
+      "duration_ms": 6,
+      "status": 200
+    },
+    {
+      "at_ms": 14795,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 6,
+      "status": 200
+    },
+    {
+      "at_ms": 14796,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14796,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 4,
+      "start_ms": 14789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14796,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 3,
+      "start_ms": 14789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14796,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 3,
+      "start_ms": 14789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14796,
+      "kind": "resource",
+      "name": "local:geojson",
+      "duration_ms": 4,
+      "start_ms": 14789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14796,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 4,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14796,
+      "kind": "body_read_parse",
+      "name": "local:csv",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14796,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14796,
+      "kind": "body_read_parse",
+      "name": "local:geojson",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14796,
+      "kind": "body_read_parse",
+      "name": "local:csv",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 14834,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 9062,
+      "status": 200
+    },
+    {
+      "at_ms": 14834,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 14834,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 9061,
+      "start_ms": 5772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 14834,
+      "kind": "fetch_headers",
+      "name": "local:csv",
+      "duration_ms": 45,
+      "status": 404
+    },
+    {
+      "at_ms": 14886,
+      "kind": "resource",
+      "name": "local:csv",
+      "duration_ms": 45,
+      "start_ms": 14789,
+      "transfer_bytes": 635
+    },
+    {
+      "at_ms": 14955,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 9184,
+      "status": 200
+    },
+    {
+      "at_ms": 14956,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 14956,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 9183,
+      "start_ms": 5771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 15026,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 9254,
+      "status": 200
+    },
+    {
+      "at_ms": 15027,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 15032,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 9252,
+      "start_ms": 5772,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 16152,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 10381,
+      "status": 200
+    },
+    {
+      "at_ms": 16153,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 16153,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 10380,
+      "start_ms": 5771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 16239,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 10460,
+      "status": 200
+    },
+    {
+      "at_ms": 16239,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 16239,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 10458,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 16240,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1450,
+      "status": 200
+    },
+    {
+      "at_ms": 16240,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 16240,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1449,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 16246,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 10475,
+      "status": 200
+    },
+    {
+      "at_ms": 16246,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 16247,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 10475,
+      "start_ms": 5771,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17227,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2437,
+      "status": 200
+    },
+    {
+      "at_ms": 17227,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2437,
+      "status": 200
+    },
+    {
+      "at_ms": 17227,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2437,
+      "status": 200
+    },
+    {
+      "at_ms": 17227,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 17227,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2436,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17227,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2435,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17227,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 17241,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 14
+    },
+    {
+      "at_ms": 17241,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2450,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17241,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 11463,
+      "status": 200
+    },
+    {
+      "at_ms": 17241,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 17241,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 11462,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17249,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 11471,
+      "status": 200
+    },
+    {
+      "at_ms": 17250,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2460,
+      "status": 200
+    },
+    {
+      "at_ms": 17250,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 9328,
+      "status": 200
+    },
+    {
+      "at_ms": 17250,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 11470,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 11471,
+      "status": 200
+    },
+    {
+      "at_ms": 17250,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 11472,
+      "status": 200
+    },
+    {
+      "at_ms": 17250,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 11470,
+      "start_ms": 5778,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 11470,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 9327,
+      "start_ms": 7922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2458,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17250,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 17250,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 17250,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 17255,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 11476,
+      "status": 200
+    },
+    {
+      "at_ms": 17255,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 11476,
+      "status": 200
+    },
+    {
+      "at_ms": 17255,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 17255,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 11476,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17276,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 21
+    },
+    {
+      "at_ms": 17278,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 11496,
+      "start_ms": 5779,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 17278,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2488,
+      "status": 200
+    },
+    {
+      "at_ms": 17312,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 34
+    },
+    {
+      "at_ms": 17312,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 2522,
+      "start_ms": 14790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 10717,
+      "status": 200
+    },
+    {
+      "at_ms": 18639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 3852,
+      "status": 200
+    },
+    {
+      "at_ms": 18639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 10718,
+      "status": 200
+    },
+    {
+      "at_ms": 18639,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 10717,
+      "status": 200
+    },
+    {
+      "at_ms": 18639,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 18639,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 10717,
+      "start_ms": 7922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18639,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 10716,
+      "start_ms": 7922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18639,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 3851,
+      "start_ms": 14787,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18639,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 18639,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 18642,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 3
+    },
+    {
+      "at_ms": 18642,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 10720,
+      "start_ms": 7922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18643,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 3855,
+      "status": 200
+    },
+    {
+      "at_ms": 18643,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 3855,
+      "status": 200
+    },
+    {
+      "at_ms": 18643,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 18643,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 3855,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18643,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 3855,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18643,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 18648,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1398,
+      "status": 200
+    },
+    {
+      "at_ms": 18648,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 10727,
+      "status": 200
+    },
+    {
+      "at_ms": 18649,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 18653,
+      "kind": "phase",
+      "name": "overlay_render",
+      "duration_ms": 3865,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 18654,
+      "kind": "phase",
+      "name": "refresh2DOverlay",
+      "duration_ms": 3866,
+      "failed": false,
+      "failure_code": null,
+      "visibility_only": false
+    },
+    {
+      "at_ms": 18655,
+      "kind": "overlay_state",
+      "name": "rendered-features",
+      "duration_ms": 0,
+      "total": 211,
+      "layers": {
+        "building": 194,
+        "road": 14,
+        "water": 2,
+        "__village_fill": 1
+      },
+      "content_digest": "5c43b81b",
+      "parallel_reads": true
+    },
+    {
+      "at_ms": 18655,
+      "kind": "phase",
+      "name": "openCoursePlanningWorkspace",
+      "duration_ms": 3874,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 18656,
+      "kind": "phase",
+      "name": "enterCoursePlatform",
+      "duration_ms": 17920,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 18657,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 1398,
+      "start_ms": 17250,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 18668,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 20
+    },
+    {
+      "at_ms": 18670,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 10736,
+      "start_ms": 7922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 4710,
+      "status": 200
+    },
+    {
+      "at_ms": 19498,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 4709,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 4711,
+      "status": 200
+    },
+    {
+      "at_ms": 19498,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 4711,
+      "status": 200
+    },
+    {
+      "at_ms": 19498,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 4710,
+      "start_ms": 14787,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 4710,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19498,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19503,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4716,
+      "status": 200
+    },
+    {
+      "at_ms": 19503,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19503,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4715,
+      "start_ms": 14787,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19514,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 857,
+      "status": 201
+    },
+    {
+      "at_ms": 19514,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19514,
+      "kind": "resource",
+      "name": "supabase:rest/v1/activity_events",
+      "duration_ms": 857,
+      "start_ms": 18657,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19528,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 4741,
+      "status": 200
+    },
+    {
+      "at_ms": 19530,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 2
+    },
+    {
+      "at_ms": 19535,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 4742,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19829,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 5040,
+      "status": 200
+    },
+    {
+      "at_ms": 19829,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19829,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 5040,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19856,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 5067,
+      "status": 200
+    },
+    {
+      "at_ms": 19856,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19856,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 5066,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19858,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 5070,
+      "status": 200
+    },
+    {
+      "at_ms": 19858,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 19858,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 5069,
+      "start_ms": 14788,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 19905,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 5116,
+      "status": 200
+    },
+    {
+      "at_ms": 19926,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 21
+    },
+    {
+      "at_ms": 19931,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 5137,
+      "start_ms": 14789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43714,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 0,
+      "start_ms": 43680,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 43714,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": 43680,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 43745,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 32,
+      "start_ms": 43712,
+      "transfer_bytes": 33207
+    },
+    {
+      "at_ms": 43748,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 0,
+      "start_ms": 43745,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43759,
+      "kind": "resource",
+      "name": "local:script",
+      "duration_ms": 9,
+      "start_ms": 43748,
+      "transfer_bytes": 167151
+    },
+    {
+      "at_ms": 43759,
+      "kind": "phase",
+      "name": "ensureVillage3DLoaded",
+      "duration_ms": 80,
+      "failed": false,
+      "failure_code": null
+    },
+    {
+      "at_ms": 43765,
+      "kind": "fetch_headers",
+      "name": "local:resource",
+      "duration_ms": 5,
+      "status": 403
+    },
+    {
+      "at_ms": 43855,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 80,
+      "start_ms": 43760,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43855,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 2,
+      "start_ms": 43783,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43855,
+      "kind": "resource",
+      "name": "local:json",
+      "duration_ms": 2,
+      "start_ms": 43787,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43855,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 2,
+      "start_ms": 43824,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43855,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 2,
+      "start_ms": 43830,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43856,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 3,
+      "start_ms": 43760,
+      "transfer_bytes": 649
+    },
+    {
+      "at_ms": 43861,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 4,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43862,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 5,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43880,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43880,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43880,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43880,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43930,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 44,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43936,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 35,
+      "start_ms": 43856,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43938,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 43932,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43938,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 43932,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43938,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 43932,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 43938,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 43933,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44013,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44013,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44016,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44016,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44016,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44024,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44016,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44031,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44020,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44033,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44020,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44036,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44030,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44036,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44030,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44096,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44073,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44124,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44126,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44126,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44126,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44127,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44127,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44127,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44122,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44185,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44180,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44186,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44181,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44189,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44184,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44189,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44184,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44189,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44184,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44200,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44197,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44201,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44197,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44201,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44197,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44201,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44197,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44208,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44210,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44210,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44210,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44205,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44231,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44231,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44231,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44235,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44231,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44262,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44259,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44263,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44260,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44292,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44294,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44295,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44295,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44295,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44295,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44289,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44297,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44293,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44344,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44339,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44344,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44340,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44345,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44343,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44345,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44343,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44352,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44348,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44348,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44353,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44348,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44364,
+      "kind": "resource",
+      "name": "api.cesium.com:resource",
+      "duration_ms": 532,
+      "start_ms": 43830,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44377,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44377,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44377,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44377,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44378,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44378,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44372,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44381,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44376,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44381,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44376,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44403,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44401,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44404,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44401,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44411,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44405,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44411,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44411,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44411,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44411,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44412,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44412,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44406,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44415,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44409,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44415,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44409,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44416,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44410,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44428,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44422,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44429,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44426,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44432,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44426,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44432,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44426,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44433,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44427,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44435,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44427,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44435,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44427,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44436,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44431,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44436,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44431,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44444,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44439,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44444,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44439,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44445,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44439,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44445,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44439,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44445,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44439,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44445,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44440,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44448,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44443,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44448,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44443,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44461,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44455,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44461,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44455,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44461,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44455,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44462,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44455,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44462,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44455,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44462,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44456,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44462,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44456,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44462,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44456,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44465,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44460,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44465,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 44460,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44465,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44460,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44466,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44460,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44473,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44474,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44474,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44474,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44474,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44474,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44468,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44478,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44476,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44478,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44476,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44481,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44523,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 6,
+      "start_ms": 44482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44524,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44528,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44528,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44528,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 697,
+      "status": 200
+    },
+    {
+      "at_ms": 44529,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44529,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44529,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 6,
+      "start_ms": 44520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44531,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 44528,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44532,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 44528,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44533,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 44528,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44536,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 44528,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44615,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 250,
+      "start_ms": 44364,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44670,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 200,
+      "start_ms": 44469,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44679,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 209,
+      "start_ms": 44469,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44813,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 62,
+      "start_ms": 44748,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44813,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 952,
+      "start_ms": 43832,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44813,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 285
+    },
+    {
+      "at_ms": 44934,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 73,
+      "start_ms": 44836,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44934,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 240,
+      "start_ms": 44617,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 44934,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 262,
+      "start_ms": 44617,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45040,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 102,
+      "start_ms": 44936,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45069,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 6,
+      "start_ms": 44934,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45069,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 6,
+      "start_ms": 44934,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45088,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 249,
+      "start_ms": 44836,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45100,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45096,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45100,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45096,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45347,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 256,
+      "start_ms": 45088,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45351,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 238,
+      "start_ms": 45112,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45353,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 239,
+      "start_ms": 45114,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45360,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 45357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45360,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 45357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45360,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 45357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45360,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45360,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 257,
+      "start_ms": 45114,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 256,
+      "start_ms": 45115,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 255,
+      "start_ms": 45115,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 254,
+      "start_ms": 45116,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 262,
+      "start_ms": 45115,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45381,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45382,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45382,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45382,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45382,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45383,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 265,
+      "start_ms": 45116,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45385,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45377,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45378,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45378,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45378,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45380,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45380,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 271,
+      "start_ms": 45114,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45386,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 270,
+      "start_ms": 45116,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45390,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 1,
+      "start_ms": 45384,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45390,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45384,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45394,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45389,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45394,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45389,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45394,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45389,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45394,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45390,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45394,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45390,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 320,
+      "start_ms": 45347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 320,
+      "start_ms": 45347,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 318,
+      "start_ms": 45348,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 312,
+      "start_ms": 45355,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 312,
+      "start_ms": 45356,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 311,
+      "start_ms": 45356,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45686,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 311,
+      "start_ms": 45356,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45712,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 13,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 13,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 13,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 14,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 14,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 45696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 15,
+      "start_ms": 45697,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45713,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 16,
+      "start_ms": 45697,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45740,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 367,
+      "start_ms": 45355,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45740,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45740,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45781,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45740,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45807,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45799,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45807,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45799,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45808,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45802,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45808,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45802,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45809,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45804,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45812,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 45804,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45817,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 2,
+      "start_ms": 45811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45817,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45820,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45815,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45820,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45820,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45821,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45822,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 4,
+      "start_ms": 45816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45824,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 5,
+      "start_ms": 45816,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45824,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45819,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 45824,
+      "kind": "resource",
+      "name": "t0.tianditu.gov.cn:resource",
+      "duration_ms": 3,
+      "start_ms": 45819,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46254,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 569,
+      "status": 200
+    },
+    {
+      "at_ms": 46255,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 46255,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 568,
+      "start_ms": 45686,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46466,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 780,
+      "status": 200
+    },
+    {
+      "at_ms": 46466,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 46497,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 780,
+      "start_ms": 45686,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46529,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 46519,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46529,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 8,
+      "start_ms": 46519,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46529,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 9,
+      "start_ms": 46519,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46529,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 9,
+      "start_ms": 46520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46529,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 9,
+      "start_ms": 46520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46530,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 9,
+      "start_ms": 46520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46893,
+      "kind": "resource",
+      "name": "api.cesium.com:resource",
+      "duration_ms": 410,
+      "start_ms": 46482,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46967,
+      "kind": "resource",
+      "name": "api.cesium.com:resource",
+      "duration_ms": 482,
+      "start_ms": 46485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46972,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 3,
+      "start_ms": 46967,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46977,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 2,
+      "start_ms": 46973,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46977,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 2,
+      "start_ms": 46973,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 46983,
+      "kind": "resource",
+      "name": "api.cesium.com:resource",
+      "duration_ms": 497,
+      "start_ms": 46485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 47233,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 246,
+      "start_ms": 46983,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48279,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 237,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48280,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 238,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48280,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 237,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48282,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 239,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48283,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 241,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48291,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 250,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48300,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 258,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48305,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 263,
+      "start_ms": 48041,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48521,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 238,
+      "start_ms": 48281,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48521,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 238,
+      "start_ms": 48281,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48546,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 242,
+      "start_ms": 48281,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48546,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 239,
+      "start_ms": 48285,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48546,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 239,
+      "start_ms": 48285,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48546,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 242,
+      "start_ms": 48293,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48551,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 240,
+      "start_ms": 48301,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 48553,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 7,
+      "start_ms": 48543,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 48558,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 249,
+      "start_ms": 48306,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 49065,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 2568,
+      "status": 200
+    },
+    {
+      "at_ms": 49065,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 49065,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_snapshots",
+      "duration_ms": 2568,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 49836,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 3339,
+      "status": 200
+    },
+    {
+      "at_ms": 49837,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 49837,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 3339,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 49856,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 3358,
+      "status": 200
+    },
+    {
+      "at_ms": 49856,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 49856,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_comments",
+      "duration_ms": 3358,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50203,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 3705,
+      "status": 200
+    },
+    {
+      "at_ms": 50203,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 50203,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_photos",
+      "duration_ms": 3705,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50486,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 3989,
+      "status": 200
+    },
+    {
+      "at_ms": 50486,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 50486,
+      "kind": "resource",
+      "name": "supabase:rest/v1/community_tasks",
+      "duration_ms": 3988,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50730,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 4232,
+      "status": 200
+    },
+    {
+      "at_ms": 50731,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 1
+    },
+    {
+      "at_ms": 50731,
+      "kind": "resource",
+      "name": "supabase:rest/v1/feature_change_batches",
+      "duration_ms": 4232,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50731,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 4211,
+      "start_ms": 46520,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50771,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 4274,
+      "status": 200
+    },
+    {
+      "at_ms": 50777,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 6
+    },
+    {
+      "at_ms": 50777,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 4279,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50840,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 4343,
+      "status": 200
+    },
+    {
+      "at_ms": 50852,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 12
+    },
+    {
+      "at_ms": 50853,
+      "kind": "resource",
+      "name": "supabase:rest/v1/survey_feature_reviews",
+      "duration_ms": 4353,
+      "start_ms": 46497,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50949,
+      "kind": "resource",
+      "name": "dev.virtualearth.net:resource",
+      "duration_ms": 4054,
+      "start_ms": 46893,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50957,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 50952,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50958,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2,
+      "start_ms": 50952,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50958,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 50952,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50958,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 50952,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 50994,
+      "kind": "resource",
+      "name": "local:resource",
+      "duration_ms": 29,
+      "start_ms": 50953,
+      "transfer_bytes": 300
+    },
+    {
+      "at_ms": 51223,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 238,
+      "start_ms": 50983,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51224,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 240,
+      "start_ms": 50984,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51224,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 239,
+      "start_ms": 50984,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51232,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51233,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 246,
+      "start_ms": 50985,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51248,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 248,
+      "start_ms": 50984,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 251,
+      "start_ms": 50984,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 252,
+      "start_ms": 50984,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 250,
+      "start_ms": 50985,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 250,
+      "start_ms": 50985,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 252,
+      "start_ms": 50985,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 251,
+      "start_ms": 50986,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51256,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51259,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 268,
+      "start_ms": 50986,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 269,
+      "start_ms": 50986,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51245,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51246,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51246,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 6,
+      "start_ms": 51246,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51262,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 6,
+      "start_ms": 51246,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51263,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 269,
+      "start_ms": 50986,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51263,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 51252,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51263,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51252,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51253,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51253,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51253,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51253,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51253,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51268,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51274,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 51265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51274,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51274,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51266,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51274,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51266,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51274,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51266,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51471,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 243,
+      "start_ms": 51227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51471,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 243,
+      "start_ms": 51227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51474,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 245,
+      "start_ms": 51227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51475,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 246,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51475,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 246,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51476,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 248,
+      "start_ms": 51228,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51477,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51477,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51477,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51478,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51478,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51479,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51473,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51479,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 251,
+      "start_ms": 51227,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51488,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 239,
+      "start_ms": 51245,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51489,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1,
+      "start_ms": 51483,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51489,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 51484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51489,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 4,
+      "start_ms": 51484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51490,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51494,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51495,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51484,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 251,
+      "start_ms": 51245,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 243,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 243,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51500,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 8,
+      "start_ms": 51485,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51504,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 246,
+      "start_ms": 51254,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51504,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 6,
+      "start_ms": 51488,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51504,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51488,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51563,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 263,
+      "start_ms": 51255,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51563,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 263,
+      "start_ms": 51255,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2,
+      "start_ms": 51502,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 5,
+      "start_ms": 51502,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51502,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 7,
+      "start_ms": 51502,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 11,
+      "start_ms": 51502,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 13,
+      "start_ms": 51503,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 14,
+      "start_ms": 51503,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 14,
+      "start_ms": 51503,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 12,
+      "start_ms": 51506,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51567,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 12,
+      "start_ms": 51506,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51570,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2,
+      "start_ms": 51562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51570,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2,
+      "start_ms": 51562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51570,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3,
+      "start_ms": 51562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 51729,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 952,
+      "status": 200
+    },
+    {
+      "at_ms": 51729,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 51732,
+      "kind": "resource",
+      "name": "supabase:rest/v1/planning_features",
+      "duration_ms": 950,
+      "start_ms": 50777,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 52050,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 487,
+      "start_ms": 51562,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 104728,
+      "kind": "panel_ui",
+      "name": "building-loading",
+      "duration_ms": 33
+    },
+    {
+      "at_ms": 104729,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 453,
+      "start_ms": 104241,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 106219,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1256,
+      "start_ms": 104962,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 106270,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1197,
+      "start_ms": 105071,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 106270,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1199,
+      "start_ms": 105071,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107361,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2183,
+      "start_ms": 105178,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107565,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2504,
+      "start_ms": 105061,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107577,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2531,
+      "start_ms": 105044,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107581,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2535,
+      "start_ms": 105044,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107587,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2490,
+      "start_ms": 105096,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107692,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2592,
+      "start_ms": 105099,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107731,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 2611,
+      "start_ms": 105120,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107752,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2701,
+      "start_ms": 105050,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107762,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2706,
+      "start_ms": 105056,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107765,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2704,
+      "start_ms": 105060,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107767,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2804,
+      "start_ms": 104962,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107767,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2670,
+      "start_ms": 105096,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107787,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2684,
+      "start_ms": 105103,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107833,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 2776,
+      "start_ms": 105056,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107857,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 2800,
+      "start_ms": 105056,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107903,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2842,
+      "start_ms": 105060,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107904,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 2805,
+      "start_ms": 105098,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107919,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2872,
+      "start_ms": 105044,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107928,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2961,
+      "start_ms": 104966,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107961,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 2916,
+      "start_ms": 105044,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 107969,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 2790,
+      "start_ms": 105178,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108011,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3043,
+      "start_ms": 104966,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108015,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2783,
+      "start_ms": 105230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108019,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2833,
+      "start_ms": 105186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108035,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2840,
+      "start_ms": 105195,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108041,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2838,
+      "start_ms": 105202,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108071,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2884,
+      "start_ms": 105186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108132,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2954,
+      "start_ms": 105177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108142,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3039,
+      "start_ms": 105103,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108145,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 2962,
+      "start_ms": 105182,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108149,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2971,
+      "start_ms": 105177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108150,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 2972,
+      "start_ms": 105177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108170,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3118,
+      "start_ms": 105051,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108185,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3001,
+      "start_ms": 105182,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108216,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3033,
+      "start_ms": 105182,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108269,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3078,
+      "start_ms": 105190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108286,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3047,
+      "start_ms": 105238,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108302,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3244,
+      "start_ms": 105056,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108307,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3115,
+      "start_ms": 105190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108319,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3142,
+      "start_ms": 105177,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108346,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3143,
+      "start_ms": 105202,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108388,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3197,
+      "start_ms": 105190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108396,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3209,
+      "start_ms": 105186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108398,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3219,
+      "start_ms": 105178,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108418,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3231,
+      "start_ms": 105186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108486,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3270,
+      "start_ms": 105215,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108515,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3248,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108529,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3333,
+      "start_ms": 105195,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108529,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3299,
+      "start_ms": 105229,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108556,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3331,
+      "start_ms": 105224,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108573,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3358,
+      "start_ms": 105215,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108574,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 2350,
+      "start_ms": 106223,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108576,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3338,
+      "start_ms": 105237,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108578,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3353,
+      "start_ms": 105223,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108585,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3393,
+      "start_ms": 105190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108597,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3365,
+      "start_ms": 105230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108599,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3408,
+      "start_ms": 105190,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108603,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1238,
+      "start_ms": 107364,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108625,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3394,
+      "start_ms": 105230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108632,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3401,
+      "start_ms": 105230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108644,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3406,
+      "start_ms": 105237,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108668,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3429,
+      "start_ms": 105238,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108669,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 3403,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108681,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3456,
+      "start_ms": 105224,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108719,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3516,
+      "start_ms": 105202,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108791,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3560,
+      "start_ms": 105230,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108800,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3534,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108823,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1254,
+      "start_ms": 107568,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108827,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 3561,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108861,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 536,
+      "start_ms": 108322,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108862,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3621,
+      "start_ms": 105238,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108869,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 1098,
+      "start_ms": 107769,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108878,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3611,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108879,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1297,
+      "start_ms": 107581,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108879,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1114,
+      "start_ms": 107764,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108882,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 1113,
+      "start_ms": 107769,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108908,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 1002,
+      "start_ms": 107905,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108918,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 3732,
+      "start_ms": 105186,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108924,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 1064,
+      "start_ms": 107860,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 108945,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 1022,
+      "start_ms": 107922,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109010,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 1104,
+      "start_ms": 107906,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109089,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3851,
+      "start_ms": 105237,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109092,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 744,
+      "start_ms": 108346,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109094,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 1335,
+      "start_ms": 107756,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109100,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1331,
+      "start_ms": 107769,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109139,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4410,
+      "status": 200
+    },
+    {
+      "at_ms": 109139,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 4410,
+      "status": 200
+    },
+    {
+      "at_ms": 109139,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 4411,
+      "status": 200
+    },
+    {
+      "at_ms": 109140,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 109140,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4409,
+      "start_ms": 104729,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109140,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 4410,
+      "start_ms": 104729,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109140,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 109140,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 109140,
+      "kind": "resource",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 4410,
+      "start_ms": 104729,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109146,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1131,
+      "start_ms": 108014,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109167,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1031,
+      "start_ms": 108135,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109212,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 1377,
+      "start_ms": 107835,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109222,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 3955,
+      "start_ms": 105265,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109266,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 869,
+      "start_ms": 108396,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109270,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 868,
+      "start_ms": 108401,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109282,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 856,
+      "start_ms": 108421,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109287,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 793,
+      "start_ms": 108488,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109341,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 4116,
+      "start_ms": 105224,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109375,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 985,
+      "start_ms": 108388,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109378,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 859,
+      "start_ms": 108517,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109410,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4681,
+      "status": 200
+    },
+    {
+      "at_ms": 109410,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 109411,
+      "kind": "panel_ui",
+      "name": "building-ready",
+      "duration_ms": 4716
+    },
+    {
+      "at_ms": 109411,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 4680,
+      "start_ms": 104729,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109501,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1712,
+      "start_ms": 107789,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109613,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 747,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109683,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 818,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109688,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 821,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109688,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 820,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109744,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 878,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109780,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 915,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109823,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 729,
+      "start_ms": 109093,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109918,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1053,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 109940,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 667,
+      "start_ms": 109272,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110010,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 723,
+      "start_ms": 109287,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110035,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 749,
+      "start_ms": 109284,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110049,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 1181,
+      "start_ms": 108864,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110059,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1192,
+      "start_ms": 108865,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110062,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1195,
+      "start_ms": 108865,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110062,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 679,
+      "start_ms": 109381,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110073,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 1201,
+      "start_ms": 108865,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110317,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 933,
+      "start_ms": 109381,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110590,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1208,
+      "start_ms": 109381,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110596,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 839,
+      "start_ms": 109752,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110596,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 764,
+      "start_ms": 109826,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110613,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 993,
+      "start_ms": 109619,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110684,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 994,
+      "start_ms": 109690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110695,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1000,
+      "start_ms": 109690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110697,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1002,
+      "start_ms": 109690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110697,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 746,
+      "start_ms": 109947,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110791,
+      "kind": "longtask",
+      "name": "main-thread",
+      "duration_ms": 53,
+      "start_ms": 110733,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110791,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 981,
+      "start_ms": 109790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110791,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 854,
+      "start_ms": 109927,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 110836,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 771,
+      "start_ms": 110064,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111055,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1000,
+      "start_ms": 110053,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111182,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1117,
+      "start_ms": 110064,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111198,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1136,
+      "start_ms": 110060,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111234,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1180,
+      "start_ms": 110053,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111246,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1192,
+      "start_ms": 110053,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111254,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1175,
+      "start_ms": 110076,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111328,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1009,
+      "start_ms": 110318,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111649,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1050,
+      "start_ms": 110598,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111667,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1066,
+      "start_ms": 110598,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111691,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1091,
+      "start_ms": 110598,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111725,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 1024,
+      "start_ms": 110700,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111777,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1082,
+      "start_ms": 110694,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111789,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1169,
+      "start_ms": 110620,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111878,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1177,
+      "start_ms": 110700,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111900,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1109,
+      "start_ms": 110790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111915,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1124,
+      "start_ms": 110790,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111921,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1076,
+      "start_ms": 110844,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111933,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 866,
+      "start_ms": 111064,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 111948,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1251,
+      "start_ms": 110694,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 112741,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 1013,
+      "start_ms": 111726,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 112988,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1261,
+      "start_ms": 111726,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 113044,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1317,
+      "start_ms": 111726,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 113675,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 931,
+      "start_ms": 112743,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152296,
+      "kind": "panel_ui",
+      "name": "building-loading",
+      "duration_ms": 42
+    },
+    {
+      "at_ms": 152564,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 55,
+      "start_ms": 152509,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152585,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 132,
+      "start_ms": 152450,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152585,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 132,
+      "start_ms": 152450,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152635,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 105,
+      "start_ms": 152529,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152640,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 1,
+      "start_ms": 152639,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152675,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 174,
+      "start_ms": 152501,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152675,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 174,
+      "start_ms": 152501,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152806,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 1,
+      "start_ms": 152804,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152847,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 308,
+      "start_ms": 152538,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152848,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 310,
+      "start_ms": 152538,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152851,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 555,
+      "status": 200
+    },
+    {
+      "at_ms": 152851,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 152851,
+      "kind": "resource",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 554,
+      "start_ms": 152297,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152884,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 302,
+      "start_ms": 152582,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152906,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 297,
+      "start_ms": 152609,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152963,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 353,
+      "start_ms": 152609,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152996,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 699,
+      "status": 200
+    },
+    {
+      "at_ms": 152996,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 152996,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 699,
+      "start_ms": 152297,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 152998,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 368,
+      "start_ms": 152630,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153002,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 706,
+      "status": 200
+    },
+    {
+      "at_ms": 153002,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 153002,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 705,
+      "start_ms": 152296,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153022,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 389,
+      "start_ms": 152630,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153035,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 380,
+      "start_ms": 152654,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153046,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 390,
+      "start_ms": 152654,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153046,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 391,
+      "start_ms": 152654,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153167,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 511,
+      "start_ms": 152654,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153232,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 590,
+      "start_ms": 152639,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153232,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 935,
+      "status": 200
+    },
+    {
+      "at_ms": 153232,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 153232,
+      "kind": "panel_ui",
+      "name": "building-ready",
+      "duration_ms": 979
+    },
+    {
+      "at_ms": 153233,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 933,
+      "start_ms": 152297,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153496,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 752,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153522,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 779,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153544,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 801,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153561,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 808,
+      "start_ms": 152750,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153578,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 829,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153589,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 847,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153613,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 870,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153636,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 892,
+      "start_ms": 152742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153642,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 940,
+      "start_ms": 152696,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153642,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 928,
+      "start_ms": 152708,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153642,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 920,
+      "start_ms": 152717,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153642,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 611,
+      "start_ms": 153025,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153645,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 920,
+      "start_ms": 152717,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 153927,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 690,
+      "start_ms": 153235,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154239,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 593,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154395,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 750,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154427,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 781,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154447,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 802,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154660,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1012,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154680,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1034,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 154694,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1048,
+      "start_ms": 153645,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 155176,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 934,
+      "start_ms": 154241,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 155426,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1184,
+      "start_ms": 154241,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 155461,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1219,
+      "start_ms": 154241,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 155478,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 1236,
+      "start_ms": 154241,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164356,
+      "kind": "panel_ui",
+      "name": "building-loading",
+      "duration_ms": 36
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 5,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 4,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 4,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 4,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 4,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164816,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 4,
+      "start_ms": 164811,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164840,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 483,
+      "status": 200
+    },
+    {
+      "at_ms": 164841,
+      "kind": "resource",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 482,
+      "start_ms": 164357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164841,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 38,
+      "start_ms": 164803,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164841,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:json",
+      "duration_ms": 38,
+      "start_ms": 164803,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164841,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/group_model_assets",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 164946,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 256,
+      "start_ms": 164690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164955,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 248,
+      "start_ms": 164707,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164967,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 260,
+      "start_ms": 164707,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164971,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 292,
+      "start_ms": 164678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164975,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 296,
+      "start_ms": 164678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164976,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 297,
+      "start_ms": 164678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 164999,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 641,
+      "status": 200
+    },
+    {
+      "at_ms": 164999,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 164999,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 641,
+      "start_ms": 164357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165001,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 310,
+      "start_ms": 164691,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165001,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 259,
+      "start_ms": 164742,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165010,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 302,
+      "start_ms": 164707,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165012,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 295,
+      "start_ms": 164717,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165016,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 659,
+      "status": 200
+    },
+    {
+      "at_ms": 165016,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 298,
+      "start_ms": 164717,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165016,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 165016,
+      "kind": "resource",
+      "name": "supabase:rest/v1/object_attribute_edits",
+      "duration_ms": 659,
+      "start_ms": 164357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165032,
+      "kind": "fetch_headers",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 675,
+      "status": 200
+    },
+    {
+      "at_ms": 165032,
+      "kind": "body_read_parse",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 0
+    },
+    {
+      "at_ms": 165033,
+      "kind": "panel_ui",
+      "name": "building-ready",
+      "duration_ms": 712
+    },
+    {
+      "at_ms": 165033,
+      "kind": "resource",
+      "name": "supabase:rest/v1/building_model_bindings",
+      "duration_ms": 674,
+      "start_ms": 164357,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165040,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 297,
+      "start_ms": 164741,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165053,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 311,
+      "start_ms": 164741,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165063,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 372,
+      "start_ms": 164690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165076,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 294,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165078,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 296,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165084,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 298,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165103,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 423,
+      "start_ms": 164678,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165121,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 430,
+      "start_ms": 164690,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165133,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 426,
+      "start_ms": 164707,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165138,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 297,
+      "start_ms": 164840,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165222,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 439,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165244,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 461,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165250,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 467,
+      "start_ms": 164782,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165257,
+      "kind": "resource",
+      "name": "ecn.t1.tiles.virtualearth.net:resource",
+      "duration_ms": 416,
+      "start_ms": 164840,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165279,
+      "kind": "resource",
+      "name": "ecn.t3.tiles.virtualearth.net:resource",
+      "duration_ms": 438,
+      "start_ms": 164840,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165290,
+      "kind": "resource",
+      "name": "ecn.t2.tiles.virtualearth.net:resource",
+      "duration_ms": 444,
+      "start_ms": 164840,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165304,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 558,
+      "start_ms": 164745,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165330,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 693,
+      "start_ms": 164628,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165351,
+      "kind": "resource",
+      "name": "assets.ion.cesium.com:resource",
+      "duration_ms": 719,
+      "start_ms": 164628,
+      "transfer_bytes": 0
+    },
+    {
+      "at_ms": 165354,
+      "kind": "resource",
+      "name": "ecn.t0.tiles.virtualearth.net:resource",
+      "duration_ms": 610,
+      "start_ms": 164741,
+      "transfer_bytes": 0
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "limits": "overlapping phases; fetch_headers excludes body; resource bytes may be hidden by cross-origin timing; no SQL server timing"
+}

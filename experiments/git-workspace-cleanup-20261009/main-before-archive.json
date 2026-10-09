@@ -1,0 +1,406 @@
+[
+  {
+    "path": "3D_scenes_edit/startup-failure-cleanup.test.js",
+    "sha256": "c6573f8c26f17789a70b94c9acd51e1509c178188b432113681930285c982317"
+  },
+  {
+    "path": "3D_scenes_edit/startup-resources.test.js",
+    "sha256": "be5c68b0c8f5a192938f4e0c3855ab9a8ab3f26fa49eb0263d9fa14f97d2fbf1"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-20261009.zip",
+    "sha256": "7e9a820567c17672deb218e631f9955856ede69a9b547b567a8b3c4095b1b8fc"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery-20261009.zip",
+    "sha256": "b5e7faafd6f374227320238744ace4fb8ef15a10968e960bd7cb670ea0c2fa2f"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery-20261009.zip.sha256",
+    "sha256": "ecab6a4f775c37054f35b475a6ec89afa1e8f27189f3082388cf9931d8b308f5"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/SHA256SUMS",
+    "sha256": "e9bb1de7e19fbe844cd4ffc515e36337296b2882cd83ebe4a620701a6d3d2743"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/apply-web-fix.sh",
+    "sha256": "f3b746f3d5e462afc72a9597b9b444794081499a24fbe7f847c3663bcb2b25cf"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/features/geoprocessing/geoprocessing-panel.js",
+    "sha256": "d6ce5fbeb0e9272b957fe1c9939bdc302c852906508039b36996820e96bfda92"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/rural_house_generator/app.js",
+    "sha256": "e389d2667bff0e4585d450d5b0309bb841e132fa82c5ed9379eb16acf6998ff5"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/rural_house_generator/facade-queue-client.js",
+    "sha256": "39c0995b82fdee2640b556522a1e7304bd08becfb245a0567b7770698e90403c"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/rural_house_generator/index.html",
+    "sha256": "366c1dbb27690b23e7bdbc9ca8ca525360a4227c33148b29bd421ed896dcace6"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix-queue-recovery/使用说明.md",
+    "sha256": "d6ccc2e5b11f928bca051fe0b6ee9dbc8903db7b4010b2669db251bb86308f3b"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix/SHA256SUMS",
+    "sha256": "215b66fab3513a3c303e4e90ee965741b9034b6bdc9f29d55eb5d9cd76eb3257"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix/apply-web-fix.sh",
+    "sha256": "31d27bff83a2fb4dc2479c52cfca92fe0537ac6f9049c9d5b65d77d9f3eeaae0"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix/features/geoprocessing/geoprocessing-panel.js",
+    "sha256": "d6ce5fbeb0e9272b957fe1c9939bdc302c852906508039b36996820e96bfda92"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix/rural_house_generator/app.js",
+    "sha256": "fe2ddd6c1172265c56c66ef1740c9b71eba208c5ac7b5bcd9e1add2e6a02eb92"
+  },
+  {
+    "path": "deliveries/service-recovery-20261009/frontend-fix/使用说明.txt",
+    "sha256": "31fc3282363eb5b59ff2e575d3da3f574d7bdba81d427901f24486a19ae43299"
+  },
+  {
+    "path": "docs/performance/2026-10-08-performance-followup.md",
+    "sha256": "7c285a257f53f19af75eb65601adea5db307beeacc2049e39490646aeb26b232"
+  },
+  {
+    "path": "docs/performance/2026-10-08-performance.md",
+    "sha256": "62587e978e6067ecd08c6abaa02796061dde0f00c3dc3ee434aa43d3f4d09be1"
+  },
+  {
+    "path": "docs/performance/2026-10-09-facade-task-recovery.md",
+    "sha256": "16e3e12722bce27f78e9f3d9170b1680efec463820a5fcc69fe2c6d42b2b34f2"
+  },
+  {
+    "path": "docs/performance/2026-10-09-service-recovery.md",
+    "sha256": "8c0ffd71ac983ec19e40b0756a020560341bd5f58da5c6d2f91a9498ae6bfe4f"
+  },
+  {
+    "path": "docs/superpowers/plans/2026-10-08-platform-performance.md",
+    "sha256": "7d08027647a115bac5e3027b9d7e8abb495a4a9bd43be20273c42618afdc9e26"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791445796635841600.json",
+    "sha256": "586cd06c33d418565f9d2d76424bfb0e4c73b0cf6c3c7730353e9f6811a01cc9"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791446290583250100.json",
+    "sha256": "5f2ed66fe9947b324bd233751030b3f7f174a191322b5dd637178d50228f8e96"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791446572091317900.json",
+    "sha256": "2ac373d9d0a06b2e99532e94c896ec32f6fdd51aaa7719a9503a5a218ee27e0a"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791446772790427900.json",
+    "sha256": "b5d80fc0d5e8cafd2549d115e5b7baaa9e803a899b2e1cbb30b416cdcf0792df"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791446933447880400.json",
+    "sha256": "a0c2705decd8a6cbc6922fd7dc0da580031f2e6c169b2a19f669d263451d69c8"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447352231523700.json",
+    "sha256": "ed295009f3c6fdaa6c3767dc4c78139e57e73b76dd5b088a859aeed17f85d4af"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447389054622700.json",
+    "sha256": "f31ff4f45c252246def340a3af30485ad644146fe059da69bba0228f7ab68cf2"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447482378304200.json",
+    "sha256": "6364e2eacd2fdff06ca08dba3df5b48f48f2d858da7c0b0816af01ac5e284b5a"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447535228281600.json",
+    "sha256": "a97642f46aeaf0b68b4a5602c603d6445396bcde90e59734dfe67a8fb235601a"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447623013898400.json",
+    "sha256": "8478e09ad01d24f0e6ff6315e1ab41a39e0ce001614b7f7c4d9b2d221cfadd6a"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791447746414405900.json",
+    "sha256": "dc5436bf42033952fcf820257cdd3e80bb5748cb2d03393067122e4e96f4ada4"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791448880934059100.json",
+    "sha256": "6453c6785fdc978023d823261760878eda3c1e1515349b417fe5291dda0cbfd0"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791448926097790100.json",
+    "sha256": "3e6e64c6112e4b2be5a43eab52be1eab705d470970615eed41a5026a94e5b451"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791448949260047900.json",
+    "sha256": "9079668bedc8ff14a427685bbf8a22c5730d91b371f7b5275c2a6d525cb73b7f"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449053095728100.json",
+    "sha256": "ee02a51278e5c7cb8a2c1b34696a5cea51618d990692d42323702155a13edef2"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449085195534000.json",
+    "sha256": "28cad79eb2e15783c2b6b9e7948989ee4740b6c8c601bcd81e66a077c5980f15"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449104033575300.json",
+    "sha256": "261678e713e6d7c0f6a99d1841f2ca0ee9710169185d89b7695a8be71d01dd91"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449157511827900.json",
+    "sha256": "30b278cdb0791384f8b588657a285973bcaeec6a621e65b2764ebcba9051ed94"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449218191104700.json",
+    "sha256": "7c3187e057aea54ebd25f4ffa19e3c78482d8e2fea571154979655fefa6fc548"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449277410703400.json",
+    "sha256": "16ec0b1c33aa03a258132e8d01fe1acba0e01c2d84181731f58821cbcc20384c"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449340040675200.json",
+    "sha256": "e40f4b97cad4fa3877fedfa6408963b135895bc16456e3e06bb24a5864e23154"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-samples/sample-1791449439288280800.json",
+    "sha256": "9c0a220c08fe61b9a2cb0b32cfcd7f2ee6180f5b56865c60b9d4c210713dbd50"
+  },
+  {
+    "path": "experiments/performance-20261008/browser-summary.json",
+    "sha256": "932f517a5222c790f00927294f18c147d30dff96aa77ce5ace2af5f24513c3ec"
+  },
+  {
+    "path": "experiments/performance-20261008/controlled-benchmark.cjs",
+    "sha256": "69bc1e08bae6505c6e311820c7b0c51bfadd2ee22d0fda9689e8975403d10eeb"
+  },
+  {
+    "path": "experiments/performance-20261008/controlled-results.json",
+    "sha256": "34bbfcd93d47b6af190d840cc046fda441397d119b20d5592fb4f9f6ee00aa08"
+  },
+  {
+    "path": "experiments/performance-20261008/summarize.py",
+    "sha256": "3127e3bc552062ea0ced230954d86b8958fdb10a671a5c97cdd116ae51556412"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/after-4060.jpg",
+    "sha256": "74c741dd2aa53eef731055b3116f10ec383813e54200aa5342af69d2165096a5"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/browser-summary.json",
+    "sha256": "c1077bee8344937e095c33963efc2b56f2a18bb538b21f3b33f000ef984f3f99"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/full-tests.txt",
+    "sha256": "03e46b436a320a9ece0f89082f51587a433c133c12db6840c5c920200b0ef05f"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/generated-model-after-reload.png",
+    "sha256": "01406d487f3ec8dba82d8406d1f2619d05052ef08d633fb45dc4c47793ff5d3b"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/generated-model-persistence-report.md",
+    "sha256": "4009f7a74efec75d84f0d9de4f934983f71af1bc6cce56f55e5f5f53f36c4bba"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/model-persistence-test-output.txt",
+    "sha256": "e4fd64c59d6c06ad90cdaae0a60849b4cbc649efe66ddd0cacaff061db7f8360"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791464621338592100.json",
+    "sha256": "b69d3c406b12c9f99ef998bb9c0b1d109f21a2938cc55d3629c4b60c115a313d"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791464698539127700.json",
+    "sha256": "255057cabfd62161b138e0c42b738b6a12c30d620a9412d646edf0eeeebcf2f7"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791465196283178800.json",
+    "sha256": "3185f8ed01d1101fed6e1cbbd47bfb38630a8147f0aa4e3d6a0aa604dd96c7c4"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791465289219320300.json",
+    "sha256": "603d06cd1845f9a0a98bb9010ff1aa3cf6ec82c6239eea457c333cf66d41c4c0"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791465406178939100.json",
+    "sha256": "af57e8962ef2c7347ba596ceeba527880129916c5cc9f80776342b121f976c21"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791465524168797400.json",
+    "sha256": "a809e078bca242a548287348614c15312f5e5f98f498f014dfb5c3d76c182ba5"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/sample-1791465713106702100.json",
+    "sha256": "0824da4b449dc5efc4a2a73c35f3ca6a02586de2ff4935de7aa98242c84f15c5"
+  },
+  {
+    "path": "experiments/performance-followup-20261008/task-recovery-test-output.txt",
+    "sha256": "56e2ccb850050dd18ee57986e2a08300c2ecb3042ce2d8dd142e6a51f83fbd69"
+  },
+  {
+    "path": "features/3d/cold-building-load.test.js",
+    "sha256": "2acbaddc7cbf036c2d262481c4fd5f678c1ac78443f8e67be7b2957c25fcd46c"
+  },
+  {
+    "path": "features/3d/early-camera-performance.test.js",
+    "sha256": "60d39276fa16543b359b4a2cdace8093ab11902875c7481ca03ff4273ab642b9"
+  },
+  {
+    "path": "features/3d/entity-info-response.test.js",
+    "sha256": "420b8576a27fdfde9e6b75c5bf9022f62b58fd7c53798d1fcae184d0c5c7559f"
+  },
+  {
+    "path": "features/3d/imagery-generation.test.js",
+    "sha256": "9f1a6a3821bcabb0c515510cbd6ccd2fcdfcebee7f4ef382f988d12254d161ea"
+  },
+  {
+    "path": "features/3d/render-activity.test.js",
+    "sha256": "e6e2ede76158d9ac2af5f4e2402a25b0cd84ed4526f8d8571e7e4b16fee0a239"
+  },
+  {
+    "path": "features/3d/village-camera-transition.test.js",
+    "sha256": "037ee53c013dfc62dad2045371733cf44680ca0cdf00ae8f168fb15eabca81fb"
+  },
+  {
+    "path": "features/auth/auth-view-preservation.test.js",
+    "sha256": "f5d56c0e4216c20076df1b0ddf6a8fc49345c68f002db4832324066db4e0acbb"
+  },
+  {
+    "path": "features/data/dataset-asset-cache.test.js",
+    "sha256": "1226eebe6e2e6d58bb6bd21aee1fcd74e00b59b34f0a9305968e9d8f398742f1"
+  },
+  {
+    "path": "features/data/model-restore-queue.test.js",
+    "sha256": "593c0369523765e14cd9dd63d740d6586a6020c3733b3ac25f2b3c54949a9af2"
+  },
+  {
+    "path": "features/data/stale-layer-load.test.js",
+    "sha256": "9cb85b12b37a0417d44197c9eedc10e3d7458626a2aa668944dd918d02c2a807"
+  },
+  {
+    "path": "features/geoprocessing/completed-result-stability.test.js",
+    "sha256": "2582eb5768f769fd98408fe929242c34716cfc64679c2e3fc09809e4e37d9119"
+  },
+  {
+    "path": "features/map-editing/layer-toggle-performance.test.js",
+    "sha256": "b85773a3041595caefc220693c9ad46a6165fef21ac421fef64c8f18483b9581"
+  },
+  {
+    "path": "features/models/generated-model-persistence.test.js",
+    "sha256": "5b1e6b0316003389b4f610f45793ad8ea1be192cb81054f2c13f2a0f48659d17"
+  },
+  {
+    "path": "features/ui/entry-basemap-readiness.test.js",
+    "sha256": "dd942c6b8228973f9c04bb2dbad482d0e51e1f5ed6b27087331a7118c4e5463c"
+  },
+  {
+    "path": "features/ui/scene-studio-cold-open.test.js",
+    "sha256": "6e562b7c89168797d3c7280b5a473fb3770ff275a0ec9146a864ef9633f832ad"
+  },
+  {
+    "path": "features/villages/switch-wait-chain.test.js",
+    "sha256": "a5cdb63680194f952382077eaae78432c77e2add3dacca222177bebcbb5671c5"
+  },
+  {
+    "path": "rural_house_generator/model-save-ack.test.js",
+    "sha256": "60ab8660f85fe49da731d3b2bff7bf0be992e435a326abb300792f568ee7bf8f"
+  },
+  {
+    "path": "rural_house_generator/queue-connection.test.js",
+    "sha256": "70d0d235224288a0fb34c79f957d981681893120831cc95f9378ca8d9c2c0c96"
+  },
+  {
+    "path": "rural_house_generator/task-recovery.test.js",
+    "sha256": "5f421f1ad1a1b7d2b0043f52471a5fc26c73b044f634aec9ff9ff97e6c6411d9"
+  },
+  {
+    "path": "3D_scenes_edit/index.js",
+    "sha256": "de59db5f63abe79962f48a7944d733fdcbced3715352be9444ef33b1403e9f2e"
+  },
+  {
+    "path": "app-3d.js",
+    "sha256": "23215b9e97073434949052a6d7e400fc0ae8b25fe606aa6e138ac516bb3b0339"
+  },
+  {
+    "path": "app.js",
+    "sha256": "bb5918eefd35896e3c94d03f79a3ac02eb62305a808ec96312b7ee550d94c544"
+  },
+  {
+    "path": "features/3d/3d-runtime-integration.test.js",
+    "sha256": "fda097eb83ad893d435ad81564948e0a63e2cb58712ff85e180e82b7bcb2711a"
+  },
+  {
+    "path": "features/3d/reality-inset.js",
+    "sha256": "3323a376d5d7981f2bed1e8e42861e516e6629bdf86221d1f71d08bd996c73fd"
+  },
+  {
+    "path": "features/3d/reality-inset.test.js",
+    "sha256": "20282756b02608614902bed28a78bea19096ca3d067e44fc2c7cb7ecb684b021"
+  },
+  {
+    "path": "features/3d/space-restore-performance.test.js",
+    "sha256": "28be41f09f771040bfec0a99f4c822b564314e8f3255211b1e135e535ee5ddc9"
+  },
+  {
+    "path": "features/auth/supabase-auth-integration.test.js",
+    "sha256": "d5495089f596cd0ccfbfbeb8ec50d5217400d9673855717e75c64c3c036bc557"
+  },
+  {
+    "path": "features/data/effective-building-features.js",
+    "sha256": "572dcfb6078c6716437133b07b3436bbe6bb7cd0c254ce28732621d2a313ae61"
+  },
+  {
+    "path": "features/data/village-dataset-resolver.js",
+    "sha256": "02b0f13b3bd3a614a2f157694e278c962141c080afe4dd8eeae9dcdbb20a1634"
+  },
+  {
+    "path": "features/geoprocessing/geoprocessing-panel.js",
+    "sha256": "d6ce5fbeb0e9272b957fe1c9939bdc302c852906508039b36996820e96bfda92"
+  },
+  {
+    "path": "features/integration/multi-practice-runtime.test.js",
+    "sha256": "a013bd329abe14322e2e05bbd912fb1f1537b2fb76f945edf5b45929192b108a"
+  },
+  {
+    "path": "features/map-editing/overlay-renderer.js",
+    "sha256": "f90ec889606dde98825aaaf74fca0fb7e687ca8189e654058fe4eaa216e77be7"
+  },
+  {
+    "path": "features/map-editing/overlay-renderer.test.js",
+    "sha256": "470607d515cdb0b8859a7aa7912be03f1942ca06aec57026f189ceafb0cc2eff"
+  },
+  {
+    "path": "features/ui/scene-studio-startup.js",
+    "sha256": "3cbd9b00ed066619b1910ba765da75706a71e200ee09b2133e72ee2496a4b4a5"
+  },
+  {
+    "path": "features/ui/space-panel-events.js",
+    "sha256": "e7a90f535bbd4bc4a2fa6f830a90bc70ac6445c38f3ae6aeafc5c12bc444ddaf"
+  },
+  {
+    "path": "rural_house_generator/app.js",
+    "sha256": "22825f61ee86aed110a78f346286e425586e6afa1a865e34cf8d0ba1cfdc8227"
+  },
+  {
+    "path": "rural_house_generator/facade-queue-client.js",
+    "sha256": "39c0995b82fdee2640b556522a1e7304bd08becfb245a0567b7770698e90403c"
+  },
+  {
+    "path": "rural_house_generator/facade-queue-client.test.js",
+    "sha256": "700d9a2bf7114bdfeddcf01f37158f3fb02d8c8d99ab88181eb74ea49131ea62"
+  },
+  {
+    "path": "rural_house_generator/index.html",
+    "sha256": "d4206dd451b70f2bef41d86cc3fdbd5e3a9c97671d99b5822232d09049fbd60a"
+  }
+]

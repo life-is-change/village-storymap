@@ -27,5 +27,5 @@ test("二维和三维都在渲染前规范化本地数据包对象编号", () =>
 
 test("三维运行时切村时重建当前村庄影像并使用最新地理范围", () => {
   assert.match(app3d, /function getBasemapGeoref\(\)[\s\S]*?normalizeBasemapGeoref\(window\.__BASEMAP_GEOREF\)[\s\S]*?activeBasemapGeoref/);
-  assert.match(app3d, /async function reload\(selectCode\)[\s\S]*?await addViewerImageryLayers/);
+  assert.match(app3d, /async function reload\(selectCode\)[\s\S]*?positionVillageCamera\(\)[\s\S]*?void addViewerImageryLayers/);
 });

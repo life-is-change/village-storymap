@@ -70,6 +70,20 @@ test("shared overlay starts independent layer reads before waiting for the first
   assert.deepEqual(beforeRelease.sort(),["building","road","water"]);
 });
 
+test("cold vector file and scoped database reads overlap without rendering unchecked static rows", async t => {
+ const f=overlayFixture(t), started=[];
+ let release;const gate=new Promise(r=>release=r);
+ f.deps.ensureLayerLoaded=async key=>{started.push("static:"+key);await gate;};
+ const read=f.deps.listBuildingFeaturesFromDbCached;
+ f.deps.listBuildingFeaturesFromDbCached=async space=>{started.push("db:building");return read(space);};
+ const pending=refresh2DOverlay(f.deps,null,{forceFullRebuild:true});
+ await new Promise(r=>setImmediate(r));const before=[...started];
+ assert.equal(f.features().length,0);
+ release();await pending;
+ assert.ok(before.includes("db:building"));
+ assert.deepEqual(f.features().filter(x=>x.get("layerKey")==="building").map(x=>x.get("sourceCode")),["building-edited","building-static"]);
+});
+
 test("shared overlay reads tombstones once per layer and preserves edits and feature ordering", async t => {
   const f=overlayFixture(t), reads={};
   const deleted=f.deps.listDeletedLayerFeatureCodesFromDb;
@@ -121,6 +135,34 @@ test("obsolete overlay refresh never replaces the visible vector source", async 
   const result=await refresh2DOverlay(f.deps,{isCurrent:()=>false},{forceFullRebuild:true});
   assert.deepEqual(result,{stale:true});
   assert.equal(f.features().length,0);
+});
+
+test("toggle off/on reuses retained geometry and empty layers without cloud reads", async t => {
+ const f=overlayFixture(t);
+ let selected=["building","road","water"], reads=0;
+ f.deps.getSelectedLayersForCurrentSpace=()=>selected;
+ const read=f.deps.listRoadFeaturesFromDbCached;
+ f.deps.listRoadFeaturesFromDbCached=async space=>{ reads++; return read(space); };
+ await refresh2DOverlay(f.deps,null,{forceFullRebuild:true});
+ const road=f.features().filter(x=>x.get("layerKey")==="road");
+ selected=["building","water"];
+ await refresh2DOverlay(f.deps,null,{visibilityOnly:true});
+ assert.equal(f.features().some(x=>x.get("layerKey")==="road"),false);
+ selected=["building","road","water"];
+ await refresh2DOverlay(f.deps,null,{visibilityOnly:true});
+ assert.deepEqual(f.features().filter(x=>x.get("layerKey")==="road"),road);
+ assert.equal(reads,1);
+ await refresh2DOverlay(f.deps,null,{forceFullRebuild:true});
+ assert.equal(reads,2);
+});
+
+test("a failed refresh rejects once and the next user request can retry", async () => {
+ let calls=0;
+ const controller=createLatestOverlayRefreshController({render:async()=>{if(++calls===1)throw Error("offline");}});
+ await assert.rejects(controller.request(),/offline/);
+ assert.equal(calls,1);
+ await controller.request();
+ assert.equal(calls,2);
 });
 
 function feature(layerKey) {

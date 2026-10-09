@@ -1,0 +1,43 @@
+{
+  "kind": "controlled",
+  "conditions": {
+    "models": 100,
+    "modelTaskDelayMs": 8,
+    "eachStudioListDelayMs": 40,
+    "rounds": 3
+  },
+  "models": [
+    {
+      "round": 1,
+      "beforeMs": 1568,
+      "afterMs": 528
+    },
+    {
+      "round": 2,
+      "beforeMs": 1576,
+      "afterMs": 532
+    },
+    {
+      "round": 3,
+      "beforeMs": 1560,
+      "afterMs": 532
+    }
+  ],
+  "studio": [
+    {
+      "round": 1,
+      "beforeMs": 103,
+      "afterMs": 52
+    },
+    {
+      "round": 2,
+      "beforeMs": 93,
+      "afterMs": 47
+    },
+    {
+      "round": 3,
+      "beforeMs": 91,
+      "afterMs": 47
+    }
+  ]
+}
