@@ -1,0 +1,29 @@
+{
+  "name": "village-model-processor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline CPU-only GLB web variant preparation",
+  "scripts": {
+    "process": "node cli.mjs",
+    "test": "node --test --test-isolation=none test/*.test.mjs",
+    "build:browser": "node build-browser.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.2.1",
+    "@gltf-transform/extensions": "4.2.1",
+    "@gltf-transform/functions": "4.2.1",
+    "meshoptimizer": "0.24.0",
+    "sharp": "0.35.5"
+  },
+  "overrides": {
+    "ndarray-pixels": "5.0.1",
+    "sharp": "$sharp"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

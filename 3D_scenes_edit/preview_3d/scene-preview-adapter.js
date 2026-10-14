@@ -1,8 +1,12 @@
 (function (root, factory) {
-  const api = factory(typeof module === "object" && module.exports ? require("./scene-to-cesium") : root.SceneToCesiumModule);
+  const common = typeof module === "object" && module.exports;
+  const api = factory(common ? require("./scene-to-cesium") : root.SceneToCesiumModule,
+    common ? require("../../features/models/model-residency") : root.ModelResidencyModule,
+    common ? require("../../features/3d/render-quality") : root.RenderQualityModule,
+    common ? require("../../features/models/model-view-metrics") : root.ModelViewMetricsModule);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.ScenePreviewAdapterModule = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (SceneToCesium) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (SceneToCesium, Residency, Quality, Metrics) {
   function flattenPositions(coordinates) {
     return (coordinates || []).flatMap((position) => [position[0], position[1]]);
   }
@@ -27,6 +31,167 @@
     let disposed = false;
     let ghostEntity = null;
     let ghostAssetKey = null;
+    const pendingLoads = new Set();
+    const hasNativeModels = !!(Cesium.Model?.fromGltfAsync && Cesium.Transforms?.headingPitchRollToFixedFrame && viewer.scene?.primitives);
+    const profile = () => options.getQualityProfile?.() || Quality?.getProfile?.() || { modelBudget: 24, detailPixels: 100 };
+    const residency = Residency?.createModelResidencyManager?.({
+      getBudget: () => options.getModelBudget?.() ?? profile().modelBudget,
+      getDetailPixels: () => options.getDetailPixels?.() ?? profile().detailPixels,
+      load(entry) {
+        const task = (async () => {
+          const record = entry.record;
+          const asset = record.asset;
+          const low = entry.variant === 'low';
+          const chosen = low ? { ...asset, url: asset.lowUrl || asset.metadata?.lowUrl,
+            storagePath: asset.metadata?.lowStoragePath || asset.lowStoragePath } : asset;
+          const resolved = chosen?.url || await assetResolver(chosen, { ...record.descriptor, variant: entry.variant });
+          const uri = typeof resolved === 'string' ? resolved : resolved?.url;
+          if (!uri) throw new Error('Empty model URL');
+          if (disposed || records.get(entry.key) !== record || recordRevision(record) !== entry.revision) {
+            if (uri.startsWith('blob:')) globalThis.URL?.revokeObjectURL?.(uri);
+            throw new Error('Scene model request superseded');
+          }
+          if (hasNativeModels) {
+            try {
+              const primitive = await Cesium.Model.fromGltfAsync({ url: uri, id: record.entity,
+                modelMatrix: primitiveMatrix(record), scene: viewer.scene,
+                heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND,
+                scale: 1, minimumPixelSize: 0, incrementallyLoadTextures: false, runAnimations: false });
+              return { uri, record, primitive, added: false };
+            } catch (error) {
+              if (uri.startsWith('blob:')) globalThis.URL?.revokeObjectURL?.(uri);
+              throw error;
+            }
+          }
+          return { uri, record };
+        })();
+        pendingLoads.add(task);
+        task.then(() => pendingLoads.delete(task), () => pendingLoads.delete(task));
+        return task;
+      },
+      unload(resource) {
+        const record = resource.record;
+        resource.removeErrorListener?.();
+        resource.removeErrorListener = null;
+        if (resource.primitive) {
+          if (resource.added) viewer.scene.primitives.remove(resource.primitive);
+          if (!resource.primitive.isDestroyed?.()) resource.primitive.destroy?.();
+        }
+        if (record.modelResource === resource) {
+          record.modelResource = null;
+          record.entity.model = undefined;
+          if (!disposed && records.get(record.descriptor.sourceObjectId) === record) applyProxy(record);
+        }
+        if (resource.uri?.startsWith?.('blob:')) globalThis.URL?.revokeObjectURL?.(resource.uri);
+        viewer.scene?.requestRender?.();
+      },
+      setVisible(resource, show, entry) {
+        const record = entry.record;
+        if (disposed || records.get(entry.key) !== record) return;
+        if (resource) {
+          record.modelResource = resource;
+          if (resource.primitive) {
+            if (!resource.added) {
+              resource.removeErrorListener = resource.primitive.errorEvent?.addEventListener?.(error => {
+                if (disposed || records.get(entry.key) !== record || record.modelResource !== resource) return;
+                residency.fail(entry.key, error);
+              });
+              resource.added = true;
+              viewer.scene.primitives.add(resource.primitive);
+              if (disposed || record.modelResource !== resource) return;
+            }
+            resource.primitive.show = show;
+            resource.primitive.silhouetteColor = color('YELLOW');
+            resource.primitive.silhouetteSize = selectedIds.has(entry.key) ? 2 : 0;
+            record.entity.model = undefined;
+            record.entity.show = false;
+          } else {
+            Object.assign(record.entity, modelGraphics(record, resource.uri));
+            record.entity.show = show;
+          }
+        } else if (!record.modelResource) {
+          applyProxy(record);
+        }
+        viewer.scene?.requestRender?.();
+      },
+      onError(error, entry) {
+        const record = entry.record;
+        if (!disposed && records.get(entry.key) === record) {
+          record.unavailable = true;
+          applyProxy(record);
+          options.onError?.(error, entry);
+        }
+      }
+    });
+
+    async function whenReady() {
+      while (pendingLoads.size) {
+        await Promise.allSettled([...pendingLoads]);
+        await Promise.resolve();
+      }
+    }
+    function recordRevision(record) {
+      const descriptor = record.descriptor;
+      return descriptor ? JSON.stringify([descriptor.assetRef, descriptor.positionDegrees, descriptor.orientationRadians,
+        descriptor.scale, record.asset?.metadata?.calibrationScale, record.asset?.metadata?.groundOffsetM,
+        record.asset?.metadata?.headingCorrectionDeg]) : null;
+    }
+    function primitiveMatrix(record) {
+      const descriptor = record.descriptor;
+      const metadata = record.asset?.metadata || {};
+      const angles = descriptor.orientationRadians;
+      const [longitude, latitude, height = 0] = descriptor.positionDegrees;
+      const position = Cesium.Cartesian3.fromDegrees(longitude, latitude, height + (Number(metadata.groundOffsetM) || 0));
+      let matrix = Cesium.Transforms.headingPitchRollToFixedFrame(position,
+        new Cesium.HeadingPitchRoll(angles.heading + (Number(metadata.headingCorrectionDeg) || 0) * Math.PI / 180, angles.pitch, angles.roll));
+      if (Cesium.Matrix4?.multiplyByScale) {
+        const calibration = metadata.calibrationScale || [1, 1, 1];
+        const scale = descriptor.scale.map((value, axis) => (Number(value) || 1) * (Number(calibration[axis]) || 1));
+        matrix = Cesium.Matrix4.multiplyByScale(matrix, new Cesium.Cartesian3(...scale), matrix);
+      }
+      return matrix;
+    }
+    function modelGraphics(record, uri) {
+      const descriptor = record.descriptor;
+      const position = Cesium.Cartesian3.fromDegrees(...descriptor.positionDegrees);
+      const angles = descriptor.orientationRadians;
+      return { position, box: undefined, label: undefined,
+        orientation: Cesium.Transforms?.headingPitchRollQuaternion?.(position,
+          new Cesium.HeadingPitchRoll(angles.heading, angles.pitch, angles.roll)),
+        model: { uri, scale: descriptor.scale[0], minimumPixelSize: 0,
+          silhouetteSize: selectedIds.has(descriptor.sourceObjectId) ? 2 : 0,
+          heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND } };
+    }
+    function proxyDescriptor(record) {
+      return { ...record.descriptor, label: record.asset?.label || record.asset?.displayName || record.descriptor.category,
+        footprintM: record.asset?.footprintM, heightM: record.asset?.defaultHeightM };
+    }
+    function applyProxy(record) {
+      Object.assign(record.entity, fallbackGraphics(proxyDescriptor(record), record.unavailable), { model: undefined, show: true });
+    }
+    function viewportCandidates() {
+      const camera = viewer.camera;
+      const cameraPosition = camera?.positionWC || camera?.position;
+      const candidates = [];
+      for (const [key, record] of records) {
+        if (!record.descriptor) continue;
+        const descriptor = record.descriptor;
+        const size = record.asset?.metadata?.realSizeM || [record.asset?.footprintM?.[0] || 1,
+          record.asset?.footprintM?.[1] || 1, record.asset?.defaultHeightM || 1];
+        const radius = Math.max(.1, Math.hypot(size[0] * descriptor.scale[0], size[1] * descriptor.scale[1], size[2] * descriptor.scale[2]) / 2);
+        const position = Cesium.Cartesian3.fromDegrees(...descriptor.positionDegrees);
+        const measured = cameraPosition && Cesium.Cartesian3.distance && Metrics?.measureModelView
+          ? Metrics.measureModelView(Cesium, viewer, position, radius)
+          : { distance: Infinity, pixels: 1000000, inView: true };
+        candidates.push({ key, ...measured, selected: selectedIds.has(key) });
+      }
+      return candidates;
+    }
+    function updateResidency() {
+      if (!disposed && residency) residency.update(viewportCandidates());
+    }
+    const removeCameraListener = viewer.camera?.changed?.addEventListener?.(updateResidency);
+    const unsubscribeQuality = Quality?.subscribe?.(updateResidency);
 
     function color(name, alpha) {
       const value = Cesium.Color?.[name] || Cesium.Color?.GRAY;
@@ -89,7 +254,8 @@
       const current = records.get(sourceObjectId);
       if (current) {
         if (current.uri?.startsWith?.("blob:") && current.uri !== uri) globalThis.URL?.revokeObjectURL?.(current.uri);
-        Object.assign(current.entity, graphics, { show: true });
+        Object.assign(current.entity, { model: undefined, box: undefined, label: undefined,
+          polygon: undefined, polyline: undefined, corridor: undefined, cylinder: undefined, ellipsoid: undefined }, graphics, { show: true });
         current.uri = uri || null;
         current.focus = focus || null;
         return current.entity;
@@ -102,6 +268,7 @@
     function removeStale(nextIds) {
       for (const [id, record] of records) {
         if (nextIds.has(id)) continue;
+        residency?.unregister(id);
         viewer.entities.remove(record.entity);
         if (record.uri?.startsWith?.("blob:")) globalThis.URL?.revokeObjectURL?.(record.uri);
         records.delete(id);
@@ -156,6 +323,15 @@
       if (disposed) return { ok: false, code: "DISPOSED" };
       const descriptors = SceneToCesium.toCesiumDescriptors(document, assetMap);
       const nextIds = new Set();
+      const modelIds = new Set(descriptors.models.map(descriptor => descriptor.sourceObjectId));
+      for (const [id, record] of records) {
+        if (record.descriptor && !modelIds.has(id)) {
+          residency?.unregister(id);
+          record.descriptor = null;
+          record.asset = null;
+          record.entity.model = undefined;
+        }
+      }
       const boundary = document?.selectionBoundary?.coordinates?.[0] || [];
       if (boundary.length >= 3) {
         const boundaryId = "selection-boundary";
@@ -182,7 +358,28 @@
         nextIds.add(descriptor.sourceObjectId);
         upsert(descriptor.sourceObjectId, proceduralGraphics(descriptor));
       }
-      await mapLimit(descriptors.models, 4, async (descriptor) => {
+      if (residency) {
+        for (const descriptor of descriptors.models) {
+          const id = descriptor.sourceObjectId;
+          nextIds.add(id);
+          const asset = assetMap?.get ? assetMap.get(descriptor.assetRef) : assetMap?.[descriptor.assetRef];
+          let record = records.get(id);
+          if (!record) {
+            upsert(id, fallbackGraphics({ ...descriptor, label: asset?.label || descriptor.category,
+              footprintM: asset?.footprintM, heightM: asset?.defaultHeightM }, false));
+            record = records.get(id);
+          }
+          record.descriptor = descriptor;
+          record.asset = asset;
+          record.unavailable = false;
+          if (record.modelResource?.primitive) record.modelResource.primitive.modelMatrix = primitiveMatrix(record);
+          else if (record.modelResource) Object.assign(record.entity, modelGraphics(record, record.modelResource.uri));
+          else applyProxy(record);
+          residency.register(id, { url: asset?.url || asset?.storagePath,
+            lowUrl: asset?.lowUrl || asset?.metadata?.lowUrl || asset?.metadata?.lowStoragePath || asset?.lowStoragePath,
+            revision: recordRevision(record), record });
+        }
+      } else await mapLimit(descriptors.models, 4, async (descriptor) => {
         nextIds.add(descriptor.sourceObjectId);
         const asset = assetMap?.get ? assetMap.get(descriptor.assetRef) : assetMap?.[descriptor.assetRef];
         try {
@@ -193,7 +390,7 @@
           upsert(descriptor.sourceObjectId, {
             position,
             orientation: Cesium.Transforms.headingPitchRollQuaternion(position, hpr),
-            model: { uri, scale: descriptor.scale[0], minimumPixelSize: 16, heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND }
+            model: { uri, scale: descriptor.scale[0], minimumPixelSize: 0, heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND }
           }, uri);
         } catch (_error) {
           upsert(descriptor.sourceObjectId, fallbackGraphics({ ...descriptor, label: descriptor.category, footprintM: asset?.footprintM, heightM: asset?.defaultHeightM }, true));
@@ -201,16 +398,18 @@
       });
       removeStale(nextIds);
       select([...selectedIds]);
-      return { ok: true, counts: Object.fromEntries(Object.entries(descriptors).map(([key, value]) => [key, value.length])) };
+      return { ok: true, counts: Object.fromEntries(Object.entries(descriptors).map(([key, value]) => [key, value.length])), ready: whenReady() };
     }
 
     function select(ids) {
       selectedIds = new Set(ids || []);
       for (const [id, record] of records) {
-        record.entity.show = true;
+        if (!record.descriptor) record.entity.show = true;
         record.entity.isSceneEditSelected = selectedIds.has(id);
         if (record.entity.model) record.entity.model.silhouetteSize = selectedIds.has(id) ? 2 : 0;
+        if (record.modelResource?.primitive) record.modelResource.primitive.silhouetteSize = selectedIds.has(id) ? 2 : 0;
       }
+      updateResidency();
     }
 
     function flyToBoundary(boundary) {
@@ -224,6 +423,11 @@
     function flyToObject(id) {
       const record = records.get(String(id || ""));
       const entity = record?.entity;
+      const primitive = record?.modelResource?.primitive;
+      if (primitive?.ready && viewer.camera?.flyToBoundingSphere) {
+        viewer.camera.flyToBoundingSphere(primitive.boundingSphere, { duration: .45 });
+        return true;
+      }
       if (record?.focus?.positionDegrees && typeof viewer.camera?.flyTo === "function") {
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(...record.focus.positionDegrees),
@@ -273,7 +477,7 @@
         model: {
           uri,
           scale: 1,
-          minimumPixelSize: 16,
+          minimumPixelSize: 0,
           heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND,
           color: color("WHITE", .62),
           colorBlendMode: Cesium.ColorBlendMode?.MIX,
@@ -299,17 +503,30 @@
       return ghostEntity;
     }
 
-    function dispose() {
-      disposed = true;
+    function clear() {
+      residency?.clear();
       clearGhost();
       for (const record of records.values()) {
         viewer.entities.remove(record.entity);
         if (record.uri?.startsWith?.("blob:")) globalThis.URL?.revokeObjectURL?.(record.uri);
       }
       records.clear();
+      selectedIds.clear();
+      viewer.scene?.requestRender?.();
     }
 
-    return { render, select, flyToBoundary, flyToObject, pickObjectId, setGhost, clearGhost, dispose };
+    function dispose() {
+      if (disposed) return;
+      disposed = true;
+      if (typeof removeCameraListener === 'function') removeCameraListener();
+      else viewer.camera?.changed?.removeEventListener?.(updateResidency);
+      unsubscribeQuality?.();
+      residency?.destroy();
+      clear();
+    }
+
+    return { render, select, flyToBoundary, flyToObject, pickObjectId, setGhost, clearGhost, clear, dispose,
+      whenReady, updateResidency, getModelStats: () => residency?.getStats?.() || null };
   }
 
   return { mapLimit, createScenePreviewAdapter };

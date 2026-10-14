@@ -57,6 +57,9 @@ const state = {
   camera: null,
   renderer: null,
   controls: null,
+  sun: null,
+  previewLoop: null,
+  qualityUnsubscribe: null,
   currentGroup: null,
   currentBlob: null,
   currentUrl: null,
@@ -1030,15 +1033,93 @@ function buildGenerateCompleteMessage(modelLabel) {
   return `生成完成：${modelLabel}\n可下载 GLB。`;
 }
 
+function createPreviewRenderLoop({ controls, render, requestFrame, cancelFrame, visible = true }) {
+  let frame = null;
+  let active = visible;
+  let updating = false;
+  let invalidated = false;
+  let disposed = false;
+
+  function invalidate() {
+    if (disposed) return;
+    invalidated = true;
+    if (active && !updating && frame === null) frame = requestFrame(draw);
+  }
+  function draw() {
+    frame = null;
+    if (!active || disposed) return;
+    invalidated = false;
+    updating = true;
+    // OrbitControls emits change synchronously from update(). Queue another
+    // frame only while its damping still changes the camera, then become idle.
+    const changed = controls.update();
+    render();
+    updating = false;
+    if (changed || invalidated) invalidate();
+  }
+  function setVisible(next) {
+    active = !!next;
+    if (!active && frame !== null) { cancelFrame(frame); frame = null; }
+    if (active) invalidate();
+  }
+  function dispose() {
+    disposed = true;
+    if (frame !== null) { cancelFrame(frame); frame = null; }
+    ['change', 'start', 'end'].forEach(event => controls.removeEventListener(event, invalidate));
+  }
+  ['change', 'start', 'end'].forEach(event => controls.addEventListener(event, invalidate));
+  return { invalidate, setVisible, dispose };
+}
+
+function applyPreviewQuality(profile = window.RenderQualityModule?.getProfile()) {
+  if (!state.renderer || !state.sun) return;
+  const quality = profile?.thumbnail || { pixelRatio: 1, shadows: false, shadowMapSize: 1024 };
+  state.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
+  state.renderer.shadowMap.enabled = quality.shadows;
+  state.sun.castShadow = quality.shadows;
+  if (state.sun.shadow.mapSize.x !== quality.shadowMapSize) {
+    state.sun.shadow.map?.dispose();
+    state.sun.shadow.map = null;
+    state.sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
+  }
+  state.renderer.shadowMap.needsUpdate = true;
+  state.previewLoop?.invalidate();
+}
+
+function disposeModelResources(group, preservedGroup) {
+  function collect(candidate) {
+    const resources = { geometries: new Set(), materials: new Set(), textures: new Set() };
+    const addTexture = value => {
+      if (value?.isTexture) resources.textures.add(value);
+      else if (Array.isArray(value)) value.forEach(addTexture);
+    };
+    candidate?.traverse(object => {
+      if (object.geometry) resources.geometries.add(object.geometry);
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.filter(Boolean).forEach(material => {
+        resources.materials.add(material);
+        Object.values(material).forEach(addTexture);
+        Object.values(material.uniforms || {}).forEach(uniform => addTexture(uniform?.value));
+      });
+    });
+    return resources;
+  }
+  const released = collect(group);
+  const preserved = collect(preservedGroup);
+  Object.keys(released).forEach(kind => released[kind].forEach(resource => {
+    if (!preserved[kind].has(resource)) resource.dispose?.();
+  }));
+}
+
 function initThree() {
   const scene = new THREE.Scene();
   scene.background = null;
 
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({
+    antialias: window.RenderQualityModule?.getMode() !== 'low', alpha: true
+  });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = true;
   els.viewer.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -1053,8 +1134,6 @@ function initThree() {
 
   const sun = new THREE.DirectionalLight(0xffffff, 2);
   sun.position.set(14, 18, 12);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
   scene.add(sun);
 
   const fill = new THREE.DirectionalLight(0xffffff, 0.55);
@@ -1077,15 +1156,28 @@ function initThree() {
   state.camera = camera;
   state.renderer = renderer;
   state.controls = controls;
+  state.sun = sun;
+  state.previewLoop = createPreviewRenderLoop({
+    controls, render: () => renderer.render(scene, camera),
+    requestFrame: callback => window.requestAnimationFrame(callback),
+    cancelFrame: id => window.cancelAnimationFrame(id), visible: !document.hidden
+  });
+  applyPreviewQuality();
+  state.qualityUnsubscribe = window.RenderQualityModule?.subscribe((mode, profile) => applyPreviewQuality(profile));
+  document.addEventListener('visibilitychange', () => state.previewLoop?.setVisible(!document.hidden));
+  window.addEventListener('pagehide', event => {
+    state.previewLoop?.setVisible(false);
+    if (!event.persisted) {
+      state.previewLoop?.dispose();
+      state.qualityUnsubscribe?.();
+    }
+  });
+  window.addEventListener('pageshow', () => state.previewLoop?.setVisible(!document.hidden));
 
   resetIdleCamera();
   window.addEventListener('resize', resizeRenderer);
   resizeRenderer();
 
-  renderer.setAnimationLoop(() => {
-    controls.update();
-    renderer.render(scene, camera);
-  });
 }
 
 function resetIdleCamera() {
@@ -1093,6 +1185,7 @@ function resetIdleCamera() {
   state.camera.position.set(0, 18, 24);
   state.camera.lookAt(0, 0, 0);
   state.controls.update();
+  state.previewLoop?.invalidate();
 }
 
 function resizeRenderer() {
@@ -1102,25 +1195,18 @@ function resizeRenderer() {
   state.camera.aspect = width / height;
   state.camera.updateProjectionMatrix();
   state.renderer.setSize(width, height, false);
+  state.previewLoop?.invalidate();
 }
 
 function replaceModel(group) {
   if (state.currentGroup) {
     state.scene.remove(state.currentGroup);
-    state.currentGroup.traverse((obj) => {
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) {
-        const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-        materials.forEach((material) => {
-          if (material.map) material.map.dispose();
-          material.dispose?.();
-        });
-      }
-    });
+    disposeModelResources(state.currentGroup, group);
   }
 
   state.currentGroup = group;
   state.scene.add(group);
+  state.previewLoop?.invalidate();
 }
 
 function frameModel(group) {
@@ -1144,6 +1230,7 @@ function frameModel(group) {
   state.camera.updateProjectionMatrix();
   state.camera.lookAt(state.controls.target);
   state.controls.update();
+  state.previewLoop?.invalidate();
 }
 
 function downloadGlb() {
@@ -1174,7 +1261,7 @@ async function replaceOriginalBuilding() {
   state.modelSavePending = true;
   try {
     els.sendBtn.disabled = true;
-    setStatus('正在把生成模型发送回主平台...');
+    setStatus('正在自动准备轻量版本并保存到主平台，请稍候…');
 
     const glbBuffer = await state.currentBlob.arrayBuffer();
 
@@ -1195,8 +1282,13 @@ async function replaceOriginalBuilding() {
     } catch (_) {}
     window.close();
   } catch (err) {
-    console.error(err);
-    setStatus(`同步失败：${err.message}`, true);
+    if (err?.code === 'MODEL_SAVE_CONFIRMATION_TIMEOUT') {
+      console.warn(err);
+      setStatus(err.message, true);
+    } else {
+      console.error(err);
+      setStatus(`同步失败：${err.message}`, true);
+    }
   } finally {
     state.modelSavePending = false;
     els.sendBtn.disabled = false;
@@ -1220,10 +1312,13 @@ function sendModelAndWaitForSave(message, glbBuffer) {
       else reject(new Error(event.data.payload.error || '主平台未完成模型保存，请重试。'));
     };
     window.addEventListener('message', onReply);
+    // Allow 180s CPU preparation, three storage uploads, and a final confirmation margin.
     timer = window.setTimeout(() => {
       cleanup();
-      reject(new Error('未收到主平台保存确认。请先在平台核对模型库；当前 GLB 仍可下载。'));
-    }, 90000);
+      const error = new Error('保存确认等待时间较长，主平台后台可能仍在处理或保存。请先核对模型库，避免重复提交；当前 GLB 仍可下载。');
+      error.code = 'MODEL_SAVE_CONFIRMATION_TIMEOUT';
+      reject(error);
+    }, 420000);
     try { opener.postMessage(message, window.location.origin, [glbBuffer]); }
     catch (error) { cleanup(); reject(error); }
   });

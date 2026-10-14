@@ -3014,9 +3014,9 @@ async function ensureVillage3DLoaded() {
       await loadScriptOnce("assets/vendor/cesium-1.118.0/Cesium.js", "cesium-runtime-script");
     }
 
-    await loadScriptOnce("features/3d/reality-inset.js?v=20260901-reality-instant-focus", "reality-inset-script");
-    await loadScriptOnce("features/models/group-model-library.js?v=20260908-shared-admin-3d", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261009-generated-model-save", "village-3d-script");
+    await loadScriptOnce("features/3d/reality-inset.js?v=20261013-auto-lod", "reality-inset-script");
+    await loadScriptOnce("features/models/group-model-library.js?v=20261013-auto-lod", "group-model-library-script");
+    await loadScriptOnce("app-3d.js?v=20261013-auto-lod", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3081,7 +3081,12 @@ function chooseSceneStudioFile() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".glb,model/gltf-binary";
-    input.addEventListener("change", () => resolve(input.files?.[0] || null), { once: true });
+    input.multiple = false;
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      resolve(file ? { file } : null);
+    }, { once: true });
+    input.addEventListener("cancel", () => resolve(null), {once:true});
     input.click();
   });
 }
@@ -3099,7 +3104,11 @@ function getSceneStudioTopViewThumbnailer() {
   return sceneStudioTopViewThumbnailer;
 }
 
-async function resolveSceneStudioAssetUrl(asset) {
+async function resolveSceneStudioAssetUrl(asset, options = {}) {
+  if (options.variant === 'low' && asset?.metadata?.lowStoragePath) {
+    const {data,error}=await supabaseClient.storage.from('scene-assets').createSignedUrl(asset.metadata.lowStoragePath,3600);
+    if(error)throw error;return data.signedUrl;
+  }
   if (asset?.url) return asset.url;
   if (!asset?.storagePath) throw new Error("素材缺少本地地址或存储路径");
   const { data, error } = await supabaseClient.storage.from("scene-assets").createSignedUrl(asset.storagePath, 3600);
@@ -3116,7 +3125,8 @@ async function generateSceneStudioTopView(assetOrFile) {
 
 async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
   if (!supabaseClient?.storage) return { ok: false, code: "STORAGE_UNAVAILABLE", message: "素材存储服务不可用" };
-  const file = await chooseSceneStudioFile();
+  const selectedFiles = await chooseSceneStudioFile();
+  const file = selectedFiles?.file;
   if (!file) return { ok: false, code: "CANCELLED" };
   const displayName = await customPrompt("请输入素材名称", file.name.replace(/\.glb$/i, ""), "上传 3D 素材", { maxLength: 100 });
   if (displayName === null) return { ok: false, code: "CANCELLED" };
@@ -3136,13 +3146,14 @@ async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
     }
   });
   const placementKind = ["pavilion", "pergola", "bus-stop", "stall", "stage", "play-equipment"].includes(category) ? "structure" : "asset";
+  showToast("正在自动准备轻量模型并保留原文件，请稍候…", "info");
   const topView = await generateSceneStudioTopView(file);
   if (!topView.ok) console.warn("上传模型的二维俯视图生成失败，将使用分类符号：", topView.message);
   const result = await library.upload(file, {
     kind: "model", scope: context.scopeKind === "admin_sandbox" ? "personal" : "group", ownerId: context.scopeKind === "admin_sandbox" ? context.userId : context.groupId, courseId: context.courseId,
     groupId: context.groupId, ownerUserId: context.userId, displayName,
     topViewBlob: topView.ok ? topView.blob : null,
-    metadata: { category, placementKind, realSizeM: [1, 1, 1], ...(!topView.ok ? { topViewStatus: "fallback" } : {}) }, license: "student-provided"
+    metadata: { category, placementKind, ...(!topView.ok ? { topViewStatus: "fallback" } : {}) }, license: "student-provided"
   });
   if (!result.ok) {
     showToast(result.message || "素材上传失败", "error");
@@ -3157,7 +3168,7 @@ async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
       if (topView.ok) asset.topViewUrl = URL.createObjectURL(topView.blob);
     }
   }
-  showToast(context.scopeKind === "admin_sandbox" ? "素材已加入你的个人素材库，可在场景中放置" : "素材已加入本小组素材库，可在场景中放置", "success");
+  showToast(context.scopeKind === "admin_sandbox" ? "轻量版本已自动准备，素材已加入你的个人素材库，可在场景中放置" : "轻量版本已自动准备，素材已加入本小组素材库，可在场景中放置", "success");
   return { ...result, asset };
 }
 
@@ -9431,4 +9442,10 @@ function customPrompt(message, defaultValue = "", title = "输入", options = {}
 window.customConfirm = customConfirm;
 window.customPrompt = customPrompt;
 
+const renderQualitySelect = document.getElementById('renderQualitySelect');
+if (renderQualitySelect && window.RenderQualityModule) {
+  renderQualitySelect.value = window.RenderQualityModule.getMode();
+  renderQualitySelect.addEventListener('change', () => window.RenderQualityModule.setMode(renderQualitySelect.value));
+  window.RenderQualityModule.subscribe(mode => { renderQualitySelect.value=mode; });
+}
 init();

@@ -1,0 +1,15 @@
+✔ automatic upload keeps detailed texture and alpha but resizes and simplifies shared low variant (93.7838ms)
+✔ bundled upload worker is self-contained and actually reduces model geometry (23.7244ms)
+✔ CPU pipeline preserves original and writes readable, anchored LODs with resized textures (98.6756ms)
+✔ unsafe paths and invalid options never overwrite input or existing output (16.1102ms)
+✔ malformed GLB and external texture input fail before creating output (17.2497ms)
+✔ Meshopt source is CPU decoded before normalization and original compressed bytes stay intact (85.1088ms)
+✔ POSITION morph input requires an exported static pose and never writes output (18.069ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 454.9092

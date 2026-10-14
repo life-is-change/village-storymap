@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const Assets = require("./scene-asset-library");
+const Glb = require('../../features/models/glb-normalization');
 
 test("maps stored uploads into placeable catalog assets", () => {
   assert.deepEqual(Assets.toCatalogAsset({ id: "a1", kind: "model", storage_path: "group/g/a.glb", display_name: "自制座椅", metadata: { category: "bench", placementKind: "asset", realSizeM: [2, .8, 1], topViewPath: "group/g/a.top.png" } }), {
@@ -15,7 +16,7 @@ test("maps stored uploads into placeable catalog assets", () => {
 });
 
 function makeFile(name, type, bytes) {
-  const buffer = bytes instanceof Uint8Array ? bytes : new TextEncoder().encode(bytes || "x");
+  const buffer = bytes instanceof Uint8Array ? bytes : bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new TextEncoder().encode(bytes || "x");
   return {
     name,
     type,
@@ -24,10 +25,18 @@ function makeFile(name, type, bytes) {
   };
 }
 
-function glb(json = {}) {
+function modelJson() {
+  return { asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }], meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    buffers: [{ byteLength: 36 }], bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }],
+    accessors: [{ bufferView: 0, componentType: 5126, type: 'VEC3', count: 3, min: [-1, -2, 0], max: [3, 4, 5] }] };
+}
+
+function glb(json = modelJson()) {
   const encoded = new TextEncoder().encode(JSON.stringify(json));
   const paddedLength = Math.ceil(encoded.length / 4) * 4;
-  const bytes = new Uint8Array(12 + 8 + paddedLength);
+  const binary = json.buffers ? new Uint8Array(new Float32Array([-1, -2, 0, 3, 4, 5, -1, 4, 0]).buffer) : null;
+  const bytes = new Uint8Array(12 + 8 + paddedLength + (binary ? 8 + binary.length : 0));
   const view = new DataView(bytes.buffer);
   bytes.set([0x67, 0x6c, 0x54, 0x46], 0);
   view.setUint32(4, 2, true);
@@ -35,15 +44,145 @@ function glb(json = {}) {
   view.setUint32(12, paddedLength, true);
   view.setUint32(16, 0x4e4f534a, true);
   bytes.set(encoded, 20);
-  bytes.fill(0x20, 20 + encoded.length);
+  bytes.fill(0x20, 20 + encoded.length, 20 + paddedLength);
+  if (binary) {
+    view.setUint32(20 + paddedLength, binary.length, true);
+    view.setUint32(24 + paddedLength, 0x004e4942, true);
+    bytes.set(binary, 28 + paddedLength);
+  }
   return bytes;
 }
+
+test('single model uploads automatically persist both anchored display variants and their source', async () => {
+  const uploads = new Map(), signed = [];
+  const original = makeFile('student.glb', 'model/gltf-binary', glb());
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(storagePath, body, options) { assert.equal(options.upsert, false); uploads.set(storagePath, body); return { error: null }; },
+      async createSignedUrl(storagePath) { signed.push(storagePath); return { data: { signedUrl: 'signed:' + storagePath } }; }
+    },
+    dataClient: { async registerAsset(record) { return { ok: true, data: record }; } },
+    uuid: () => 'automatic', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  const result = await library.upload(original, { kind: 'model', scope: 'group', ownerId: 'g', metersPerUnit: .01 });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.metadata.lowStoragePath, 'group/g/2026-10/automatic.low.glb');
+  assert.deepEqual([...uploads.keys()], ['group/g/2026-10/automatic.original.glb', 'group/g/2026-10/automatic.glb', 'group/g/2026-10/automatic.low.glb']);
+  assert.equal(uploads.get('group/g/2026-10/automatic.original.glb'), original);
+  const high = Glb.inspectGlb(await uploads.get(result.data.storage_path).arrayBuffer());
+  const low = Glb.inspectGlb(await uploads.get(result.data.metadata.lowStoragePath).arrayBuffer());
+  assert.equal(high.anchor, 'bottom-center'); assert.equal(low.anchor, 'bottom-center');
+  assert.deepEqual(low.normalization.originalCenter, high.normalization.originalCenter);
+  assert.equal(low.normalization.metersPerUnit, .01);
+  for (const [index, expected] of [.04, .05, .06].entries()) assert.ok(Math.abs(result.data.metadata.measuredSizeM[index] - expected) < 1e-6);
+  assert.equal(result.data.metadata.lowInspection.normalized, true);
+  assert.equal(typeof result.data.metadata.processing, 'object');
+  assert.equal((await library.resolveUrl(result.data, { variant: 'low' })).url, 'signed:group/g/2026-10/automatic.low.glb');
+  assert.deepEqual(signed, ['group/g/2026-10/automatic.low.glb']);
+});
+
+test('automatic low upload collision rolls back only the source and high files written by this attempt', async () => {
+  const successful = [], removed = []; let registrations = 0;
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(storagePath) {
+        if (storagePath.endsWith('.low.glb')) return { error: { message: 'already exists' } };
+        successful.push(storagePath); return { error: null };
+      },
+      async remove(paths) { removed.push(paths); return { error: null }; }
+    }, dataClient: { async registerAsset() { registrations++; return { ok: true }; } },
+    uuid: () => 'collision', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  const result = await library.upload(makeFile('student.glb', 'model/gltf-binary', glb()), { kind: 'model', scope: 'personal', ownerId: 'u' });
+  assert.equal(result.ok, false); assert.equal(result.code, 'UPLOAD_FAILED'); assert.equal(registrations, 0);
+  assert.deepEqual(successful, ['personal/u/2026-10/collision.original.glb', 'personal/u/2026-10/collision.glb']);
+  assert.deepEqual(removed, [['personal/u/2026-10/collision.original.glb', 'personal/u/2026-10/collision.glb']]);
+});
+
+test('thrown registration failure removes every automatic variant and successful thumbnail', async () => {
+  let removed;
+  const library = Assets.createAssetLibrary({
+    storage: { async upload() { return { error: null }; }, async remove(paths) { removed = paths; return { error: null }; } },
+    dataClient: { async registerAsset() { throw new Error('database unavailable'); } },
+    uuid: () => 'registration', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  const result = await library.upload(makeFile('student.glb', 'model/gltf-binary', glb()), {
+    kind: 'model', scope: 'course', ownerId: 'c', topViewBlob: { type: 'image/png', size: 10 }
+  });
+  assert.equal(result.ok, false); assert.equal(result.code, 'REGISTER_FAILED');
+  assert.deepEqual(removed, ['course/c/2026-10/registration.original.glb', 'course/c/2026-10/registration.glb', 'course/c/2026-10/registration.low.glb', 'course/c/2026-10/registration.top.png']);
+});
+
+test('a colliding first source upload never removes a preexisting object', async () => {
+  let removed = false, registered = false;
+  const library = Assets.createAssetLibrary({
+    storage: { async upload() { return { error: { message: 'source already exists' } }; }, async remove() { removed = true; } },
+    dataClient: { async registerAsset() { registered = true; return { ok: true }; } }
+  });
+  const result = await library.upload(makeFile('student.glb', 'model/gltf-binary', glb()), { kind: 'model', scope: 'personal', ownerId: 'u' });
+  assert.equal(result.code, 'UPLOAD_FAILED'); assert.equal(removed, false); assert.equal(registered, false);
+});
+
+test('a thrown high upload cleans only its successfully saved source', async () => {
+  let removed;
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(storagePath) { if (!storagePath.endsWith('.original.glb')) throw new Error('network interrupted'); return { error: null }; },
+      async remove(paths) { removed = paths; return { error: null }; }
+    }, dataClient: {}, uuid: () => 'interrupted', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  const result = await library.upload(makeFile('student.glb', 'model/gltf-binary', glb()), { kind: 'model', scope: 'group', ownerId: 'g' });
+  assert.equal(result.code, 'UPLOAD_FAILED');
+  assert.deepEqual(removed, ['group/g/2026-10/interrupted.original.glb']);
+});
+
+test('a thrown thumbnail upload rolls back successful model files without attempting registration', async () => {
+  let removed, registered = false, result;
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload(storagePath) { if (storagePath.endsWith('.top.png')) throw new Error('thumbnail network error'); return { error: null }; },
+      async remove(paths) { removed = paths; return { error: null }; }
+    }, dataClient: { async registerAsset() { registered = true; return { ok: true }; } },
+    uuid: () => 'thumbnail', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  await assert.doesNotReject(async () => {
+    result = await library.upload(makeFile('student.glb', 'model/gltf-binary', glb()), {
+      kind: 'model', scope: 'group', ownerId: 'g', lowFile: makeFile('low.glb', 'model/gltf-binary', Glb.normalizeGlb(glb()).buffer),
+      topViewBlob: { type: 'image/png', size: 10 }
+    });
+  });
+  assert.equal(result.code, 'UPLOAD_FAILED'); assert.equal(registered, false);
+  assert.deepEqual(removed, ['group/g/2026-10/thumbnail.original.glb', 'group/g/2026-10/thumbnail.glb', 'group/g/2026-10/thumbnail.low.original.glb', 'group/g/2026-10/thumbnail.low.glb']);
+});
 
 test("validates supported model, texture and symbol files", async () => {
   assert.equal((await Assets.validateAssetFile(makeFile("bench.glb", "model/gltf-binary", glb()), "model")).ok, true);
   assert.equal((await Assets.validateAssetFile(makeFile("stone.webp", "image/webp", "image"), "texture")).ok, true);
   assert.equal((await Assets.validateAssetFile(makeFile("tree.png", "image/png", "image"), "symbol")).ok, true);
   assert.equal((await Assets.validateAssetFile(makeFile("tree.svg", "image/svg+xml", "<svg viewBox='0 0 10 10'></svg>"), "symbol")).ok, true);
+});
+
+test('file-picker GLBs with empty or generic binary MIME still require valid model bytes', async () => {
+  for (const type of ['', 'application/octet-stream']) {
+    assert.equal((await Assets.validateAssetFile(makeFile('student.glb', type, glb()), 'model')).ok, true);
+    assert.equal((await Assets.validateAssetFile(makeFile('student.glb', type, 'not-glb'), 'model')).code, 'INVALID_GLB');
+  }
+  assert.equal((await Assets.validateAssetFile(makeFile('student.glb', 'image/png', glb()), 'model')).code, 'MIME_MISMATCH');
+  assert.equal((await Assets.validateAssetFile(makeFile('stone.png', '', 'image'), 'texture')).code, 'MIME_MISMATCH');
+});
+
+test('accepted file-picker MIME is stored as a GLB display record', async () => {
+  const types = []; let registered;
+  const library = Assets.createAssetLibrary({
+    storage: { async upload(_path, _body, options) { types.push(options.contentType); return { error: null }; } },
+    dataClient: { async registerAsset(record) { registered = record; return { ok: true, data: record }; } }
+  });
+  const result = await library.upload(makeFile('student.glb', '', glb()), {
+    kind: 'model', scope: 'personal', ownerId: 'u', lowFile: makeFile('low.glb', 'application/octet-stream', Glb.normalizeGlb(glb()).buffer)
+  });
+  assert.equal(result.ok, true);
+  assert.equal(registered.mime_type, 'model/gltf-binary');
+  assert.deepEqual(types, ['model/gltf-binary', 'model/gltf-binary', 'application/octet-stream', 'model/gltf-binary']);
 });
 
 test("rejects mismatches, oversized files, unsafe SVG and invalid GLB", async () => {
@@ -60,8 +199,9 @@ test("rejects mismatches, oversized files, unsafe SVG and invalid GLB", async ()
 
 test("inspects GLB metadata and accessor bounds", () => {
   const info = Assets.inspectGlbHeader(glb({
-    accessors: [{ min: [-1, -2, 0], max: [3, 4, 5] }],
-    meshes: [{ primitives: [{}, {}] }],
+    ...modelJson(),
+    accessors: modelJson().accessors,
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }, { attributes: { POSITION: 0 } }] }],
     images: [{ uri: "a.png" }]
   }));
   assert.equal(info.version, 2);
@@ -136,7 +276,7 @@ test("asset library uploads, publishes, copies, signs and archives through injec
   assert.equal((await library.publishComponent("component-1")).data.id, "shared-component");
   assert.equal((await library.copySharedComponent("shared-component", "g1")).data.id, "component-copy");
   assert.equal((await library.removeComponent("component-1")).data.archived, true);
-  assert.deepEqual(calls.map((call) => call[0]), ["upload", "register", "sign", "publish", "copy", "archive", "save-component", "publish-component", "copy-component", "archive-component"]);
+  assert.deepEqual(calls.map((call) => call[0]), ["upload", "upload", "upload", "register", "sign", "publish", "copy", "archive", "save-component", "publish-component", "copy-component", "archive-component"]);
 });
 
 test("administrator sandbox model uploads remain personal and have no group id", async () => {
@@ -188,7 +328,9 @@ test("uploads a generated top view beside a GLB and records it in asset metadata
 
   assert.equal(result.ok, true);
   assert.deepEqual(calls.filter(([kind]) => kind === "upload").map(([, path]) => path), [
+    "group/g1/2026-09/with-top.original.glb",
     "group/g1/2026-09/with-top.glb",
+    "group/g1/2026-09/with-top.low.glb",
     "group/g1/2026-09/with-top.top.png"
   ]);
   const record = calls.find(([kind]) => kind === "register")[1];
@@ -211,7 +353,89 @@ test("removes both GLB and generated top view when asset registration fails", as
     kind: "model", scope: "group", ownerId: "g1", courseId: "c1", groupId: "g1",
     topViewBlob: { type: "image/png", size: 10 }, metadata: {}
   });
-  assert.deepEqual(removed, ["group/g1/2026-09/rollback-top.glb", "group/g1/2026-09/rollback-top.top.png"]);
+  assert.deepEqual(removed, ["group/g1/2026-09/rollback-top.original.glb", "group/g1/2026-09/rollback-top.glb", "group/g1/2026-09/rollback-top.low.glb", "group/g1/2026-09/rollback-top.top.png"]);
+});
+
+test('uploaded displays are normalized at bottom center, preserve originals, and calibrate in width/depth/height order', async () => {
+  const uploads = new Map();
+  const library = Assets.createAssetLibrary({
+    storage: { async upload(path, file) { uploads.set(path, file); return { error: null }; } },
+    dataClient: { async registerAsset(record) { return { ok: true, data: record }; } },
+    uuid: () => 'normalized', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  const original = makeFile('model.glb', 'model/gltf-binary', glb({ ...modelJson(), nodes: [{ mesh: 0, translation: [20, 30, 40] }] }));
+  const result = await library.upload(original, { kind: 'model', scope: 'group', ownerId: 'g' });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.metadata.normalized, true);
+  assert.equal(result.data.metadata.anchor, 'bottom-center');
+  assert.deepEqual(result.data.metadata.measuredSizeM, [4, 5, 6]);
+  assert.deepEqual(Assets.toCatalogAsset(result.data).footprintM, [4, 5]);
+  assert.equal(Assets.toCatalogAsset(result.data).defaultHeightM, 6);
+  assert.deepEqual(result.data.metadata.bounds.min, [-2, 0, -2.5]);
+  assert.equal(uploads.get('group/g/2026-10/normalized.original.glb'), original);
+  const display = uploads.get('group/g/2026-10/normalized.glb');
+  assert.notDeepEqual(new Uint8Array(await display.arrayBuffer()), new Uint8Array(await original.arrayBuffer()));
+  assert.deepEqual(Assets.calibrateAsset({ metadata: result.data.metadata }, { widthM: 8, depthM: 10, heightM: 12 }).metadata.calibrationScale, [2, 2, 2]);
+});
+
+test('rejects uploads without active POSITION geometry before writing any object', async () => {
+  let writes = 0;
+  const library = Assets.createAssetLibrary({ storage: { async upload() { writes++; } }, dataClient: {} });
+  const result = await library.upload(makeFile('empty.glb', 'model/gltf-binary', glb({ asset: { version: '2.0' }, scenes: [{ nodes: [] }] })), { kind: 'model', scope: 'group', ownerId: 'g' });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'INVALID_GLB');
+  assert.equal(writes, 0);
+});
+
+test('stores and signs a low variant with the same anchor, and rolls back every variant on failed registration', async () => {
+  let record, removed;
+  const signed = [];
+  const library = Assets.createAssetLibrary({
+    storage: {
+      async upload() { return { error: null }; },
+      async remove(paths) { removed = paths; },
+      async createSignedUrl(path) { signed.push(path); return { data: { signedUrl: 'signed:' + path } }; }
+    },
+    dataClient: { async registerAsset(value) { record = value; return { ok: false }; } },
+    uuid: () => 'lod', now: () => new Date('2026-10-13T00:00:00Z')
+  });
+  await library.upload(makeFile('full.glb', 'model/gltf-binary', glb()), { kind: 'model', scope: 'group', ownerId: 'g', lowFile: makeFile('low.glb', 'model/gltf-binary', Glb.normalizeGlb(glb()).buffer) });
+  assert.equal(record.metadata.lowStoragePath, 'group/g/2026-10/lod.low.glb');
+  assert.deepEqual(removed, ['group/g/2026-10/lod.original.glb', 'group/g/2026-10/lod.glb', 'group/g/2026-10/lod.low.original.glb', 'group/g/2026-10/lod.low.glb']);
+  const result = await library.resolveUrl(record, { variant: 'low' });
+  assert.equal(result.url, 'signed:group/g/2026-10/lod.low.glb');
+  assert.deepEqual(signed, ['group/g/2026-10/lod.low.glb']);
+});
+
+test('rejects an independently anchored low variant before any storage write', async () => {
+  let writes = 0;
+  const library = Assets.createAssetLibrary({ storage: { async upload() { writes++; return { error: null }; } }, dataClient: { async registerAsset() { return { ok: true }; } } });
+  const high = makeFile('full.glb', 'model/gltf-binary', glb());
+  const lowJson = modelJson();
+  lowJson.nodes[0].translation = [5, 0, 0];
+  const low = makeFile('low.glb', 'model/gltf-binary', Glb.normalizeGlb(glb(lowJson)).buffer);
+  const result = await library.upload(high, { kind: 'model', scope: 'group', ownerId: 'g', lowFile: low });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'LOD_ANCHOR_MISMATCH');
+  assert.equal(writes, 0);
+});
+
+test('allows simplified bounds while preserving the high model original anchor and exact low bytes', async () => {
+  const uploads = new Map();
+  const library = Assets.createAssetLibrary({
+    storage: { async upload(path, file) { uploads.set(path, file); return { error: null }; } },
+    dataClient: { async registerAsset(record) { return { ok: true, data: record }; } }, uuid: () => 'shared-anchor'
+  });
+  const lowParsed = Glb.readGlb(Glb.normalizeGlb(glb()).buffer);
+  lowParsed.json.accessors[0].min = [-.5, -2, .5];
+  lowParsed.json.accessors[0].max = [2.5, 3, 4.5];
+  const lowBuffer = Glb.writeGlb(lowParsed.json, new Uint8Array(new Float32Array([-.5, -2, .5, 2.5, 3, 4.5, -.5, 3, .5]).buffer));
+  const result = await library.upload(makeFile('full.glb', 'model/gltf-binary', glb()), {
+    kind: 'model', scope: 'group', ownerId: 'g', lowFile: makeFile('low.glb', 'model/gltf-binary', lowBuffer)
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.metadata.lowInspection.normalization.originalCenter, [1, -2, 2.5]);
+  assert.deepEqual(new Uint8Array(await uploads.get(result.data.metadata.lowStoragePath).arrayBuffer()), new Uint8Array(lowBuffer));
 });
 
 test("the bundled component catalog provides a broad set of valid local GLB models", () => {
@@ -236,6 +460,6 @@ test("bundled table uses glTF Y-up coordinates and includes seats with full supp
   const inspection = Assets.inspectGlbHeader(bytes);
   assert.ok(Math.abs(inspection.bounds.min[1]) < 0.001, "the table must stand on Y=0 in glTF space");
   assert.ok(inspection.bounds.size[1] > 0.8 && inspection.bounds.size[1] < 1, "Y must be the table height");
-  assert.ok(inspection.bounds.size[2] >= 1.8, "Z must include the two-sided seating depth");
+  assert.ok(inspection.bounds.size[2] >= 1.799, "Z must include the two-sided seating depth within float32 precision");
   assert.ok(inspection.primitiveCount >= 11, "table set must include top, seats and complete supports");
 });

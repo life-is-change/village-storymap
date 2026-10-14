@@ -86,18 +86,22 @@
     return { left, top, width: size.width, height: size.height };
   }
 
-  function getRealityRenderQuality(devicePixelRatio = 1, mode = 'balanced') {
+  function getRealityRenderQuality(devicePixelRatio = 1, mode) {
+    const selected = mode !== 'sharp' && root.RenderQualityModule?.getProfile?.(mode);
+    const inset = selected?.inset;
+    const low = (selected?.mode || mode) === 'low';
+    const high = (selected?.mode || mode) === 'high';
     const sharp = mode === 'sharp';
     return {
       resolutionScale: Math.min(
         Math.max(toFiniteNumber(devicePixelRatio, 1), 1),
-        sharp ? 2 : 1
+        sharp ? 2 : inset?.resolutionScale ?? (low ? 0.75 : high ? 1.5 : 1)
       ),
       tilesetOptions: {
-        maximumScreenSpaceError: sharp ? 4 : 8,
-        dynamicScreenSpaceError: !sharp,
-        cacheBytes: 256 * 1024 * 1024,
-        preloadFlightDestinations: sharp
+        maximumScreenSpaceError: sharp ? 4 : inset?.maximumScreenSpaceError ?? (low ? 16 : high ? 4 : 8),
+        dynamicScreenSpaceError: sharp ? false : inset?.dynamicScreenSpaceError ?? !high,
+        cacheBytes: inset?.cacheBytes ?? (low ? 128 : high ? 384 : 256) * 1024 * 1024,
+        preloadFlightDestinations: sharp || (inset?.preloadFlightDestinations ?? high)
       }
     };
   }
@@ -243,6 +247,24 @@
     let expanded = false;
     let normalPanelRect = null;
 
+    function getQuality() {
+      return getRealityRenderQuality(root.devicePixelRatio,
+        root.RenderQualityModule ? undefined : root.__REALITY_RENDER_QUALITY);
+    }
+
+    function syncRenderQuality() {
+      const quality = getQuality();
+      if (viewer && !viewer.isDestroyed?.()) {
+        viewer.resolutionScale = quality.resolutionScale;
+        viewer.scene.requestRender();
+      }
+      if (tileset && !tileset.isDestroyed?.()) Object.assign(tileset, quality.tilesetOptions);
+    }
+
+    function syncRenderActivity() {
+      applyRenderActivity(viewer, visible && hostActive && !documentRef?.hidden);
+    }
+
     function byId(id) {
       return documentRef?.getElementById?.(id) || null;
     }
@@ -277,13 +299,13 @@
       panel?.classList.toggle("is-hidden", !visible);
       toggleButton?.classList.toggle("is-active", visible);
       toggleButton?.setAttribute("aria-pressed", visible ? "true" : "false");
-      applyRenderActivity(viewer, visible && hostActive);
+      syncRenderActivity();
       return visible;
     }
 
     function setHostActive(active) {
       hostActive = !!active;
-      applyRenderActivity(viewer, visible && hostActive);
+      syncRenderActivity();
     }
 
     function show() {
@@ -535,6 +557,9 @@
       addDomListener(fullscreenButton, "click", toggleFullscreen);
       addDomListener(retryButton, "click", retry);
       addDomListener(documentRef, "fullscreenchange", updateFullscreenUi);
+      addDomListener(documentRef, "visibilitychange", syncRenderActivity);
+      const unsubscribeQuality = root.RenderQualityModule?.subscribe?.(syncRenderQuality);
+      if (unsubscribeQuality) cleanupCallbacks.push(unsubscribeQuality);
       bindDragging();
       bindResizing();
       bindResizeObservation();
@@ -568,7 +593,7 @@
       // photogrammetry mesh; mixed terrain LOD otherwise makes parts look buried.
       instance.scene.globe.depthTestAgainstTerrain = false;
       instance.scene.fxaa = false;
-      const quality = getRealityRenderQuality(root.devicePixelRatio, root.__REALITY_RENDER_QUALITY);
+      const quality = getQuality();
       instance.resolutionScale = quality.resolutionScale;
       instance.camera.percentageChanged = 0.02;
       return instance;
@@ -603,7 +628,7 @@
       setStatus(`正在加载${config.title || "村庄实景模型"}…`, "loading");
 
       tilesetPromise = (async () => {
-        const quality = getRealityRenderQuality(root.devicePixelRatio, root.__REALITY_RENDER_QUALITY);
+        const quality = getQuality();
         const nextTileset = await CesiumRef.Cesium3DTileset.fromIonAssetId(
           config.ionAssetId,
           quality.tilesetOptions
@@ -613,6 +638,7 @@
           return null;
         }
         tileset = viewer.scene.primitives.add(nextTileset);
+        syncRenderQuality();
         applyHeightOffset(tileset);
         setStatus("实景模型已就绪", "ready");
         await resetView();
@@ -874,7 +900,7 @@
       if (enterPromise) return enterPromise;
       enterPromise = (async () => {
         if (!viewer) viewer = createViewer();
-        applyRenderActivity(viewer, visible && hostActive);
+        syncRenderActivity();
         if (pendingProxyRecords.length) applyProxyRecords(pendingProxyRecords);
         const terrainTask = terrainEnabled ? setTerrainEnabled(true) : Promise.resolve(false);
         await Promise.allSettled([terrainTask, loadTileset()]);

@@ -122,6 +122,14 @@
               <button id="projectSettingsCloseBtn" type="button" title="关闭设置">×</button>
             </header>
             <div class="project-settings-body">
+              <label style="display:block;padding:12px">三维画质
+                <select id="renderQualitySelect" aria-label="三维画质">
+                  <option value="low">流畅优先（低配置电脑）</option>
+                  <option value="balanced" selected>均衡</option>
+                  <option value="high">精细</option>
+                </select>
+                <small style="display:block;margin-top:6px">流畅优先会减少精细模型数量；选中的对象优先加载。</small>
+              </label>
               <section id="groupBaselinePanelMount" class="group-baseline-panel" aria-label="小组方案基线" hidden></section>
               <div id="spaceList" class="space-list-panel active"></div>
             </div>
@@ -394,7 +402,11 @@
   <script defer src="3D_scenes_edit/persistence/scene-edit-client.js"></script>
   <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/persistence/autosave-controller.js"></script>
-  <script defer src="3D_scenes_edit/assets/scene-asset-library.js?v=20260921-top-view"></script>
+  <script defer src="features/3d/render-quality.js?v=20261013-auto-lod"></script>
+  <script defer src="features/models/glb-normalization.js?v=20261013-auto-lod"></script>
+  <script defer src="features/models/model-residency.js?v=20261013-auto-lod"></script>
+  <script defer src="features/models/model-view-metrics.js?v=20261013-auto-lod"></script>
+  <script defer src="3D_scenes_edit/assets/scene-asset-library.js?v=20261013-auto-lod"></script>
   <script defer src="3D_scenes_edit/assets/model-top-view-thumbnail.js?v=20260921-top-view-fix2"></script>
   <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20260921-top-view"></script>
   <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20260920-layer-library"></script>
@@ -402,14 +414,14 @@
   <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20260920-layer-library"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-to-cesium.js?v=20260916-scene-studio-assets4"></script>
-  <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20260916-scene-studio-assets6"></script>
+  <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20261013-auto-lod"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-transform-bridge.js"></script>
   <script defer src="3D_scenes_edit/interaction_3d/cesium-ground-picker.js"></script>
   <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20260916-scene-studio-assets6"></script>
   <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20260916-scene-studio-assets4"></script>
   <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20261007-wait-chain2"></script>
   <script defer src="3D_scenes_edit/index.js?v=20260921-top-view"></script>
-  <script defer src="app.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="app.js?v=20261013-auto-lod"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

@@ -1,10 +1,11 @@
 (function (root, factory) {
   const api = factory(
-    typeof module === "object" && module.exports ? require("../domain/geometry-rules") : root.SceneGeometryRulesModule
+    typeof module === "object" && module.exports ? require("../domain/geometry-rules") : root.SceneGeometryRulesModule,
+    typeof module === "object" && module.exports ? require("../../features/models/glb-normalization") : root.GlbNormalizationModule
   );
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SceneAssetLibraryModule = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (Geometry) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (Geometry, Glb) {
   const LIMITS = Object.freeze({ model: 50 * 1024 * 1024, texture: 10 * 1024 * 1024, symbol: 5 * 1024 * 1024 });
   const TYPES = Object.freeze({
     model: { extensions: ["glb"], mime: ["model/gltf-binary"] },
@@ -26,29 +27,8 @@
     const version = view.getUint32(4, true);
     const declaredLength = view.getUint32(8, true);
     if (version !== 2 || declaredLength !== bytes.length) throw new Error("INVALID_GLB_HEADER");
-    let json = {};
-    if (bytes.length >= 20) {
-      const chunkLength = view.getUint32(12, true);
-      const chunkType = view.getUint32(16, true);
-      if (chunkType === 0x4e4f534a && 20 + chunkLength <= bytes.length) {
-        const text = new TextDecoder().decode(bytes.slice(20, 20 + chunkLength)).replace(/[\u0000\s]+$/g, "");
-        if (text) json = JSON.parse(text);
-      }
-    }
-    const bounded = (json.accessors || []).filter((accessor) => Array.isArray(accessor.min) && Array.isArray(accessor.max) && accessor.min.length >= 3 && accessor.max.length >= 3);
-    let bounds = null;
-    if (bounded.length) {
-      const min = [0, 1, 2].map((axis) => Math.min(...bounded.map((accessor) => Number(accessor.min[axis]))));
-      const max = [0, 1, 2].map((axis) => Math.max(...bounded.map((accessor) => Number(accessor.max[axis]))));
-      bounds = { min, max, size: max.map((value, axis) => value - min[axis]) };
-    }
-    return {
-      version,
-      declaredLength,
-      primitiveCount: (json.meshes || []).reduce((count, mesh) => count + (mesh.primitives || []).length, 0),
-      textureCount: (json.images || json.textures || []).length,
-      bounds
-    };
+    if (!Glb?.inspectGlb) throw new Error("模型归一化模块未加载，请刷新后重试。");
+    return { version, declaredLength, ...Glb.inspectGlb(bytes) };
   }
 
   function extensionOf(name) {
@@ -63,11 +43,13 @@
     if (file.size > LIMITS[kind]) return { ok: false, code: "FILE_TOO_LARGE", message: `File exceeds ${LIMITS[kind]} bytes` };
     const extension = extensionOf(file.name);
     if (!rule.extensions.includes(extension)) return { ok: false, code: "UNSUPPORTED_EXTENSION", message: `.${extension || "?"} is not supported` };
-    if (!rule.mime.includes(String(file.type || "").toLowerCase())) return { ok: false, code: "MIME_MISMATCH", message: "File extension and MIME type do not match" };
+    const mime = String(file.type || "").toLowerCase();
+    const genericModelMime = kind === "model" && (!mime || mime === "application/octet-stream");
+    if (!rule.mime.includes(mime) && !genericModelMime) return { ok: false, code: "MIME_MISMATCH", message: "File extension and MIME type do not match" };
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (kind === "model") {
       try {
-        return { ok: true, kind, extension, inspection: inspectGlbHeader(bytes) };
+        return { ok: true, kind, extension, inspection: {version:2,declaredLength:bytes.byteLength,...await Glb.inspectGlbAsync(bytes)} };
       } catch (error) {
         return { ok: false, code: "INVALID_GLB", message: error.message };
       }
@@ -131,7 +113,8 @@
     const record = normalizeAssetRecord(row);
     if (!record) return null;
     const metadata = record.metadata || {};
-    const size = Array.isArray(metadata.realSizeM) ? metadata.realSizeM : [1, 1, 1];
+    const size = Array.isArray(metadata.realSizeM) ? metadata.realSizeM
+      : Array.isArray(metadata.measuredSizeM) ? metadata.measuredSizeM : [1, 1, 1];
     const placementKind = metadata.placementKind || (record.kind === "texture" ? "surface" : "asset");
     return {
       id: record.id,
@@ -222,15 +205,76 @@
       async upload(file, input) {
         const validation = await validateAssetFile(file, input.kind);
         if (!validation.ok) return validation;
+        let normalized = null, lowNormalized = null, processing = null;
+        if (input.kind === "model") {
+          try {
+            const units = { metersPerUnit: input.metersPerUnit ?? input.metadata?.metersPerUnit ?? 1 };
+            const sourceBuffer = await file.arrayBuffer();
+            if (input.lowFile) {
+              normalized = await Glb.normalizeGlbAsync(sourceBuffer, units);
+            } else {
+              normalized = await Glb.createModelVariantsAsync(sourceBuffer, units);
+              if (!normalized.lowBuffer || !normalized.lowInspection) throw new Error("自动轻量模型生成失败，请重新上传。");
+              lowNormalized = { buffer: normalized.lowBuffer, inspection: normalized.lowInspection };
+              processing = normalized.processing;
+            }
+            if (input.lowFile) {
+              const lowValidation = await validateAssetFile(input.lowFile, "model");
+              if (!lowValidation.ok) return { ...lowValidation, message: `低模：${lowValidation.message}` };
+              const lowBuffer = await input.lowFile.arrayBuffer();
+              const inspection = await Glb.inspectGlbAsync(lowBuffer);
+              const high = normalized.inspection;
+              function sameCoordinates(first, second) {
+                return Array.isArray(first) && Array.isArray(second) && first.length === 3 && second.length === 3 &&
+                  first.every((value, axis) => Number.isFinite(value) && Number.isFinite(second[axis]) &&
+                    Math.abs(value - second[axis]) <= 1e-6 * Math.max(1, Math.abs(value), Math.abs(second[axis])));
+              }
+              if (!inspection.normalized || high.anchor !== "bottom-center" || inspection.anchor !== "bottom-center" ||
+                high.normalization?.metersPerUnit !== inspection.normalization?.metersPerUnit ||
+                !sameCoordinates(high.normalization?.originalCenter, inspection.normalization?.originalCenter) ||
+                !sameCoordinates(high.normalization?.originalBounds?.min, inspection.normalization?.originalBounds?.min) ||
+                !sameCoordinates(high.normalization?.originalBounds?.max, inspection.normalization?.originalBounds?.max)) {
+                return { ok: false, code: "LOD_ANCHOR_MISMATCH", message: "轻量 GLB 必须保留同一原模型的标准化底部中心锚点。请同时选择 CPU 工具输出的 high.glb 与 low.glb。" };
+              }
+              // Simplification may shrink visual bounds; keep the tool's original
+              // normalization transform and bytes rather than recentering the LOD.
+              lowNormalized = { buffer: lowBuffer, inspection };
+            }
+            if (normalized.buffer.byteLength > LIMITS.model || lowNormalized?.buffer.byteLength > LIMITS.model) {
+              return { ok: false, code: "FILE_TOO_LARGE", message: "处理后的模型不能超过 50 MB。" };
+            }
+          } catch (error) { return { ok: false, code: "INVALID_GLB", message: error.message }; }
+        }
+        function displayFile(buffer, name) {
+          const blob = new Blob([buffer], { type: "model/gltf-binary" });
+          Object.defineProperty(blob, "name", { value: name });
+          return blob;
+        }
+        const display = normalized ? displayFile(normalized.buffer, file.name) : file;
         const path = buildStoragePath({ scope: input.scope, ownerId: input.ownerId, fileName: file.name, uuid: uuid(), date: now().toISOString().slice(0, 10) });
-        const uploaded = await storage.upload(path, file, { contentType: file.type, upsert: false });
-        if (uploaded.error) return { ok: false, code: "UPLOAD_FAILED", message: uploaded.error.message };
-        const uploadedPaths = [path];
+        const originalPath = normalized ? path.replace(/\.glb$/i, ".original.glb") : null;
+        const lowPath = lowNormalized ? path.replace(/\.glb$/i, ".low.glb") : null;
+        const files = normalized ? [[originalPath, file], [path, display]] : [[path, file]];
+        if (lowNormalized) {
+          if (input.lowFile) files.push([lowPath.replace(/\.glb$/i, ".original.glb"), input.lowFile]);
+          files.push([lowPath, displayFile(lowNormalized.buffer, input.lowFile?.name || file.name.replace(/\.glb$/i, ".low.glb"))]);
+        }
+        const uploadedPaths = [];
+        async function rollback() { if (storage.remove && uploadedPaths.length) await storage.remove(uploadedPaths); }
+        try {
+          for (const [storagePath, data] of files) {
+            const uploaded = await storage.upload(storagePath, data, { contentType: data.type || "model/gltf-binary", upsert: false });
+            if (uploaded.error) { await rollback(); return { ok: false, code: "UPLOAD_FAILED", message: uploaded.error.message }; }
+            uploadedPaths.push(storagePath);
+          }
+        } catch (error) { await rollback(); return { ok: false, code: "UPLOAD_FAILED", message: error.message }; }
         let topViewPath = null;
         let topViewStatus = input.topViewBlob ? "failed" : (input.metadata?.topViewStatus || null);
         if (input.topViewBlob && input.kind === "model") {
           topViewPath = path.replace(/\.[^.]+$/, ".top.png");
-          const topViewUpload = await storage.upload(topViewPath, input.topViewBlob, { contentType: "image/png", upsert: false });
+          let topViewUpload;
+          try { topViewUpload = await storage.upload(topViewPath, input.topViewBlob, { contentType: "image/png", upsert: false }); }
+          catch (error) { await rollback(); return { ok: false, code: "UPLOAD_FAILED", message: error.message }; }
           if (!topViewUpload.error) {
             uploadedPaths.push(topViewPath);
             topViewStatus = "ready";
@@ -240,12 +284,17 @@
         }
         const metadata = {
           ...(input.metadata || {}),
-          inspection: validation.inspection || null,
-          measuredSizeM: validation.inspection?.bounds?.size || input.metadata?.measuredSizeM || null,
+          inspection: normalized?.inspection || validation.inspection || null,
+          measuredSizeM: normalized ? [normalized.inspection.bounds.size[0], normalized.inspection.bounds.size[2], normalized.inspection.bounds.size[1]] : input.metadata?.measuredSizeM || null,
+          ...(normalized ? { normalized: true, anchor: normalized.inspection.anchor, bounds: normalized.inspection.bounds,
+            originalStoragePath: originalPath, originalBytes: file.size } : {}),
+          ...(lowNormalized ? { lowStoragePath: lowPath, lowInspection: lowNormalized.inspection } : {}),
+          ...(processing ? { processing } : {}),
           ...(topViewStatus ? { topViewStatus } : {}),
           ...(topViewPath ? { topViewPath } : {})
         };
-        const registered = await dataClient.registerAsset({
+        let registered;
+        try { registered = await dataClient.registerAsset({
           course_id: input.courseId,
           group_id: input.groupId || null,
           owner_id: input.ownerUserId || null,
@@ -253,17 +302,19 @@
           kind: input.kind,
           storage_path: path,
           display_name: sanitizeDisplayName(input.displayName || file.name),
-          mime_type: file.type,
-          file_size: file.size,
+          mime_type: normalized ? "model/gltf-binary" : file.type,
+          file_size: display.size,
           metadata,
           license: input.license || "student-provided"
-        });
-        if (!registered.ok && storage.remove) await storage.remove(uploadedPaths);
+        }); } catch (error) { await rollback(); return { ok: false, code: "REGISTER_FAILED", message: error.message }; }
+        if (!registered.ok) await rollback();
         return registered;
       },
-      async resolveUrl(asset) {
+      async resolveUrl(asset, options = {}) {
         const record = normalizeAssetRecord(asset);
-        const result = await storage.createSignedUrl(record.storagePath, 3600);
+        const path = options.variant === "low" ? record?.metadata?.lowStoragePath : record?.storagePath;
+        if (!path) return { ok: false, code: "MISSING_VARIANT", message: "模型版本不存在。" };
+        const result = await storage.createSignedUrl(path, 3600);
         return result.error ? { ok: false, code: "SIGNED_URL_FAILED", message: result.error.message } : { ok: true, url: result.data.signedUrl };
       },
       publishToCourse(assetId) { return dataClient.publishAsset(assetId); },

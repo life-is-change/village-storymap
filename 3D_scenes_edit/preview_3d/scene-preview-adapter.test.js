@@ -31,15 +31,16 @@ test("renders models with Cesium degree conversion, reuses ids and removes stale
     HeightReference: { RELATIVE_TO_GROUND: "relative" }
   };
   const adapter = createScenePreviewAdapter({ Cesium, viewer, assetResolver: async () => "signed://tree.glb" });
-  await adapter.render(scene(["one", "two"]), new Map([["tree", { id: "tree", fileType: "glb", storagePath: "tree.glb", status: "published" }]]));
+  await (await adapter.render(scene(["one", "two"]), new Map([["tree", { id: "tree", fileType: "glb", storagePath: "tree.glb", status: "published" }]]))).ready;
   assert.equal(entities.has("scene-edit:selection-boundary"), true);
   assert.equal(entities.get("scene-edit:selection-boundary").polyline.clampToGround, true);
-  assert.equal(calls.filter(([name]) => name === "degrees").length, 2);
+  assert.deepEqual(entities.get("scene-edit:one").position, { lon: 114, lat: 30, height: 2 });
   assert.equal(entities.get("scene-edit:one").model.uri, "signed://tree.glb");
   assert.equal(entities.get("scene-edit:one").orientation.hpr.heading, Math.PI / 2);
   await adapter.render(scene(["one"]), new Map([["tree", { id: "tree", fileType: "glb", storagePath: "tree.glb", status: "published" }]]));
   assert.equal(calls.filter((call) => call[0] === "add" && call[1] === "scene-edit:one").length, 1);
-  assert.deepEqual(calls.at(-1), ["remove", "scene-edit:two"]);
+  assert.equal(entities.has("scene-edit:two"), false);
+  assert(calls.some(([name, id]) => name === "remove" && id === "scene-edit:two"));
   adapter.select(["one"]);
   assert.equal(entities.get("scene-edit:one").show, true);
   assert.equal(adapter.flyToObject("one"), true);
@@ -50,7 +51,7 @@ test("renders models with Cesium degree conversion, reuses ids and removes stale
   assert.equal(entities.size, 0);
 });
 
-test("limits model resolution to four and uses a labeled box when GLB resolution fails", async () => {
+test("limits model resolution to two and uses a labeled box when GLB resolution fails", async () => {
   let active = 0;
   let maximum = 0;
   const viewer = { entities: { values: [], add(value) { this.values.push(value); return value; }, remove() {} }, camera: { flyTo() {} } };
@@ -67,11 +68,12 @@ test("limits model resolution to four and uses a labeled box when GLB resolution
   });
   const rendering = adapter.render(scene(["a", "b", "c", "d", "e", "bad"]), new Map([["tree", { id: "tree", fileType: "glb", storagePath: "tree.glb", status: "published" }]]));
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(maximum, 4);
-  await rendering;
+  assert.equal(maximum, 2);
+  await (await rendering).ready;
   const bad = viewer.entities.values.find((entity) => entity.id === "scene-edit:bad");
   assert.equal(bad.box !== undefined, true);
   assert.equal(bad.label.text.includes("模型不可用"), true);
+  adapter.dispose();
 });
 
 test("bundled local models bypass remote signing and stay relative to terrain", async () => {

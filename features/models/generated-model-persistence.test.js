@@ -14,7 +14,8 @@ function fixture({ failPlacement = false, gate = Promise.resolve() } = {}) {
     async uploadAsset({ file, name }) {
       assert.equal(file.type, 'model/gltf-binary');
       assert.ok(file.size > 0); assert.match(file.name, /\.glb$/);
-      const asset = { id: 'asset', name, storage_path: 'shared/S/asset.glb', file };
+      const asset = { id: 'asset', name, storage_path: 'shared/S/asset.glb', file,
+        normalization: { normalized: true, size: [16.7, 8, 11], lowStoragePath: 'shared/S/asset-low.glb' } };
       assets.set(asset.id, asset); return asset;
     },
     async createSignedUrl(asset) { return 'https://storage.test/' + asset.storage_path + '?fresh-signature'; },

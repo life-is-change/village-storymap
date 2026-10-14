@@ -91,6 +91,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let rowMap = new Map();
   let entityMap = new Map();
   let replacementModelMap = new Map();
+  let replacementResidencyManager = null;
+  const replacementModelDescriptors = new Map();
+  let renderQualityUnsubscribe = null;
   let replacementRequestTokenMap = new Map();
   let runtimeGeneratedModelStateMap = new Map();
   let runtimeGeneratedBlobUrlMap = new Map();
@@ -1548,7 +1551,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
       const replacementItem = replacementModelMap.get(key) || null;
       const hasReplacement = !!replacementItem;
-      const hasRenderableReplacement = !!replacementItem?.primitive;
+      const hasRenderableReplacement = !!replacementItem?.primitive && replacementItem.primitive.show !== false;
       setEntityReplacementVisual(entity, hasReplacement, hasRenderableReplacement);
     });
 
@@ -1558,6 +1561,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   function clearActiveEntity() {
     activeEntity = null;
     refreshAllEntityVisualStates();
+    updateReplacementResidency();
   }
 
   function setActiveEntity(entity) {
@@ -1566,6 +1570,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     // Expose to 2D for selection sync
     window.__active3DEntityCode = entity?.__sourceCode || null;
     refreshAllEntityVisualStates();
+    updateReplacementResidency();
   }
 
   function getEntityCenterCartographic(entity) {
@@ -1867,6 +1872,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
       modelAssetName: row?.modelAssetName || "",
       modelUrl: row?.modelUrl || "",
       modelStoragePath: row?.modelStoragePath || "",
+      modelLowStoragePath: row?.modelLowStoragePath || "",
+      modelNormalized: row?.modelNormalized === true,
       modelScale: normalizeStoredModelScale(row?.modelScale, 1),
       modelHeading: toFiniteNumber(row?.modelHeading, 0),
       modelHeightOffset: toFiniteNumber(row?.modelHeightOffset, 0),
@@ -2071,7 +2078,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
               <div class="model-toolbox-section">
                 <div class="model-toolbox-header">
                   <h4 class="model-toolbox-title">修改模型</h4>
-                  <p class="model-toolbox-desc">本小组成员共享该模型库；无小组时仅本人可见。仅支持不超过 50 MB 的 GLB。</p>
+                  <p class="model-toolbox-desc">本小组成员共享该模型库；无小组时仅本人可见。选择一个不超过 50 MB 的 GLB，系统会自动准备轻量版本并保留原文件。</p>
                 </div>
 
                 <div class="group-model-upload-panel">
@@ -2083,11 +2090,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
                     </span>
                   </label>
                   <input id="groupModelUploadInput" class="group-model-file-input" type="file" accept=".glb,model/gltf-binary" />
+                  <label>模型单位 <select id="groupModelUnitSelect" aria-label="模型单位"><option value="1">米</option><option value="0.01">厘米</option><option value="0.001">毫米</option></select></label>
                   <div class="group-model-upload-actions">
                     <button id="groupModelUploadBtn" class="upload-btn" type="button" disabled>上传模型</button>
                     <button id="refreshGroupModelLibraryBtn" class="model-library-refresh-btn" type="button" aria-label="刷新模型库" title="刷新模型库">↻</button>
                   </div>
-                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status">上传后会立即应用到当前建筑，并保留在模型库供其他建筑复用。</div>
+                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status">上传时自动准备高、低清模型并统一底部原点，完成后应用到当前建筑，可供小组复用。</div>
                 </div>
 
                 <div class="model-library-toolbar">
@@ -2358,6 +2366,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function clearAllReplacementModels() {
+    replacementResidencyManager?.clear();
+    replacementModelDescriptors.clear();
     if (!viewer) {
       replacementModelMap.clear();
       replacementRequestTokenMap.clear();
@@ -2393,8 +2403,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
     viewer.scene.requestRender();
   }
 
-  function removeReplacementModel(sourceCode) {
+  function removeReplacementModel(sourceCode, keepRegistration = false) {
     const key = normalizeCode(sourceCode);
+    if (!keepRegistration) {
+      replacementModelDescriptors.delete(key);
+      replacementResidencyManager?.unregister(key);
+    }
     replacementRequestTokenMap.set(key, Symbol(`cancel_${key}`));
 
     const existing = replacementModelMap.get(key);
@@ -2586,7 +2600,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return false;
     }
 
-    removeReplacementModel(key);
+    removeReplacementModel(key, true);
 
     const requestToken = Symbol(`request_${key}_${Date.now()}`);
     replacementRequestTokenMap.set(key, requestToken);
@@ -2641,14 +2655,25 @@ const ENABLE_SUPABASE_SYNC = (() => {
     pointEntity.__sourceCode = key;
 
     try {
+      let normalizedAnchor = modelState.modelNormalized === true;
       const primitive = await Cesium.Model.fromGltfAsync({
         url: modelUrl,
+        gltfCallback: (gltf) => {
+          const metadata=gltf.extras?.villageModel;
+          normalizedAnchor ||= metadata?.normalized === true;
+          if (metadata?.normalized && metadata.originalBounds?.size) {
+            const size=metadata.originalBounds.size.map(n=>n*(metadata.metersPerUnit||1));
+            if (!Number.isFinite(modelState.modelExpectedLength)) modelState.modelExpectedLength=size[0];
+            if (!Number.isFinite(modelState.modelExpectedHeight)) modelState.modelExpectedHeight=size[1];
+            if (!Number.isFinite(modelState.modelExpectedWidth)) modelState.modelExpectedWidth=size[2];
+          }
+        },
         modelMatrix,
         scale: 1,
         minimumPixelSize: 0,
         maximumScale: undefined,
         incrementallyLoadTextures: true,
-        runAnimations: true
+        runAnimations: false
       });
 
       if (replacementRequestTokenMap.get(key) !== requestToken) {
@@ -2706,6 +2731,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           };
 
           const runSnapPass = () => {
+            if (normalizedAnchor) { updateAnchorPoint(adjustedMatrix); return; }
             const baseMatrix = primitive.modelMatrix || adjustedMatrix;
             const snappedMatrix = alignPrimitiveBottomToBaseHeight(
               primitive,
@@ -2736,7 +2762,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
           primitive.debugShowBoundingVolume = false;
           primitive.silhouetteColor = Cesium.Color.YELLOW;
-          primitive.silhouetteSize = 1.0;
+          primitive.silhouetteSize = activeEntity === entity ? 1.0 : 0;
 
           console.log("GLB loaded successfully:", modelUrl);
           viewer.scene.requestRender();
@@ -2757,6 +2783,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
       primitive.errorEvent.addEventListener((error) => {
         console.error("GLB loading failed:", modelUrl, error);
         if (replacementRequestTokenMap.get(key) !== requestToken) return;
+        if (replacementResidencyManager) {
+          replacementResidencyManager.fail(key,error);
+          setEntityReplacementVisual(entity,false,false);
+          return;
+        }
         try {
           viewer.scene.primitives.remove(primitive);
           if (pointEntity) viewer.entities.remove(pointEntity);
@@ -2802,6 +2833,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!entity) return;
 
     const modelState = getModelStateFromRow(row);
+    const residency = getReplacementResidencyManager();
+    if (residency && modelState.modelUrl) {
+      const key = normalizeCode(entity.__sourceCode);
+      const revision=JSON.stringify(modelState);
+      replacementModelDescriptors.set(key, {entity, modelState, revision});
+      residency.register(key, {entity, modelState, spaceId:getActualLinkedSpaceIdFor3D(), revision, url:modelState.modelUrl,
+        lowUrl:modelState.modelLowStoragePath ? `storage:${modelState.modelLowStoragePath}` : null});
+      updateReplacementResidency();
+      return;
+    }
     if (modelState.modelUrl) {
       const fallback = window.GroupModelLibraryModule?.applyOptionalModelWithWhiteFallback;
       if (!fallback) {
@@ -2818,6 +2859,69 @@ const ENABLE_SUPABASE_SYNC = (() => {
     } else {
       removeReplacementModel(entity.__sourceCode || "");
     }
+  }
+
+  function getReplacementResidencyManager() {
+    if (!window.ModelResidencyModule || !viewer) return null;
+    if (replacementResidencyManager) return replacementResidencyManager;
+    replacementResidencyManager = window.ModelResidencyModule.createModelResidencyManager({
+      getBudget: () => window.RenderQualityModule?.getProfile().modelBudget || 24,
+      getDetailPixels: () => window.RenderQualityModule?.getProfile().detailPixels || 100,
+      load: async (entry) => {
+        const isCurrent = () => {
+          const current=replacementModelDescriptors.get(entry.key);
+          return !!current && current.revision===entry.revision && (!current.entity||current.entity===entry.entity)
+            && getActualLinkedSpaceIdFor3D() === entry.spaceId;
+        };
+        if (!isCurrent()) throw new Error('STALE_MODEL_SCOPE');
+        const storagePath=entry.url.startsWith('storage:')?entry.url.slice(8)
+          :entry.variant==='detail'?entry.modelState.modelStoragePath:null;
+        const url=storagePath?await getGroupModelLibrary().createSignedUrlForPath(storagePath):entry.url;
+        if (!isCurrent()) throw new Error('STALE_MODEL_SCOPE');
+        if (!await addOrUpdateReplacementModel(entry.entity, {...entry.modelState,modelUrl:url})) throw new Error('MODEL_LOAD_FAILED');
+        return replacementModelMap.get(entry.key);
+      },
+      unload: (resource, entry) => {
+        if (replacementModelMap.get(entry.key) === resource) removeReplacementModel(entry.key, true);
+        else if (resource?.primitive && !resource.primitive.isDestroyed?.()) viewer?.scene.primitives.remove(resource.primitive);
+      },
+      setVisible: (resource, visible, entry) => {
+        if (resource?.primitive) resource.primitive.show = visible;
+        if (resource?.pointEntity) resource.pointEntity.show = visible && showReplacementAnchor;
+        setEntityReplacementVisual(entry.entity, !!resource, visible && !!resource?.primitive);
+        viewer?.scene.requestRender();
+      },
+      onError: (error) => console.warn('模型暂不可用，保留白模：',error)
+    });
+    return replacementResidencyManager;
+  }
+
+  function getReplacementViewPosition(entity, modelState) {
+    const position=getModelEntityPosition(entity,modelState);
+    if(!position||(!modelState.modelOffsetX&&!modelState.modelOffsetY))return position;
+    const heading=Cesium.Math.toRadians(getEntityAutoHeading(entity)+(Number(modelState.modelHeading)||0));
+    const frame=Cesium.Transforms.headingPitchRollToFixedFrame(position,new Cesium.HeadingPitchRoll(heading,0,0));
+    return Cesium.Matrix4.getTranslation(applyLocalOffsetToMatrix(frame,modelState.modelOffsetX,modelState.modelOffsetY,0),new Cesium.Cartesian3());
+  }
+
+  function getLibraryAssetModelState(asset,metadata,inputs,signedUrl) {
+    const normalized=metadata?.normalized===true,size=normalized?metadata.size:null;
+    return {...inputs,modelAssetId:asset.id,modelAssetName:asset.name,modelStoragePath:asset.storage_path,modelUrl:signedUrl,
+      modelNormalized:normalized,modelLowStoragePath:normalized?metadata.lowStoragePath||'':'',
+      modelExpectedLength:size?.[0]??'',modelExpectedHeight:size?.[1]??'',modelExpectedWidth:size?.[2]??'',
+      modelScale:normalized?10:(inputs.modelScale??1),modelStretchX:1,modelStretchY:1,modelSnapToBase:'1'};
+  }
+
+  function updateReplacementResidency() {
+    if (!replacementResidencyManager || !window.ModelViewMetricsModule || !viewer) return;
+    const items=[];
+    replacementModelDescriptors.forEach(({entity,modelState},key) => {
+      const footprint=getEntityFootprintSize(entity);
+      const radius=Math.max(1,Math.hypot(footprint?.width||1,footprint?.depth||1,entity.__buildingHeight||9)/2);
+      const metric=window.ModelViewMetricsModule.measureModelView(Cesium,viewer,getReplacementViewPosition(entity,modelState),radius);
+      items.push({key,...metric,selected:activeEntity===entity});
+    });
+    replacementResidencyManager.update(items);
   }
 
   async function applyRuntimeGeneratedModelsForSpace(spaceId) {
@@ -2890,6 +2994,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
             modelAssetName: asset.name || "",
             modelUrl: signedUrl,
             modelStoragePath: asset.storage_path,
+            modelLowStoragePath: transform.lowStoragePath || '', modelNormalized: transform.normalized === true,
             modelScale: transform.scale ?? 1,
             modelHeading: transform.heading ?? 0,
             modelHeightOffset: transform.heightOffset ?? 0,
@@ -3230,6 +3335,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
             modelAssetName: binding.group_model_assets.name || "",
             modelUrl: signedUrl,
             modelStoragePath: binding.group_model_assets.storage_path || "",
+            modelLowStoragePath: transform.lowStoragePath || '', modelNormalized: transform.normalized === true,
             modelScale: transform.scale ?? mergedRow.modelScale ?? "1",
             modelHeading: transform.heading ?? mergedRow.modelHeading ?? "0",
             modelHeightOffset: transform.heightOffset ?? mergedRow.modelHeightOffset ?? "0",
@@ -3333,24 +3439,25 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const modelName = `正立面建筑-${sourceCode}-${String(payload.presetId || 'generated').slice(0, 60)}`;
       const file = new File([glbBuffer], `${modelName}.glb`, { type: 'model/gltf-binary' });
       const transform = {
-        scale, heading, heightOffset, offsetX, offsetY, stretchX, stretchY, snapToBase,
-        expectedHeight: Number.isFinite(expectedHeight) ? expectedHeight : null,
-        expectedLength: Number.isFinite(expectedLength) ? expectedLength : null,
-        expectedWidth: Number.isFinite(expectedWidth) ? expectedWidth : null
+        scale, heading, heightOffset, offsetX, offsetY, stretchX, stretchY, snapToBase: true
       };
       const { asset, signedUrl } = await window.GroupModelLibraryModule.uploadAndPlaceModel({
         library, file, name: modelName, scope, spaceId: targetSpaceId, objectCode: sourceCode, transform
       });
+      const normalization = asset.normalization;
+      const normalized = normalization?.normalized === true;
+      const normalizedSize = normalized ? normalization.size || normalization.bounds?.size : null;
       const modelState = {
         modelPreset: '', modelAssetId: asset.id, modelAssetName: asset.name,
         modelStoragePath: asset.storage_path, modelUrl: signedUrl,
+        modelNormalized: normalized, modelLowStoragePath: normalized ? normalization.lowStoragePath || '' : '',
         modelScale: String(scale), modelHeading: String(heading), modelHeightOffset: String(heightOffset),
         modelOffsetX: String(offsetX), modelOffsetY: String(offsetY),
         modelStretchX: String(stretchX), modelStretchY: String(stretchY),
-        modelExpectedHeight: Number.isFinite(expectedHeight) ? String(expectedHeight) : '',
-        modelExpectedLength: Number.isFinite(expectedLength) ? String(expectedLength) : '',
-        modelExpectedWidth: Number.isFinite(expectedWidth) ? String(expectedWidth) : '',
-        modelSnapToBase: snapToBase ? '1' : '0'
+        modelExpectedHeight: Number.isFinite(normalizedSize?.[1]) ? String(normalizedSize[1]) : Number.isFinite(expectedHeight) ? String(expectedHeight) : '',
+        modelExpectedLength: Number.isFinite(normalizedSize?.[0]) ? String(normalizedSize[0]) : Number.isFinite(expectedLength) ? String(expectedLength) : '',
+        modelExpectedWidth: Number.isFinite(normalizedSize?.[2]) ? String(normalizedSize[2]) : Number.isFinite(expectedWidth) ? String(expectedWidth) : '',
+        modelSnapToBase: normalized || snapToBase ? '1' : '0'
       };
       // Storage and the building binding are durable now. Rendering is optional:
       // a failed Cesium load must not falsely report that saving failed.
@@ -3366,7 +3473,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           if (activeEntity === entity) {
             await showEntityInfo(entity);
             const statusEl = byId('applyModelPresetStatus');
-            if (statusEl) statusEl.textContent = '模型已保存并绑定当前建筑，刷新后会从模型库恢复。';
+            if (statusEl) statusEl.textContent = '模型已自动准备轻量版本并绑定当前建筑，小组成员刷新后可从模型库恢复。';
           }
         } catch (renderError) { console.warn('模型已保存，当前场景加载失败：', renderError); }
       }
@@ -3603,6 +3710,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
           modelPreset: '', modelAssetId: binding.asset_id,
           modelAssetName: binding.group_model_assets.name,
           modelStoragePath: binding.group_model_assets.storage_path,
+          modelLowStoragePath: transform.lowStoragePath || '', modelNormalized: transform.normalized === true,
           modelUrl: await getGroupModelLibrary().createSignedUrl(binding.group_model_assets),
           modelScale: transform.scale ?? 1, modelHeading: transform.heading ?? 0,
           modelHeightOffset: transform.heightOffset ?? 0,
@@ -3850,7 +3958,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
         try {
           const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
           const signedUrl = await getGroupModelLibrary().createSignedUrl(asset);
-          const inputs = readModelTransformInputs();
+          const metadata=await getGroupModelLibrary().getAssetMetadata(asset);
+          if(getActualLinkedSpaceIdFor3D()!==linkedSpaceId)throw new Error('空间已切换，请回到目标建筑后重新应用。');
+          const inputs = getLibraryAssetModelState(asset,metadata,readModelTransformInputs(),signedUrl);
           await getGroupModelLibrary().placeAsset({
             assetId: asset.id,
             spaceId: linkedSpaceId,
@@ -3862,15 +3972,20 @@ const ENABLE_SUPABASE_SYNC = (() => {
               offsetX: inputs.modelOffsetX ?? 0,
               offsetY: inputs.modelOffsetY ?? 0,
               stretchX: inputs.modelStretchX ?? 1,
-              stretchY: inputs.modelStretchY ?? 1
+              stretchY: inputs.modelStretchY ?? 1,
+              normalized:inputs.modelNormalized,lowStoragePath:inputs.modelLowStoragePath,
+              expectedLength:inputs.modelExpectedLength||null,expectedHeight:inputs.modelExpectedHeight||null,
+              expectedWidth:inputs.modelExpectedWidth||null,snapToBase:true
             }
           });
+          if(getActualLinkedSpaceIdFor3D()!==linkedSpaceId){if(statusEl)statusEl.textContent='模型已保存到原空间，请返回原空间查看。';return;}
           const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
             ...inputs,
             modelAssetName: asset.name,
             modelUrl: signedUrl,
             modelStoragePath: asset.storage_path
           });
+          Object.assign(payload,inputs);
           clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
           await saveSingle3DEdit(entity.__sourceCode, payload);
           await applyModelStateToEntity(entity, payload);
@@ -3908,10 +4023,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
           return;
         }
         uploadBtn.disabled = true;
-        if (uploadStatus) uploadStatus.textContent = "正在上传并应用到当前建筑...";
+        if (uploadStatus) uploadStatus.textContent = "正在自动准备轻量版本、统一模型原点并上传，请稍候…";
         try {
           const { linkedSpaceId, mergedRow } = await getCurrentMergedRow();
-          const inputs = readModelTransformInputs();
+          const inputs = {...readModelTransformInputs(),modelScale:10,modelStretchX:1,modelStretchY:1,modelSnapToBase:'1'};
           const transform = {
             scale: inputs.modelScale ?? 1,
             heading: inputs.modelHeading ?? 0,
@@ -3924,21 +4039,28 @@ const ENABLE_SUPABASE_SYNC = (() => {
           const { asset, signedUrl } = await window.GroupModelLibraryModule.uploadAndPlaceModel({
             library: getGroupModelLibrary(),
             file,
+            metersPerUnit: Number(byId('groupModelUnitSelect')?.value || 1),
             scope: getCurrentModelLibraryScope(),
             spaceId: linkedSpaceId,
             objectCode: entity.__sourceCode,
             transform
           });
+          if(getActualLinkedSpaceIdFor3D()!==linkedSpaceId){if(uploadStatus)uploadStatus.textContent='模型已保存到原空间，请返回原空间查看。';return;}
           const payload = buildModelPayloadPatchFromPreset(asset.id, mergedRow, {
             ...inputs,
             modelAssetName: asset.name,
             modelUrl: signedUrl,
             modelStoragePath: asset.storage_path
           });
+          if (asset.normalization) Object.assign(payload, {
+            modelNormalized:true,modelLowStoragePath:asset.normalization.lowStoragePath||'',
+            modelExpectedLength:asset.normalization.size[0],modelExpectedHeight:asset.normalization.size[1],
+            modelExpectedWidth:asset.normalization.size[2],modelScale:10,modelSnapToBase:'1'
+          });
           clearRuntimeGeneratedModelState(linkedSpaceId, entity.__sourceCode);
           await saveSingle3DEdit(entity.__sourceCode, payload);
           await applyModelStateToEntity(entity, payload);
-          if (uploadStatus) uploadStatus.textContent = "上传成功，已应用到当前建筑；切换其他建筑后可直接复用。";
+          if (uploadStatus) uploadStatus.textContent = "原文件已保留，轻量版本已自动准备并应用；远处使用轻量模型或白模。";
           await showEntityInfo(entity);
         } catch (error) {
           console.error("Failed to upload and apply library model:", error);
@@ -4221,9 +4343,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
     const deviceScale = Number(window.devicePixelRatio) || 1;
     viewer.resolutionScale = Math.min(deviceScale, PERF_RESOLUTION_SCALE_CAP);
+    window.RenderQualityModule?.applyViewer(viewer);
+    renderQualityUnsubscribe = window.RenderQualityModule?.subscribe(() => {
+      window.RenderQualityModule.applyViewer(viewer);
+      updateReplacementResidency();
+    });
     viewer.camera.percentageChanged = 0.01;
     viewer.camera.changed.addEventListener(() => {
       scheduleRoadWidthSync();
+      updateReplacementResidency();
     });
 
     if (viewer.cesiumWidget && viewer.cesiumWidget.creditContainer) {
@@ -4451,6 +4579,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function destroy() {
+    renderQualityUnsubscribe?.(); renderQualityUnsubscribe = null;
     toggleMeasureMode(false);
     if (deferredEntityInfoTimer) {
       window.clearTimeout(deferredEntityInfoTimer);
@@ -4473,6 +4602,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     clearAllReplacementModels();
+    replacementResidencyManager?.destroy(); replacementResidencyManager = null;
     clearAllRuntimeGeneratedModels();
 
     if (houseGeneratorMessageBound && houseGeneratorMessageHandler) {

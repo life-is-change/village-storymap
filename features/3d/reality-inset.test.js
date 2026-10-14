@@ -87,6 +87,25 @@ test('balanced inset quality caps pixels and reduces tile pressure on the main v
   assert.equal(getRealityRenderQuality(2, 'sharp').tilesetOptions.maximumScreenSpaceError, 4);
 });
 
+test('low inset quality halves the balanced tile cache and reduces pixel work', () => {
+  const quality = getRealityRenderQuality(3, 'low');
+  assert.equal(quality.resolutionScale, 0.75);
+  assert.equal(quality.tilesetOptions.maximumScreenSpaceError, 16);
+  assert.equal(quality.tilesetOptions.cacheBytes, 128 * 1024 * 1024);
+  assert.equal(quality.tilesetOptions.preloadFlightDestinations, false);
+});
+
+test('inset uses the saved local render profile when callers omit a mode', () => {
+  const vm = require('node:vm');
+  const root = { RenderQualityModule: { getProfile: () => ({ mode: 'low', inset: {
+    resolutionScale: 0.75, maximumScreenSpaceError: 16,
+    dynamicScreenSpaceError: true, cacheBytes: 128 * 1024 * 1024,
+    preloadFlightDestinations: false
+  } }) } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'reality-inset.js'), 'utf8'), { window: root });
+  assert.equal(root.VillageRealityInsetModule.getRealityRenderQuality(2).resolutionScale, 0.75);
+});
+
 test('building focus uses cached or already-rendered height without waiting for maximum LOD', () => {
   assert.equal(resolveImmediateSurfaceHeight(128, 126), 128);
   assert.equal(resolveImmediateSurfaceHeight(undefined, 126), 126);
@@ -211,4 +230,50 @@ test('createController exposes the complete inset lifecycle API', () => {
     'resize',
     'destroy'
   ].forEach((name) => assert.equal(typeof controller[name], 'function', name));
+});
+
+test('inset updates a loaded tileset after quality changes and pauses while the tab is hidden', async () => {
+  const vm = require('node:vm');
+  const listeners = new Map();
+  let onQualityChange, unsubscribed = false;
+  let current = 'balanced';
+  let viewer;
+  const document = { hidden: false,
+    addEventListener: (name, callback) => listeners.set(name, callback),
+    removeEventListener: name => listeners.delete(name) };
+  const moduleSource = fs.readFileSync(path.join(__dirname, 'render-quality.js'), 'utf8');
+  const root = { document, devicePixelRatio: 2 };
+  vm.runInNewContext(moduleSource, { window: root });
+  const getProfile = root.RenderQualityModule.getProfile;
+  root.RenderQualityModule = {
+    getProfile: () => getProfile(current),
+    subscribe(callback) { onQualityChange = callback; return () => { unsubscribed = true; }; }
+  };
+  const tileset = {};
+  const Cesium = { Viewer: function () {
+    viewer = this;
+    this.scene = { globe: {}, requestRender() {}, primitives: { add: value => value } };
+    this.camera = {};
+    this.resize = () => {};
+    this.flyTo = async () => {};
+    this.destroy = () => {};
+  }, EllipsoidTerrainProvider: function () {}, Cesium3DTileset: { fromIonAssetId: async () => tileset } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'reality-inset.js'), 'utf8'), { window: root, setTimeout });
+  const controller = root.VillageRealityInsetModule.createController({ Cesium, document,
+    container: {}, config: { ionAssetId: 42, terrainEnabled: false } });
+  await controller.enter();
+  assert.equal(viewer.resolutionScale, 1);
+  assert.equal(typeof onQualityChange, 'function', 'an open inset must react to mode changes');
+  current = 'low'; onQualityChange('low', getProfile('low'));
+  assert.equal(viewer.resolutionScale, 0.75);
+  assert.equal(tileset.maximumScreenSpaceError, 16);
+  assert.equal(tileset.cacheBytes, 128 * 1024 * 1024);
+  document.hidden = true; listeners.get('visibilitychange')();
+  assert.equal(viewer.useDefaultRenderLoop, false);
+  controller.show(); assert.equal(viewer.useDefaultRenderLoop, false);
+  document.hidden = false; listeners.get('visibilitychange')();
+  assert.equal(viewer.useDefaultRenderLoop, true);
+  controller.setHostActive(false); listeners.get('visibilitychange')();
+  assert.equal(viewer.useDefaultRenderLoop, false);
+  controller.destroy(); assert.equal(unsubscribed, true);
 });

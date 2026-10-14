@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>学生模型优化验证</title>
+<link rel="stylesheet" href="../../assets/vendor/cesium-1.118.0/Widgets/widgets.css">
+<style>body{margin:0;font:16px system-ui;background:#10202d;color:#fff}#map{height:52vh}header{padding:16px}button,select{padding:8px;margin:4px}#summary{display:block;padding:12px;background:#19483c;color:#d0ffe4;line-height:1.6}#result{white-space:pre-wrap;padding:16px;max-height:23vh;overflow:auto}</style>
+<header>单文件自动高低模 · 本地验证（不访问数据库、不提交 GPU 任务）
+<button id="upload">选择一个 GLB 验证自动处理</button><input id="file" type="file" accept=".glb" hidden>
+<select id="quality"><option value="low">流畅优先</option><option value="balanced">均衡</option><option value="high">精细</option></select>
+<button id="far">远景</button><button id="near">近景</button><button id="clear">清空并验证释放</button><button id="run">运行 1 / 10 / 50 / 100 模型测试</button>
+</header><output id="summary">等待自动处理…</output><div id="map"></div><pre id="result">正在初始化真实 Cesium 1.118 和 CPU 模型处理线程…</pre>
+<script>window.CESIUM_BASE_URL='../../assets/vendor/cesium-1.118.0/';</script>
+<script src="../../assets/vendor/cesium-1.118.0/Cesium.js"></script>
+<script src="../../features/3d/render-quality.js"></script><script src="../../features/models/glb-normalization.js"></script>
+<script src="../../features/models/model-residency.js"></script><script src="../../features/models/model-view-metrics.js"></script>
+<script>
+(async()=>{
+ const out=document.getElementById('result'),notes=[],loaded=new Set();let count=100,report={},lastStats=null;
+ const viewer=new Cesium.Viewer('map',{baseLayer:false,terrainProvider:new Cesium.EllipsoidTerrainProvider(),animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,requestRenderMode:true});
+ viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#27465b');viewer.scene.globe.show=false;
+ let raw=await(await fetch('textured-roof.glb')).arrayBuffer();let sourceCopy=raw.slice(0),prepared=await GlbNormalizationModule.createModelVariantsAsync(raw);
+ if(Math.abs(prepared.inspection.bounds.min[1])>1e-5)throw new Error('ground anchor mismatch');
+ if(new Uint8Array(raw).some((n,i)=>n!==new Uint8Array(sourceCopy)[i]))throw new Error('original bytes changed');
+ notes.push('PASS：仅一个 GLB，实际 Web Worker 自动生成高低模；原件未改动。');
+ notes.push('自动处理记录：'+JSON.stringify(prepared.processing));
+ let high=URL.createObjectURL(new Blob([prepared.buffer],{type:'model/gltf-binary'}));
+ let low=URL.createObjectURL(new Blob([prepared.lowBuffer],{type:'model/gltf-binary'}));
+ const items=[],manager=ModelResidencyModule.createModelResidencyManager({getBudget:()=>RenderQualityModule.getProfile().modelBudget,getDetailPixels:()=>RenderQualityModule.getProfile().detailPixels,
+ load:async e=>{const primitive=await Cesium.Model.fromGltfAsync({url:e.url,modelMatrix:Cesium.Transforms.eastNorthUpToFixedFrame(e.position),minimumPixelSize:0,id:e.key});viewer.scene.primitives.add(primitive);loaded.add(primitive);return primitive;},
+ unload:p=>{viewer.scene.primitives.remove(p);if(!p.isDestroyed())p.destroy();loaded.delete(p);},
+ setVisible:(p,show,e)=>{if(p)p.show=show;const item=items.find(i=>i.key===e.key);if(item)item.proxy.show=!p||!show;viewer.scene.requestRender();refreshText();},onError:e=>{notes.push('ERROR '+e.message);refreshText();}});
+ function refreshText(){lastStats=manager.getStats();const detail=items.filter(i=>{const s=manager.getState(i.key);return s?.resident&&s.variant==='detail';}).length,coarse=items.filter(i=>{const s=manager.getState(i.key);return s?.resident&&s.variant==='low';}).length;document.getElementById('summary').textContent='自动高低模：'+prepared.inspection.triangleCount+' → '+prepared.lowInspection.triangleCount+' 面；低模贴图 '+prepared.processing.textures.map(t=>t.width+'×'+t.height).join('、')+'；驻留高模 '+detail+' / 低模 '+coarse+'；资源 '+loaded.size+' / 预算 '+lastStats.budget+'；批量通过：'+[1,10,50,100].filter(n=>report[n]).join('、')+(report.afterClear?'；清空后资源 '+report.afterClear.resident:'');out.textContent=notes.join('\n')+'\n'+JSON.stringify({models:count,quality:RenderQualityModule.getMode(),stats:lastStats,renderedPrimitives:loaded.size,report},null,2);}
+ function update(){manager.update(items.map(item=>({key:item.key,...ModelViewMetricsModule.measureModelView(Cesium,viewer,item.position,Math.max(...prepared.inspection.bounds.size))})));report.variants=items.reduce((tot,item)=>{const variant=manager.getState(item.key)?.variant;tot[variant||'proxy']=(tot[variant||'proxy']||0)+1;return tot;},{});refreshText();}
+ function populate(n){manager.clear();viewer.entities.removeAll();items.length=0;count=n;for(let i=0;i<n;i++){const position=Cesium.Cartesian3.fromDegrees((i%10)*.00012,Math.floor(i/10)*.00012,0);const key='model-'+i,proxy=viewer.entities.add({position,box:{dimensions:new Cesium.Cartesian3(8,6,2),material:Cesium.Color.GRAY}});const item={key,position,proxy};items.push(item);manager.register(key,{url:high,lowUrl:low,position});}update();}
+ function view(near){viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(0,0,near?25:1500),orientation:{heading:0,pitch:-Math.PI/2,roll:0}});update();}
+ async function settle(){await new Promise((resolve,reject)=>{const started=Date.now(),timer=setInterval(()=>{refreshText();const s=manager.getStats();if(s.failed){clearInterval(timer);reject(new Error('GLB load failed: '+s.failed));}else if(!s.inFlight&&!s.queued){clearInterval(timer);resolve();}else if(Date.now()-started>30000){clearInterval(timer);reject(new Error('GLB load timed out'));}},50);});}
+ document.getElementById('quality').value=RenderQualityModule.getMode();document.getElementById('quality').onchange=e=>{RenderQualityModule.setMode(e.target.value);RenderQualityModule.applyViewer(viewer);update();};
+ document.getElementById('far').onclick=()=>view(false);document.getElementById('near').onclick=()=>view(true);
+ document.getElementById('clear').onclick=()=>{manager.clear();report.afterClear=manager.getStats();if(loaded.size)throw new Error('resident not released');notes.push('PASS：清空后真实 GPU 模型资源释放为 0。');refreshText();};
+ document.getElementById('upload').onclick=()=>document.getElementById('file').click();
+ document.getElementById('file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;notes.push('自动处理 '+file.name+'…');refreshText();const next=await GlbNormalizationModule.createModelVariantsAsync(await file.arrayBuffer());manager.clear();URL.revokeObjectURL(high);URL.revokeObjectURL(low);prepared=next;high=URL.createObjectURL(new Blob([prepared.buffer]));low=URL.createObjectURL(new Blob([prepared.lowBuffer]));notes.push('PASS：单文件高低模生成完成：'+JSON.stringify(prepared.processing));populate(1);view(true);await settle();refreshText();}catch(error){notes.push('FAIL：'+error.message);refreshText();}};
+ document.getElementById('run').onclick=async()=>{notes.push('开始批量实际 GLB 验证…');for(const n of [1,10,50,100]){populate(n);view(false);await settle();const s=manager.getStats();if(s.resident>s.budget||s.inFlight>2)throw new Error('budget exceeded');report[n]={resident:s.resident,budget:s.budget,failed:s.failed};notes.push('PASS：'+n+' 个模型，驻留 '+s.resident+' / '+s.budget);}view(true);await settle();refreshText();};
+ viewer.camera.changed.addEventListener(update);RenderQualityModule.applyViewer(viewer);populate(1);view(true);await settle();notes.push('PASS：自动高低模实际 GLB 加载就绪，可切换远近视角或运行批量验证。');refreshText();
+})().catch(error=>{document.getElementById('result').textContent='FAIL：'+error.stack;});
+</script></html>

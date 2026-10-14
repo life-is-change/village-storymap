@@ -1,0 +1,13 @@
+✔ CPU pipeline preserves original and writes readable, anchored LODs with resized textures (126.0806ms)
+✔ unsafe paths and invalid options never overwrite input or existing output (25.271ms)
+✔ malformed GLB and external texture input fail before creating output (26.7163ms)
+✔ Meshopt source is CPU decoded before normalization and original compressed bytes stay intact (93.0002ms)
+✔ POSITION morph input requires an exported static pose and never writes output (22.8784ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 374.331
