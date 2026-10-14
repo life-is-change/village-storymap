@@ -6,7 +6,7 @@
   "description": "Offline CPU-only GLB web variant preparation",
   "scripts": {
     "process": "node cli.mjs",
-    "test": "node --test --test-isolation=none test/*.test.mjs",
+    "test": "node --test",
     "build:browser": "node build-browser.mjs"
   },
   "engines": {
