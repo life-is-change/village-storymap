@@ -19,4 +19,8 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
+      - name: Install model processing dependencies
+        run: npm ci --prefix tools/model-processor
       - run: npm test
+      - name: Test model processing and bundled worker
+        run: npm test --prefix tools/model-processor
