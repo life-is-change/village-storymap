@@ -79,6 +79,51 @@ Windows 输出默认在 `%USERPROFILE%\village-db-backups`，不会进入 Git。
 
 恢复验收需要核对表、约束、索引、RLS、授权、函数、序列、Auth 用户与 Storage 元数据，测试容器重启与内存使用。不得仅看到 `container running` 就宣布迁移完成。
 
+### 已上传备份并导入镜像后的执行命令
+
+2026-10-15，备份四项 SHA-256 已在阿里云校验成功；Docker Hub 超时，AWS ECR 连接被重置。改由 Windows 从 Supabase 官方 ECR 拉取固定的 linux/amd64 manifest，离线校验后压缩上传。阿里云已成功导入并运行 `postgres --version`，返回 PostgreSQL 17.6。
+
+- 官方来源 manifest：`sha256:5a4314708484bec672de2c09653a5c01fb1c84a998564ac231b0325e2238ed5b`。
+- 镜像配置摘要：`sha256:f519727303f0af6862882be2a30f420e28710d4209226e681aaddb2c01d12d9b`。
+- Docker 29 导入未压缩层后生成的本地 manifest / image ID：`sha256:291367a26b42e028341d7f19b91dffa818c10e9ada6fa9022796a87b57028631`。已通过归档配置与未压缩层描述重建验证，不能把配置摘要直接当作该 Docker 后端的本地镜像 ID。
+- 压缩传输包 SHA-256：`ed97f0692d303fb5dbae831cf2a411042d7858f096e2a4449820a2b1b976c43f`，大小 387,334,072 字节。
+
+在阿里云终端先检查工作目录；出现未提交文件或分支不是 main 时，保留现场，不覆盖：
+
+```bash
+cd ~/village-deploy/source
+git status --short --branch
+```
+
+工作目录干净且为 main 后：
+
+```bash
+git pull --ff-only origin main &&
+python3 linux/scripts/restore-db-copy.py \
+  --backup-dir "$HOME/village-db-backups/20261015T034526Z-_bfzxy5z"
+```
+
+本脚本仅在 Linux 上运行，不需要输入原 Supabase 密码。它会：
+
+1. 再校验备份 manifest 和四项文件，确认本机镜像身份；要求至少 900 MiB 可用内存、4 GiB 家目录磁盘余量。
+2. 拒绝已有 `~/village-db-copy` 或同名容器，不删除或重置目标。只连接本机 Docker Unix socket，禁止远端 Docker context 和自动拉镜像。
+3. 创建 `village-db-copy-postgres` 容器，`network_mode: none`、无宿主机端口映射、内存上限 768 MiB。管理只能通过本机 Docker exec；这不是后续业务 API 的生产网络配置。
+4. 在 `~/village-db-copy` 私有目录保存 Compose、独立的随机 bootstrap 密码和验证报告。数据持久化到其 `data` 子目录。空的只读初始化脚本挂载避开镜像预置业务 schema；使用 PGDATA 内新生成的原生配置，而不是镜像 `/etc/postgresql` 的平台配置。
+5. 使用独立 `village_restore_admin` 初始化，所以源 `postgres` 角色被恢复成非超级用户也不会降权当前恢复连接。源角色密码不恢复；此容器没有外部网络，尚未配置其他服务登录。
+6. 核对扩展版本，恢复角色，再以 template0 创建全新的 `village_copy`，以单事务、遇错停止的方式恢复完整归档，不使用 `--clean`、`--no-owner` 或 `--no-acl`。
+7. 根据归档中每个 COPY 块统计行数、每个 setval 读取序列状态，与目标及重启后的结果比较。扩展配置表如 `extensions.spatial_ref_sys` 的部分数据导出不用于全表行数比较；其定义和归档数据仍随完整恢复写入。
+8. 按 TOC 名称核对表、序列、索引、显式约束、外键、策略、触发器和 RLS 状态，比较非扩展函数、事件触发器与 publication 数量。表/索引 ATTACH 是分区连接操作，不计作额外定义；分区自动生成子约束可能造成目标原始总数高于 TOC，原始数值另存报告。内联 CHECK 随 TABLE DDL 恢复，不与 TOC 的 key constraint 数量混算。
+
+只有恢复、数据/结构核对、容器重启复核及隔离检查均通过后才写 `restore-result.json`，输出：
+
+```text
+DB_COPY_RESTORE_VERIFIED_NOT_CUT_OVER
+```
+
+错误会停止，保留备份、部分目标和私有日志。不要删除目录或反复执行覆盖它；只发送终端上的阶段与错误概要，勿粘贴私有日志、SQL 或 dump 内容。需要排查时先审查具体日志的隐私范围。
+
+这仍是**隔离副本验证**：结构清单匹配不证明 RLS 的应用行为、Vault 解密或 Storage 文件迁移已完成。源数据库级设置需要映射到改名的验证数据库；原网站、4090 与托管 Supabase 不改址。实际云端恢复须由终端输出确认，不能把本地测试通过当作恢复成功。
+
 ## 范围限制
 
 - 数据库备份不包含 Storage 文件本体、API/JWT 密钥、登录服务设置、SMTP 或 Edge Functions。Storage 文件另行复制。
