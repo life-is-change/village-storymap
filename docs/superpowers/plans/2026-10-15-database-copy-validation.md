@@ -31,9 +31,9 @@
 - [x] Inspect actual archive/roles and compatibility before generating a restore operation. Source roles and preinstalled schema conflicts still require an explicit target restoration strategy; this audit does not establish restore success.
 - [x] Obtain the verified official image `supabase/postgres:17.6.1.136` (from self-hosted/v0.8.2). The user imported the offline archive and verified Linux/amd64 and PostgreSQL 17.6.
 - [x] Implement and locally test fail-closed restore tooling for a fresh target, private credentials, archive snapshot counts, SQL errors and isolation. Actual cloud execution remains pending.
-- [ ] Restore to a fresh destination; stop on SQL errors, retain partial target and backups, never reset an existing target.
-- [ ] Compare schema objects, constraints, RLS/grants, functions, sequence state and snapshot table contents, including Auth and Storage metadata.
-- [ ] Check actual memory use and recovery from container restart. No frontend/worker cutover follows automatically.
+- [x] Restore to a fresh destination; stop on SQL errors, retain partial target and backups, never reset an existing target. The guarded roles retry completed on Aliyun.
+- [x] Compare archive structure, constraints, RLS definitions, functions, sequence state and snapshot row counts, including Auth and Storage metadata. Role SQL with the documented grantor mapping and archive ownership/ACL restored without SQL errors; application permission behaviour and full content hashes remain separate acceptance work.
+- [x] Check actual memory use and recovery from container restart. No frontend/worker cutover follows automatically.
 
 ## Ledger
 
@@ -59,3 +59,4 @@
 - Ruling: Preserve the original role archive and generate a private target script that maps only the explicit `supabase_admin` grantor to `village_restore_admin`; keep role definitions, membership recipients and options unchanged. Reject unexpected grantors. Submit the generated script in one psql transaction. Add a guarded `--resume` only for the verified, rolled-back roles checkpoint, with the same image/mounts/isolation and no business database; do not delete, recreate or reset the existing target. Keep earlier error logs.
 - 2026-10-15: Five new regression tests first failed for the missing grantor mapping, stdin role transaction, resume guards and log retention, then passed with the fix (21 restore tests). Cloud retry is still pending; no application or 4090 cutover has occurred.
 - 2026-10-15: Final fix verification passed all 58 linux tests, CLI help and diff whitespace checks. Private structural inspection confirms all 18 source role grants are mapped and the source role file checksum is unchanged. Independent review approved the controlled retry with no blocking findings. Actual cloud retry remains pending.
+- 2026-10-15: User pulled 63e53c7 and completed the guarded cloud retry. Server printed DB_COPY_RESTORE_VERIFIED_NOT_CUT_OVER after archive restoration and restart verification: 106 tables with data, 14 sequence states, 4 Auth users and 137 Storage metadata objects. Docker reported 41.98 MiB / 768 MiB and CPU 0.03% at that observation; this is idle validation, not application load testing. Source Supabase, website and 4090 settings stayed unchanged. Copy validation is complete; application cutover, file bytes and permission/load acceptance remain outstanding.

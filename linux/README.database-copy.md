@@ -142,6 +142,12 @@ python3 linux/scripts/restore-db-copy.py \
 
 如果已存在恢复出的角色、业务数据库或成功报告，继续会被拒绝并保留现场；不要删除目录、容器或数据库来绕过检查。此选项不支持任意恢复阶段的断点续传。
 
+### 本次云端验收结果
+
+2026-10-15，用户拉取 `63e53c7` 后执行上述继续命令，得到 `DB_COPY_RESTORE_VERIFIED_NOT_CUT_OVER`。完整归档恢复与容器重启后的核对均通过：106 张含数据的表、14 个序列状态、4 个 Auth 用户、137 条 Storage 对象元数据。验收时容器占用 41.98 MiB / 768 MiB，CPU 0.03%，仅代表当时的验证负载。结果报告保存在服务器私有目录 `~/village-db-copy/restore-result.json`，无需上传或粘贴报告内容。
+
+数据库副本验证已完成，无需再次执行恢复。线上网站仍使用 Supabase；本副本尚未连接业务 API，不会自动同步源库的新写入，也不包含 Storage 文件本体。
+
 ## 范围限制
 
 - 数据库备份不包含 Storage 文件本体、API/JWT 密钥、登录服务设置、SMTP 或 Edge Functions。Storage 文件另行复制。
