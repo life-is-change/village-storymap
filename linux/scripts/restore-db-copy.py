@@ -57,13 +57,15 @@ def verify_backup(root):
     return manifest
 
 
-def validate_destination(target, backup, repo, home):
+def validate_destination(target, backup, repo, home, *, resume=False):
     target, backup, repo, home = map(lambda p: Path(p).resolve(), (target, backup, repo, home))
     for forbidden in (backup, repo, home / 'village-deploy'):
         if target == forbidden or target in forbidden.parents or forbidden in target.parents:
             raise ValueError('Destination must be separate from backup, repository and deployed web directories.')
-    if target.exists():
+    if target.exists() and not resume:
         raise ValueError('Destination already exists; retain it and inspect. Never reset or overwrite: ' + str(target))
+    if resume and not target.is_dir():
+        raise ValueError('Resume requires an existing private validation directory.')
     return target
 
 
@@ -133,6 +135,54 @@ def compare_snapshot(expected, actual):
 def validate_roles_sql(sql):
     if re.search(r'\b' + re.escape(ADMIN) + r'\b', sql, re.I):
         raise ValueError('Source roles must not create, alter or grant the separate bootstrap admin.')
+
+
+def prepare_roles_sql(sql):
+    """Map the source bootstrap grantor to this cluster's bootstrap superuser."""
+    validate_roles_sql(sql)
+    lines = []
+    for line in sql.splitlines():
+        if line.startswith('GRANT '):
+            grant = re.fullmatch(r'(GRANT .+ GRANTED BY )(' + IDENT + r');', line)
+            if not grant or unquote_ident(grant[2]) != 'supabase_admin':
+                raise ValueError('Unexpected role-membership grantor; stop for explicit compatibility review.')
+            line = grant[1] + quote_ident(ADMIN) + ';'
+        lines.append(line)
+    return '\n'.join(lines) + '\n'
+
+
+def validate_resume_container(info, state, backup):
+    labels = info.get('Config', {}).get('Labels') or {}
+    host = info.get('HostConfig', {})
+    if (info.get('Image') not in IMAGE_IDS or info.get('Config', {}).get('Image') != IMAGE
+            or labels.get('com.docker.compose.project') != 'village-db-copy'
+            or labels.get('com.docker.compose.service') != 'db'
+            or host.get('NetworkMode') != 'none' or host.get('PortBindings')
+            or not host.get('ReadonlyRootfs')):
+        raise ValueError('Existing container identity/isolation does not match the private validation copy.')
+    actual = {item['Destination']: item for item in info.get('Mounts', [])}
+    expected = compose_document(state, backup)['services']['db']['volumes']
+    for mount in expected:
+        found = actual.get(mount['target'])
+        if (not found or Path(found['Source']).resolve() != Path(mount['source']).resolve()
+                or found['RW'] != (not mount['read_only'])):
+            raise ValueError('Existing validation mount differs: ' + mount['target'])
+
+
+def validate_resume_catalog(snapshot):
+    if (not snapshot.get('bootstrap') or snapshot.get('other_roles') != 0
+            or snapshot.get('relations') != 0
+            or set(snapshot.get('databases', [])) != {'postgres', 'restore_control'}):
+        raise ValueError('Resume requires the failed roles transaction to be rolled back and no target database/data. '
+                         'Existing data/roles are retained; no automatic overwrite.')
+
+
+RESUME_CATALOG_SQL = """SELECT json_build_object(
+ 'bootstrap',coalesce((SELECT rolsuper AND oid=10 FROM pg_roles WHERE rolname=current_user),false),
+ 'other_roles',(SELECT count(*) FROM pg_roles WHERE rolname !~ '^pg_' AND rolname<>current_user),
+ 'relations',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname !~ '^pg_' AND n.nspname<>'information_schema' AND c.relkind IN ('r','p','S')),
+ 'databases',(SELECT json_agg(datname) FROM pg_database WHERE NOT datistemplate));"""
 
 
 def check_extensions(source, available):
@@ -213,7 +263,12 @@ class LocalDocker:
                                                           if not k.startswith(('PG', 'DOCKER_', 'COMPOSE_'))})
         if result.returncode:
             if self.state.is_dir():
-                (self.state / (self.phase + '-error.log')).write_text(result.stderr, encoding='utf-8')
+                log = self.state / (self.phase + '-error.log')
+                if log.exists():
+                    stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S')
+                    log = self.state / (self.phase + '-error-' + stamp + '-' + secrets.token_hex(3) + '.log')
+                with log.open('x', encoding='utf-8') as stream:
+                    stream.write(result.stderr)
             # Do not echo SQL, COPY values, function bodies or the database dump.
             raise RuntimeError('Phase ' + self.phase + ' failed (exit ' + str(result.returncode) + '). '
                                + 'Private error log retained in ' + str(self.state))
@@ -301,10 +356,10 @@ def verify_structure(docker, toc, raw_counts):
     return matched
 
 
-def restore_archive(docker):
+def restore_archive(docker, roles_sql):
     docker.phase = 'roles'
     docker.exec('psql', '-X', '-w', '-v', 'ON_ERROR_STOP=1', '--single-transaction',
-                '-h', '/var/run/postgresql', '-U', ADMIN, '-d', 'restore_control', '-f', '/restore/roles.sql')
+                '-h', '/var/run/postgresql', '-U', ADMIN, '-d', 'restore_control', '-f', '-', input=roles_sql)
     docker.phase = 'database-create'
     docker.sql('CREATE DATABASE ' + DATABASE + ' OWNER postgres TEMPLATE template0;', 'restore_control')
     docker.phase = 'restore'
@@ -313,39 +368,54 @@ def restore_archive(docker):
                 '-h', '/var/run/postgresql', '-U', ADMIN, '-d', DATABASE, '/restore/database.dump')
 
 
-def restore(backup, state):
+def restore(backup, state, *, resume=False):
     if sys.platform != 'linux':
         raise ValueError('Run this restore tool only in the Aliyun Linux terminal.')
     os.umask(0o077)
     backup = Path(backup).resolve()
-    state = validate_destination(state, backup, Path(__file__).resolve().parents[2], Path.home())
+    state = validate_destination(state, backup, Path(__file__).resolve().parents[2], Path.home(), resume=resume)
     manifest = verify_backup(backup)
-    validate_roles_sql((backup / 'roles.sql').read_text(encoding='utf-8'))
+    roles_sql = prepare_roles_sql((backup / 'roles.sql').read_text(encoding='utf-8'))
     inventory = json.loads((backup / 'inventory.json').read_text(encoding='utf-8'))
     if int(inventory['server_version_num']) // 10000 != 17:
         raise ValueError('Expected PostgreSQL 17 source archive.')
     available = int(re.search(r'^MemAvailable:\s+(\d+)', Path('/proc/meminfo').read_text(), re.M)[1]) * 1024
-    if available < 900 * 1024**2 or shutil.disk_usage(Path.home()).free < 4 * 1024**3:
-        raise ValueError('Require at least 900 MiB available memory and 4 GiB free home disk before starting.')
+    minimum_memory = 384 if resume else 900
+    if available < minimum_memory * 1024**2 or shutil.disk_usage(Path.home()).free < 4 * 1024**3:
+        raise ValueError('Require at least ' + str(minimum_memory) + ' MiB available memory and 4 GiB free home disk.')
     docker = LocalDocker(state)
     docker.run(['info', '--format', '{{.ServerVersion}}'])
     image = json.loads(docker.run(['image', 'inspect', IMAGE]))[0]
     if image['Id'] not in IMAGE_IDS or (image['Os'], image['Architecture']) != ('linux', 'amd64'):
         raise ValueError('Local database image identity/platform does not match the verified offline image.')
     containers = docker.run(['ps', '-a', '--format', '{{.Names}}']).splitlines()
-    if CONTAINER in containers:
+    if CONTAINER in containers and not resume:
         raise ValueError('Validation container already exists; do not replace it.')
-    state.mkdir(mode=0o700, parents=True, exist_ok=False)
-    for name in ('data', 'empty-init'):
-        (state / name).mkdir(mode=0o700)
-    # The bind mount bypasses the private parent; postgres must list this empty directory.
-    (state / 'empty-init').chmod(0o755)
-    (state / 'bootstrap-password').write_text(secrets.token_urlsafe(36) + '\n', encoding='ascii')
-    (state / 'compose.yaml').write_text(json.dumps(compose_document(state, backup), indent=2) + '\n', encoding='utf-8')
+    if resume:
+        if CONTAINER not in containers or (state / 'restore-result.json').exists():
+            raise ValueError('Resume requires the existing incomplete validation container, with no success result.')
+        if state.stat().st_uid != os.geteuid() or state.stat().st_mode & 0o077:
+            raise ValueError('Resume state must be owned by the current user with private permissions.')
+        if (json.loads((state / 'compose.yaml').read_text()) != compose_document(state, backup)
+                or not (state / 'bootstrap-password').is_file()
+                or not (state / 'archive-snapshot-counts.json').is_file()):
+            raise ValueError('Resume state is not the matching archive-inspected validation checkpoint.')
+        validate_resume_container(json.loads(docker.run(['inspect', CONTAINER]))[0], state, backup)
+    else:
+        state.mkdir(mode=0o700, parents=True, exist_ok=False)
+        for name in ('data', 'empty-init'):
+            (state / name).mkdir(mode=0o700)
+        # The bind mount bypasses the private parent; postgres must list this empty directory.
+        (state / 'empty-init').chmod(0o755)
+        (state / 'bootstrap-password').write_text(secrets.token_urlsafe(36) + '\n', encoding='ascii')
+        (state / 'compose.yaml').write_text(json.dumps(compose_document(state, backup), indent=2) + '\n', encoding='utf-8')
     print('Private restore state:', state, flush=True)
     docker.phase = 'initialisation'
-    docker.compose('up', '-d', '--pull', 'never')
+    if not resume:
+        docker.compose('up', '-d', '--pull', 'never')
     docker.ready()
+    if resume:
+        validate_resume_catalog(json.loads(docker.sql(RESUME_CATALOG_SQL, 'restore_control')))
     available_extensions = json.loads(docker.sql(
         "SELECT coalesce(json_agg(json_build_object('name',name,'version',version)), '[]'::json) FROM pg_available_extension_versions;",
         'restore_control'))
@@ -359,8 +429,19 @@ def restore(backup, state):
     if 'auth.users' not in expected['rows'] or 'storage.objects' not in expected['rows']:
         raise ValueError('Archive is missing required Auth or Storage data blocks.')
     structure = toc_counts(toc)
-    (state / 'archive-snapshot-counts.json').write_text(json.dumps(expected, indent=2) + '\n', encoding='utf-8')
-    restore_archive(docker)
+    snapshot_path = state / 'archive-snapshot-counts.json'
+    if resume:
+        compare_snapshot(json.loads(snapshot_path.read_text()), expected)
+    else:
+        snapshot_path.write_text(json.dumps(expected, indent=2) + '\n', encoding='utf-8')
+    target_roles = state / 'roles-target.sql'
+    if target_roles.exists():
+        if target_roles.is_symlink() or target_roles.read_text(encoding='utf-8') != roles_sql:
+            raise ValueError('Existing target role script differs; retain it and inspect.')
+    else:
+        with target_roles.open('x', encoding='utf-8') as stream:
+            stream.write(roles_sql)
+    restore_archive(docker, roles_sql)
     docker.phase = 'verification'
     restored_extensions = json.loads(docker.sql(
         "SELECT json_agg(json_build_object('name',extname,'version',extversion)) FROM pg_extension;"))
@@ -381,6 +462,7 @@ def restore(backup, state):
     stats = docker.run(['stats', '--no-stream', '--format', '{{.Name}} memory={{.MemUsage}} cpu={{.CPUPerc}}', CONTAINER]).strip()
     result = {'status': 'isolated_restore_validated_not_cut_over', 'completed_at_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
               'source_archive_sha256': manifest['files']['database.dump']['sha256'], 'image_id': image['Id'],
+              'role_grantor_mapping': {'supabase_admin': ADMIN}, 'target_roles_sha256': checksum(target_roles),
               'catalog_counts': actual_counts, 'row_counts': expected['rows'], 'sequences': expected['sequences'],
               'limits': ['No application cutover; original Supabase remains authoritative.',
                          'Storage bytes and service configuration not copied; Vault decryption not verified.',
@@ -398,9 +480,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backup-dir', type=Path, required=True)
     parser.add_argument('--state-dir', type=Path, default=Path.home() / 'village-db-copy')
+    parser.add_argument('--resume', action='store_true', help='Continue only a pristine, rolled-back roles-stage failure.')
     args = parser.parse_args()
     try:
-        restore(args.backup_dir, args.state_dir)
+        restore(args.backup_dir, args.state_dir, resume=args.resume)
     except (ValueError, RuntimeError, OSError, KeyError) as error:
         print('STOP: ' + str(error), file=sys.stderr)
         print('Retain backup, partial target and private logs. Do not reset or rerun over existing data.', file=sys.stderr)

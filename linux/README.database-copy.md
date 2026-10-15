@@ -69,7 +69,7 @@ Windows 输出默认在 `%USERPROFILE%\village-db-backups`，不会进入 Git。
 
 2026-10-15 的无密码实测：本机客户端使用上述 CA 已完成 TLS 验证并返回 `fe_sendauth: no password supplied`；阿里云 443 的 HTTPS 返回 404，而连接池 5432/6543 的 PostgreSQL TLS 探测均被重置。具体网络重置位置仍未确定。
 
-同日随后由用户在 Windows 交互终端输入数据库密码，成功生成 3,091,358 字节的归档，输出 `DB_BACKUP_ARCHIVE_VERIFIED_NOT_RESTORED`。已重新核对 manifest 中四个文件的 SHA-256；尚未上传阿里云或执行目标恢复。归档成功不能替代恢复与应用验收。
+同日随后由用户在 Windows 交互终端输入数据库密码，成功生成 3,091,358 字节的归档，输出 `DB_BACKUP_ARCHIVE_VERIFIED_NOT_RESTORED`。已重新核对 manifest 中四个文件的 SHA-256；随后上传阿里云并再次通过校验。归档成功不能替代恢复与应用验收。
 
 ## 3. 之后的隔离恢复
 
@@ -110,7 +110,7 @@ python3 linux/scripts/restore-db-copy.py \
 3. 创建 `village-db-copy-postgres` 容器，`network_mode: none`、无宿主机端口映射、内存上限 768 MiB。管理只能通过本机 Docker exec；这不是后续业务 API 的生产网络配置。
 4. 在 `~/village-db-copy` 私有目录保存 Compose、独立的随机 bootstrap 密码和验证报告。数据持久化到其 `data` 子目录。空的只读初始化脚本挂载避开镜像预置业务 schema；使用 PGDATA 内新生成的原生配置，而不是镜像 `/etc/postgresql` 的平台配置。
 5. 使用独立 `village_restore_admin` 初始化，所以源 `postgres` 角色被恢复成非超级用户也不会降权当前恢复连接。源角色密码不恢复；此容器没有外部网络，尚未配置其他服务登录。
-6. 核对扩展版本，恢复角色，再以 template0 创建全新的 `village_copy`，以单事务、遇错停止的方式恢复完整归档，不使用 `--clean`、`--no-owner` 或 `--no-acl`。
+6. 核对扩展版本，恢复角色，再以 template0 创建全新的 `village_copy`，以单事务、遇错停止的方式恢复完整归档，不使用 `--clean`、`--no-owner` 或 `--no-acl`。源角色成员关系的 `GRANTED BY supabase_admin` 映射为目标集群的初始管理员 `village_restore_admin`；成员、权限选项和角色定义不改，原始 `roles.sql` 不改。目标专用脚本保存在私有状态目录的 `roles-target.sql`，映射和摘要记录到验收报告。
 7. 根据归档中每个 COPY 块统计行数、每个 setval 读取序列状态，与目标及重启后的结果比较。扩展配置表如 `extensions.spatial_ref_sys` 的部分数据导出不用于全表行数比较；其定义和归档数据仍随完整恢复写入。
 8. 按 TOC 名称核对表、序列、索引、显式约束、外键、策略、触发器和 RLS 状态，比较非扩展函数、事件触发器与 publication 数量。表/索引 ATTACH 是分区连接操作，不计作额外定义；分区自动生成子约束可能造成目标原始总数高于 TOC，原始数值另存报告。内联 CHECK 随 TABLE DDL 恢复，不与 TOC 的 key constraint 数量混算。
 
@@ -123,6 +123,24 @@ DB_COPY_RESTORE_VERIFIED_NOT_CUT_OVER
 错误会停止，保留备份、部分目标和私有日志。不要删除目录或反复执行覆盖它；只发送终端上的阶段与错误概要，勿粘贴私有日志、SQL 或 dump 内容。需要排查时先审查具体日志的隐私范围。
 
 这仍是**隔离副本验证**：结构清单匹配不证明 RLS 的应用行为、Vault 解密或 Storage 文件迁移已完成。源数据库级设置需要映射到改名的验证数据库；原网站、4090 与托管 Supabase 不改址。实际云端恢复须由终端输出确认，不能把本地测试通过当作恢复成功。
+
+### 从角色授权失败继续
+
+首次云端执行在 `roles` 阶段停止，错误为 `permission denied to grant privileges as role "supabase_admin"`。源集群的初始管理员是 `supabase_admin`，目标集群使用独立的 `village_restore_admin`；源成员关系记录中的授权者不能直接用于这个目标。修订版只映射授权者，不删除授权语句、不修改源备份。
+
+更新 GitHub 脚本后，在同一阿里云终端执行：
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/restore-db-copy.py \
+  --backup-dir "$HOME/village-db-backups/20261015T034526Z-_bfzxy5z" \
+  --resume
+```
+
+`--resume` 仅用于这个尚未写入目标业务数据库的检查点：重新校验备份和镜像，确认已有容器的挂载、Compose 配置与网络隔离一致，检查角色事务已回滚且 `village_copy` 尚不存在，再执行角色及归档恢复。考虑到数据库容器已经占用内存，继续时要求至少 384 MiB 可用内存；首次创建仍要求 900 MiB。原错误日志保留，后续同阶段错误使用另一个日志文件。
+
+如果已存在恢复出的角色、业务数据库或成功报告，继续会被拒绝并保留现场；不要删除目录、容器或数据库来绕过检查。此选项不支持任意恢复阶段的断点续传。
 
 ## 范围限制
 

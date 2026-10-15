@@ -190,7 +190,7 @@ def test_sql_errors_stop_without_resetting_or_continuing(failure):
             return self.exec(*args)
     docker = FailingDocker()
     with pytest.raises(RuntimeError, match='test failure'):
-        m.restore_archive(docker)
+        m.restore_archive(docker, 'CREATE ROLE anon;\n')
     assert docker.calls[-1][0] == failure
     assert all('DROP DATABASE' not in ' '.join(args) for _, args in docker.calls)
 
@@ -247,3 +247,76 @@ def test_named_catalog_checks_accept_generated_children_and_keep_sql_names_quote
     assert matched['tables'] == matched['indexes'] == matched['constraints'] == matched['policies'] == 1
     assert any("Reader''s policy" in query for query in docker.queries)
     assert all('items_child_idx' not in query and 'items_part' not in query for query in docker.queries)
+
+
+def test_source_bootstrap_grantor_is_mapped_without_changing_membership_options():
+    m = module()
+    assert hasattr(m, 'prepare_roles_sql'), 'Target bootstrap grantor mapping is missing'
+    source = '''CREATE ROLE anon;
+CREATE ROLE supabase_admin;
+ALTER ROLE supabase_admin WITH SUPERUSER;
+GRANT anon TO postgres WITH ADMIN OPTION, INHERIT TRUE GRANTED BY supabase_admin;
+GRANT anon TO authenticator WITH INHERIT FALSE GRANTED BY supabase_admin;
+'''
+    target = m.prepare_roles_sql(source)
+    assert target == source.replace('GRANTED BY supabase_admin;', 'GRANTED BY "' + m.ADMIN + '";')
+    assert 'ALTER ROLE supabase_admin WITH SUPERUSER;' in target
+    assert 'GRANTED BY supabase_admin;' in source, 'Do not modify source backup'
+    with pytest.raises(ValueError, match='grantor'):
+        m.prepare_roles_sql('GRANT anon TO postgres GRANTED BY unexpected_role;')
+
+
+def test_roles_are_submitted_on_stdin_in_one_transaction():
+    m = module()
+    class Docker:
+        calls = []
+        def exec(self, *args, **kwargs): self.calls.append((args, kwargs))
+        def sql(self, *args): pass
+    d = Docker()
+    m.restore_archive(d, 'CREATE ROLE anon;\n')
+    args, kwargs = d.calls[0]
+    assert args[args.index('-f') + 1] == '-'
+    assert '--single-transaction' in args
+    assert kwargs['input'] == 'CREATE ROLE anon;\n'
+
+
+def test_resume_container_must_keep_exact_private_mounts_image_labels_and_network(tmp_path):
+    m = module()
+    assert hasattr(m, 'validate_resume_container'), 'Guarded resume validation is missing'
+    state, backup = tmp_path / 'state', tmp_path / 'backup'
+    service = m.compose_document(state, backup)['services']['db']
+    info = {'Image': next(iter(m.IMAGE_IDS)), 'Config': {'Image': m.IMAGE, 'Labels': {
+        'com.docker.compose.project': 'village-db-copy', 'com.docker.compose.service': 'db'}},
+        'HostConfig': {'NetworkMode': 'none', 'PortBindings': {}, 'ReadonlyRootfs': True},
+        'Mounts': [{'Destination': v['target'], 'Source': v['source'], 'RW': not v['read_only']}
+                   for v in service['volumes']]}
+    m.validate_resume_container(info, state, backup)
+    for bad in ('network', 'mount', 'image'):
+        changed = json.loads(json.dumps(info))
+        if bad == 'network': changed['HostConfig']['NetworkMode'] = 'bridge'
+        if bad == 'mount': changed['Mounts'][0]['Source'] = str(tmp_path / 'other-data')
+        if bad == 'image': changed['Image'] = 'sha256:unknown'
+        with pytest.raises(ValueError): m.validate_resume_container(changed, state, backup)
+
+
+def test_resume_refuses_created_database_or_unrolled_source_roles():
+    m = module()
+    assert hasattr(m, 'validate_resume_catalog'), 'Resume rollback checks are missing'
+    pristine = {'bootstrap': True, 'other_roles': 0, 'relations': 0,
+                'databases': ['postgres', 'restore_control']}
+    m.validate_resume_catalog(pristine)
+    for key, value in (('bootstrap', False), ('other_roles', 1), ('relations', 1),
+                       ('databases', ['postgres', 'restore_control', m.DATABASE])):
+        with pytest.raises(ValueError): m.validate_resume_catalog({**pristine, key: value})
+
+
+def test_later_error_does_not_overwrite_original_private_log(tmp_path):
+    m = module()
+    d = object.__new__(m.LocalDocker)
+    d.prefix, d.state, d.phase = ['docker'], tmp_path, 'roles'
+    (tmp_path / 'roles-error.log').write_text('original failure')
+    failed = subprocess.CompletedProcess([], 1, '', 'second failure')
+    with patch.object(m.subprocess, 'run', return_value=failed):
+        with pytest.raises(RuntimeError): d.run(['exec'])
+    assert (tmp_path / 'roles-error.log').read_text() == 'original failure'
+    assert any(p.read_text() == 'second failure' for p in tmp_path.glob('roles-error-*.log'))
