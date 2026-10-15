@@ -22,6 +22,13 @@ test('real PG RLS isolation, role reset, read-only enforcement and source group 
    const sql=(await readFile(new URL('../../linux/sql/business-api-validation.sql',import.meta.url),'utf8')).replaceAll('village_copy',name);
    await setup.query(sql);
    await setup.query("ALTER ROLE village_api_login PASSWORD 'synthetic-only-test-password-0123456789'");
+   await setup.query('CREATE TABLE auth.users(id uuid primary key,email text,raw_user_meta_data jsonb,raw_app_meta_data jsonb,aud text,role text)');
+   const authSource=await readFile(new URL('../../supabase_SQL/Supabase Auth Profiles and Identity RLS.sql',import.meta.url),'utf8');
+   const trigger=authSource.match(/create or replace function public\.handle_new_auth_user\(\)[\s\S]*?\$\$;/i)[0];
+   await setup.query(trigger+'\nCREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user()');
+   const before=await setup.query('SELECT count(*) n FROM profiles');
+   await setup.query(await readFile(new URL('../../linux/sql/business-api-permission-check.sql',import.meta.url),'utf8'));
+   assert.equal((await setup.query('SELECT count(*) n FROM profiles')).rows[0].n,before.rows[0].n);
   }finally{await setup.end();}
   db=createDatabase({host:url.hostname,port:Number(url.port),database:name,user:'village_api_login',password:'synthetic-only-test-password-0123456789'});
   const ids=['10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000004'];
