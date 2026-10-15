@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const { createScenePreviewAdapter } = require('./scene-preview-adapter');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function setup(resolver, budget = 1) {
+function setup(resolver, budget = 1, globe) {
   const entities = new Map(), listeners = new Set();
   const viewer = {
-    scene: { canvas: { width: 1000, height: 1000 }, requestRender() {} },
+    scene: { canvas: { width: 1000, height: 1000 }, globe, requestRender() {} },
     entities: { add(entity) { entities.set(entity.id, entity); return entity; }, remove(entity) { entities.delete(entity.id); } },
     camera: { positionWC: { x: 0, y: 0, z: 10 }, frustum: { fovy: Math.PI / 2 },
       changed: { addEventListener(callback) { listeners.add(callback); return () => listeners.delete(callback); } } }
@@ -20,7 +20,7 @@ function setup(resolver, budget = 1) {
   };
   const adapter = createScenePreviewAdapter({ Cesium, viewer, assetResolver: resolver,
     getModelBudget: () => budget, getDetailPixels: () => 100 });
-  return { adapter, viewer, entities, listeners, change() { for (const callback of listeners) callback(); } };
+  return { adapter, viewer, Cesium, entities, listeners, change() { for (const callback of listeners) callback(); } };
 }
 function scene(points, suffix = '') {
   return { layers: [{ id: 'design', visible: true }], objects: points.map(([id, x]) => ({
@@ -32,6 +32,45 @@ function assets(extra = {}, suffix = '') {
   return new Map([['bench' + suffix, { id: 'bench' + suffix, fileType: 'glb', storagePath: 'full' + suffix,
     footprintM: [2, 2], defaultHeightM: 2, ...extra }]]);
 }
+
+test('terrain tile completion makes elevated ground models eligible and removes its listener on dispose', async () => {
+  let groundHeight;
+  const requests = [], tileListeners = new Set();
+  const globe = {
+    getHeight: () => groundHeight,
+    tileLoadProgressEvent: { addEventListener(callback) { tileListeners.add(callback); return () => tileListeners.delete(callback); } }
+  };
+  const h = setup(async () => { requests.push('load'); return 'signed:bench'; }, 1, globe);
+  h.viewer.camera.positionWC.z = 60;
+  h.Cesium.Cartographic = { fromDegrees: (longitude, latitude) => ({ longitude, latitude }) };
+  h.Cesium.SceneTransforms.wgs84ToWindowCoordinates = (_scene, position) => ({ x: position.z < 40 ? 2000 : 500, y: 500 });
+  await h.adapter.render(scene([['ground', 0]]), assets({ footprintM: [5, 5] }));
+  await tick();
+  assert.equal(requests.length, 0);
+  groundHeight = 45;
+  for (const callback of tileListeners) callback(0);
+  await tick();
+  assert.equal(requests.length, 1, 'visible ground at 45m must not be culled using sea level');
+  assert.equal(h.entities.get('scene-edit:ground').model.uri, 'signed:bench');
+  h.adapter.dispose();
+  assert.equal(tileListeners.size, 0);
+});
+
+test('small bundled seed models keep their lightweight geometry at overview distance without remote signing', async () => {
+  const h = setup(async () => { throw new Error('bundled models must not need signing'); });
+  h.viewer.camera.positionWC.z = 1000;
+  const document = scene([['seed', 0]]);
+  document.objects[0].properties.assetRef = 'seed:bench:test';
+  const url = '3D_scenes_edit/assets/models/bench.glb';
+  await h.adapter.render(document, new Map([['seed:bench:test', {
+    id: 'seed:bench:test', fileType: 'glb', url, footprintM: [2, 2], defaultHeightM: 1
+  }]]));
+  await tick();
+  assert.equal(h.entities.get('scene-edit:seed').model?.uri, url);
+  assert.equal(h.entities.get('scene-edit:seed').box, undefined);
+  assert.equal(h.adapter.getModelStats().resident, 1);
+  h.adapter.dispose();
+});
 
 test('loads only in-view models in budget and prioritizes a selected distant object', async () => {
   const requests = [];

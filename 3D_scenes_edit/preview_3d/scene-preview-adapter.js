@@ -34,6 +34,13 @@
     const pendingLoads = new Set();
     const hasNativeModels = !!(Cesium.Model?.fromGltfAsync && Cesium.Transforms?.headingPitchRollToFixedFrame && viewer.scene?.primitives);
     const profile = () => options.getQualityProfile?.() || Quality?.getProfile?.() || { modelBudget: 24, detailPixels: 100 };
+    function lowModelUrl(asset) {
+      const explicit = asset?.lowUrl || asset?.metadata?.lowUrl;
+      if (explicit) return explicit;
+      // Bundled seeds are already small procedural GLBs; reuse them at overview distance.
+      return String(asset?.id || '').startsWith('seed:') &&
+        String(asset?.url || '').startsWith('3D_scenes_edit/assets/models/') ? asset.url : undefined;
+    }
     const residency = Residency?.createModelResidencyManager?.({
       getBudget: () => options.getModelBudget?.() ?? profile().modelBudget,
       getDetailPixels: () => options.getDetailPixels?.() ?? profile().detailPixels,
@@ -42,7 +49,7 @@
           const record = entry.record;
           const asset = record.asset;
           const low = entry.variant === 'low';
-          const chosen = low ? { ...asset, url: asset.lowUrl || asset.metadata?.lowUrl,
+          const chosen = low ? { ...asset, url: lowModelUrl(asset),
             storagePath: asset.metadata?.lowStoragePath || asset.lowStoragePath } : asset;
           const resolved = chosen?.url || await assetResolver(chosen, { ...record.descriptor, variant: entry.variant });
           const uri = typeof resolved === 'string' ? resolved : resolved?.url;
@@ -179,7 +186,12 @@
         const size = record.asset?.metadata?.realSizeM || [record.asset?.footprintM?.[0] || 1,
           record.asset?.footprintM?.[1] || 1, record.asset?.defaultHeightM || 1];
         const radius = Math.max(.1, Math.hypot(size[0] * descriptor.scale[0], size[1] * descriptor.scale[1], size[2] * descriptor.scale[2]) / 2);
-        const position = Cesium.Cartesian3.fromDegrees(...descriptor.positionDegrees);
+        const [longitude, latitude, offset = 0] = descriptor.positionDegrees;
+        const cartographic = Cesium.Cartographic?.fromDegrees?.(longitude, latitude);
+        const sampledHeight = cartographic ? viewer.scene?.globe?.getHeight?.(cartographic) : undefined;
+        const groundHeight = Number.isFinite(sampledHeight) ? sampledHeight : 0;
+        const position = Cesium.Cartesian3.fromDegrees(longitude, latitude,
+          groundHeight + offset + (Number(record.asset?.metadata?.groundOffsetM) || 0));
         const measured = cameraPosition && Cesium.Cartesian3.distance && Metrics?.measureModelView
           ? Metrics.measureModelView(Cesium, viewer, position, radius)
           : { distance: Infinity, pixels: 1000000, inView: true };
@@ -191,6 +203,7 @@
       if (!disposed && residency) residency.update(viewportCandidates());
     }
     const removeCameraListener = viewer.camera?.changed?.addEventListener?.(updateResidency);
+    const removeTerrainListener = viewer.scene?.globe?.tileLoadProgressEvent?.addEventListener?.(updateResidency);
     const unsubscribeQuality = Quality?.subscribe?.(updateResidency);
 
     function color(name, alpha) {
@@ -376,7 +389,7 @@
           else if (record.modelResource) Object.assign(record.entity, modelGraphics(record, record.modelResource.uri));
           else applyProxy(record);
           residency.register(id, { url: asset?.url || asset?.storagePath,
-            lowUrl: asset?.lowUrl || asset?.metadata?.lowUrl || asset?.metadata?.lowStoragePath || asset?.lowStoragePath,
+            lowUrl: lowModelUrl(asset) || asset?.metadata?.lowStoragePath || asset?.lowStoragePath,
             revision: recordRevision(record), record });
         }
       } else await mapLimit(descriptors.models, 4, async (descriptor) => {
@@ -520,6 +533,8 @@
       disposed = true;
       if (typeof removeCameraListener === 'function') removeCameraListener();
       else viewer.camera?.changed?.removeEventListener?.(updateResidency);
+      if (typeof removeTerrainListener === 'function') removeTerrainListener();
+      else viewer.scene?.globe?.tileLoadProgressEvent?.removeEventListener?.(updateResidency);
       unsubscribeQuality?.();
       residency?.destroy();
       clear();
