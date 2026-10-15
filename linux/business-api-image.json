@@ -1,0 +1,17 @@
+{
+  "image": "village-business-api:stage-a1",
+  "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+  "base_source": "public.ecr.aws/docker/library/node",
+  "code_sha256": "44f941af9c993e66b218385c2916c307867b82413482e0cedeb42c45e6a8d613",
+  "accepted_image_ids": [
+    "sha256:ed72156a629562ec42b376b1980cfc28719040e85ad6b03e9904e2202572d29f",
+    "sha256:93e637a603e6b6ddbe0e11173af839c9b3f6ab1be19bd5d43ee394bab98374f4",
+    "sha256:6098a258a56594f3db1fc3d6af00f8823e0d42dbabd5452f83ba087458f5b5f5"
+  ],
+  "os": "linux",
+  "architecture": "amd64",
+  "archive_filename": "village-business-api-stage-a1-amd64.tar.gz",
+  "archive_bytes": 79436912,
+  "archive_sha256": "0153551cb65e374b8a94bf3473e00fa391955f07e659a93017aeca5ccfa12c92",
+  "runtime_execution": "pending_linux_container_smoke_test"
+}

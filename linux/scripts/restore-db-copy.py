@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import time
+from typing import NamedTuple
 
 
 ADMIN = 'village_restore_admin'
@@ -22,6 +23,16 @@ IMAGE_IDS = {
     'sha256:291367a26b42e028341d7f19b91dffa818c10e9ada6fa9022796a87b57028631',
     'sha256:f519727303f0af6862882be2a30f420e28710d4209226e681aaddb2c01d12d9b',
 }
+class RestoreTarget(NamedTuple):
+    profile: str
+    project: str
+    container: str
+
+def select_target(profile='copy'):
+    targets={'copy':RestoreTarget('copy','village-db-copy',CONTAINER),
+             'api-validation':RestoreTarget('api-validation','village-api-validation','village-api-validation-postgres')}
+    if profile not in targets: raise ValueError('Unknown fixed restore target profile.')
+    return targets[profile]
 FILES = ('database.dump', 'roles.sql', 'inventory.json', 'contents.txt')
 KINDS = {'TABLE': 'tables', 'SEQUENCE': 'sequences', 'FUNCTION': 'functions',
          'INDEX': 'indexes', 'CONSTRAINT': 'constraints', 'FK CONSTRAINT': 'foreign_keys',
@@ -151,17 +162,18 @@ def prepare_roles_sql(sql):
     return '\n'.join(lines) + '\n'
 
 
-def validate_resume_container(info, state, backup):
+def validate_resume_container(info, state, backup, *, target=None):
+    target = target or select_target()
     labels = info.get('Config', {}).get('Labels') or {}
     host = info.get('HostConfig', {})
     if (info.get('Image') not in IMAGE_IDS or info.get('Config', {}).get('Image') != IMAGE
-            or labels.get('com.docker.compose.project') != 'village-db-copy'
+            or labels.get('com.docker.compose.project') != target.project
             or labels.get('com.docker.compose.service') != 'db'
             or host.get('NetworkMode') != 'none' or host.get('PortBindings')
             or not host.get('ReadonlyRootfs')):
         raise ValueError('Existing container identity/isolation does not match the private validation copy.')
     actual = {item['Destination']: item for item in info.get('Mounts', [])}
-    expected = compose_document(state, backup)['services']['db']['volumes']
+    expected = compose_document(state, backup, target=target)['services']['db']['volumes']
     for mount in expected:
         found = actual.get(mount['target'])
         if (not found or Path(found['Source']).resolve() != Path(mount['source']).resolve()
@@ -192,12 +204,13 @@ def check_extensions(source, available):
             raise ValueError('Required extension version unavailable: ' + row['extname'] + ' ' + row['extversion'])
 
 
-def compose_document(state, backup):
+def compose_document(state, backup, *, target=None):
+    target = target or select_target()
     def mount(source, target, read_only=False):
         return {'type': 'bind', 'source': str(source), 'target': target,
                 'read_only': read_only, 'bind': {'create_host_path': False}}
-    return {'name': 'village-db-copy', 'services': {'db': {
-        'image': IMAGE, 'pull_policy': 'never', 'container_name': CONTAINER,
+    return {'name': target.project, 'services': {'db': {
+        'image': IMAGE, 'pull_policy': 'never', 'container_name': target.container,
         'network_mode': 'none', 'restart': 'unless-stopped', 'read_only': True,
         'mem_limit': '768m', 'memswap_limit': '768m', 'cpus': 1.0, 'pids_limit': 256,
         'shm_size': '128m', 'security_opt': ['no-new-privileges:true'],
@@ -251,7 +264,8 @@ WITH user_rel AS (
 
 
 class LocalDocker:
-    def __init__(self, state):
+    def __init__(self, state, *, target=None):
+        self.target = target or select_target()
         self.prefix = ['docker'] if os.geteuid() == 0 else ['sudo', '-n', 'docker']
         self.prefix += ['--host', 'unix:///var/run/docker.sock']
         self.state = state
@@ -278,7 +292,7 @@ class LocalDocker:
         return self.run(['compose', '-f', str(self.state / 'compose.yaml'), *args])
 
     def exec(self, *args, input=None):
-        return self.run(['exec', '-i', '--user', '0', CONTAINER, *args], input=input)
+        return self.run(['exec', '-i', '--user', '0', self.target.container, *args], input=input)
 
     def sql(self, sql, database=DATABASE):
         return self.exec('psql', '-X', '-w', '-A', '-t', '-v', 'ON_ERROR_STOP=1',
@@ -286,7 +300,7 @@ class LocalDocker:
 
     def ready(self):
         for _ in range(45):
-            info = json.loads(self.run(['inspect', CONTAINER]))[0]
+            info = json.loads(self.run(['inspect', self.target.container]))[0]
             if info['State'].get('Health', {}).get('Status') == 'healthy':
                 return
             if not info['State'].get('Running'):
@@ -368,7 +382,8 @@ def restore_archive(docker, roles_sql):
                 '-h', '/var/run/postgresql', '-U', ADMIN, '-d', DATABASE, '/restore/database.dump')
 
 
-def restore(backup, state, *, resume=False):
+def restore(backup, state, *, resume=False, target_profile='copy'):
+    target = select_target(target_profile)
     if sys.platform != 'linux':
         raise ValueError('Run this restore tool only in the Aliyun Linux terminal.')
     os.umask(0o077)
@@ -383,24 +398,24 @@ def restore(backup, state, *, resume=False):
     minimum_memory = 384 if resume else 900
     if available < minimum_memory * 1024**2 or shutil.disk_usage(Path.home()).free < 4 * 1024**3:
         raise ValueError('Require at least ' + str(minimum_memory) + ' MiB available memory and 4 GiB free home disk.')
-    docker = LocalDocker(state)
+    docker = LocalDocker(state, target=target)
     docker.run(['info', '--format', '{{.ServerVersion}}'])
     image = json.loads(docker.run(['image', 'inspect', IMAGE]))[0]
     if image['Id'] not in IMAGE_IDS or (image['Os'], image['Architecture']) != ('linux', 'amd64'):
         raise ValueError('Local database image identity/platform does not match the verified offline image.')
     containers = docker.run(['ps', '-a', '--format', '{{.Names}}']).splitlines()
-    if CONTAINER in containers and not resume:
+    if target.container in containers and not resume:
         raise ValueError('Validation container already exists; do not replace it.')
     if resume:
-        if CONTAINER not in containers or (state / 'restore-result.json').exists():
+        if target.container not in containers or (state / 'restore-result.json').exists():
             raise ValueError('Resume requires the existing incomplete validation container, with no success result.')
         if state.stat().st_uid != os.geteuid() or state.stat().st_mode & 0o077:
             raise ValueError('Resume state must be owned by the current user with private permissions.')
-        if (json.loads((state / 'compose.yaml').read_text()) != compose_document(state, backup)
+        if (json.loads((state / 'compose.yaml').read_text()) != compose_document(state, backup, target=target)
                 or not (state / 'bootstrap-password').is_file()
                 or not (state / 'archive-snapshot-counts.json').is_file()):
             raise ValueError('Resume state is not the matching archive-inspected validation checkpoint.')
-        validate_resume_container(json.loads(docker.run(['inspect', CONTAINER]))[0], state, backup)
+        validate_resume_container(json.loads(docker.run(['inspect', target.container]))[0], state, backup, target=target)
     else:
         state.mkdir(mode=0o700, parents=True, exist_ok=False)
         for name in ('data', 'empty-init'):
@@ -408,7 +423,7 @@ def restore(backup, state, *, resume=False):
         # The bind mount bypasses the private parent; postgres must list this empty directory.
         (state / 'empty-init').chmod(0o755)
         (state / 'bootstrap-password').write_text(secrets.token_urlsafe(36) + '\n', encoding='ascii')
-        (state / 'compose.yaml').write_text(json.dumps(compose_document(state, backup), indent=2) + '\n', encoding='utf-8')
+        (state / 'compose.yaml').write_text(json.dumps(compose_document(state, backup, target=target), indent=2) + '\n', encoding='utf-8')
     print('Private restore state:', state, flush=True)
     docker.phase = 'initialisation'
     if not resume:
@@ -456,10 +471,10 @@ def restore(backup, state, *, resume=False):
     docker.compose('restart', 'db')
     docker.ready()
     compare_snapshot(expected, actual_snapshot(docker, expected))
-    info = json.loads(docker.run(['inspect', CONTAINER]))[0]
+    info = json.loads(docker.run(['inspect', target.container]))[0]
     if info['HostConfig']['NetworkMode'] != 'none' or info['HostConfig'].get('PortBindings'):
         raise ValueError('Container isolation differs from the requested configuration.')
-    stats = docker.run(['stats', '--no-stream', '--format', '{{.Name}} memory={{.MemUsage}} cpu={{.CPUPerc}}', CONTAINER]).strip()
+    stats = docker.run(['stats', '--no-stream', '--format', '{{.Name}} memory={{.MemUsage}} cpu={{.CPUPerc}}', target.container]).strip()
     result = {'status': 'isolated_restore_validated_not_cut_over', 'completed_at_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
               'source_archive_sha256': manifest['files']['database.dump']['sha256'], 'image_id': image['Id'],
               'role_grantor_mapping': {'supabase_admin': ADMIN}, 'target_roles_sha256': checksum(target_roles),
@@ -479,11 +494,13 @@ def restore(backup, state, *, resume=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backup-dir', type=Path, required=True)
-    parser.add_argument('--state-dir', type=Path, default=Path.home() / 'village-db-copy')
+    parser.add_argument('--state-dir', type=Path)
+    parser.add_argument('--target-profile', choices=['copy','api-validation'], default='copy')
     parser.add_argument('--resume', action='store_true', help='Continue only a pristine, rolled-back roles-stage failure.')
     args = parser.parse_args()
     try:
-        restore(args.backup_dir, args.state_dir, resume=args.resume)
+        state = args.state_dir or (Path.home() / ('village-db-copy' if args.target_profile == 'copy' else 'village-api-validation/db'))
+        restore(args.backup_dir, state, resume=args.resume, target_profile=args.target_profile)
     except (ValueError, RuntimeError, OSError, KeyError) as error:
         print('STOP: ' + str(error), file=sys.stderr)
         print('Retain backup, partial target and private logs. Do not reset or rerun over existing data.', file=sys.stderr)

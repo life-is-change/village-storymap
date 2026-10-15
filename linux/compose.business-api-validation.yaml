@@ -1,0 +1,198 @@
+{
+  "name": "village-api-validation",
+  "services": {
+    "db": {
+      "image": "supabase/postgres:17.6.1.136",
+      "pull_policy": "never",
+      "container_name": "village-api-validation-postgres",
+      "restart": "unless-stopped",
+      "read_only": true,
+      "mem_limit": "768m",
+      "memswap_limit": "768m",
+      "cpus": 1.0,
+      "pids_limit": 256,
+      "shm_size": "128m",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [
+        "/tmp:size=64m,mode=1777",
+        "/var/run/postgresql:size=16m,mode=3775"
+      ],
+      "environment": {
+        "PGDATA": "/var/lib/postgresql/data",
+        "POSTGRES_USER": "village_restore_admin",
+        "POSTGRES_DB": "restore_control",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/bootstrap-password",
+        "POSTGRES_INITDB_ARGS": "--encoding=UTF8 --locale=C.UTF-8 --auth-host=scram-sha-256"
+      },
+      "command": [
+        "postgres",
+        "-D",
+        "/var/lib/postgresql/data",
+        "-c",
+        "shared_preload_libraries=pg_stat_statements",
+        "-c",
+        "shared_buffers=128MB",
+        "-c",
+        "work_mem=4MB",
+        "-c",
+        "maintenance_work_mem=64MB",
+        "-c",
+        "max_connections=25",
+        "-c",
+        "max_locks_per_transaction=256",
+        "-c",
+        "max_wal_size=256MB",
+        "-c",
+        "wal_level=logical",
+        "-c",
+        "max_parallel_workers_per_gather=0"
+      ],
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "\\home\\admin\\village-api-validation\\db\\data",
+          "target": "/var/lib/postgresql/data",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "\\home\\admin\\village-api-validation\\db\\empty-init",
+          "target": "/docker-entrypoint-initdb.d",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "\\home\\admin\\village-api-validation\\db\\bootstrap-password",
+          "target": "/run/secrets/bootstrap-password",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "\\home\\admin\\village-db-backups\\20261015T034526Z-_bfzxy5z",
+          "target": "/restore",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "pg_isready",
+          "-h",
+          "127.0.0.1",
+          "-U",
+          "village_restore_admin",
+          "-d",
+          "restore_control"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20,
+        "start_period": "10s"
+      },
+      "logging": {
+        "driver": "local",
+        "options": {
+          "max-size": "5m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "dbnet"
+      ]
+    },
+    "api": {
+      "image": "village-business-api:stage-a1",
+      "pull_policy": "never",
+      "container_name": "village-api-validation-api",
+      "user": "1000:1000",
+      "read_only": true,
+      "restart": "unless-stopped",
+      "mem_limit": "192m",
+      "memswap_limit": "192m",
+      "cpus": 0.5,
+      "pids_limit": 64,
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "tmpfs": [
+        "/tmp:size=16m,mode=1777"
+      ],
+      "networks": [
+        "dbnet",
+        "authegress"
+      ],
+      "ports": [
+        "127.0.0.1:18080:8080"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "NODE_OPTIONS": "--max-old-space-size=96",
+        "SUPABASE_AUTH_ORIGIN": "https://rzmbmwauomzwiyenafha.supabase.co",
+        "SUPABASE_PUBLISHABLE_KEY": "${SUPABASE_PUBLISHABLE_KEY}",
+        "PGHOST": "db",
+        "PGPORT": "5432",
+        "PGDATABASE": "village_copy",
+        "PGUSER": "village_api_login",
+        "PGPASSWORD_FILE": "/run/secrets/api-password",
+        "PORT": "8080"
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "\\home\\admin\\village-api-validation\\api-password",
+          "target": "/run/secrets/api-password",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "depends_on": {
+        "db": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 20
+      },
+      "logging": {
+        "driver": "local",
+        "options": {
+          "max-size": "5m",
+          "max-file": "3"
+        }
+      }
+    }
+  },
+  "networks": {
+    "dbnet": {
+      "internal": true
+    },
+    "authegress": {}
+  }
+}
