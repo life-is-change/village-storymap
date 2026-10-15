@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Guarded, manual Aliyun deployment of the internal read-only API candidate."""
 import argparse
+import hashlib
 import importlib.util
 import ipaddress
 import json
@@ -104,25 +105,65 @@ def preflight(backup,state,baseline,docker):
 
 def validate_runtime(docker,state,backup):
     state=no_links(state)
-    private_file(state/'deployment-checkpoint.json')
+    checkpoint=json.loads(private_file(state/'deployment-checkpoint.json').read_text())
+    private_file(state/'api-password')
     expected=runtime_compose(state,backup,uid=os.geteuid(),gid=os.getegid(),publishable_key=read_public_key())
     if json.loads(private_file(state/'runtime-compose.json').read_text())!=expected:raise ValueError('Runtime Compose changed; inspect before operating.')
-    info=json.loads(docker.run(['inspect',TARGET.container]))[0]
-    labels=info.get('Config',{}).get('Labels') or {}
-    if info['Image'] not in rd.IMAGE_IDS or labels.get('com.docker.compose.project')!=TARGET.project or info['HostConfig'].get('PortBindings'):
-        raise ValueError('Candidate identity or isolation differs.')
-    mounts={m['Destination']:m for m in info.get('Mounts',[])}
-    for v in expected['services']['db']['volumes']:
-        actual=mounts.get(v['target'])
-        if not actual or Path(actual['Source']).resolve()!=Path(v['source']).resolve() or actual['RW']!=not_read_only(v):
-            raise ValueError('Candidate data/credential/backup mounts differ.')
-    api=json.loads(docker.run(['inspect',API]))[0]
-    if (api.get('Config',{}).get('Labels') or {}).get('com.docker.compose.project')!=TARGET.project:
-        raise ValueError('Wrong API container.')
+    metadata=json.loads((ROOT/'linux/business-api-image.json').read_text())
+    if checkpoint.get('api_image_id') not in metadata['accepted_image_ids']:raise ValueError('Candidate checkpoint image is not verified.')
+    image_configs={name:json.loads(docker.run(['image','inspect',image]))[0]['Config']
+                   for name,image in (('api',API_IMAGE),('db',rd.IMAGE))}
+    infos={}
+    for service in ('db','api'):
+        spec=expected['services'][service]
+        info=json.loads(docker.run(['inspect',spec['container_name']]))[0]
+        infos[service]=info
+        config=info.get('Config',{});host=info.get('HostConfig',{});labels=config.get('Labels') or {}
+        image_config=image_configs[service]
+        if (labels.get('com.docker.compose.project')!=TARGET.project or labels.get('com.docker.compose.service')!=service
+            or config.get('Image')!=spec['image'] or not host.get('ReadonlyRootfs') or host.get('Privileged')
+            or host.get('CapAdd') or host.get('PidMode')=='host' or host.get('IpcMode')=='host'
+            or sorted(host.get('SecurityOpt') or [])!=['no-new-privileges:true']
+            or host.get('Memory')!=(192 if service=='api' else 768)*1024**2
+            or host.get('MemorySwap')!=host.get('Memory') or host.get('PidsLimit')!=(64 if service=='api' else 256)
+            or host.get('NanoCpus')!=(500000000 if service=='api' else 1000000000)):
+            raise ValueError('Candidate service identity, privileges or resource limits differ.')
+        if ((config.get('Cmd') or [])!=(spec.get('command',image_config.get('Cmd')) or [])
+            or (config.get('Entrypoint') or [])!=(image_config.get('Entrypoint') or [])
+            or (config.get('WorkingDir') or '')!=(image_config.get('WorkingDir') or '')
+            or (config.get('User') or '')!=(spec.get('user',image_config.get('User')) or '')):
+            raise ValueError('Candidate service command or execution identity differs.')
+        actual_env=dict(e.split('=',1) for e in config.get('Env',[]) if '=' in e)
+        wanted_env={**dict(e.split('=',1) for e in image_config.get('Env') or []),**spec['environment']}
+        if actual_env!=wanted_env:raise ValueError('Candidate service environment differs.')
+        if service=='db':
+            if info['Image'] not in rd.IMAGE_IDS or host.get('PortBindings'):raise ValueError('Candidate database identity or port isolation differs.')
+        else:
+            if info['Image']!=checkpoint['api_image_id'] or config.get('User')!=spec['user'] or sorted(host.get('CapDrop') or [])!=['ALL']:
+                raise ValueError('Candidate API image, user or capabilities differ.')
+        mounts=info.get('Mounts',[])
+        if len(mounts)!=len(spec['volumes']):raise ValueError('Candidate has unexpected mounts.')
+        actual={m['Destination']:m for m in mounts}
+        for v in spec['volumes']:
+            found=actual.get(v['target'])
+            if not found or found.get('Type')!='bind' or Path(found['Source']).resolve()!=no_links(v['source']) or found['RW']!=not_read_only(v):
+                raise ValueError('Candidate data/credential/backup mounts differ.')
+        if set(info.get('NetworkSettings',{}).get('Networks',{}))!={TARGET.project+'_'+n for n in spec['networks']}:
+            raise ValueError('Candidate network membership differs.')
+    for name,internal in (('dbnet',True),('authegress',False)):
+        network=json.loads(docker.run(['network','inspect',TARGET.project+'_'+name]))[0]
+        if network.get('Internal') is not internal:raise ValueError('Candidate network isolation differs.')
+    api=infos['api']
     binding=api['HostConfig'].get('PortBindings') or {}
     if binding!={'8080/tcp':[{'HostIp':'127.0.0.1','HostPort':'18080'}]}:
         raise ValueError('API must be loopback-only.')
-    return info
+    return infos
+
+def runtime_fingerprint(docker,state,backup):
+    infos=validate_runtime(docker,state,backup)
+    identity={name:{'id':info['Id'],'image':info['Image'],'started_at':info['State']['StartedAt']}
+              for name,info in infos.items()}
+    return hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()
 
 def not_read_only(volume):return not volume.get('read_only',False)
 

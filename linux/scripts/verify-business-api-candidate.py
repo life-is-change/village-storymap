@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import json
 import os
+import secrets
 from pathlib import Path
 import sys
 import time
@@ -33,7 +34,33 @@ def verify_permissions(docker):
     docker.phase='candidate-permission-test'
     docker.sql(PERMISSION_SQL)
 
+def write_attempt(state,attempt):
+    path=state/'verification-attempt.json'
+    if path.exists():deploy.private_file(path)
+    temp=state/('verification-attempt-'+secrets.token_hex(8)+'.partial')
+    with os.fdopen(os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w',encoding='utf-8') as stream:json.dump(attempt,stream,indent=2)
+    temp.replace(path)
+
+def start_attempt(state):
+    state=deploy.no_links(state)
+    for name in ('candidate-verification.json','api-acceptance.json','verification-attempt.json'):
+        path=state/name
+        if path.exists():
+            deploy.private_file(path)
+            path.rename(state/(path.stem+'.previous-'+secrets.token_hex(8)+'.json'))
+    attempt={'attempt_id':secrets.token_hex(16),'status':'running','started_at':time.time()}
+    write_attempt(state,attempt)
+    return attempt
+
 def verify(backup,state):
+    attempt=start_attempt(state)
+    try:
+        verify_current_attempt(backup,state,attempt)
+    except BaseException:
+        write_attempt(state,{**attempt,'status':'failed'})
+        raise
+
+def verify_current_attempt(backup,state,attempt):
     docker=rd.LocalDocker(state,target=deploy.TARGET)
     deploy.validate_runtime(docker,state,backup)
     checkpoint=json.loads(deploy.private_file(state/'deployment-checkpoint.json').read_text())
@@ -54,8 +81,11 @@ def verify(backup,state):
     rd.compare_snapshot(expected,rd.actual_snapshot(docker,expected));deploy.validate_runtime(docker,state,backup)
     with urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=5) as response:
         if json.load(response)!={'status':'ok'}:raise ValueError('API health response differs.')
-    result={'status':'permissions_restart_verified','source_archive_sha256':checkpoint['source_archive_sha256'],'api_image_id':checkpoint['api_image_id']}
+    result={'status':'permissions_restart_verified','source_archive_sha256':checkpoint['source_archive_sha256'],
+            'api_image_id':checkpoint['api_image_id'],'attempt_id':attempt['attempt_id'],
+            'runtime_fingerprint':deploy.runtime_fingerprint(docker,state,backup)}
     (state/'candidate-verification.json').write_text(json.dumps(result,indent=2)+'\n')
+    write_attempt(state,{**attempt,'status':'passed'})
     print('CANDIDATE_PERMISSIONS_RESTART_VERIFIED - website login probe still required.')
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--backup-dir',type=Path,required=True);a=p.parse_args();os.umask(0o077)

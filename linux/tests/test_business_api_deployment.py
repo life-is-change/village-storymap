@@ -84,3 +84,40 @@ def test_full_preflight_refuses_tamper_and_resource_shortage_without_mutation(tm
         with pytest.raises(ValueError):m.preflight(backup,candidate,baseline,Docker())
     assert not candidate.exists()
     assert all(c[0] in ('inspect','ps','image') for c in calls)
+
+@pytest.mark.parametrize('bad',['none','apiimage','mount','memory','user','dbnetwork','env','command','dbenv'])
+def test_runtime_requires_verified_complete_container_security(tmp_path,bad):
+    m=module('deploy-business-api-validation.py');state=tmp_path/'candidate';state.mkdir();backup=tmp_path/'backup'
+    image=json.loads((m.ROOT/'linux/business-api-image.json').read_text());doc=m.runtime_compose(state,backup,uid=1001,gid=1001,publishable_key='public')
+    checkpoint={'api_image_id':image['accepted_image_ids'][0]}
+    for name,data in [('deployment-checkpoint.json',checkpoint),('runtime-compose.json',doc)]:
+        (state/name).write_text(json.dumps(data));(state/name).chmod(0o600)
+    (state/'api-password').write_text('private');(state/'api-password').chmod(0o600)
+    infos={}
+    for service in ('db','api'):
+        v=doc['services'][service]
+        infos[v['container_name']]={'Id':'id-'+service,'Image':image['accepted_image_ids'][0] if service=='api' else next(iter(m.rd.IMAGE_IDS)),
+          'Config':{'Image':v['image'],'User':v.get('user',''),'WorkingDir':'/app' if service=='api' else '', 'Cmd':v.get('command',['node','src/main.mjs']),'Entrypoint':None,'Labels':{'com.docker.compose.project':m.TARGET.project,'com.docker.compose.service':service},'Env':[k+'='+x for k,x in v['environment'].items()]},
+          'State':{'StartedAt':'start','Running':True},
+          'HostConfig':{'PortBindings':{} if service=='db' else {'8080/tcp':[{'HostIp':'127.0.0.1','HostPort':'18080'}]},'ReadonlyRootfs':True,'Privileged':False,'Memory':(192 if service=='api' else 768)*1024**2,'MemorySwap':(192 if service=='api' else 768)*1024**2,'NanoCpus':500000000 if service=='api' else 1000000000,'PidsLimit':64 if service=='api' else 256,'CapAdd':None,'CapDrop':['ALL'] if service=='api' else None,'SecurityOpt':['no-new-privileges:true'],'PidMode':'','IpcMode':'private'},
+          'Mounts':[{'Type':'bind','Destination':x['target'],'Source':x['source'],'RW':not x['read_only']} for x in v['volumes']],
+          'NetworkSettings':{'Networks':{m.TARGET.project+'_'+n:{} for n in v['networks']}}}
+    api=infos[m.API];db=infos[m.TARGET.container]
+    if bad=='apiimage':api['Image']='sha256:untrusted'
+    if bad=='mount':api['Mounts'].append({'Type':'bind','Source':'/var/run/docker.sock','Destination':'/var/run/docker.sock','RW':True})
+    if bad=='memory':api['HostConfig']['Memory']=0
+    if bad=='user':api['Config']['User']='0:0';api['HostConfig']['Privileged']=True
+    if bad=='dbnetwork':db['NetworkSettings']['Networks']={'external':{}}
+    if bad=='env':api['Config']['Env'].append('PGPASSWORD=unexpected')
+    if bad=='command':api['Config']['Cmd']=['sh','-c','unexpected-command']
+    if bad=='dbenv':db['Config']['Env'].append('PGDATA=/tmp/another-cluster')
+    class Docker:
+        def run(self,args,**kwargs):
+            if args[0]=='inspect':return json.dumps([infos[args[1]]])
+            if args[:2]==['image','inspect']:return json.dumps([{'Config':{'Env':[],'User':'1000:1000' if args[2]==m.API_IMAGE else '', 'WorkingDir':'/app' if args[2]==m.API_IMAGE else '', 'Cmd':['node','src/main.mjs'] if args[2]==m.API_IMAGE else ['postgres'],'Entrypoint':None}}])
+            if args[:2]==['network','inspect']:return json.dumps([{'Internal':args[2].endswith('_dbnet')}])
+            raise AssertionError(args)
+    with patch.object(m.os,'geteuid',return_value=1001,create=True),patch.object(m.os,'getegid',return_value=1001,create=True),patch.object(m,'read_public_key',return_value='public'):
+        if bad=='none':m.validate_runtime(Docker(),state,backup)
+        else:
+            with pytest.raises(ValueError):m.validate_runtime(Docker(),state,backup)

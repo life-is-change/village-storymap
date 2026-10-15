@@ -17,3 +17,13 @@ def test_permission_failure_does_not_produce_success_report(tmp_path):
         def sql(self,*a,**kw):raise RuntimeError('private SQL failure')
     with pytest.raises(RuntimeError):m.verify_permissions(Bad())
     assert not (tmp_path/'candidate-verification.json').exists()
+
+def test_new_verification_attempt_invalidates_old_success_but_preserves_history(tmp_path):
+    m=module();assert hasattr(m,'start_attempt'),'Attempt invalidation missing'
+    for name in ('candidate-verification.json','api-acceptance.json'):
+        (tmp_path/name).write_text('{"status":"old success"}');(tmp_path/name).chmod(0o600)
+    attempt=m.start_attempt(tmp_path)
+    assert attempt['status']=='running' and attempt['attempt_id']
+    assert not (tmp_path/'candidate-verification.json').exists()
+    assert not (tmp_path/'api-acceptance.json').exists()
+    assert list(tmp_path.glob('candidate-verification.previous-*.json'))

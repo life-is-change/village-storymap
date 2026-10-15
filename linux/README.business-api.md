@@ -81,7 +81,7 @@ python3 linux/scripts/deploy-business-api-validation.py \
 
 ## 3. 真实候选和登录验收
 
-后续的 `verify-business-api-candidate.py` 与 `probe-business-api.py` 分别检查实际候选权限/重启和现有用户的端到端访问。验收脚本交付后执行：
+`verify-business-api-candidate.py` 与 `probe-business-api.py` 分别检查实际候选权限/重启和现有用户的端到端访问。部署通过后执行：
 
 ```bash
 python3 linux/scripts/verify-business-api-candidate.py \
@@ -91,7 +91,7 @@ python3 linux/scripts/probe-business-api.py
 
 probe 会提示输入**网站学号和网站登录密码**，密码隐藏输入；不是数据库密码。只打印状态、数量和阶段耗时，不打印令牌、个人资料或 SQL。Auth 服务不可用时不会换库重试。
 
-只有真实候选权限/重启检查和登录 probe 都通过，才能看到 `BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER`。出现此标记仍然没有切换线上业务。
+只有真实候选权限/重启检查和登录 probe 都通过，才能看到 `BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER`。出现此标记仍然没有切换线上业务。请在权限/重启检查通过后一小时内完成登录 probe；超时或其间重启/重建了候选容器，需要重新执行权限/重启检查。每次检查先归档原报告并使其失效，失败的检查不能继续借用旧成功报告。报告还会绑定当前容器的镜像、ID 和启动时间。
 
 可选的本机访问方式：在本机 PowerShell 运行 `ssh -N -L 18080:127.0.0.1:18080 admin@8.148.248.237`，然后访问本机 `http://127.0.0.1:18080/healthz`。仅内部测试，无需开放服务器 18080/5432 防火墙端口。公网业务接入前需完成 HTTPS 入口和后续阶段。
 

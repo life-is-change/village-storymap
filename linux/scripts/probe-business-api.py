@@ -50,12 +50,21 @@ def perform_probe(api_url,student,password,opener=None):
         # Deliberately avoid returning identity, tokens, profile fields or password.
         return {'status':'authenticated_read_probe_passed','counts':counts,'auth_ms':auth_ms,'read_routes_ms':round((time.monotonic()-t)*1000)}
     except (OSError,ValueError,KeyError,TypeError):raise RuntimeError('PROBE_FAILED - check website credentials, Auth reachability and candidate API private logs.') from None
-def acceptance_ready(verification,checkpoint,probe):
+def acceptance_ready(verification,checkpoint,probe,*,attempt=None,runtime_fingerprint=None):
+    attempt=attempt or {}
     if (verification.get('status')!='permissions_restart_verified' or probe.get('status')!='authenticated_read_probe_passed'
         or not checkpoint.get('source_archive_sha256') or not checkpoint.get('api_image_id')
-        or any(verification.get(k)!=checkpoint[k] for k in ('source_archive_sha256','api_image_id'))):
+        or any(verification.get(k)!=checkpoint[k] for k in ('source_archive_sha256','api_image_id'))
+        or attempt.get('status')!='passed' or not attempt.get('attempt_id')
+        or verification.get('attempt_id')!=attempt['attempt_id']
+        or not runtime_fingerprint or verification.get('runtime_fingerprint')!=runtime_fingerprint
+        or not isinstance(attempt.get('started_at'),(int,float))
+        or not 0<=time.time()-attempt['started_at']<=3600):
         raise ValueError('Matching candidate permission/restart proof and login probe are both required.')
     return True
+
+def acceptance_report(probe,verification):
+    return {**probe,'probe_status':probe['status'],'status':'internal_validated_not_cut_over','verification_attempt_id':verification['attempt_id']}
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--api-url',default='http://127.0.0.1:18080');a=p.parse_args();os.umask(0o077)
     try:
@@ -68,10 +77,11 @@ def main():
         if sys.platform=='linux' and a.api_url=='http://127.0.0.1:18080':
             checkpoint=json.loads(deploy.private_file(state/'deployment-checkpoint.json').read_text())
             verification=json.loads(deploy.private_file(state/'candidate-verification.json').read_text())
+            attempt=json.loads(deploy.private_file(state/'verification-attempt.json').read_text())
             backup=json.loads(deploy.private_file(state/'runtime-compose.json').read_text())['services']['db']['volumes'][-1]['source']
-            deploy.validate_runtime(deploy.rd.LocalDocker(state,target=deploy.TARGET),state,Path(backup))
-            acceptance_ready(verification,checkpoint,probe)
-            (state/'api-acceptance.json').write_text(json.dumps({'status':'internal_validated_not_cut_over',**probe},indent=2)+'\n')
+            fingerprint=deploy.runtime_fingerprint(deploy.rd.LocalDocker(state,target=deploy.TARGET),state,Path(backup))
+            acceptance_ready(verification,checkpoint,probe,attempt=attempt,runtime_fingerprint=fingerprint)
+            (state/'api-acceptance.json').write_text(json.dumps(acceptance_report(probe,verification),indent=2)+'\n')
             print('BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER')
         else:print('LOGIN_READ_PROBE_PASSED - run server-side candidate acceptance before claiming complete validation.')
         return 0

@@ -33,4 +33,16 @@ def test_acceptance_requires_matching_sql_restart_and_auth_proof():
     m=module()
     with pytest.raises(ValueError):m.acceptance_ready({}, {}, {'status':'authenticated_read_probe_passed'})
     checkpoint={'source_archive_sha256':'a','api_image_id':'i'}
-    assert m.acceptance_ready({'status':'permissions_restart_verified','source_archive_sha256':'a','api_image_id':'i'},checkpoint,{'status':'authenticated_read_probe_passed'})
+    import time
+    verification={'status':'permissions_restart_verified','source_archive_sha256':'a','api_image_id':'i','attempt_id':'new','runtime_fingerprint':'current'}
+    attempt={'status':'passed','attempt_id':'new','started_at':time.time()}
+    assert m.acceptance_ready(verification,checkpoint,{'status':'authenticated_read_probe_passed'},attempt=attempt,runtime_fingerprint='current')
+    for bad in ({**attempt,'status':'failed'},{**attempt,'status':'running'},{**attempt,'attempt_id':'old'},{**attempt,'started_at':0}):
+        with pytest.raises(ValueError):m.acceptance_ready(verification,checkpoint,{'status':'authenticated_read_probe_passed'},attempt=bad,runtime_fingerprint='current')
+    with pytest.raises(ValueError):m.acceptance_ready(verification,checkpoint,{'status':'authenticated_read_probe_passed'},attempt=attempt,runtime_fingerprint='different')
+
+def test_saved_acceptance_has_final_status_and_preserves_probe_status():
+    m=module();assert hasattr(m,'acceptance_report'),'Final acceptance writer missing'
+    value=m.acceptance_report({'status':'authenticated_read_probe_passed','counts':{}},{'attempt_id':'new'})
+    assert value['status']=='internal_validated_not_cut_over'
+    assert value['probe_status']=='authenticated_read_probe_passed'
