@@ -23,11 +23,12 @@
 - [x] Add an Ubuntu 24.04 installer for official PostgreSQL 17 clients only.
 - [x] Add interactive backup command with inventory, role export, custom archive, full offline archive decoding and checksums.
 - [x] Verify tests, installer Bash syntax and CLI help. Review and prepare the scripts for GitHub `main`.
-- [ ] Execute on Aliyun after the user enters the database password locally. This is pending authenticated terminal access; browser Workbench access previously failed its permission check and must not be bypassed.
+- [x] Execute the backup on the Windows workstation after the user enters the database password locally. Aliyun-to-source database connections reset before authentication; the workstation is the verified export hop.
+- [ ] Transfer the verified archive privately to Aliyun. Authenticated Workbench access is still blocked by the browser's saved origin denial and must not be bypassed.
 
 ## Task 2: Isolated restore validation
 
-- [ ] Inspect actual archive/roles and compatibility before generating a restore operation.
+- [x] Inspect actual archive/roles and compatibility before generating a restore operation. Source roles and preinstalled schema conflicts still require an explicit target restoration strategy; this audit does not establish restore success.
 - [ ] Use the verified official image `supabase/postgres:17.6.1.136` (from self-hosted/v0.8.2), an internal Docker network and no published database port. Verify image availability first.
 - [ ] Restore to a fresh destination; stop on SQL errors, retain partial target and backups, never reset an existing target.
 - [ ] Compare schema objects, constraints, RLS/grants, functions, sequence state and snapshot table contents, including Auth and Storage metadata.
@@ -44,3 +45,6 @@
 - Ruling: Use Windows workstation as an export hop, then transfer the archive privately to Aliyun. Verified workstation TLS 1.3 with the dashboard CA, and native EDB PG17 client reached authentication (`no password supplied`). No credentials were transmitted by these probes.
 - 2026-10-15: Prepared official EDB PG17.11-5 client files outside the repository after matching the publisher's ZIP checksum. Added Windows entrypoint, NTFS ACL enforcement, bundled public CA and missing-CA refusal; no local database service is installed or started. Backup still awaits interactive password input.
 - 2026-10-15: Windows review found a binary-stderr handling issue in the ACL failure path; reproduced it with a failing test and added decoding before password redaction. Actual NTFS ACL output retains administrator/owner rights as well as current user/SYSTEM; documentation reflects that scope.
+- 2026-10-15: User completed the Windows export at 03:51 UTC. Archive size 3,091,358 bytes; full offline decoding succeeded. Recomputed all four manifest file hashes successfully. No target database has been restored and Storage object bytes have not been transferred.
+- 2026-10-15: Read-only inspection found PostgreSQL 17 / PostGIS / Vault dependencies and managed global role definitions that must not be applied blindly to a preinitialised target. The bootstrap admin must not be demoted by restoring the source postgres role definition.
+- 2026-10-15: User steered the application migration toward ordinary business data on Aliyun while retaining Supabase for 4090 task dispatch. See the hybrid migration design draft; the full archive remains a private recovery source, not a cutover operation.

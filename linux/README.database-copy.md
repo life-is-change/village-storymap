@@ -67,7 +67,9 @@ python .\linux\scripts\backup-managed-db.py
 
 Windows 输出默认在 `%USERPROFILE%\village-db-backups`，不会进入 Git。临时 pgpass 位于受保护的备份子目录中，退出时清除。PowerShell 的密码提示必须在交互终端中输入，不能把密码写入命令参数或聊天。
 
-2026-10-15 的无密码实测：本机客户端使用上述 CA 已完成 TLS 验证并返回 `fe_sendauth: no password supplied`；阿里云 443 的 HTTPS 返回 404，而连接池 5432/6543 的 PostgreSQL TLS 探测均被重置。这验证了本机路径可进入认证阶段，不证明密码已通过，也尚未导出数据。具体网络重置位置仍未确定。
+2026-10-15 的无密码实测：本机客户端使用上述 CA 已完成 TLS 验证并返回 `fe_sendauth: no password supplied`；阿里云 443 的 HTTPS 返回 404，而连接池 5432/6543 的 PostgreSQL TLS 探测均被重置。具体网络重置位置仍未确定。
+
+同日随后由用户在 Windows 交互终端输入数据库密码，成功生成 3,091,358 字节的归档，输出 `DB_BACKUP_ARCHIVE_VERIFIED_NOT_RESTORED`。已重新核对 manifest 中四个文件的 SHA-256；尚未上传阿里云或执行目标恢复。归档成功不能替代恢复与应用验收。
 
 ## 3. 之后的隔离恢复
 
@@ -83,5 +85,9 @@ Windows 输出默认在 `%USERPROFILE%\village-db-backups`，不会进入 Git。
 - Role 登录密码需要在隔离目标重新设置；原平台密码仍然有效，不进行密码轮换。
 - 保留的原 Supabase 不会自动同步以后切换到新端点后的写入。
 - 完整 Auth/API/Storage/Realtime 切换、4090 Worker 改址与性能比较属于后续验收，本阶段没有自动切换。
+
+## 后续业务拆分范围
+
+用户随后要求优先把日常业务迁往阿里云，保留 Supabase 的 4090 任务通道。依赖审计与分阶段方案见 [混合数据库迁移设计草案](../docs/superpowers/specs/2026-10-15-hybrid-database-migration-design.md)。隔离恢复验证仍然适用，但不能把数据库副本恢复误认为业务已经切换，也不能直接按任务表前缀拆库。
 
 参考：<https://supabase.com/docs/guides/self-hosting/restore-from-platform>。
