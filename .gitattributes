@@ -1,3 +1,4 @@
 *.sh text eol=lf
 *.service text eol=lf
+linux/certs/*.crt text eol=lf
 3D_scenes_edit/legacy/** -text

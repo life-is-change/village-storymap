@@ -5,8 +5,10 @@ import datetime as dt
 import getpass
 import hashlib
 import json
+import locale
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -17,6 +19,7 @@ HOST = 'aws-1-ap-northeast-1.pooler.supabase.com'
 PORT = '5432'
 DATABASE = 'postgres'
 USER = 'postgres.rzmbmwauomzwiyenafha'
+CA_FILE = Path(__file__).resolve().parents[1] / 'certs' / 'supabase-prod-ca-2021.crt'
 
 INVENTORY_SQL = """SELECT json_build_object(
  'server_version', current_setting('server_version'),
@@ -48,7 +51,30 @@ def validate_output_root(path, repo, home):
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, text=True, capture_output=True, **kwargs)
+    return subprocess.run(command, check=True, text=True, encoding='utf-8', capture_output=True, **kwargs)
+
+
+def pg_tool(bin_dir, name):
+    return Path(bin_dir) / (name + ('.exe' if os.name == 'nt' else ''))
+
+
+def private_directory(path):
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name == 'nt':
+        identity = subprocess.check_output(['whoami', '/user', '/fo', 'csv', '/nh'])
+        match = re.search(rb'S-\d-\d+(?:-\d+)+', identity)
+        if not match:
+            raise ValueError('Cannot determine current Windows user SID; no backup was written.')
+        sid = match.group().decode('ascii')
+        # A Windows chmod alone does not restrict NTFS access. Protect the directory
+        # before creating any archive or credential files inside it.
+        subprocess.run(['icacls', str(path), '/inheritance:r', '/grant:r',
+                        '*' + sid + ':(OI)(CI)F', '*S-1-5-18:(OI)(CI)F'],
+                       check=True, capture_output=True)
+    else:
+        if path.stat().st_uid != os.geteuid():
+            raise ValueError('Backup directory must be owned by the current user.')
+        path.chmod(0o700)
 
 
 def checksum(path):
@@ -59,49 +85,50 @@ def checksum(path):
     return digest.hexdigest()
 
 
-def backup(output_root, bin_dir, password, repo, home):
+def backup(output_root, bin_dir, password, repo, home, ssl_root_cert=CA_FILE):
     # Validate before making directories, opening a credential file or contacting the source.
     line = pgpass_line(HOST, PORT, DATABASE, USER, password)
     output_root = validate_output_root(output_root, repo, home)
-    output_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if os.name == 'posix' and output_root.stat().st_uid != os.geteuid():
-        raise ValueError('Backup directory must be owned by the current user.')
-    output_root.chmod(0o700)
+    ssl_root_cert = Path(ssl_root_cert).resolve()
+    if not ssl_root_cert.is_file():
+        raise ValueError('Trusted server CA certificate file is missing; no backup was started.')
+    private_directory(output_root)
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ-')
     destination = Path(tempfile.mkdtemp(prefix=stamp, dir=output_root))
+    private_directory(destination)
     print('Backup directory:', destination, flush=True)
     bin_dir = Path(bin_dir)
     started = dt.datetime.now(dt.timezone.utc).isoformat()
-    with tempfile.TemporaryDirectory(prefix='village-pg-credential-') as credential_dir:
+    with tempfile.TemporaryDirectory(prefix='credential-', dir=destination) as credential_dir:
         credential = Path(credential_dir) / 'pgpass'
         credential.write_text(line, encoding='utf-8')
         credential.chmod(0o600)
         env = {key: value for key, value in os.environ.items() if not key.startswith('PG')}
         env.update(PGHOST=HOST, PGPORT=PORT, PGDATABASE=DATABASE, PGUSER=USER,
                    PGPASSFILE=str(credential), PGSSLMODE='verify-full',
-                   PGSSLROOTCERT='system', PGCONNECT_TIMEOUT='15',
+                   PGSSLROOTCERT=str(ssl_root_cert), PGCONNECT_TIMEOUT='15', PGCLIENTENCODING='UTF8',
                    PGAPPNAME='village-db-backup',
                    PGOPTIONS='-c default_transaction_read_only=on -c lock_timeout=5000 -c statement_timeout=120000')
         print('Reading source inventory using verified TLS...', flush=True)
-        inventory = json.loads(run([str(bin_dir / 'psql'), '-X', '-w', '-A', '-t',
+        inventory = json.loads(run([str(pg_tool(bin_dir, 'psql')), '-X', '-w', '-A', '-t',
                                    '-v', 'ON_ERROR_STOP=1', '-c', INVENTORY_SQL], env=env).stdout)
         if int(inventory['server_version_num']) // 10000 != 17:
             raise ValueError('Expected source PostgreSQL 17; stop and review client/target versions.')
         (destination / 'inventory.json').write_text(json.dumps(inventory, indent=2) + '\n', encoding='utf-8')
         print('Exporting roles (role passwords are excluded)...', flush=True)
         roles_partial = destination / 'roles.sql.partial'
-        run([str(bin_dir / 'pg_dumpall'), '-w', '--roles-only', '--no-role-passwords',
+        run([str(pg_tool(bin_dir, 'pg_dumpall')), '-w', '--roles-only', '--no-role-passwords',
              '--file', str(roles_partial)], env=env)
         roles_partial.rename(destination / 'roles.sql')
         print('Exporting a consistent database archive...', flush=True)
         partial = destination / 'database.dump.partial'
-        run([str(bin_dir / 'pg_dump'), '-w', '--format=custom', '--lock-wait-timeout=5s',
+        run([str(pg_tool(bin_dir, 'pg_dump')), '-w', '--format=custom', '--lock-wait-timeout=5s',
              '--file', str(partial)], env=env)
     # Credentials are removed before offline verification; no destination DB is contacted.
     print('Decoding the entire archive offline (not restoring)...', flush=True)
     offline_env = {key: value for key, value in os.environ.items() if not key.startswith('PG')}
-    toc = run([str(bin_dir / 'pg_restore'), '--list', str(partial)], env=offline_env).stdout
-    run([str(bin_dir / 'pg_restore'), '--file', os.devnull, str(partial)], env=offline_env)
+    toc = run([str(pg_tool(bin_dir, 'pg_restore')), '--list', str(partial)], env=offline_env).stdout
+    run([str(pg_tool(bin_dir, 'pg_restore')), '--file', os.devnull, str(partial)], env=offline_env)
     if 'TABLE DATA auth users ' not in toc:
         raise ValueError('Archive is missing auth.users table data; retain the partial backup and inspect.')
     partial.rename(destination / 'database.dump')
@@ -114,6 +141,7 @@ def backup(output_root, bin_dir, password, repo, home):
         'started_at_utc': started,
         'completed_at_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
         'source': {'host': HOST, 'database': DATABASE, 'user': USER},
+        'ca_certificate_sha256': checksum(ssl_root_cert),
         'files': {name: {'bytes': (destination / name).stat().st_size,
                          'sha256': checksum(destination / name)} for name in files},
         'limits': ['Role passwords excluded; regenerate on target.',
@@ -134,16 +162,18 @@ def backup(output_root, bin_dir, password, repo, home):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-root', type=Path, default=Path.home() / 'village-db-backups')
-    parser.add_argument('--bin-dir', type=Path, default=Path('/usr/lib/postgresql/17/bin'))
+    default_bin = Path.home() / '.codex/tools/village-pg17/pgsql/bin' if os.name == 'nt' else Path('/usr/lib/postgresql/17/bin')
+    parser.add_argument('--bin-dir', type=Path, default=default_bin)
+    parser.add_argument('--ssl-root-cert', type=Path, default=CA_FILE)
     args = parser.parse_args()
     secret = ''
     try:
-        if os.name != 'posix':
-            raise ValueError('Run on the Ubuntu server using its private terminal.')
         os.umask(0o077)
         for name in ('psql', 'pg_dump', 'pg_dumpall', 'pg_restore'):
-            if not os.access(args.bin_dir / name, os.X_OK):
-                raise ValueError('Install PostgreSQL 17 clients: bash linux/scripts/install-db-copy-clients.sh')
+            if not os.access(pg_tool(args.bin_dir, name), os.X_OK):
+                raise ValueError('PostgreSQL 17 clients are missing; install them or supply --bin-dir. See linux/README.database-copy.md.')
+        if not args.ssl_root_cert.is_file():
+            raise ValueError('Trusted server CA certificate is missing; supply --ssl-root-cert.')
         validate_output_root(args.output_root, Path(__file__).resolve().parents[2], Path.home())
         # Refuse getpass's echoing fallback on terminals that cannot hide input.
         with warnings.catch_warnings():
@@ -151,9 +181,12 @@ def main():
             secret = getpass.getpass('Supabase DATABASE password (hidden; not your website password): ')
         if not secret:
             raise ValueError('Empty database password; backup was not started.')
-        backup(args.output_root, args.bin_dir, secret, Path(__file__).resolve().parents[2], Path.home())
+        backup(args.output_root, args.bin_dir, secret, Path(__file__).resolve().parents[2], Path.home(),
+               ssl_root_cert=args.ssl_root_cert)
     except (ValueError, OSError, subprocess.CalledProcessError, getpass.GetPassWarning, EOFError) as error:
         detail = getattr(error, 'stderr', None) or str(error)
+        if isinstance(detail, bytes):
+            detail = detail.decode(locale.getpreferredencoding(False), errors='replace')
         if secret:
             detail = detail.replace(secret, '[REDACTED]')
         print('STOP: ' + detail[:2000], file=sys.stderr)

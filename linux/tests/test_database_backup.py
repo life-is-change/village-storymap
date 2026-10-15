@@ -59,9 +59,10 @@ def test_failed_dump_retains_partial_backup_removes_credential_and_cannot_claim_
                 assert credential.is_file()
                 assert 'PGPASSWORD' not in env
                 assert env['PGSSLMODE'] == 'verify-full'
+                assert Path(env['PGSSLROOTCERT']).is_file(), 'use the dashboard CA, not an assumed system CA'
                 assert 'default_transaction_read_only=on' in env['PGOPTIONS']
                 assert secret not in ' '.join(command)
-            tool = Path(command[0]).name
+            tool = Path(command[0]).stem
             if tool == 'psql':
                 return subprocess.CompletedProcess(command, 0, json.dumps({'server_version_num': 170006}), '')
             if tool == 'pg_dumpall':
@@ -85,7 +86,7 @@ def test_archive_decode_failure_is_not_reported_as_verified_backup():
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         def fake_run(command, **kwargs):
-            tool = Path(command[0]).name
+            tool = Path(command[0]).stem
             if tool == 'psql':
                 return subprocess.CompletedProcess(command, 0, '{"server_version_num":170006}', '')
             if tool in ('pg_dump', 'pg_dumpall'):
@@ -107,7 +108,7 @@ def test_verified_archive_has_matching_checksums_unique_directory_and_no_saved_s
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         def fake_run(command, **kwargs):
-            tool = Path(command[0]).name
+            tool = Path(command[0]).stem
             assert secret not in ' '.join(command)
             if tool == 'psql':
                 return subprocess.CompletedProcess(command, 0, '{"server_version_num":170006}', '')
@@ -150,7 +151,7 @@ def test_decodable_archive_missing_auth_data_is_retained_but_not_verified():
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         def fake_run(command, **kwargs):
-            tool = Path(command[0]).name
+            tool = Path(command[0]).stem
             if tool == 'psql':
                 return subprocess.CompletedProcess(command, 0, '{"server_version_num":170006}', '')
             if tool in ('pg_dump', 'pg_dumpall'):
@@ -161,3 +162,46 @@ def test_decodable_archive_missing_auth_data_is_retained_but_not_verified():
                 module.backup(root / 'backups', root / 'tools', 'secret', root / 'repo', root / 'home')
         assert list((root / 'backups').glob('*/database.dump.partial'))
         assert not list((root / 'backups').glob('*/manifest.json'))
+
+
+def test_bundled_ca_matches_the_certificate_from_the_authenticated_dashboard():
+    module = load_script()
+    assert module.checksum(module.CA_FILE) == '700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7'
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows entrypoint behavior')
+def test_windows_cli_allows_interactive_backup_and_selects_exe_clients():
+    module = load_script()
+    assert module.pg_tool(Path('tools'), 'psql').name == 'psql.exe'
+    with patch.object(module.sys, 'argv', ['backup-managed-db.py']), \
+         patch.object(module.os, 'access', return_value=True), \
+         patch.object(module.getpass, 'getpass', return_value='test-secret'), \
+         patch.object(module, 'backup') as execute:
+        assert module.main() == 0
+    execute.assert_called_once()
+
+
+def test_missing_custom_ca_stops_before_creating_backup_or_contacting_database():
+    module = load_script()
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        with patch.object(module, 'run') as runner:
+            with pytest.raises(ValueError, match='certificate'):
+                module.backup(root / 'backups', root / 'tools', 'secret', root / 'repo', root / 'home',
+                              ssl_root_cert=root / 'missing-ca.crt')
+        assert not (root / 'backups').exists()
+        runner.assert_not_called()
+
+
+def test_cli_reports_binary_acl_error_without_traceback_or_password(capsys):
+    module = load_script()
+    secret = 'fake-password-only-for-test'
+    failure = subprocess.CalledProcessError(1, ['icacls'], stderr=b'access denied: fake-password-only-for-test')
+    with patch.object(module.sys, 'argv', ['backup-managed-db.py']), \
+         patch.object(module.os, 'access', return_value=True), \
+         patch.object(module.getpass, 'getpass', return_value=secret), \
+         patch.object(module, 'backup', side_effect=failure):
+        assert module.main() == 1
+    error = capsys.readouterr().err
+    assert 'STOP:' in error and '[REDACTED]' in error
+    assert secret not in error and 'Traceback' not in error
