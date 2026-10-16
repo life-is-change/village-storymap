@@ -22,7 +22,9 @@ export async function getSpace(client,kind,id,userId){
 // Keep source Storage RLS in force AND constrain each allowed bucket explicitly.
 // Legacy public house-photo reads remain authenticated at this candidate API.
 export async function getStorageObject(client,id){
- return (await client.query(`SELECT o.id,o.bucket_id AS bucket,o.name FROM storage.objects o
+ return (await client.query(`SELECT o.id,o.bucket_id AS bucket,o.name,
+ to_char(o.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS snapshot_updated_at,
+ o.metadata->'size' AS declared_size,o.metadata->>'eTag' AS snapshot_etag,to_jsonb(o)->>'version' AS snapshot_version FROM storage.objects o
  WHERE o.id=$1 AND CASE o.bucket_id
  WHEN 'house-photos' THEN auth.uid() IS NOT NULL
  WHEN 'group-models' THEN (

@@ -24,6 +24,9 @@ test('invalid index or database identity never selects another local path',async
   await writeFile(f.indexPath,JSON.stringify(f.index));const reader=await m.createStorageReader(f);
   await assert.rejects(()=>reader.open({...f.object,name:'another.glb'}),{code:'FILE_UNAVAILABLE'});
   await assert.rejects(()=>reader.open({...f.object,id:'b0000000-0000-4000-8000-000000000001'}),{code:'FILE_UNAVAILABLE'});
+  for(const patch of [{declared_size:f.bytes.length+1},{snapshot_updated_at:'2026-10-16T00:00:00.000001Z'},{snapshot_etag:'changed'},{snapshot_version:'v2'}]){
+   await assert.rejects(()=>reader.open({...f.object,...patch}),{code:'FILE_UNAVAILABLE'});
+  }
  }finally{await f.cleanup();}
 });
 test('changed bytes are rejected before a response can be sent',async()=>{

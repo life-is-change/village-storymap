@@ -4,12 +4,12 @@
 
 ## 部署位置与权限
 
-- 新 API：`village-storage-validation-api`，仅 `127.0.0.1:18081`，上限 192 MiB；复用 A 的内部数据库网络，不启动第二个数据库。
+- 新 API：`village-storage-validation-api`，仅 `127.0.0.1:18081`，上限 192 MiB；复用 A 的内部数据库网络，不启动第二个数据库。新增候选专属账号 `village_storage_read_login`，数据库连接上限和连接池均为 2；A 原账号/连接池上限保持 4，避免两个 API 争抢同一账号限额。
 - 新私有状态：`/home/admin/village-storage-api-validation/`（0700），索引/检查点/报告为 0600。
-- B1 blobs 目录只读挂载；索引和现有最小权限 API 数据库口令只读挂载。不挂载源 Secret、bootstrap 口令、备份归档或 Docker socket。
+- B1 blobs 目录只读挂载；索引和新候选独立生成的数据库口令只读挂载。专属账号只有 authenticated 的 SET 权限，默认只读事务，不是超级用户、不能绕过 RLS。不挂载源 Secret、bootstrap 口令、备份归档或 Docker socket。
 - 接口：`GET|HEAD /api/v1/files/<对象 UUID>`。验证现有 Supabase 登录身份，再以 authenticated 角色做只读 SQL；Storage RLS 和明确桶谓词共同过滤。索引和文件摘要不会替代权限校验。
 - `group-models` 遵循共享/本人/所属组/管理员规则；场景和村庄文件调用已有权限函数。`house-photos` 原有读取规则允许所有已登录用户；本次没有把它改为课程私有，也不提供匿名读取。
-- 每次响应前从同一文件句柄重算摘要，再流式发送；单文件最多 50 MiB，同时最多 4 个读取，1 MiB 哈希缓冲、64 KiB 流缓冲。不提供目录列表或令牌 URL，响应 `no-store`、`nosniff`、attachment。
+- 每次响应前核对数据库对象的更新时间（UTC 微秒）、大小、eTag 和版本，再从同一文件句柄重算摘要并流式发送；单文件最多 50 MiB，同时最多 4 个读取，1 MiB 哈希缓冲、64 KiB 流缓冲。不提供目录列表或令牌 URL，响应 `no-store`、`nosniff`、attachment。
 
 ## 1. 在本机找到并上传镜像
 
@@ -66,7 +66,7 @@ python3 linux/scripts/deploy-storage-read-validation.py --check &&
 python3 linux/scripts/deploy-storage-read-validation.py --deploy
 ```
 
-检查会确认 A 的已验收运行身份未变化、B1 文件全部校验、数据库对象与索引匹配、实际存储 RLS/账号权限存在、镜像正确、256 MiB 可用内存及 4 GiB 磁盘余量。检查不启动容器或修改数据库数据。部署只创建新 API，不重启数据库、A API 或 Nginx。
+检查会确认 A 的已验收运行身份未变化、B1 文件全部校验、数据库对象身份及版本字段与索引匹配、实际存储 RLS/账号权限和原内网连接规则存在、镜像正确、256 MiB 可用内存及 4 GiB 磁盘余量。检查不启动容器或修改数据库。部署会新增独立受限账号、在同一数据库/内网子网增加该账号的 SCRAM 连接规则，并创建新 API；原连接规则先私有备份，原子替换后仅重载配置。不会修改 A 账号、业务记录，也不重启数据库、A API 或 Nginx。若同名新账号或未知连接规则已存在则拒绝覆盖，保留现场。
 
 成功标记：`STORAGE_READ_INTERNAL_DEPLOYED_NOT_ACCEPTED`。不要把它当作文件访问验收完成。
 

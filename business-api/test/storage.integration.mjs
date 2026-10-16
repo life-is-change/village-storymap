@@ -9,7 +9,7 @@ test('real Storage RLS and explicit bucket scopes prevent cross-user and GPU rea
   await admin.query('CREATE ROLE authenticated NOLOGIN; CREATE ROLE anon NOLOGIN');await admin.query('CREATE DATABASE '+name);
   setup=new pg.Client({connectionString:raw.replace(/\/postgres$/,'/'+name)});await setup.connect();
   await setup.query(await readFile(new URL('./fixtures/identity.sql',import.meta.url),'utf8'));
-  await setup.query(`CREATE SCHEMA storage;CREATE TABLE storage.objects(id uuid PRIMARY KEY,bucket_id text,name text);
+  await setup.query(`CREATE SCHEMA storage;CREATE TABLE storage.objects(id uuid PRIMARY KEY,bucket_id text,name text,updated_at timestamptz DEFAULT '2026-10-16T00:00:00Z',metadata jsonb DEFAULT '{"size":19,"eTag":"v1"}',version text DEFAULT 'v1');
    ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;GRANT USAGE ON SCHEMA storage TO authenticated;GRANT SELECT ON storage.objects TO authenticated;
    CREATE TABLE public.scene_edit_assets(storage_path text,scope_kind text,course_id text,group_id text,owner_id uuid);
    CREATE TABLE public.scene_edit_versions(preview_path text,project_id uuid);
@@ -23,7 +23,7 @@ test('real Storage RLS and explicit bucket scopes prevent cross-user and GPU rea
   // Deliberately permissive source policy: the API's explicit predicates must still isolate scopes.
   const objects=[['group-models',`users/${a}/a.glb`],['group-models',`users/${b}/b.glb`],['group-models','groups/group-a/c.glb'],['group-models','shared/d.glb'],['group-models','shared/blocked.glb'],['house-photos','photo.jpg'],['facade-generation','result.png'],['scene-assets','personal/a.glb'],['scene-version-previews','preview.png'],['village-datasets','published.json'],['village-datasets','draft.json']];
   const ids=objects.map((_,i)=>'a0000000-0000-4000-8000-'+String(i+1).padStart(12,'0'));
-  for(let i=0;i<objects.length;i++)await setup.query('INSERT INTO storage.objects VALUES($1,$2,$3)',[ids[i],...objects[i]]);
+  for(let i=0;i<objects.length;i++)await setup.query('INSERT INTO storage.objects(id,bucket_id,name) VALUES($1,$2,$3)',[ids[i],...objects[i]]);
   await setup.query("INSERT INTO scene_edit_assets VALUES('personal/a.glb','personal',null,null,$1)",[a]);
   await setup.query("INSERT INTO scene_edit_versions VALUES('preview.png',$1)",[a]);
   await setup.query(`INSERT INTO village_datasets VALUES('published','{"path":"published.json"}','{}')`);
@@ -35,6 +35,11 @@ test('real Storage RLS and explicit bucket scopes prevent cross-user and GPU rea
   await setup.query("DELETE FROM group_memberships WHERE group_id='group-a'");
   await db.withIdentity({userId:a},async c=>assert.equal(await getStorageObject(c,ids[2]),null));
   await assert.rejects(()=>db.withIdentity({userId:a},c=>c.query('DELETE FROM storage.objects')),{code:'DB_UNAVAILABLE'});
+  const before=await db.withIdentity({userId:a},c=>getStorageObject(c,ids[0]));
+  assert.equal(before.snapshot_updated_at,'2026-10-16T00:00:00.000000Z');assert.equal(before.declared_size,19);
+  await setup.query("UPDATE storage.objects SET updated_at=updated_at+interval '1 microsecond',metadata='{\"size\":20,\"eTag\":\"v2\"}',version='v2' WHERE id=$1",[ids[0]]);
+  const after=await db.withIdentity({userId:a},c=>getStorageObject(c,ids[0]));
+  assert.equal(after.id,before.id);assert.equal(after.name,before.name);assert.equal(after.snapshot_version,'v2');assert.equal(after.snapshot_updated_at,'2026-10-16T00:00:00.000001Z');assert.equal(after.declared_size,20);assert.equal(after.snapshot_etag,'v2');
  }finally{
   await db?.close();await setup?.end();await admin.query('DROP DATABASE IF EXISTS '+name+' WITH (FORCE)');
   await admin.query('DROP ROLE IF EXISTS village_storage_login;DROP ROLE IF EXISTS authenticated;DROP ROLE IF EXISTS anon');await admin.end();

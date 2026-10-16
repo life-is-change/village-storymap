@@ -4,7 +4,7 @@
 
 **Goal:** 为 B1 已验证文件副本提供候选环境的授权 GET/HEAD/单段 Range 读取，并交付离线镜像、保守部署脚本与真实登录验收工具。
 
-**Architecture:** 新候选 API 使用 `127.0.0.1:18081`，加入已验收数据库的内部网络，复用最小权限数据库账号；不重建数据库、不修改 A API 或网站。启动时加载私有只读文件索引，访问时验证 Supabase 身份，在只读事务中复用 Storage RLS 并应用桶专用可见性约束，随后从只读挂载的 SHA-256 文件读取。
+**Architecture:** 新候选 API 使用 `127.0.0.1:18081`，加入已验收数据库的内部网络，使用专属最小权限账号（2 连接池/2 连接上限），避免与 A 的 4 个连接争用；不重建数据库、不修改 A API/账号或网站。启动时加载私有只读文件索引，访问时验证 Supabase 身份，在只读事务中复用 Storage RLS 并应用桶专用可见性约束，随后从只读挂载的 SHA-256 文件读取。
 
 **Tech Stack:** Node >=22 标准 HTTP/fs/crypto/stream，已有 pg；Python 标准库与既有 Docker/复制校验工具。用户继续手动执行云端命令。
 
@@ -31,7 +31,7 @@
 
 **Files:** create `business-api/src/storage.mjs`, `business-api/test/storage.test.mjs`, `business-api/test/storage-http.test.mjs`; modify `http.mjs`, `repository.mjs`, `main.mjs`, `errors.mjs`; create real-PG permission fixture/test.
 
-**Interfaces:** `createStorageReader({root,indexPath}) -> {open(object), ...}` reads index version=1 with archive hash and selected `{id,bucket,name,sha256,size}`. `getStorageObject(client,id)` returns RLS-filtered metadata. HTTP `GET|HEAD /api/v1/files/<uuid>` consumes verified identity and metadata, produces private no-store bytes, supports one byte range. No list/upload/delete or public URL route.
+**Interfaces:** `createStorageReader({root,indexPath}) -> {open(object), ...}` reads index version=1 with archive hash and selected `{id,bucket,name,sha256,size,snapshot_updated_at,declared_size,snapshot_etag,snapshot_version}`. Timestamp is UTC with six fractional digits. `getStorageObject(client,id)` returns RLS-filtered identity and the same version fields; any mismatch fails before bytes. HTTP `GET|HEAD /api/v1/files/<uuid>` consumes verified identity and metadata, produces private no-store bytes, supports one byte range. No list/upload/delete or public URL route.
 
 - [x] Write tests for unauthenticated/invalid/cross-user/GPU denial, exact binary/HEAD/range/empty response, corrupt index/blob, path/link rejection, bounded streaming, safe errors, and original API regression.
 - [x] Run Node unit suite and observe new tests fail because storage interface/routes are absent.
@@ -43,7 +43,9 @@
 
 **Files:** create `linux/scripts/deploy-storage-read-validation.py`, `linux/tests/test_storage_read_deployment.py`; extend `build-business-api-image.py` with explicit image tag/metadata options preserving A defaults; generate `linux/storage-read-image.json` and private local archive.
 
-**Interfaces:** `prepare_index(run,archive_sha)` locks/rechecks B1 and creates normalized index; `compose_document(state,source_state,run,uid,gid,key)` creates only new API service on external A networks, `18081` loopback, 192MiB, read-only/password+index+blobs mounts; `validate_runtime` compares immutable intended Compose/container/network/image/checkpoint identities. CLI `--check`, `--deploy`, `--verify` and explicit private state; no reset/DB restart/source writes.
+**Interfaces:** `prepare_index(run,archive_sha)` locks/rechecks B1 and creates normalized index; `compose_document(state,source_state,run,uid,gid,key)` creates only new API service on external A networks, `18081` loopback, 192MiB, read-only/password+index+blobs mounts; `validate_runtime` compares immutable intended Compose/container/network/image/checkpoint identities and role budget. Guarded candidate-only SQL creates `village_storage_read_login` with its own private password and authenticated SET membership, no superuser/BYPASSRLS/admin membership, max 2 connections, default read-only. A role remains max 4. CLI `--check`, `--deploy`, `--verify`; no reset/DB restart/business-row writes or source Supabase writes.
+
+角色拆分同时要求在候选 `pg_hba.conf` 中新增同一内网子网/同一数据库/仅 B2 账号的 SCRAM 行。只接受精确的 A 原规则，私有备份后原子替换并 `pg_reload_conf()`，不重启数据库；保留原 A 行和全部拒绝行，未知规则不覆盖。Linux 容器内原子替换与实际 TCP 仍须由云端 verify 验收。
 
 - [x] Write behavioral tests for incomplete/changed/tampered copy, wrong archive/DB metadata/image identity/ports/mounts and pre-existing target; run RED.
 - [x] Implement guarded preflight against A accepted runtime and archive, check actual candidate storage identity tuple, create private index/checkpoint and compose, start new API only, validate health and exact runtime.
@@ -57,5 +59,5 @@
 **Interfaces:** hidden website login password; probe authorized object GET/HEAD/Range vs private index hash, counts 404 without treating denial as missing file; require at least one success and per-bucket summary; no-auth must reject. `--verify` restart only B2 API, revalidate B1 and runtime and leave a fresh fingerprint proof; probe binds exact fresh proof and writes private acceptance only on complete success.
 
 - [x] Write failing tests for denial/no-readable files, checksum mismatch, failed auth/no hidden input and stale/mismatched runtime proof; implement fixed safe diagnostics with no tokens/paths/private names.
-- [ ] Run Node/Python suites and root frontend tests; independent whole-change review and one fix pass for actionable issues.
+- [x] Run Node/Python suites and root frontend tests; independent whole-change review and one fix pass for actionable issues. Final: Node 19, real PG 3, Python 171 passed / 1 skipped, root frontend 1004 passed; both Important findings fixed with RED→GREEN regressions.
 - [ ] Commit/push original main and give actual upload/checksum/load/check/deploy/verify/probe commands. Stop at user handoff, leave cloud acceptance pending until output arrives.

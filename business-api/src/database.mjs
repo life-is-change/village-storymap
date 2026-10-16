@@ -2,7 +2,7 @@ import pg from 'pg';
 import {UUID} from './contracts.mjs';
 import {failure,safeFailure} from './errors.mjs';
 export function createDatabase(config){
- const pool=config.pool??new pg.Pool({...config,max:4,connectionTimeoutMillis:3000,idleTimeoutMillis:30000});
+ const pool=config.pool??new pg.Pool({...config,max:config.maxConnections??4,connectionTimeoutMillis:3000,idleTimeoutMillis:30000});
  pool.on?.('error',()=>{});
  return {
   async withIdentity(identity,fn){

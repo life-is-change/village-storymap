@@ -19,6 +19,7 @@ test('private file routes authorize before metadata and serve GET HEAD single ra
   for(const [path,method,status] of [[f.object.id+'?path=secret','GET',400],['..%2fsecret','GET',400],[f.object.id,'POST',405]]){
    r=await fetch(base+path,{method,headers:{Authorization:'Bearer A'}});assert.equal(r.status,status,path);
   }
+  f.object.snapshot_version='v2';r=await fetch(base+f.object.id,{headers:{Authorization:'Bearer A'}});assert.equal(r.status,503);assert.equal(r.headers.get('etag'),null);f.object.snapshot_version='v1';
   await writeFile(f.blob,Buffer.alloc(f.bytes.length,90));r=await fetch(base+f.object.id,{headers:{Authorization:'Bearer A'}});assert.equal(r.status,503);assert.ok(!(await r.text()).includes(f.root));
   assert.ok(!JSON.stringify(logs).includes(f.object.id));assert.ok(!JSON.stringify(logs).includes('Bearer'));
  }finally{await new Promise(r=>server.close(r));await f.cleanup();}

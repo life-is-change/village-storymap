@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Create/verify a separate loopback file-read candidate. Never restore or mutate DB."""
+"""Create/verify a loopback file-read candidate and its own limited DB role; no business writes."""
 import argparse
+import datetime as dt
 import hashlib
 import importlib.util
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -27,8 +29,50 @@ PROJECT='village-storage-read-validation'
 SOURCE_STATE=Path.home()/'village-api-validation'
 STATE=Path.home()/'village-storage-api-validation'
 RUN=Path.home()/'village-storage-copy/stage-b1'
+ROLE='village_storage_read_login'
 
 def digest(value):return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+
+def utc_timestamp(value):
+    timestamp=dt.datetime.fromisoformat(value.replace('Z','+00:00'))
+    if timestamp.tzinfo is None:raise ValueError('Object timestamp must include timezone.')
+    return timestamp.astimezone(dt.timezone.utc).isoformat(timespec='microseconds').replace('+00:00','Z')
+
+def object_identity(o):
+    size=o['declared_size']
+    if isinstance(size,str) and size.isascii() and size.isdigit():size=int(size)
+    if size is not None and (type(size) is not int or not 0<=size<=2**53):raise ValueError('Invalid object metadata size.')
+    return (o['id'],o['bucket'],o['name'],utc_timestamp(o['snapshot_updated_at']),size,o['snapshot_etag'],o['snapshot_version'])
+
+def storage_hba(original):
+    lines=original.splitlines()
+    if len(lines)!=4 or lines[0]!='local all all trust' or lines[2:]!=['host all all 0.0.0.0/0 reject','host all all ::/0 reject']:
+        raise ValueError('Unknown baseline HBA rules; refuse widening access.')
+    m=re.fullmatch(r'host village_copy village_api_login ([0-9./]+) scram-sha-256',lines[1])
+    if not m or not ipaddress.ip_network(m[1]).is_private:raise ValueError('Require baseline internal SCRAM subnet.')
+    return '\n'.join([lines[0],lines[1],lines[1].replace('village_api_login',ROLE),*lines[2:]])+'\n'
+
+def validate_hba(docker):
+    wanted=storage_hba(deploy.restricted_hba(docker))
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf')!=wanted:raise ValueError('B2/A internal SCRAM rules differ.')
+    if docker.sql('SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL;').strip()!='0':raise ValueError('HBA parse errors; retain backup and inspect.')
+
+def install_hba(docker):
+    original=deploy.restricted_hba(docker);wanted=storage_hba(original)
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf')!=original:raise ValueError('HBA changed after preflight; refuse overwrite.')
+    for name,text in [('pg_hba.before.conf',original),('pg_hba.expected.conf',wanted)]:
+        with os.fdopen(os.open(STATE/name,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as stream:stream.write(text)
+    docker.phase='storage-read-hba'
+    # Atomic replacement inside the already-validated candidate data mount.
+    # Fixed shell text only; rules are stdin and no secrets enter the command.
+    command=('set -eu; umask 077; '
+      'test ! -e /var/lib/postgresql/data/.storage-read-hba.partial; '
+      'cp -p /var/lib/postgresql/data/pg_hba.conf /var/lib/postgresql/data/.storage-read-hba.partial; '
+      'cat > /var/lib/postgresql/data/.storage-read-hba.partial; '
+      'mv /var/lib/postgresql/data/.storage-read-hba.partial /var/lib/postgresql/data/pg_hba.conf')
+    docker.exec('sh','-c',command,input=wanted)
+    if docker.sql('SELECT pg_reload_conf();').strip()!='t':raise ValueError('HBA reload was not accepted.')
+    validate_hba(docker)
 
 def prepare_index(run,archive_sha):
     lock=copy.acquire_transfer_lock(run)
@@ -41,13 +85,15 @@ def prepare_index(run,archive_sha):
             r=manifest['records'][o['id']]
             if not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',o['id']) or r['received_bytes']>52428800:
                 raise ValueError('Unsupported object UUID/size for read candidate.')
-            rows.append({k:o[k] for k in ('id','bucket','name')}|{'sha256':r['sha256'],'size':r['received_bytes']})
+            row={k:o[k] for k in ('id','bucket','name','declared_size','snapshot_etag','snapshot_version')}
+            row.update(snapshot_updated_at=utc_timestamp(o['snapshot_updated_at']),sha256=r['sha256'],size=r['received_bytes'])
+            object_identity(row);rows.append(row)
         return {'version':1,'source_archive_sha256':archive_sha,'objects':rows}
     finally:lock.unlink()
 
 def validate_database_objects(index,rows):
-    expected=sorted((o['id'],o['bucket'],o['name']) for o in index['objects'])
-    actual=sorted((o['id'],o['bucket'],o['name']) for o in rows)
+    expected=sorted(object_identity(o) for o in index['objects'])
+    actual=sorted(object_identity(o) for o in rows)
     if actual!=expected:raise ValueError('Candidate object identities differ from verified file copy.')
 
 def compose_document(state,source_state,run,*,uid,gid,key):
@@ -55,7 +101,8 @@ def compose_document(state,source_state,run,*,uid,gid,key):
     base=deploy.runtime_compose(source_state,Path('/unused'),uid=uid,gid=gid,publishable_key=key)['services']['api']
     base.update(image=IMAGE,container_name=CONTAINER,ports=['127.0.0.1:18081:8080'])
     base.pop('depends_on')
-    base['environment'].update(PGHOST='village-api-validation-postgres',STORAGE_READ_ENABLED='1')
+    base['environment'].update(PGHOST='village-api-validation-postgres',PGUSER=ROLE,STORAGE_READ_ENABLED='1')
+    base['volumes'][0]['source']=str(Path(state)/'api-password')
     base['volumes']+=[{'type':'bind','source':str(p),'target':t,'read_only':True,'bind':{'create_host_path':False}}
         for p,t in [(Path(state)/'storage-index.json','/run/storage/index.json'),(Path(run)/'blobs','/srv/business-storage/blobs')]]
     return {'name':PROJECT,'services':{'api':base},'networks':{n:{'external':True,'name':deploy.TARGET.project+'_'+n} for n in ('dbnet','authegress')}}
@@ -80,7 +127,10 @@ def database_contract(docker,index):
      'schema',has_schema_privilege('authenticated','storage','USAGE'),
      'safe_role',(SELECT count(*)=2 AND bool_and(NOT rolsuper AND NOT rolbypassrls) FROM pg_roles WHERE rolname IN ('authenticated','village_api_login')));"""))
     if result!={'rls':True,'select':True,'schema':True,'safe_role':True}:raise ValueError('Storage access role/RLS contract differs.')
-    rows=json.loads(docker.sql("SELECT coalesce(json_agg(json_build_object('id',id,'bucket',bucket_id,'name',name)),'[]'::json) FROM storage.objects WHERE bucket_id IN ('house-photos','group-models','scene-assets','scene-version-previews','village-datasets');"))
+    rows=json.loads(docker.sql("""SELECT coalesce(json_agg(json_build_object('id',id,'bucket',bucket_id,'name',name,
+      'snapshot_updated_at',to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'declared_size',metadata->'size','snapshot_etag',metadata->>'eTag','snapshot_version',to_jsonb(o)->>'version')),'[]'::json)
+      FROM storage.objects o WHERE bucket_id IN ('house-photos','group-models','scene-assets','scene-version-previews','village-datasets');"""))
     validate_database_objects(index,rows)
     # Parse and execute the exact repository query through the real API role/TCP.
     # An all-zero UUID selects no object; this verifies tables/helpers/privileges,
@@ -112,6 +162,9 @@ def new_state_guard(state):
 def preflight(docker):
     new_state_guard(STATE)
     ctx=source_context(docker);index=prepare_index(RUN,ctx['archive_sha256']);database_contract(docker,index);image=verify_image(docker)
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf')!=deploy.restricted_hba(docker):raise ValueError('Require unchanged baseline HBA before deployment.')
+    if docker.sql("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='village_storage_read_login');").strip()!='f':
+        raise ValueError('B2 role already exists; retain state and inspect before deployment.')
     if CONTAINER in docker.run(['ps','-a','--format','{{.Names}}']).splitlines():raise ValueError('Read candidate container already exists.')
     available=int(re.search(r'^MemAvailable:\s+(\d+)',Path('/proc/meminfo').read_text(),re.M)[1])*1024
     if available<256*1024**2 or shutil.disk_usage(Path.home()).free<4*1024**3:raise ValueError('Require 256 MiB available memory and 4 GiB free disk.')
@@ -142,6 +195,7 @@ def validate_container(info,spec,image_config,image_id,*,uid):
 
 def validate_runtime(docker):
     copy.private_path(STATE,directory=True)
+    copy.private_path(STATE/'api-password')
     ctx=source_context(docker);checkpoint=copy.read_private_json(STATE/'deployment-checkpoint.json')
     index=copy.read_private_json(STATE/'storage-index.json')
     if (digest(index)!=checkpoint['index_sha256'] or index!=prepare_index(RUN,ctx['archive_sha256'])
@@ -150,12 +204,29 @@ def validate_runtime(docker):
     if image['Id']!=checkpoint['api_image_id']:raise ValueError('B2 image checkpoint differs.')
     spec=compose_document(STATE,SOURCE_STATE,RUN,uid=os.geteuid(),gid=os.getegid(),key=deploy.read_public_key())
     if copy.read_private_json(STATE/'compose.json')!=spec:raise ValueError('B2 Compose changed.')
+    validate_role(docker)
+    validate_hba(docker)
     info=json.loads(docker.run(['inspect',CONTAINER]))[0]
     validate_container(info,spec['services']['api'],image['Config'],image['Id'],uid=os.geteuid())
     for n,internal in [('dbnet',True),('authegress',False)]:
         if json.loads(docker.run(['network','inspect',deploy.TARGET.project+'_'+n]))[0].get('Internal') is not internal:
             raise ValueError('B2 shared network isolation differs.')
     return ctx,index,info
+
+def validate_role(docker):
+    contract=json.loads(docker.sql("""SELECT json_build_object(
+     'safe_role',(SELECT count(*)=1 AND bool_and(rolcanlogin AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreaterole AND NOT rolcreatedb AND NOT rolreplication AND NOT rolinherit AND rolconnlimit=2) FROM pg_roles WHERE rolname='village_storage_read_login'),
+     'membership',(SELECT count(*)=1 AND bool_and(r.rolname='authenticated' AND m.set_option AND NOT m.inherit_option AND NOT m.admin_option) FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.roleid WHERE m.member='village_storage_read_login'::regrole),
+     'a_budget',(SELECT rolconnlimit=4 FROM pg_roles WHERE rolname='village_api_login'));"""))
+    if contract!={'safe_role':True,'membership':True,'a_budget':True}:raise ValueError('B2 role or independent A/B connection budgets differ.')
+
+def create_role(docker,password):
+    if not re.fullmatch('[A-Za-z0-9_-]{48}',password):raise ValueError('Invalid generated role credential.')
+    sql=(ROOT/'linux/sql/storage-read-role.sql').read_text(encoding='utf-8')
+    docker.phase='storage-read-role'
+    docker.exec('psql','-X','-w','-v','ON_ERROR_STOP=1','--single-transaction','-h','/var/run/postgresql','-U',deploy.rd.ADMIN,'-d',deploy.rd.DATABASE,'-f','-',
+        input=sql+"\nSET LOCAL password_encryption='scram-sha-256';\nALTER ROLE village_storage_read_login PASSWORD '"+password+"';\n")
+    validate_role(docker)
 
 def runtime_fingerprint(docker):
     ctx,index,info=validate_runtime(docker)
@@ -172,10 +243,15 @@ def ready(docker):
 def deploy_candidate(docker):
     ctx,index,image=preflight(docker)
     STATE.mkdir(mode=0o700)
+    password=secrets.token_urlsafe(36)
+    with os.fdopen(os.open(STATE/'api-password',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w',encoding='ascii') as stream:stream.write(password+'\n')
     copy.write_private_json(STATE/'storage-index.json',index)
     copy.write_private_json(STATE/'deployment-checkpoint.json',{'version':1,'api_image_id':image['Id'],'source_fingerprint':ctx['fingerprint'],'source_archive_sha256':ctx['archive_sha256'],'index_sha256':digest(index)})
     copy.write_private_json(STATE/'compose.json',compose_document(STATE,SOURCE_STATE,RUN,uid=os.geteuid(),gid=os.getegid(),key=deploy.read_public_key()))
-    docker.state=STATE;docker.phase='storage-read-start'
+    docker.state=STATE
+    create_role(docker,password);password=None
+    install_hba(docker)
+    docker.phase='storage-read-start'
     docker.run(['compose','-f',str(STATE/'compose.json'),'up','-d','--pull','never','--no-build','api'])
     ready(docker);validate_runtime(docker)
     print('STORAGE_READ_INTERNAL_DEPLOYED_NOT_ACCEPTED - run --verify and login probe next.')
