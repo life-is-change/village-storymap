@@ -18,3 +18,23 @@ export async function getSpace(client,kind,id,userId){
   : ['SELECT '+group+' FROM public.planning_spaces s WHERE s.id=$1 AND '+visible,[id]];
  return (await client.query(...query)).rows[0]??null;
 }
+
+// Keep source Storage RLS in force AND constrain each allowed bucket explicitly.
+// Legacy public house-photo reads remain authenticated at this candidate API.
+export async function getStorageObject(client,id){
+ return (await client.query(`SELECT o.id,o.bucket_id AS bucket,o.name FROM storage.objects o
+ WHERE o.id=$1 AND CASE o.bucket_id
+ WHEN 'house-photos' THEN auth.uid() IS NOT NULL
+ WHEN 'group-models' THEN (
+   public.current_profile_role()='admin' OR split_part(o.name,'/',1)='shared'
+   OR (split_part(o.name,'/',1)='users' AND split_part(o.name,'/',2)=auth.uid()::text)
+   OR (split_part(o.name,'/',1)='groups' AND EXISTS (
+     SELECT 1 FROM public.group_memberships m WHERE m.group_id=split_part(o.name,'/',2)
+     AND m.student_key=public.current_profile_student_key())))
+ WHEN 'scene-assets' THEN EXISTS (SELECT 1 FROM public.scene_edit_assets a
+   WHERE a.storage_path=o.name AND public.can_read_scene_edit_asset(a.scope_kind,a.course_id,a.group_id,a.owner_id))
+ WHEN 'scene-version-previews' THEN EXISTS (SELECT 1 FROM public.scene_edit_versions v
+   WHERE v.preview_path=o.name AND public.can_read_scene_edit_project(v.project_id))
+ WHEN 'village-datasets' THEN public.can_read_village_dataset_object(o.name)
+ ELSE false END`,[id])).rows[0]??null;
+}
