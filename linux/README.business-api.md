@@ -6,7 +6,7 @@
 
 - 本地已测试固定路由、令牌拒绝、连接回滚、跨用户隔离和原平台前端回归。
 - 本机 PostgreSQL 17.11 的合成数据库测试不等于阿里云 PostgreSQL 17.6 验收。
-- 2026-10-16 用户已在阿里云执行到 `BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER`，候选权限/重启与真实账号读取通过；资源快照待补充。结果和剩余范围见 [阶段 A 验收记录](../docs/migration/2026-10-16-stage-a-acceptance.md)。
+- 2026-10-16 用户已在阿里云执行到 `BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER`，候选权限/重启、真实账号读取与空闲资源观察已完成。结果和剩余范围见 [阶段 A 验收记录](../docs/migration/2026-10-16-stage-a-acceptance.md)。
 - 当前电脑没有 Docker；离线镜像按固定官方 Node 基础配置/层摘要与 `npm ci --omit=dev` 的纯 JS 依赖组装，原始及解压层摘要均校验。2026-10-16 用户已在阿里云完成 Node/pg smoke test、API 启动、数据库权限、重启和登录读取验证。
 - `linux/business-api-image.json` 记录镜像、运行代码摘要、可接受的导入 ID、传输文件名/大小/哈希。镜像只包含业务 API，不包含数据备份或数据库密码。
 
