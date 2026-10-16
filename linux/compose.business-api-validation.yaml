@@ -47,7 +47,9 @@
         "-c",
         "wal_level=logical",
         "-c",
-        "max_parallel_workers_per_gather=0"
+        "max_parallel_workers_per_gather=0",
+        "-c",
+        "listen_addresses=*"
       ],
       "volumes": [
         {

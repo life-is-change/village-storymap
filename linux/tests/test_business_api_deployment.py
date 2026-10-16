@@ -30,6 +30,7 @@ def test_runtime_compose_is_private_nonroot_and_mounts_only_api_password(tmp_pat
     assert 'ports' not in db and 'network_mode' not in db
     assert doc['networks']['dbnet']['internal'] is True
     assert db['networks']==['dbnet']
+    assert db['command'][-2:]==['-c','listen_addresses=*']
     assert api['ports']==['127.0.0.1:18080:8080'] and api['user']=='1001:1001'
     assert api['mem_limit']=='192m' and api['read_only']
     assert len(api['volumes'])==1 and api['volumes'][0]['target']=='/run/secrets/api-password'
@@ -85,7 +86,7 @@ def test_full_preflight_refuses_tamper_and_resource_shortage_without_mutation(tm
     assert not candidate.exists()
     assert all(c[0] in ('inspect','ps','image') for c in calls)
 
-@pytest.mark.parametrize('bad',['none','apiimage','mount','memory','user','dbnetwork','env','command','dbenv'])
+@pytest.mark.parametrize('bad',['none','apiimage','mount','memory','user','dbnetwork','env','command','dbenv','dblistener','legacy','legacyunsafe'])
 def test_runtime_requires_verified_complete_container_security(tmp_path,bad):
     m=module('deploy-business-api-validation.py');state=tmp_path/'candidate';state.mkdir();backup=tmp_path/'backup'
     image=json.loads((m.ROOT/'linux/business-api-image.json').read_text());doc=m.runtime_compose(state,backup,uid=1001,gid=1001,publishable_key='public')
@@ -111,6 +112,13 @@ def test_runtime_requires_verified_complete_container_security(tmp_path,bad):
     if bad=='env':api['Config']['Env'].append('PGPASSWORD=unexpected')
     if bad=='command':api['Config']['Cmd']=['sh','-c','unexpected-command']
     if bad=='dbenv':db['Config']['Env'].append('PGDATA=/tmp/another-cluster')
+    if bad=='dblistener' and db['Config']['Cmd'][-2:]==['-c','listen_addresses=*']:
+        db['Config']['Cmd']=db['Config']['Cmd'][:-2]
+    if bad in ('legacy','legacyunsafe'):
+        db['Config']['Cmd']=db['Config']['Cmd'][:-2]
+        doc['services']['db']['command']=doc['services']['db']['command'][:-2]
+        (state/'runtime-compose.json').write_text(json.dumps(doc))
+        if bad=='legacyunsafe':db['NetworkSettings']['Networks']={'external':{}}
     class Docker:
         def run(self,args,**kwargs):
             if args[0]=='inspect':return json.dumps([infos[args[1]]])
@@ -119,5 +127,10 @@ def test_runtime_requires_verified_complete_container_security(tmp_path,bad):
             raise AssertionError(args)
     with patch.object(m.os,'geteuid',return_value=1001,create=True),patch.object(m.os,'getegid',return_value=1001,create=True),patch.object(m,'read_public_key',return_value='public'):
         if bad=='none':m.validate_runtime(Docker(),state,backup)
+        elif bad=='legacy':
+            m.validate_runtime(Docker(),state,backup,legacy_listener=True)
+            with pytest.raises(ValueError):m.validate_runtime(Docker(),state,backup)
+        elif bad=='legacyunsafe':
+            with pytest.raises(ValueError):m.validate_runtime(Docker(),state,backup,legacy_listener=True)
         else:
             with pytest.raises(ValueError):m.validate_runtime(Docker(),state,backup)

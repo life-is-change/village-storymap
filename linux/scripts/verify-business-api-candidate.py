@@ -63,6 +63,7 @@ def verify(backup,state):
 def verify_current_attempt(backup,state,attempt):
     docker=rd.LocalDocker(state,target=deploy.TARGET)
     deploy.validate_runtime(docker,state,backup)
+    deploy.verify_api_database_connection(docker)
     checkpoint=json.loads(deploy.private_file(state/'deployment-checkpoint.json').read_text())
     expected=json.loads(deploy.private_file(state/'db/archive-snapshot-counts.json').read_text())
     docker.phase='candidate-before-permissions'
@@ -79,6 +80,7 @@ def verify_current_attempt(backup,state,attempt):
         time.sleep(2)
     else:raise ValueError('API did not become healthy after restart.')
     rd.compare_snapshot(expected,rd.actual_snapshot(docker,expected));deploy.validate_runtime(docker,state,backup)
+    deploy.verify_api_database_connection(docker)
     with urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=5) as response:
         if json.load(response)!={'status':'ok'}:raise ValueError('API health response differs.')
     result={'status':'permissions_restart_verified','source_archive_sha256':checkpoint['source_archive_sha256'],

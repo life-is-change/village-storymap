@@ -1,5 +1,7 @@
 import importlib.util
 from pathlib import Path
+import json
+from unittest.mock import patch
 import pytest
 S=Path(__file__).resolve().parents[1]/'scripts/verify-business-api-candidate.py'
 def module():
@@ -27,3 +29,19 @@ def test_new_verification_attempt_invalidates_old_success_but_preserves_history(
     assert not (tmp_path/'candidate-verification.json').exists()
     assert not (tmp_path/'api-acceptance.json').exists()
     assert list(tmp_path.glob('candidate-verification.previous-*.json'))
+
+def test_candidate_cannot_accept_socket_permissions_without_api_tcp(tmp_path,capsys):
+    m=module()
+    (tmp_path/'candidate-verification.json').write_text('{"status":"old success"}')
+    (tmp_path/'candidate-verification.json').chmod(0o600)
+    class Disconnected:
+        def __init__(self,*args,**kwargs):pass
+        def run(self,args,**kwargs):
+            assert args[:3]==['exec','-i',m.deploy.API]
+            raise RuntimeError('API database connection refused')
+    with patch.object(m.rd,'LocalDocker',Disconnected),patch.object(m.deploy,'validate_runtime',return_value={}):
+        with pytest.raises(RuntimeError,match='connection refused'):
+            m.verify(tmp_path/'backup',tmp_path)
+    assert json.loads((tmp_path/'verification-attempt.json').read_text())['status']=='failed'
+    assert not (tmp_path/'candidate-verification.json').exists()
+    assert 'CANDIDATE_PERMISSIONS_RESTART_VERIFIED' not in capsys.readouterr().out

@@ -52,6 +52,7 @@ def runtime_compose(state,backup,*,uid,gid,publishable_key):
     if uid<=0 or gid<0:raise ValueError('Run as the normal admin user, not root.')
     doc=rd.compose_document(Path(state)/'db',Path(backup),target=TARGET)
     db=doc['services']['db'];db.pop('network_mode');db['networks']=['dbnet']
+    db['command']+=['-c','listen_addresses=*']
     doc['networks']={'dbnet':{'internal':True},'authegress':{}}
     doc['services']['api']={
         'image':API_IMAGE,'pull_policy':'never','container_name':API,'user':f'{uid}:{gid}',
@@ -103,11 +104,14 @@ def preflight(backup,state,baseline,docker):
             'baseline_was_running':bool(info['State']['Running']),
             'source_archive_sha256':report['source_archive_sha256'],'api_image_id':image['Id']}
 
-def validate_runtime(docker,state,backup):
+def validate_runtime(docker,state,backup,*,legacy_listener=False):
     state=no_links(state)
     checkpoint=json.loads(private_file(state/'deployment-checkpoint.json').read_text())
     private_file(state/'api-password')
     expected=runtime_compose(state,backup,uid=os.geteuid(),gid=os.getegid(),publishable_key=read_public_key())
+    if legacy_listener:
+        # Only the guarded listener repair may accept the exact old command.
+        expected['services']['db']['command']=expected['services']['db']['command'][:-2]
     if json.loads(private_file(state/'runtime-compose.json').read_text())!=expected:raise ValueError('Runtime Compose changed; inspect before operating.')
     metadata=json.loads((ROOT/'linux/business-api-image.json').read_text())
     if checkpoint.get('api_image_id') not in metadata['accepted_image_ids']:raise ValueError('Candidate checkpoint image is not verified.')
@@ -167,6 +171,68 @@ def runtime_fingerprint(docker,state,backup):
 
 def not_read_only(volume):return not volume.get('read_only',False)
 
+def verify_api_database_connection(docker):
+    # Use the actual API container, its nonroot user, credential file and TCP path.
+    # A socket-only bootstrap check cannot establish application connectivity.
+    script="""import pg from 'pg';
+import {loadConfig} from './src/config.mjs';
+const client=new pg.Client({...loadConfig().database,connectionTimeoutMillis:4000,query_timeout:5000});
+try { await client.connect(); await client.query('SELECT 1'); console.log('API_DATABASE_TCP_OK'); }
+catch { console.error('API_DATABASE_TCP_FAILED'); process.exitCode=1; }
+finally { await client.end().catch(()=>{}); }
+"""
+    docker.phase='api-database-tcp'
+    if docker.run(['exec','-i',API,'node','--input-type=module','-e',script]).strip()!='API_DATABASE_TCP_OK':
+        raise ValueError('API database TCP check did not pass.')
+
+def restricted_hba(docker):
+    network=json.loads(docker.run(['network','inspect',TARGET.project+'_dbnet']))[0]
+    if not network.get('Internal'):raise ValueError('Candidate database network is not internal.')
+    subnet=next((ipaddress.ip_network(c['Subnet']) for c in network['IPAM']['Config'] if ':' not in c['Subnet']),None)
+    if subnet is None:raise ValueError('IPv4 internal database subnet not found.')
+    return f'local all all trust\nhost village_copy village_api_login {subnet} scram-sha-256\nhost all all 0.0.0.0/0 reject\nhost all all ::/0 reject\n'
+
+def write_new_private_json(path,value):
+    with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w',encoding='utf-8') as stream:
+        stream.write(json.dumps(value,indent=2)+'\n')
+
+def repair_db_listener(backup,state,docker):
+    state=no_links(state);backup=no_links(backup);docker.phase='listener-repair-preflight'
+    config=private_file(state/'runtime-compose.json');current=json.loads(config.read_text())
+    wanted=runtime_compose(state,backup,uid=os.geteuid(),gid=os.getegid(),publishable_key=read_public_key())
+    legacy=json.loads(json.dumps(wanted));legacy['services']['db']['command']=legacy['services']['db']['command'][:-2]
+    if current not in (legacy,wanted):raise ValueError('Listener repair requires the exact known candidate Compose.')
+    old=current==legacy
+    validate_runtime(docker,state,backup,legacy_listener=old)
+    manifest=rd.verify_backup(backup)
+    checkpoint=json.loads(private_file(state/'deployment-checkpoint.json').read_text())
+    if checkpoint.get('source_archive_sha256')!=manifest['files']['database.dump']['sha256']:
+        raise ValueError('Listener repair backup differs from candidate checkpoint.')
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf')!=restricted_hba(docker):
+        raise ValueError('Listener repair requires the restricted internal-subnet SCRAM rules.')
+    setting=json.loads(docker.sql("SELECT json_build_object('listen_addresses',current_setting('listen_addresses'),'port',current_setting('port'));"))
+    if setting!={'listen_addresses':'localhost' if old else '*','port':'5432'}:
+        raise ValueError('Candidate listener differs from the known old/new configuration.')
+    expected=json.loads(private_file(state/'db/archive-snapshot-counts.json').read_text())
+    rd.compare_snapshot(expected,rd.actual_snapshot(docker,expected))
+    if old:
+        # Preserve old configuration and invalidate acceptance before changing a container.
+        reports=[state/name for name in ('candidate-verification.json','api-acceptance.json','verification-attempt.json') if (state/name).exists()]
+        for path in reports:private_file(path)
+        stamp=secrets.token_hex(8)
+        write_new_private_json(state/f'runtime-compose.before-listener-{stamp}.json',current)
+        for path in reports:path.rename(state/(path.stem+'.before-listener-'+stamp+'.json'))
+        temp=state/f'runtime-compose.listener-{stamp}.partial'
+        write_new_private_json(temp,wanted);temp.replace(config)
+        docker.phase='listener-repair-recreate-db'
+        docker.run(['compose','-f',str(config),'up','-d','--no-deps','--force-recreate','--pull','never','--wait','--wait-timeout','120','db'])
+    validate_runtime(docker,state,backup)
+    setting=json.loads(docker.sql("SELECT json_build_object('listen_addresses',current_setting('listen_addresses'),'port',current_setting('port'));"))
+    if setting!={'listen_addresses':'*','port':'5432'}:raise ValueError('Candidate database listener was not updated.')
+    verify_api_database_connection(docker)
+    rd.compare_snapshot(expected,rd.actual_snapshot(docker,expected))
+    print('CANDIDATE_DB_LISTENER_REPAIRED_NOT_ACCEPTED - data retained; rerun candidate verification and login probe.')
+
 def deploy(backup,state,baseline):
     docker=rd.LocalDocker(state,target=TARGET)
     checkpoint=preflight(backup,state,baseline,docker)
@@ -185,16 +251,13 @@ def deploy(backup,state,baseline):
     config=state/'runtime-compose.json';config.write_text(json.dumps(doc,indent=2)+'\n')
     docker.state=state;docker.phase='candidate-network'
     docker.run(['compose','-f',str(config),'create','--force-recreate','--pull','never','db'])
-    network=json.loads(docker.run(['network','inspect',TARGET.project+'_dbnet']))[0]
-    if not network.get('Internal'):raise ValueError('Candidate database network is not internal.')
-    subnet=next((ipaddress.ip_network(c['Subnet']) for c in network['IPAM']['Config'] if ':' not in c['Subnet']),None)
-    if subnet is None:raise ValueError('IPv4 internal database subnet not found.')
-    hba=f'local all all trust\nhost village_copy village_api_login {subnet} scram-sha-256\nhost all all 0.0.0.0/0 reject\nhost all all ::/0 reject\n'
+    hba=restricted_hba(docker)
     docker.run(['run','--rm','-i','--pull=never','--network','none','--user','0',
       '--mount','type=bind,src='+str(state/'db/data')+',dst=/target',
       '--entrypoint','sh',rd.IMAGE,'-c','cat > /target/pg_hba.conf'],input=hba)
     docker.run(['compose','-f',str(config),'up','-d','--pull','never','--wait','--wait-timeout','120'])
     validate_runtime(docker,state,backup)
+    verify_api_database_connection(docker)
     with urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=5) as response:
         if json.load(response)!={'status':'ok'}:raise ValueError('API health check failed.')
     (state/'deployment-ready.json').write_text(json.dumps({'status':'internal_deployed_not_accepted_not_cut_over',**checkpoint},indent=2))
@@ -203,7 +266,7 @@ def deploy(backup,state,baseline):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backup-dir',required=True,type=Path)
-    mode=parser.add_mutually_exclusive_group();mode.add_argument('--check',action='store_true');mode.add_argument('--deploy',action='store_true');mode.add_argument('--stop',action='store_true')
+    mode=parser.add_mutually_exclusive_group();mode.add_argument('--check',action='store_true');mode.add_argument('--deploy',action='store_true');mode.add_argument('--stop',action='store_true');mode.add_argument('--repair-db-listener',action='store_true')
     args=parser.parse_args();os.umask(0o077)
     state=Path.home()/'village-api-validation';baseline=Path.home()/'village-db-copy'
     try:
@@ -213,6 +276,7 @@ def main():
             validate_runtime(docker,state,backup)
             docker.run(['update','--restart=no',API,TARGET.container]);docker.run(['stop',API,TARGET.container])
             print('Candidate stopped; all data retained. Baseline remains stopped until separately verified.')
+        elif args.repair_db_listener:repair_db_listener(backup,state,docker)
         elif args.deploy:deploy(backup,state,baseline)
         else:
             preflight(backup,state,baseline,docker)

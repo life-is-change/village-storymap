@@ -81,9 +81,25 @@ python3 linux/scripts/deploy-business-api-validation.py \
 
 `linux/compose.business-api-validation.yaml` 是 admin UID/GID=1000 的配置示例；实际脚本按操作者 UID/GID 生成私有 runtime-compose.json。不要直接把示例作为线上 Compose 覆盖原部署。
 
+### 已部署候选的 localhost 监听修复
+
+早期版本沿用了原生 initdb 的 `listen_addresses=localhost`，数据库内部套接字检查能通过，API 容器的 TCP 连接却会被拒绝。新候选在启动命令显式指定 `listen_addresses=*`；数据库仍只连接内部 `dbnet`、不发布宿主机端口，并只允许内部子网的 `village_api_login` 使用 SCRAM 验证。原隔离备份容器的配置保持不变。
+
+已经部署的旧候选在拉取最新 main 后执行以下命令，无需重传镜像或重做恢复：
+
+```bash
+python3 linux/scripts/deploy-business-api-validation.py \
+  --backup-dir "$HOME/village-db-backups/20261015T034526Z-_bfzxy5z" \
+  --repair-db-listener
+```
+
+修复先核对完整容器配置、备份身份、现有监听、内部网络及严格的 pg_hba 规则，并比较数据行数/序列。随后保存旧 Compose、归档失效的权限/验收报告，只重建候选 db 容器并沿用原数据目录；不执行恢复或删除数据。最后从实际 API 容器以其配置和凭据执行 TCP `SELECT 1`，再次比较数据行数/序列。成功标记为 `CANDIDATE_DB_LISTENER_REPAIRED_NOT_ACCEPTED`，仍须重新运行下面的候选权限/重启和登录验收。失败时保留现场，不删除候选重跑部署。
+
 ## 3. 真实候选和登录验收
 
 `verify-business-api-candidate.py` 与 `probe-business-api.py` 分别检查实际候选权限/重启和现有用户的端到端访问。部署通过后执行：
+
+部署及候选验收都会实际检查 API 到数据库的 TCP 路径；候选验收还会在重启后重查，不能仅靠套接字查询和 HTTP 健康响应判断数据库可用。
 
 ```bash
 python3 linux/scripts/verify-business-api-candidate.py \
