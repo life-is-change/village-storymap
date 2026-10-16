@@ -40,3 +40,11 @@ test('linked blobs cannot escape the private storage mount',async t=>{
   await assert.rejects(()=>reader.open(f.object));
  }finally{await f.cleanup();}
 });
+test('bounded active readers release slots when closed',async()=>{
+ const f=await fixture();const files=[];try{
+  const reader=await m.createStorageReader(f);
+  for(let i=0;i<4;i++)files.push(await reader.open(f.object));
+  await assert.rejects(()=>reader.open(f.object),{code:'FILE_BUSY'});
+  await files.pop().close();const next=await reader.open(f.object);await next.close();
+ }finally{await Promise.all(files.map(f=>f.close()));await f.cleanup();}
+});

@@ -1,0 +1,21 @@
+{
+  "image": "village-business-api:stage-b2-read",
+  "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+  "base_source": "public.ecr.aws/docker/library/node",
+  "code_sha256": "a476f236459b2713c66651d43adb97a49b24d9549bfa35bf723ee820814325be",
+  "accepted_image_ids": [
+    "sha256:0207e2c16f6323acf3a0bee49dcc92c4c4924ad98848400921de74e49eb95e3a",
+    "sha256:8813f49dc7dcb89981c4b4053058e7006fd19b1125cecf6182eded8b307b5394",
+    "sha256:e9ffaf60df9e5d0638031cf54293ccd0afaac1061ca84e2a0ca093e8566dfca8",
+    "sha256:170cb5960ede94e54d98f29b4a080815dc598bd955eb5b0ecb7394aa31ea4abb",
+    "sha256:145c0c161a5bf94e87eaf24d907ccf152edb52b2d39386b2b993ba6e5aa4c38f",
+    "sha256:36f35760be1e3e98e5c1a11d038a8d6fa00b55b16abd743c4978e34a9e704357",
+    "sha256:a26457721cbd6b3f2a3db8ffcd494e95ee32f2e9f901e2618652b6ecf7a35ea3"
+  ],
+  "os": "linux",
+  "architecture": "amd64",
+  "archive_filename": "village-business-api-stage-b2-read-amd64.tar.gz",
+  "archive_bytes": 79439372,
+  "archive_sha256": "4467e0810b6d0b6765347c6d8a2941797f2ecb74c43d802aa72db282c98dab86",
+  "runtime_execution": "pending_linux_container_smoke_test"
+}

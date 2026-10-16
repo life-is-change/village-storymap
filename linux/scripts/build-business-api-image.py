@@ -19,7 +19,8 @@ def code_digest(root):
     files=[Path(root)/'package.json',Path(root)/'package-lock.json',*sorted((Path(root)/'src').rglob('*.mjs'))]
     for p in files:
         if p.is_symlink():raise ValueError('Linked runtime file.')
-        h.update(p.relative_to(root).as_posix().encode()+b'\0'+p.read_bytes()+b'\0')
+        # Git converts text newlines between Windows development and Linux deploy.
+        h.update(p.relative_to(root).as_posix().encode()+b'\0'+p.read_bytes().replace(b'\r\n',b'\n')+b'\0')
     return h.hexdigest()
 def validate_base(path,descriptor=None):
     if descriptor is not None and descriptor.get('config',{}).get('digest')!=BASE_CONFIG:raise ValueError('Unverified base descriptor.')
@@ -61,7 +62,8 @@ def manifest_image_ids(cbytes,layers):
             ids.append('sha256:'+sha(json.dumps(desc,separators=(',',':')).encode()))
     return list(dict.fromkeys(ids))
 
-def build(base,output,api_root):
+def build(base,output,api_root,*,image='village-business-api:stage-a1'):
+    if image not in ('village-business-api:stage-a1','village-business-api:stage-b2-read'):raise ValueError('Unsupported candidate image tag.')
     output=Path(output)
     if output.exists():raise ValueError('Output already exists; choose a new archive name.')
     config,layers=validate_base(base);api_root=Path(api_root)
@@ -79,20 +81,22 @@ def build(base,output,api_root):
     config['config'].update({'WorkingDir':'/app','User':'1000:1000','Entrypoint':None,'Cmd':['node','src/main.mjs']})
     config['config'].setdefault('Labels',{}).update({'village.api.code-sha256':digest,'org.opencontainers.image.source':'https://github.com/life-is-change/village-storymap'})
     config.setdefault('history',[]).append({'created':'2026-10-15T00:00:00Z','created_by':'verified Node base + npm ci pure JS runtime'})
-    cbytes=encoded(config);configsha=sha(cbytes);manifest=[{'Config':configsha+'.json','RepoTags':['village-business-api:stage-a1'],'Layers':[x[0] for x in layers]}]
+    cbytes=encoded(config);configsha=sha(cbytes);manifest=[{'Config':configsha+'.json','RepoTags':[image],'Layers':[x[0] for x in layers]}]
     output.parent.mkdir(parents=True,exist_ok=True)
     with output.open('xb') as target,gzip.GzipFile(fileobj=target,mode='wb',mtime=0) as gz,tarfile.open(fileobj=gz,mode='w|') as t:
         add(t,configsha+'.json',cbytes);add(t,'manifest.json',encoded(manifest))
         for name,blob,_,_ in layers:add(t,name,blob)
     ids=manifest_image_ids(cbytes,layers)
-    meta={'image':'village-business-api:stage-a1','base_manifest':BASE,'base_source':'public.ecr.aws/docker/library/node',
+    meta={'image':image,'base_manifest':BASE,'base_source':'public.ecr.aws/docker/library/node',
           'code_sha256':digest,'accepted_image_ids':ids,'os':'linux','architecture':'amd64',
           'archive_filename':output.name,'archive_bytes':output.stat().st_size,'archive_sha256':hashlib.file_digest(output.open('rb'),'sha256').hexdigest(),
           'runtime_execution':'pending_linux_container_smoke_test'}
     return meta
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base-archive',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    args=p.parse_args();meta=build(args.base_archive,args.output,ROOT/'business-api')
-    (ROOT/'linux/business-api-image.json').write_text(json.dumps(meta,indent=2)+'\n')
+    p.add_argument('--image',choices=['village-business-api:stage-a1','village-business-api:stage-b2-read'],default='village-business-api:stage-a1')
+    args=p.parse_args();meta=build(args.base_archive,args.output,ROOT/'business-api',image=args.image)
+    name='storage-read-image.json' if args.image.endswith(':stage-b2-read') else 'business-api-image.json'
+    (ROOT/'linux'/name).write_text(json.dumps(meta,indent=2)+'\n')
     print('Verified offline image assembled:',args.output);print('Archive SHA-256:',meta['archive_sha256'])
 if __name__=='__main__':main()

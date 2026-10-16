@@ -12,6 +12,13 @@ def test_code_digest_detects_runtime_changes_but_not_test_files(tmp_path):
     (root/'src/main.mjs').write_text('runtime');(root/'test/unit.mjs').write_text('test')
     before=m.code_digest(root);(root/'test/unit.mjs').write_text('changed test');assert m.code_digest(root)==before
     (root/'src/main.mjs').write_text('changed runtime');assert m.code_digest(root)!=before
+
+def test_code_identity_survives_git_windows_linux_newline_conversion(tmp_path):
+    m=module();root=tmp_path/'api';(root/'src').mkdir(parents=True)
+    for f in ('package.json','package-lock.json','src/main.mjs'):(root/f).write_bytes(b'line1\nline2\n')
+    expected=m.code_digest(root)
+    for f in ('package.json','package-lock.json','src/main.mjs'):(root/f).write_bytes(b'line1\r\nline2\r\n')
+    assert m.code_digest(root)==expected
 def test_builder_rejects_unverified_base_and_source_links(tmp_path):
     m=module();bad=tmp_path/'base.tar';bad.write_bytes(b'not an image')
     with pytest.raises(ValueError):m.validate_base(bad,{'config':{'digest':'sha256:untrusted'},'layers':[]})

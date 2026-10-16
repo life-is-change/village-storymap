@@ -23,3 +23,12 @@ test('private file routes authorize before metadata and serve GET HEAD single ra
   assert.ok(!JSON.stringify(logs).includes(f.object.id));assert.ok(!JSON.stringify(logs).includes('Bearer'));
  }finally{await new Promise(r=>server.close(r));await f.cleanup();}
 });
+test('empty file GET and HEAD succeed and empty ranges fail without byte leakage',async()=>{
+ const f=await fixture(Buffer.alloc(0));const storage=await storageModule.createStorageReader(f);
+ const server=createServer(createHandler({storage,verifyIdentity:async()=>({userId:'a'}),database:{withIdentity:async(_,fn)=>fn({})},repository:{getMe:async()=>({}),getStorageObject:async()=>f.object}}));
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port+'/api/v1/files/'+f.object.id;
+ try{
+  for(const method of ['GET','HEAD']){const r=await fetch(url,{method});assert.equal(r.status,200);assert.equal(r.headers.get('content-length'),'0');assert.equal((await r.arrayBuffer()).byteLength,0);}
+  const r=await fetch(url,{headers:{Range:'bytes=0-0'}});assert.equal(r.status,416);assert.equal(r.headers.get('content-range'),'bytes */0');
+ }finally{await new Promise(r=>server.close(r));await f.cleanup();}
+});
