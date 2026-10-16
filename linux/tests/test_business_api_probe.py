@@ -1,8 +1,11 @@
 import importlib.util
 import io
 import json
+import ssl
 from pathlib import Path
 import pytest
+import urllib.error
+from unittest.mock import patch
 S=Path(__file__).resolve().parents[1]/'scripts/probe-business-api.py'
 def module():
     assert S.is_file(),'Private login probe missing'
@@ -29,6 +32,50 @@ def test_probe_outage_never_emits_success_and_redirect_is_refused():
     with pytest.raises(RuntimeError,match='PROBE_FAILED') as e:m.perform_probe('http://127.0.0.1:18080','student','private-password',Bad())
     assert 'private-password' not in str(e.value)
     with pytest.raises(ValueError):m.NoRedirect().redirect_request(None,None,302,'','', 'https://evil.invalid')
+
+@pytest.mark.parametrize('failed_path,phase,status', [
+    ('/token?', 'auth_login', 400),
+    ('/me', 'api_me', 503),
+    ('/courses', 'api_courses', 500),
+    ('kind=group', 'api_group_spaces', 403),
+    ('kind=personal', 'api_personal_spaces', 502),
+])
+def test_probe_identifies_failing_step_without_echoing_remote_error(failed_path,phase,status):
+    m=module();uid='10000000-0000-4000-8000-000000000001'
+    class Response(io.BytesIO):
+        def __enter__(self):return self
+        def __exit__(self,*args):self.close()
+    class Opener:
+        def open(self,request,timeout):
+            if failed_path in request.full_url:
+                raise urllib.error.HTTPError('https://private-url',status,'private-token-password',{},io.BytesIO(b'private rows'))
+            if '/token?' in request.full_url:return Response(json.dumps({'access_token':'private-token','user':{'id':uid}}).encode())
+            return Response(json.dumps({'data':{'id':uid} if request.full_url.endswith('/me') else []}).encode())
+    with pytest.raises(RuntimeError) as caught:
+        m.perform_probe('http://127.0.0.1:18080','332','private-password',Opener())
+    assert str(caught.value)==f'PROBE_FAILED phase={phase} category=http http_status={status}'
+    assert 'private' not in str(caught.value)
+
+def test_probe_cli_emits_only_safe_diagnostic_for_failed_login(capsys):
+    m=module()
+    with patch('sys.argv',['probe']),patch('builtins.input',return_value='332'),patch.object(m.getpass,'getpass',return_value='private-password'),patch.object(m,'perform_probe',side_effect=m.ProbeFailure('auth_login','network')):
+        assert m.main()==1
+    output=capsys.readouterr()
+    assert 'PROBE_FAILED phase=auth_login category=network' in output.err
+    assert 'private-password' not in output.err and 'VALIDATED_NOT_CUT_OVER' not in output.out
+
+@pytest.mark.parametrize('error,category', [
+    (OSError('private-password'), 'network'),
+    (urllib.error.URLError(ssl.SSLCertVerificationError('private-url')), 'tls'),
+    (ValueError('private-response'), 'response'),
+])
+def test_probe_redacts_network_tls_and_response_errors(error,category):
+    m=module()
+    class Opener:
+        def open(self,*args,**kwargs):raise error
+    with pytest.raises(RuntimeError) as caught:
+        m.perform_probe('http://127.0.0.1:18080','332','private-password',Opener())
+    assert str(caught.value)==f'PROBE_FAILED phase=auth_login category={category}'
 def test_acceptance_requires_matching_sql_restart_and_auth_proof():
     m=module()
     with pytest.raises(ValueError):m.acceptance_ready({}, {}, {'status':'authenticated_read_probe_passed'})

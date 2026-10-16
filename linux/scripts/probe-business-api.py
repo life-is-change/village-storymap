@@ -18,6 +18,16 @@ S=Path(__file__).resolve().parent
 s=importlib.util.spec_from_file_location('api_deployment',S/'deploy-business-api-validation.py')
 deploy=importlib.util.module_from_spec(s);s.loader.exec_module(deploy)
 ORIGIN='https://rzmbmwauomzwiyenafha.supabase.co'
+class ProbeFailure(RuntimeError):
+    """Only fixed stage/category names and an HTTP status may leave the probe."""
+    def __init__(self,phase,category,http_status=None):
+        if phase not in ('auth_login','api_me','api_courses','api_group_spaces','api_personal_spaces') or category not in ('http','network','tls','response'):
+            raise ValueError('Invalid probe diagnostic.')
+        if http_status is not None and (type(http_status) is not int or not 100<=http_status<=599):
+            raise ValueError('Invalid HTTP status.')
+        super().__init__('PROBE_FAILED phase='+phase+' category='+category+
+                         (f' http_status={http_status}' if http_status is not None else ''))
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):raise ValueError('Redirects are not accepted.')
 def validate_api_url(value):
@@ -35,21 +45,27 @@ def perform_probe(api_url,student,password,opener=None):
             raw=response.read(1024*1024+1)
             if len(raw)>1024*1024:raise ValueError('Response too large.')
             return json.loads(raw)
-    started=time.monotonic()
+    started=time.monotonic();phase='auth_login'
     try:
         auth=request(ORIGIN+'/auth/v1/token?grant_type=password',{'apikey':deploy.read_public_key(),'Content-Type':'application/json'},json.dumps({'email':'sid-'+student+'@rzmbmwauomzwiyenafha.supabase.co','password':password}).encode())
         token=auth['access_token'];uid=auth['user']['id'];auth_ms=round((time.monotonic()-started)*1000)
-        headers={'Authorization':'Bearer '+token};t=time.monotonic()
+        headers={'Authorization':'Bearer '+token};t=time.monotonic();phase='api_me'
         me=request(base+'/api/v1/me',headers)['data']
         if me['id']!=uid:raise ValueError('Identity mismatch.')
         counts={}
         for key,path in [('courses','/courses'),('group_spaces','/spaces?kind=group'),('personal_spaces','/spaces?kind=personal')]:
+            phase='api_'+key
             rows=request(base+'/api/v1'+path,headers)['data']
             if not isinstance(rows,list):raise ValueError('Invalid API response.')
             counts[key]=len(rows)
         # Deliberately avoid returning identity, tokens, profile fields or password.
         return {'status':'authenticated_read_probe_passed','counts':counts,'auth_ms':auth_ms,'read_routes_ms':round((time.monotonic()-t)*1000)}
-    except (OSError,ValueError,KeyError,TypeError):raise RuntimeError('PROBE_FAILED - check website credentials, Auth reachability and candidate API private logs.') from None
+    except urllib.error.HTTPError as error:
+        raise ProbeFailure(phase,'http',error.code) from None
+    except (OSError,ValueError,KeyError,TypeError) as error:
+        reason=error.reason if isinstance(error,urllib.error.URLError) else error
+        category='tls' if isinstance(reason,ssl.SSLError) else 'network' if isinstance(error,OSError) else 'response'
+        raise ProbeFailure(phase,category) from None
 def acceptance_ready(verification,checkpoint,probe,*,attempt=None,runtime_fingerprint=None):
     attempt=attempt or {}
     if (verification.get('status')!='permissions_restart_verified' or probe.get('status')!='authenticated_read_probe_passed'
@@ -85,6 +101,8 @@ def main():
             print('BUSINESS_API_INTERNAL_VALIDATED_NOT_CUT_OVER')
         else:print('LOGIN_READ_PROBE_PASSED - run server-side candidate acceptance before claiming complete validation.')
         return 0
+    except ProbeFailure as error:
+        print('STOP: '+str(error)+'. Do not paste credentials, tokens or private rows. No complete acceptance marker.',file=sys.stderr);return 1
     except (ValueError,RuntimeError,OSError,KeyError):
         print('STOP: probe or candidate proof failed; do not paste credentials, tokens or private rows. No complete acceptance marker.',file=sys.stderr);return 1
 if __name__=='__main__':raise SystemExit(main())
