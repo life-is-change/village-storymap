@@ -1,6 +1,6 @@
 # B2 授权文件读取实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans inline. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans inline. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 为 B1 已验证文件副本提供候选环境的授权 GET/HEAD/单段 Range 读取，并交付离线镜像、保守部署脚本与真实登录验收工具。
 
@@ -33,11 +33,11 @@
 
 **Interfaces:** `createStorageReader({root,indexPath}) -> {open(object), ...}` reads index version=1 with archive hash and selected `{id,bucket,name,sha256,size}`. `getStorageObject(client,id)` returns RLS-filtered metadata. HTTP `GET|HEAD /api/v1/files/<uuid>` consumes verified identity and metadata, produces private no-store bytes, supports one byte range. No list/upload/delete or public URL route.
 
-- [ ] Write tests for unauthenticated/invalid/cross-user/GPU denial, exact binary/HEAD/range/empty response, corrupt index/blob, path/link rejection, bounded streaming, safe errors, and original API regression.
-- [ ] Run Node unit suite and observe new tests fail because storage interface/routes are absent.
-- [ ] Implement index validation, secure same-fd hash+read, route and repository checks. House photos follow existing authenticated read rule; group models/shared/user/group, scene helper functions and village dataset helper follow audited source SQL with RLS retained.
-- [ ] Run Node unit suite and disposable real PostgreSQL integration proving user A/B isolation and no writes. Record platform-specific skips.
-- [ ] Commit API + tests.
+- [x] Write tests for unauthenticated/invalid/cross-user/GPU denial, exact binary/HEAD/range/empty response, corrupt index/blob, path/link rejection, bounded streaming, safe errors, and original API regression.
+- [x] Run Node unit suite and observe new tests fail because storage interface/routes are absent.
+- [x] Implement index validation, secure same-fd hash+read, route and repository checks. House photos follow existing authenticated read rule; group models/shared/user/group, scene helper functions and village dataset helper follow audited source SQL with RLS retained.
+- [x] Run Node unit suite and disposable real PostgreSQL integration proving user A/B isolation and no writes. Record platform-specific skips.
+- [x] Commit API + tests.
 
 ## Task 2: Private deployment and offline image
 
@@ -45,10 +45,10 @@
 
 **Interfaces:** `prepare_index(run,archive_sha)` locks/rechecks B1 and creates normalized index; `compose_document(state,source_state,run,uid,gid,key)` creates only new API service on external A networks, `18081` loopback, 192MiB, read-only/password+index+blobs mounts; `validate_runtime` compares immutable intended Compose/container/network/image/checkpoint identities. CLI `--check`, `--deploy`, `--verify` and explicit private state; no reset/DB restart/source writes.
 
-- [ ] Write behavioral tests for incomplete/changed/tampered copy, wrong archive/DB metadata/image identity/ports/mounts and pre-existing target; run RED.
-- [ ] Implement guarded preflight against A accepted runtime and archive, check actual candidate storage identity tuple, create private index/checkpoint and compose, start new API only, validate health and exact runtime.
-- [ ] Test builder's named B2 tag/metadata without altering stage A; build private archive from existing verified Node base with npm lockfile installed.
-- [ ] Run Python suite; verify archive checksum/image descriptors and code hash; commit metadata, tooling and tests (never archive/index/data/secrets).
+- [x] Write behavioral tests for incomplete/changed/tampered copy, wrong archive/DB metadata/image identity/ports/mounts and pre-existing target; run RED.
+- [x] Implement guarded preflight against A accepted runtime and archive, check actual candidate storage identity tuple, create private index/checkpoint and compose, start new API only, validate health and exact runtime.
+- [x] Test builder's named B2 tag/metadata without altering stage A; build private archive from existing verified Node base with npm lockfile installed.
+- [x] Run Python suite; verify archive checksum/image descriptors and code hash; commit metadata, tooling and tests (never archive/index/data/secrets).
 
 ## Task 3: Cloud probe and operator handoff
 
@@ -56,6 +56,6 @@
 
 **Interfaces:** hidden website login password; probe authorized object GET/HEAD/Range vs private index hash, counts 404 without treating denial as missing file; require at least one success and per-bucket summary; no-auth must reject. `--verify` restart only B2 API, revalidate B1 and runtime and leave a fresh fingerprint proof; probe binds exact fresh proof and writes private acceptance only on complete success.
 
-- [ ] Write failing tests for denial/no-readable files, checksum mismatch, failed auth/no hidden input and stale/mismatched runtime proof; implement fixed safe diagnostics with no tokens/paths/private names.
+- [x] Write failing tests for denial/no-readable files, checksum mismatch, failed auth/no hidden input and stale/mismatched runtime proof; implement fixed safe diagnostics with no tokens/paths/private names.
 - [ ] Run Node/Python suites and root frontend tests; independent whole-change review and one fix pass for actionable issues.
 - [ ] Commit/push original main and give actual upload/checksum/load/check/deploy/verify/probe commands. Stop at user handoff, leave cloud acceptance pending until output arrives.
