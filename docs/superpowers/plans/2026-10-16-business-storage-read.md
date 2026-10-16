@@ -60,4 +60,4 @@
 
 - [x] Write failing tests for denial/no-readable files, checksum mismatch, failed auth/no hidden input and stale/mismatched runtime proof; implement fixed safe diagnostics with no tokens/paths/private names.
 - [x] Run Node/Python suites and root frontend tests; independent whole-change review and one fix pass for actionable issues. Final: Node 19, real PG 3, Python 171 passed / 1 skipped, root frontend 1004 passed; both Important findings fixed with RED→GREEN regressions.
-- [ ] Commit/push original main and give actual upload/checksum/load/check/deploy/verify/probe commands. Stop at user handoff, leave cloud acceptance pending until output arrives.
+- [x] Commit original main and prepare upload/checksum/load/check/deploy/verify/probe handoff in linux/README.storage-read.md; push follows final checks in this turn. Cloud acceptance remains pending user output.

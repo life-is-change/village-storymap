@@ -32,3 +32,5 @@
 用户仍需按 [操作说明](../../linux/README.storage-read.md) 上传、校验、导入镜像，执行候选检查/部署/重启验证与隐藏输入的真实网站账号探针。实际对象可读数、字节、权限和资源结果须以用户回传为准。
 
 只有云端真实探针取得 `STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER` 后，才登记 B2 读取候选验收完成。此记录目前没有宣称该标记或线上切换。
+
+最终本地修正提交：`e58b451`。最终镜像为 `village-business-api:stage-b2-read`，压缩包 79,441,255 字节，SHA-256 为 `1da2b55b35c8692cc809c6825d6f40eedc94eeb3dfffdd44b8d8ba911ed2a13a`。已独立解码并核对各层摘要、平台、导入身份和运行时代码摘要；Linux 容器运行仍待用户验收。
