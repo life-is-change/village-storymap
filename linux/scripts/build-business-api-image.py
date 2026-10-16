@@ -40,6 +40,27 @@ def validate_base(path,descriptor=None):
     except tarfile.TarError as e:raise ValueError('Invalid base archive.') from e
 def add(t,name,raw):
     info=tarfile.TarInfo(name);info.size=len(raw);info.mode=0o644;info.mtime=0;t.addfile(info,io.BytesIO(raw))
+def manifest_image_ids(cbytes,layers):
+    """Derive config and import-manifest IDs from exact archive bytes."""
+    configsha=sha(cbytes);ids=['sha256:'+configsha]
+    for media in ('docker','oci'):
+        types=('application/vnd.docker.distribution.manifest.v2+json','application/vnd.docker.container.image.v1+json','application/vnd.docker.image.rootfs.diff.tar') if media=='docker' else ('application/vnd.oci.image.manifest.v1+json','application/vnd.oci.image.config.v1+json','application/vnd.oci.image.layer.v1.tar')
+        # Retain identities emitted by the earlier builder metadata.
+        legacy={'schemaVersion':2,'mediaType':types[0],'config':{'mediaType':types[1],'size':len(cbytes),'digest':'sha256:'+configsha},'layers':[{'mediaType':types[2],'size':size,'digest':'sha256:'+diff} for _,_,size,diff in layers]}
+        ids.append('sha256:'+sha(json.dumps(legacy,separators=(',',':')).encode()))
+        for compressed in (False,True):
+            # Go registry descriptors serialize mediaType,digest,size. Docker's
+            # containerd image store may retain the compressed layer descriptors.
+            suffix=('.gzip' if media=='docker' else '+gzip') if compressed else ''
+            desc={'schemaVersion':2,'mediaType':types[0],
+                  'config':{'mediaType':types[1],'digest':'sha256:'+configsha,'size':len(cbytes)},
+                  'layers':[{'mediaType':types[2]+suffix,
+                             'digest':'sha256:'+(sha(blob) if compressed else diff),
+                             'size':len(blob) if compressed else size}
+                            for _,blob,size,diff in layers]}
+            ids.append('sha256:'+sha(json.dumps(desc,separators=(',',':')).encode()))
+    return list(dict.fromkeys(ids))
+
 def build(base,output,api_root):
     output=Path(output)
     if output.exists():raise ValueError('Output already exists; choose a new archive name.')
@@ -63,12 +84,7 @@ def build(base,output,api_root):
     with output.open('xb') as target,gzip.GzipFile(fileobj=target,mode='wb',mtime=0) as gz,tarfile.open(fileobj=gz,mode='w|') as t:
         add(t,configsha+'.json',cbytes);add(t,'manifest.json',encoded(manifest))
         for name,blob,_,_ in layers:add(t,name,blob)
-    ids=['sha256:'+configsha]
-    for media in ('docker','oci'):
-        types=('application/vnd.docker.distribution.manifest.v2+json','application/vnd.docker.container.image.v1+json','application/vnd.docker.image.rootfs.diff.tar') if media=='docker' else ('application/vnd.oci.image.manifest.v1+json','application/vnd.oci.image.config.v1+json','application/vnd.oci.image.layer.v1.tar')
-        desc={'schemaVersion':2,'mediaType':types[0],'config':{'mediaType':types[1],'size':len(cbytes),'digest':'sha256:'+configsha},'layers':[{'mediaType':types[2],'size':size,'digest':'sha256:'+diff} for _,_,size,diff in layers]}
-        # Manifest field ordering matches the standard registry serializer.
-        ids.append('sha256:'+sha(json.dumps(desc,separators=(',',':')).encode()))
+    ids=manifest_image_ids(cbytes,layers)
     meta={'image':'village-business-api:stage-a1','base_manifest':BASE,'base_source':'public.ecr.aws/docker/library/node',
           'code_sha256':digest,'accepted_image_ids':ids,'os':'linux','architecture':'amd64',
           'archive_filename':output.name,'archive_bytes':output.stat().st_size,'archive_sha256':hashlib.file_digest(output.open('rb'),'sha256').hexdigest(),

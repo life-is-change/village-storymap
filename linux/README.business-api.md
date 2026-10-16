@@ -6,7 +6,7 @@
 
 - 本地已测试固定路由、令牌拒绝、连接回滚、跨用户隔离和原平台前端回归。
 - 本机 PostgreSQL 17.11 的合成数据库测试不等于阿里云 PostgreSQL 17.6 验收。
-- 当前电脑没有 Docker；离线镜像按固定官方 Node 基础配置/层摘要与 `npm ci --omit=dev` 的纯 JS 依赖组装，原始及解压层摘要均校验。**尚未在 Linux 容器中运行；必须先执行下面的容器 smoke test。**
+- 当前电脑没有 Docker；离线镜像按固定官方 Node 基础配置/层摘要与 `npm ci --omit=dev` 的纯 JS 依赖组装，原始及解压层摘要均校验。2026-10-16 用户在阿里云完成了 Node 版本和 `pg` 导入 smoke test；完整 API 启动、数据库权限与登录验收仍待后续步骤。
 - `linux/business-api-image.json` 记录镜像、运行代码摘要、可接受的导入 ID、传输文件名/大小/哈希。镜像只包含业务 API，不包含数据备份或数据库密码。
 
 ## 1. 更新脚本并上传镜像
@@ -52,6 +52,8 @@ sudo docker run --rm --pull=never --network none --entrypoint node village-busin
 ```
 
 加载归档自带 `village-business-api:stage-a1` 标签，不需要手动猜镜像 ID。任何一步失败就停止并保留输出；不要因此修改 daemon 镜像源或覆盖已有数据库。
+
+Docker 的 containerd 镜像存储可能用压缩层清单摘要作为导入 ID，而非配置摘要。构建脚本从归档原始字节计算压缩/解压层的 Docker、OCI 清单摘要，使用注册表描述符的 `mediaType,digest,size` 序列化顺序；不会直接信任服务器报告的未知 ID。当前归档对应的 Docker 压缩清单 ID 为 `sha256:0dd84bcfc962a3ef5f49a5babe6a6a52ec78dc4ac64b9f276f0577ccb1458f3e`。旧脚本拒绝此 ID 时，保持镜像不动，拉取修复后的 main 再运行 `--check`；无需重新上传镜像。
 
 ## 2. 检查再部署候选环境
 

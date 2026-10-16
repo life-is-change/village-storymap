@@ -91,7 +91,7 @@ def preflight(backup,state,baseline,docker):
     expected=json.loads((ROOT/'linux/business-api-image.json').read_text())
     image=json.loads(docker.run(['image','inspect',API_IMAGE]))[0]
     if image['Id'] not in expected['accepted_image_ids'] or (image['Os'],image['Architecture'])!=('linux','amd64'):
-        raise ValueError('Load the verified API image before deployment.')
+        raise ValueError('API image ID or platform differs from verified metadata; inspect the loaded image.')
     if (image.get('Config',{}).get('Labels') or {}).get('village.api.code-sha256')!=expected['code_sha256']:
         raise ValueError('API image code identity differs.')
     available=int(re.search(r'^MemAvailable:\s+(\d+)',Path('/proc/meminfo').read_text(),re.M)[1])*1024
