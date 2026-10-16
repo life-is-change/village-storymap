@@ -44,24 +44,24 @@
 
 **Interfaces:** `validate_inventory(document) -> normalized_document`；`export_inventory(docker, state, output) -> aggregate_summary`。输出目录新建且独立于备份/网站/源代码目录，已有目录不覆盖。
 
-- [ ] 先写测试：五个候选桶分类正确、GPU 产物排除、空桶、未知大小、中文名称、坏路径/重复对象/错误项目、目录重叠/符号链接均有明确处理，输出不含私有对象路径。
-- [ ] Run `python -m pytest linux/tests/test_business_storage_copy.py -q`。Expected: 新接口不存在而失败。
-- [ ] 实现清单契约和只读候选 SQL；使用现有 runtime/checkpoint 身份校验。目录和清单权限在创建时设定，不通过修改源 DB 元数据来简化清单。
-- [ ] Run `python -m pytest linux/tests -q`。Expected: 全部通过；代码中无源写入和源密钥。
-- [ ] Commit 清单/盘点工具及其测试，记录尚待用户执行的真实桶数量和大小。
+- [x] 先写测试：五个候选桶分类正确、GPU 产物排除、空桶、未知大小、中文名称、坏路径/重复对象/错误项目、目录重叠/符号链接均有明确处理，输出不含私有对象路径。
+- [x] Run `python -m pytest linux/tests/test_business_storage_copy.py -q`。Expected: 新接口不存在而失败。
+- [x] 实现清单契约和只读候选 SQL；使用现有 runtime/checkpoint 身份校验。目录和清单权限在创建时设定，不通过修改源 DB 元数据来简化清单。
+- [x] Run `python -m pytest linux/tests -q`。Expected: 全部通过；代码中无源写入和源密钥。
+- [x] Commit 清单/盘点工具及其测试，记录尚待用户执行的真实桶数量和大小。
 
 ## Task 2: 只读下载、完整性与中断恢复
 
 **Interfaces:** 消费 Task 1 的 version=1 inventory。`copy_inventory(inventory_path, output_root, credential, transport) -> aggregate_summary`；`verify_copy(run_directory) -> aggregate_summary`。`transport` 只负责固定源 HTTP 边界，真实文件操作由生产逻辑执行。
 
-- [ ] 先写测试：Publishable/anon/数据库密码被拒绝；新的 `sb_secret_...` 与旧 service_role JWT 的头部模式按官方接口核对；任何错误文本中的测试密钥不进入输出。
-- [ ] 先写测试：401/403 立即停止，404 标记缺失，429/临时服务错误有有界重试；重定向、TLS 错误、截断、元数据/字节不匹配、源变化均不能产出虚假的完成标记。
-- [ ] 先写测试：大文件分块、空文件、内容哈希和落盘再校验、同内容对象去重、现有坏文件拒绝、部分文件不被跳过、复制恢复、磁盘余量不足与路径链接处理。
-- [ ] Run 目标测试。Expected: 缺少下载/验收行为而失败。
-- [ ] 实现固定 HTTPS 源的下载客户端，先核对官方 Storage 与新旧 API key 的调用方式；不将 Secret key 当用户 JWT。源授权仅用于源下载，不挂载到业务 API。
-- [ ] 以 `.partial` 下载并流式计算哈希；成功后落到摘要命名对象并原子更新清单。恢复必须重算已完成文件的摘要；不删除既有成功或失败现场。
-- [ ] 独立验收只重读本地文件、核对字节/摘要/对象映射；有 missing/failed/source_changed 时输出准确的未完成计数，不发出全量迁移完成标记。
-- [ ] Run `python -m pytest linux/tests -q`。Expected: 全部通过。Commit 复制/验收 CLI 和测试。
+- [x] 先写测试：Publishable/anon/数据库密码被拒绝；新的 `sb_secret_...` 与旧 service_role JWT 的头部模式按官方接口核对；任何错误文本中的测试密钥不进入输出。
+- [x] 先写测试：401/403 立即停止，404 标记缺失，429/临时服务错误有有界重试；重定向、TLS 错误、截断、元数据/字节不匹配、源变化均不能产出虚假的完成标记。
+- [x] 先写测试：大文件分块、空文件、内容哈希和落盘再校验、同内容对象去重、现有坏文件拒绝、部分文件不被跳过、复制恢复、磁盘余量不足与路径链接处理。
+- [x] Run 目标测试。Expected: 缺少下载/验收行为而失败。
+- [x] 实现固定 HTTPS 源的下载客户端，先核对官方 Storage 与新旧 API key 的调用方式；不将 Secret key 当用户 JWT。源授权仅用于源下载，不挂载到业务 API。
+- [x] 以 `.partial` 下载并流式计算哈希；成功后落到摘要命名对象并原子更新清单。恢复必须重算已完成文件的摘要；不删除既有成功或失败现场。
+- [x] 独立验收只重读本地文件、核对字节/摘要/对象映射；有 missing/failed/source_changed 时输出准确的未完成计数，不发出全量迁移完成标记。
+- [x] Run `python -m pytest linux/tests -q`。Expected: 全部通过。Commit 复制/验收 CLI 和测试。
 
 ## Task 3: 用户手动执行与阶段边界
 
@@ -78,4 +78,4 @@
 - [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)：Secret key 与 service_role 为服务器端权限，Publishable 与数据库密码不是此用途。
 - [Supabase Storage download](https://supabase.com/docs/reference/javascript/storage-from-download)：核对私有对象读取和服务端身份用法；原始 HTTP 细节须在写客户端前核实。
 
-当前仅完成计划。沿用用户已选的本地 main 原生执行方式；尚未向 Supabase 发起真实对象下载，也未修改阿里云文件目录。
+本地盘点、复制、完整性/续跑测试与用户操作说明已实现；原生执行方式保持不变。云端真实盘点、源授权、下载和验收仍待用户手动执行，未发生网站切换。
