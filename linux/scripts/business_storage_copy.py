@@ -211,13 +211,23 @@ def transfer_summary(doc,manifest):
     result={status:sum(r['status']==status for r in manifest['records'].values()) for status in ('pending','copied','source_changed','missing','failed')}
     return {**inventory_summary(doc),**result,'verified_bytes':sum(r['received_bytes'] for r in manifest['records'].values() if r['status']=='copied')}
 
+def acquire_transfer_lock(root):
+    lock=private_path(root,directory=True)/'.transfer.lock'
+    try:fd=os.open(lock,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    except FileExistsError:raise RuntimeError('STORAGE_TRANSFER_LOCKED') from None
+    with os.fdopen(fd,'w',encoding='utf-8') as stream:
+        json.dump({'pid':os.getpid(),'started_at':now()},stream)
+    return lock
+
 def verify_copy(run_directory):
     root=private_path(run_directory,directory=True)
-    if (root/'.transfer.lock').exists():raise ValueError('Transfer is active or its lock needs operator inspection.')
-    doc,objects,manifest=load_transfer(root)
-    result=transfer_summary(doc,manifest)
-    done=(root/'copy-manifest.json').is_file() and all(r['status']=='copied' for r in manifest['records'].values())
-    return {**result,'status':'private_copy_verified_not_cut_over' if done else 'private_copy_incomplete'}
+    lock=acquire_transfer_lock(root)
+    try:
+        doc,objects,manifest=load_transfer(root)
+        result=transfer_summary(doc,manifest)
+        done=(root/'copy-manifest.json').is_file() and all(r['status']=='copied' for r in manifest['records'].values())
+        return {**result,'status':'private_copy_verified_not_cut_over' if done else 'private_copy_incomplete'}
+    finally:lock.unlink()
 
 def check_disk(root,needed):
     if shutil.disk_usage(root).free<RESERVE+needed+CHUNK:raise RuntimeError('STORAGE_DISK_RESERVE_REQUIRED')
@@ -227,15 +237,17 @@ def copy_inventory(inventory_path,output_root,credential,transport=None):
     if no_links(inventory_path)!=root/'inventory.json':raise ValueError('Use the inventory in the selected private run directory.')
     credential_headers(credential)
     transport=transport or SourceTransport(credential)
-    doc,objects,manifest=load_transfer(root)
-    lock=root/'.transfer.lock'
-    fd=os.open(lock,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600);os.close(fd)
+    lock=acquire_transfer_lock(root)
     try:
+        doc,objects,manifest=load_transfer(root)
         write_private_json(root/'copy-manifest.json',manifest)
         heads={}
         # Resolve all lengths before allocating files, including unknown snapshot sizes.
         for obj in objects:
             row=manifest['records'][obj['id']]
+            # Once change is observed, only a later explicit refresh/new run may
+            # replace its identity. Resume must retain the original SHA/ETag.
+            if row['status']=='source_changed':continue
             try:head=transport.head(obj)
             except SourceFailure as e:
                 row.update(status='missing' if e.status==404 else 'failed',error_code='http_'+str(e.status),checked_at=now())
@@ -245,7 +257,7 @@ def copy_inventory(inventory_path,output_root,credential,transport=None):
             if type(head.get('size')) is not int or head['size']<0 or not head.get('etag'):raise ValueError('Invalid source metadata.')
             snapshot_etag=obj['snapshot_etag']
             changed=(obj['declared_size'] is not None and obj['declared_size']!=head['size']) or (snapshot_etag is not None and snapshot_etag.strip('"')!=head['etag'].strip('"'))
-            if row['status']=='copied' and row.get('source_etag')!=head['etag']:changed=True
+            if row.get('sha256') and row.get('source_etag')!=head['etag']:changed=True
             if changed:
                 row.update(status='source_changed',checked_at=now());write_private_json(root/'copy-manifest.json',manifest);continue
             if row['status']!='copied':heads[obj['id']]=head

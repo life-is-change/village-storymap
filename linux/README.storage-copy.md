@@ -4,7 +4,7 @@
 
 ## 1. 更新并盘点（无需密钥）
 
-在阿里云终端，以原来的 `admin` 用户执行。先确认 `git status --short --branch` 没有本地改动，再运行：
+本工具的生产 CLI 只支持阿里云 Linux，以原来的非 root `admin` 用户执行；不在 Windows 上保存下载文件或密钥。先确认 `git status --short --branch` 没有本地改动，再运行：
 
 ```bash
 cd ~/village-deploy/source &&
@@ -30,7 +30,7 @@ python3 linux/scripts/inventory-business-storage.py
 python3 linux/scripts/copy-business-storage.py
 ```
 
-看到 `Supabase SERVER Secret key (hidden; NOT database password):` 后，复制 Supabase **Secret keys** 页面 `default` 的密钥，在终端粘贴并按回车。看不见字符是正常现象。无需把密钥发给聊天，也不放在命令、Git、镜像或网页中；默认只在本次进程内使用。旧版 service_role key 同样支持，Publishable/anon key 和数据库密码不适用。
+看到 `Supabase SERVER Secret key (hidden; NOT database password):` 后，复制 Supabase **Secret keys** 页面 `default` 的密钥，在终端粘贴并按回车。看不见字符是正常现象。无需把密钥发给聊天，也不放在命令、Git、镜像或网页中；默认只在本次进程内使用。如果终端无法关闭输入回显，工具会在读取密钥前停止，不退回明文输入。旧版 service_role key 同样支持，Publishable/anon key 和数据库密码不适用。
 
 脚本仅向固定项目的已验证 HTTPS 源发送密钥。先用 HEAD 获取大小和 ETag，再用条件 GET 分块下载；每个文件落盘后重算 SHA-256、复查源 ETag。预留至少 4 GiB 空间，CPU/内存按单进程 1 MiB 分块控制。复制期间可能数分钟没有新的输出。
 
@@ -56,13 +56,13 @@ python3 linux/scripts/copy-business-storage.py --verify-only
 python3 linux/scripts/copy-business-storage.py --resume
 ```
 
-续跑重新核对完成文件，部分文件保留为私有 `.partial`，从头重取失败对象，不覆盖已有内容副本。相同内容的重复临时副本也保留；可在整个迁移结束后核对清理，不在复制过程中删除证据。
+续跑重新核对完成文件，部分文件保留为私有 `.partial`，从头重取失败对象，不覆盖已有内容副本。已经记录的 `source_changed` 在此运行中保持不变；多次续跑不能替换原对象的 SHA/ETag 映射，需留待显式最终刷新处理。相同内容的重复临时副本也保留；可在整个迁移结束后核对清理，不在复制过程中删除证据。
 
 - `STORAGE_SOURCE_HTTP_401/403`：源端未接受服务端密钥/访问权限，停止复制；重新核对密钥类型及项目，勿发送密钥内容。
 - `missing`：源对象缺失；`source_changed`：源大小/ETag 与快照或传输前后不一致。保留现场，最终刷新阶段处理，不绕过核对硬标完成。
 - `STORAGE_DISK_RESERVE_REQUIRED`：可用磁盘不足以维持预留量；先检查磁盘和对象总量，不降低限制盲目继续。
 - `STORAGE_SOURCE_CONNECTION_FAILED`：源 HTTPS/TLS/连接故障；不会改用 HTTP、关闭证书验证或跟随外站重定向。
-- 活跃复制使用私有 `.transfer.lock`，正常退出释放它；进程被强制终止时可能残留。存在锁时不要同时启动另一复制，也不要直接删除目录/锁；先核对原进程是否仍运行。
+- 复制和独立校验都在读取清单前获取同一私有 `.transfer.lock`，正常退出释放它；锁中记录进程 ID 和开始时间。进程被强制终止时可能残留，工具输出 `STORAGE_TRANSFER_LOCKED`；不要直接删除目录/锁，先核对原进程是否仍运行。当前没有自动清除失效锁的恢复命令，需保留现场人工核对后处理。
 
 文件读写/续跑均在现有私有目录进行；不安装服务、不启动第二个数据库、不执行源 SQL、上传或删除。可选 `--key-file` 只读取操作者已私有保存的凭据文件；不负责创建凭据文件。默认隐藏输入即可。
 

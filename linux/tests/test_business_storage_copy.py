@@ -226,7 +226,7 @@ def cli():
 
 def test_cli_verify_only_never_requests_a_key_and_reports_incomplete(tmp_path,capsys):
     m=module();root=setup_copy(tmp_path,m);command=cli()
-    with patch('sys.argv',['copy','--run-dir',str(root),'--verify-only']),patch.object(command.getpass,'getpass',side_effect=AssertionError('No key needed')):
+    with patch('sys.argv',['copy','--run-dir',str(root),'--verify-only']),patch.object(command,'require_server'),patch.object(command.getpass,'getpass',side_effect=AssertionError('No key needed')):
         assert command.main()==2
     output=capsys.readouterr()
     assert 'STORAGE_PRIVATE_COPY_INCOMPLETE' in output.out
@@ -235,7 +235,7 @@ def test_cli_verify_only_never_requests_a_key_and_reports_incomplete(tmp_path,ca
 def test_cli_hidden_key_is_not_saved_or_printed(tmp_path,capsys):
     m=module();root=setup_copy(tmp_path,m);command=cli();key='sb_secret_'+'z'*40
     real_copy=m.copy_inventory
-    with patch('sys.argv',['copy','--run-dir',str(root)]),patch.object(command.getpass,'getpass',return_value=key),patch.object(command,'copy_inventory',side_effect=lambda inv,out,k:real_copy(inv,out,k,Transport(m))):
+    with patch('sys.argv',['copy','--run-dir',str(root)]),patch.object(command,'require_server'),patch.object(command.getpass,'getpass',return_value=key),patch.object(command,'copy_inventory',side_effect=lambda inv,out,k:real_copy(inv,out,k,Transport(m))):
         assert command.main()==0
     output=capsys.readouterr()
     assert key not in output.out+output.err
@@ -247,3 +247,53 @@ def test_two_objects_share_one_verified_content_blob(tmp_path):
     m.write_private_json(root/'inventory.json',doc)
     assert m.copy_inventory(root/'inventory.json',root,'sb_secret_'+'a'*40,Transport(m))['copied']==2
     assert len(list((root/'blobs').iterdir()))==1
+
+def test_detected_source_change_stays_sticky_across_two_resumes(tmp_path):
+    m=module();root=setup_copy(tmp_path,m);key='sb_secret_'+'a'*40
+    m.copy_inventory(root/'inventory.json',root,key,Transport(m))
+    original=m.read_private_json(root/'copy-manifest.json')['records']['object-1'].copy()
+    class NewVersion(Transport):
+        def get(self,obj,etag):
+            self.gets+=1;body=Body(b'xyz');body.headers['ETag']='"etag-v2"';return body
+    changed=NewVersion(m,body=b'xyz',etag='"etag-v2"')
+    for _ in range(2):
+        assert m.copy_inventory(root/'inventory.json',root,key,changed)['source_changed']==1
+        row=m.read_private_json(root/'copy-manifest.json')['records']['object-1']
+        assert row['sha256']==original['sha256'] and row['source_etag']==original['source_etag']
+    assert changed.gets==0
+    assert m.verify_copy(root)['status']=='private_copy_incomplete'
+
+@pytest.mark.parametrize('operation',['copy','verify'])
+def test_full_manifest_read_modify_verify_transaction_holds_exclusive_lock(tmp_path,monkeypatch,operation):
+    m=module();root=setup_copy(tmp_path,m);real_load=m.load_transfer
+    def checked_load(path):
+        assert (root/'.transfer.lock').is_file(), 'State must be loaded only after acquiring its lock'
+        return real_load(path)
+    monkeypatch.setattr(m,'load_transfer',checked_load)
+    if operation=='copy':m.copy_inventory(root/'inventory.json',root,'sb_secret_'+'a'*40,Transport(m))
+    else:m.verify_copy(root)
+    assert not (root/'.transfer.lock').exists()
+
+def test_cli_refuses_unsupported_platform_before_asking_for_secret(tmp_path,capsys):
+    command=cli()
+    with patch('sys.argv',['copy','--run-dir',str(tmp_path)]),patch.object(command.sys,'platform','win32'),patch.object(command.getpass,'getpass',side_effect=AssertionError('No prompt on unsupported platform')):
+        assert command.main()==1
+    assert 'STORAGE_SERVER_LINUX_REQUIRED' in capsys.readouterr().err
+
+def test_cli_refuses_echo_fallback_before_reading_or_copying_secret(tmp_path,capsys):
+    import warnings
+    m=module();root=setup_copy(tmp_path,m);command=cli()
+    def no_hidden_terminal(*args,**kwargs):
+        warnings.warn('Cannot control echo on this terminal',command.getpass.GetPassWarning)
+        raise AssertionError('Fallback must never read a secret')
+    with patch('sys.argv',['copy','--run-dir',str(root)]),patch.object(command,'require_server'),patch.object(command.getpass,'getpass',side_effect=no_hidden_terminal):
+        assert command.main()==1
+    assert 'STORAGE_HIDDEN_INPUT_UNAVAILABLE' in capsys.readouterr().err
+
+def test_binary_larger_than_two_chunks_is_copied_without_unbounded_reads(tmp_path):
+    m=module();root=setup_copy(tmp_path,m);payload=b'\x00\xff'+b'x'*(2*m.CHUNK+19)
+    doc=inventory();doc['objects'][0]['declared_size']=len(payload);m.write_private_json(root/'inventory.json',doc)
+    assert m.copy_inventory(root/'inventory.json',root,'sb_secret_'+'a'*40,Transport(m,body=payload))['copied']==1
+    digest=hashlib.sha256(payload).hexdigest()
+    assert (root/'blobs'/digest).read_bytes()==payload
+    assert m.verify_copy(root)['verified_bytes']==len(payload)
