@@ -69,15 +69,15 @@
 
 - [x] 编写 README：首先导出盘点并检查实际对象数量/大小/余量，再由用户隐藏输入服务器端密钥下载。没有服务端密钥时，盘点和本地逻辑测试仍可独立完成，不要求在聊天发送秘密。
 - [x] 代码/脚本审查：没有源对象删除、数据库写入、URL 替换、Nginx public 目录挂载或 Worker 变更；没有 API 容器获得管理凭据。
-- [x] Run 完整 Linux 测试及受控下载/恢复验收。Expected: 通过且任何失败场景都不产生虚假成功标记。Commit/push main，再提供阿里云命令。
-- [ ] 用户执行盘点、复制和逐文件验收；记录已验证对象数量、字节总量、失败/变化数和私有清单位置。真实复制和验收在用户回传结果之前保持待执行。
-- [ ] 停在私有文件副本交付，不将其等同于 B2 授权访问、C 普通业务写入或 D 正式切换完成。
+- [x] Run 完整 `linux/tests` Python 套件及受控下载/恢复验收（本机 Windows 执行，原生链接权限项跳过）。Expected: 通过且任何失败场景都不产生虚假成功标记。Commit/push main，再提供阿里云命令。
+- [x] 用户在阿里云版本 `29cab53` 执行盘点、复制和逐文件验收：23 个对象，7,271,979 字节，pending/source_changed/missing/failed 均为 0；私有清单位于 `/home/admin/village-storage-copy/stage-b1/`，114 个 GPU 产物排除且源端保留。
+- [x] 停在私有文件副本交付，不将其等同于 B2 授权访问、C 普通业务写入或 D 正式切换完成。
 
 ## References to check at implementation
 
 - [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)：Secret key 与 service_role 为服务器端权限，Publishable 与数据库密码不是此用途。
 - [Supabase Storage download](https://supabase.com/docs/reference/javascript/storage-from-download)：核对私有对象读取和服务端身份用法；原始 HTTP 细节须在写客户端前核实。
 
-本地盘点、复制、完整性/续跑测试与用户操作说明已实现；原生执行方式保持不变。云端真实盘点、源授权、下载和验收仍待用户手动执行，未发生网站切换。
+本地盘点、复制、完整性/续跑测试与用户操作说明已实现；原生执行方式保持不变。2026-10-16 用户已完成云端真实盘点、源授权、下载和验收，取得 `STORAGE_PRIVATE_COPY_VERIFIED_NOT_CUT_OVER`；未发生网站切换。
 
-2026-10-16 本地交付验证：Python 148 passed / 1 skipped（Windows 原生链接权限），根前端 1004/1004、API 单元 12/12；一次独立复核的两项 Important 均已有 RED→GREEN 回归。真实云端盘点/下载/文件验收待用户执行。详见 [B1 交付记录](../../migration/2026-10-16-storage-copy-validation.md)。
+2026-10-16 本地交付验证：Python 148 passed / 1 skipped（Windows 原生链接权限），根前端 1004/1004、API 单元 12/12；一次独立复核的两项 Important 均已有 RED→GREEN 回归。云端真实文件副本验收已完成，原生链接拒绝专门测试及峰值负载仍未执行。详见 [B1 交付记录](../../migration/2026-10-16-storage-copy-validation.md)。
