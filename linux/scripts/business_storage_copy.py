@@ -7,6 +7,14 @@ from pathlib import Path
 import re
 import secrets
 import sys
+import base64
+import shutil
+import ssl
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import http.client
 
 PROJECT='rzmbmwauomzwiyenafha'
 ORIGIN='https://'+PROJECT+'.supabase.co'
@@ -119,3 +127,159 @@ COMMIT;"""
     root=new_run_directory(output,[state,backup,deploy.ROOT,Path.home()/'village-deploy',Path.home()/'village-db-backups'])
     write_private_json(root/'inventory.json',doc)
     return inventory_summary(doc)
+
+def credential_headers(key):
+    if not isinstance(key,str) or len(key)>8192:raise ValueError('A server API key is required.')
+    headers={'apikey':key,'User-Agent':'village-storage-transfer/1','Accept-Encoding':'identity'}
+    if re.fullmatch(r'sb_secret_[A-Za-z0-9_-]{16,256}',key):return headers
+    try:
+        if not re.fullmatch(r'[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+',key):raise ValueError()
+        payload=key.split('.')[1];claims=json.loads(base64.urlsafe_b64decode(payload+'='*(-len(payload)%4)))
+        if not isinstance(claims,dict) or claims.get('role')!='service_role' or claims.get('ref',PROJECT)!=PROJECT:raise ValueError()
+    except (ValueError,TypeError,KeyError):raise ValueError('Use a Secret key or legacy service_role key, not a database password or publishable key.') from None
+    headers['Authorization']='Bearer '+key
+    return headers
+
+class SourceFailure(RuntimeError):
+    def __init__(self,status):
+        self.status=status if type(status) is int and 0<=status<=599 else 0
+        super().__init__('STORAGE_SOURCE_HTTP_'+str(self.status) if self.status else 'STORAGE_SOURCE_CONNECTION_FAILED')
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self,*args,**kwargs):raise ValueError('Source redirects are not accepted.')
+
+class SourceTransport:
+    def __init__(self,key,opener=None):
+        self.headers=credential_headers(key)
+        self.opener=opener or urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
+    def _open(self,obj,method,etag=None):
+        if obj['bucket'] not in SELECTED_BUCKETS:raise ValueError('Excluded bucket cannot be downloaded.')
+        name=object_name(obj['name'])
+        url=ORIGIN+'/storage/v1/object/authenticated/'+obj['bucket']+'/'+urllib.parse.quote(name,safe='/')
+        headers={**self.headers,**({'If-Match':etag} if etag is not None else {})}
+        for attempt in range(3):
+            try:
+                response=self.opener.open(urllib.request.Request(url,headers=headers,method=method),timeout=30)
+                if getattr(response,'status',200)!=200:response.close();raise ValueError('Unexpected source response.')
+                return response
+            except urllib.error.HTTPError as e:
+                status=e.code;e.close()
+                if status not in (429,500,502,503,504) or attempt==2:raise SourceFailure(status) from None
+            except (OSError,http.client.HTTPException) as e:
+                reason=e.reason if isinstance(e,urllib.error.URLError) else e
+                if isinstance(reason,ssl.SSLError) or attempt==2:raise SourceFailure(0) from None
+            time.sleep(attempt+1)
+        raise SourceFailure(0)
+    def head(self,obj):
+        with self._open(obj,'HEAD') as response:
+            length=response.headers.get('Content-Length','');etag=response.headers.get('ETag')
+            if not re.fullmatch(r'\d+',length) or not etag or etag.startswith('W/'):
+                raise ValueError('Source must provide a length and stable ETag.')
+            return {'size':int(length),'etag':text(etag,1024),'last_modified':response.headers.get('Last-Modified')}
+    def get(self,obj,etag):return self._open(obj,'GET',etag)
+
+def digest_file(path):
+    h=hashlib.sha256();size=0
+    with private_path(path).open('rb') as stream:
+        for chunk in iter(lambda:stream.read(CHUNK),b''):h.update(chunk);size+=len(chunk)
+    return h.hexdigest(),size
+
+def inventory_digest(doc):return hashlib.sha256(json.dumps(doc,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+
+def load_transfer(root):
+    root=private_path(root,directory=True);private_path(root/'blobs',directory=True)
+    for protected in (Path(__file__).resolve().parents[2],Path.home()/'village-deploy',Path.home()/'village-db-backups',Path.home()/'village-api-validation'):
+        p=no_links(protected)
+        if root==p or root in p.parents or p in root.parents:raise ValueError('Transfer directory overlaps protected data.')
+    doc=validate_inventory(read_private_json(root/'inventory.json'))
+    objects=[o for o in doc['objects'] if o['bucket'] in SELECTED_BUCKETS]
+    path=root/'copy-manifest.json'
+    if path.exists():
+        manifest=read_private_json(path)
+        if manifest.get('version')!=1 or manifest.get('inventory_sha256')!=inventory_digest(doc) or set(manifest.get('records',{}))!={o['id'] for o in objects}:
+            raise ValueError('Copy manifest differs from inventory.')
+    else:manifest={'version':1,'inventory_sha256':inventory_digest(doc),'records':{o['id']:{'status':'pending','needs_final_refresh':True} for o in objects}}
+    for row in manifest['records'].values():
+        if row.get('status') not in ('pending','copied','source_changed','missing','failed'):raise ValueError('Invalid transfer state.')
+        if row['status']=='copied':
+            digest=row.get('sha256','');size=row.get('received_bytes')
+            if not re.fullmatch('[0-9a-f]{64}',digest) or type(size) is not int or size<0:raise ValueError('Invalid completed object record.')
+            if digest_file(root/'blobs'/digest)!=(digest,size):raise ValueError('Completed object failed local checksum verification.')
+    return doc,objects,manifest
+
+def transfer_summary(doc,manifest):
+    result={status:sum(r['status']==status for r in manifest['records'].values()) for status in ('pending','copied','source_changed','missing','failed')}
+    return {**inventory_summary(doc),**result,'verified_bytes':sum(r['received_bytes'] for r in manifest['records'].values() if r['status']=='copied')}
+
+def verify_copy(run_directory):
+    root=private_path(run_directory,directory=True)
+    if (root/'.transfer.lock').exists():raise ValueError('Transfer is active or its lock needs operator inspection.')
+    doc,objects,manifest=load_transfer(root)
+    result=transfer_summary(doc,manifest)
+    done=(root/'copy-manifest.json').is_file() and all(r['status']=='copied' for r in manifest['records'].values())
+    return {**result,'status':'private_copy_verified_not_cut_over' if done else 'private_copy_incomplete'}
+
+def check_disk(root,needed):
+    if shutil.disk_usage(root).free<RESERVE+needed+CHUNK:raise RuntimeError('STORAGE_DISK_RESERVE_REQUIRED')
+
+def copy_inventory(inventory_path,output_root,credential,transport=None):
+    root=private_path(output_root,directory=True)
+    if no_links(inventory_path)!=root/'inventory.json':raise ValueError('Use the inventory in the selected private run directory.')
+    credential_headers(credential)
+    transport=transport or SourceTransport(credential)
+    doc,objects,manifest=load_transfer(root)
+    lock=root/'.transfer.lock'
+    fd=os.open(lock,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600);os.close(fd)
+    try:
+        write_private_json(root/'copy-manifest.json',manifest)
+        heads={}
+        # Resolve all lengths before allocating files, including unknown snapshot sizes.
+        for obj in objects:
+            row=manifest['records'][obj['id']]
+            try:head=transport.head(obj)
+            except SourceFailure as e:
+                row.update(status='missing' if e.status==404 else 'failed',error_code='http_'+str(e.status),checked_at=now())
+                write_private_json(root/'copy-manifest.json',manifest)
+                if e.status!=404:raise
+                continue
+            if type(head.get('size')) is not int or head['size']<0 or not head.get('etag'):raise ValueError('Invalid source metadata.')
+            snapshot_etag=obj['snapshot_etag']
+            changed=(obj['declared_size'] is not None and obj['declared_size']!=head['size']) or (snapshot_etag is not None and snapshot_etag.strip('"')!=head['etag'].strip('"'))
+            if row['status']=='copied' and row.get('source_etag')!=head['etag']:changed=True
+            if changed:
+                row.update(status='source_changed',checked_at=now());write_private_json(root/'copy-manifest.json',manifest);continue
+            if row['status']!='copied':heads[obj['id']]=head
+        check_disk(root,sum(h['size'] for h in heads.values()))
+        for obj in objects:
+            if obj['id'] not in heads:continue
+            before=heads[obj['id']];row=manifest['records'][obj['id']]
+            temp=root/('.download-'+secrets.token_hex(12)+'.partial')
+            try:
+                count=0;hasher=hashlib.sha256()
+                with transport.get(obj,before['etag']) as response,os.fdopen(os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as out:
+                    if response.headers.get('ETag')!=before['etag']:raise ValueError('Object changed before transfer.')
+                    for block in iter(lambda:response.read(CHUNK),b''):
+                        count+=len(block)
+                        if count>before['size']:raise ValueError('Object exceeded expected length.')
+                        check_disk(root,len(block));out.write(block);hasher.update(block)
+                    out.flush();os.fsync(out.fileno())
+                if count!=before['size']:raise ValueError('Incomplete object transfer.')
+                after=transport.head(obj)
+                if (after['etag'],after['size'])!=(before['etag'],before['size']):
+                    row.update(status='source_changed',checked_at=now());continue
+                digest=hasher.hexdigest()
+                if digest_file(temp)!=(digest,count):raise ValueError('Downloaded bytes failed disk checksum.')
+                target=root/'blobs'/digest
+                if target.exists():
+                    if digest_file(target)!=(digest,count):raise ValueError('Content-addressed object is corrupt.')
+                    # Keep the duplicate partial as private evidence; never overwrite an object.
+                else:temp.rename(target)
+                row.update(status='copied',received_bytes=count,sha256=digest,source_etag=before['etag'],source_last_modified=before.get('last_modified'),checked_at=now(),needs_final_refresh=True)
+                row.pop('error_code',None)
+            except SourceFailure as e:
+                row.update(status='source_changed' if e.status==412 else 'missing' if e.status==404 else 'failed',error_code='http_'+str(e.status),checked_at=now())
+                if e.status not in (404,412):raise
+            except (OSError,ValueError,http.client.HTTPException):row.update(status='failed',error_code='transfer_or_integrity',checked_at=now())
+            finally:write_private_json(root/'copy-manifest.json',manifest)
+        return transfer_summary(doc,manifest)
+    finally:lock.unlink()
