@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import {join} from 'node:path';
 const mod=await import('../scene/http.mjs').catch(()=>({}));
 const contracts=await import('../scene/contracts.mjs').catch(()=>({}));
+const config=await import('../scene/config.mjs').catch(()=>({}));
 const id='10000000-0000-4000-8000-000000000001';
 const document={schemaVersion:1,projectId:id,villageId:id,groupId:'g',baselineRef:{spaceId:'s',revision:0},revision:0,
  layers:[{id:'design'}],objects:[],groups:[],assetRefs:[],metadata:{scopeKind:'group'}};
@@ -25,6 +27,16 @@ test('built-in seed references remain editable without opening private file path
   geometry:{type:'Point',coordinates:[113,23]},transform:{headingDeg:0,pitchDeg:0,rollDeg:0,heightOffsetM:0,scale:[1,1,1]},properties:{assetRef:'seed:bench:wood'}}]};
  assert.equal(contracts.parseOperation('save',{document:d}).input.document,d);
  assert.throws(()=>contracts.parseOperation('save',{document:{...d,assetRefs:['seed:../../private']}}));
+});
+
+test('scene configuration cannot connect to A/B2 databases or accept server keys',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'village-scene-config-')),password=join(dir,'secret');writeFileSync(password,'synthetic-test-password-1234567890',{mode:0o600});
+ const env={PGUSER:'village_scene_login',PGDATABASE:'village_scene_validation',PGHOST:'village-api-validation-postgres',PGPASSWORD_FILE:password,
+  SUPABASE_AUTH_ORIGIN:'https://rzmbmwauomzwiyenafha.supabase.co',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test'};
+ try{
+  assert.equal(config.loadSceneConfig(env).database.maxConnections,2);
+  for(const patch of [{PGDATABASE:'village_copy'},{PGUSER:'postgres'},{STORAGE_READ_ENABLED:'1'},{SUPABASE_PUBLISHABLE_KEY:'sb_secret_bad'}])assert.throws(()=>config.loadSceneConfig({...env,...patch}));
+ }finally{rmSync(dir,{recursive:true});}
 });
 
 test('scene HTTP authenticates, limits bodies, keeps revision conflicts and redacts SQL',async()=>{

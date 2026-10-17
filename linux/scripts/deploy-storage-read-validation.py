@@ -54,8 +54,17 @@ def storage_hba(original):
 
 def validate_hba(docker):
     wanted=storage_hba(deploy.restricted_hba(docker))
-    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf')!=wanted:raise ValueError('B2/A internal SCRAM rules differ.')
+    # C1 can add precisely one different database/login pair. This never grants
+    # the C1 login access to village_copy or widens existing A/B2 access.
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf') not in (wanted,scene_hba(wanted)):raise ValueError('B2/A internal SCRAM rules differ.')
     if docker.sql('SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL;').strip()!='0':raise ValueError('HBA parse errors; retain backup and inspect.')
+
+def scene_hba(storage_rules):
+    lines=storage_rules.splitlines()
+    if len(lines)!=5:raise ValueError('Require original A/B2 rules before adding C1.')
+    base='\n'.join([lines[0],lines[1],*lines[3:]])+'\n'
+    if storage_hba(base)!=storage_rules:raise ValueError('Unknown A/B2 rules.')
+    return '\n'.join([*lines[:3],lines[1].replace('village_copy village_api_login','village_scene_validation village_scene_login'),*lines[3:]])+'\n'
 
 def install_hba(docker):
     original=deploy.restricted_hba(docker);wanted=storage_hba(original)
@@ -172,16 +181,16 @@ def preflight(docker):
         if sock.connect_ex(('127.0.0.1',18081))==0:raise ValueError('Loopback port 18081 is already in use.')
     return ctx,index,image
 
-def validate_container(info,spec,image_config,image_id,*,uid):
+def validate_container(info,spec,image_config,image_id,*,uid,image_tag=IMAGE,project=PROJECT,port=18081):
     c=info.get('Config',{});h=info.get('HostConfig',{});labels=c.get('Labels') or {}
-    if (info.get('Image')!=image_id or c.get('Image')!=IMAGE or labels.get('com.docker.compose.project')!=PROJECT
+    if (info.get('Image')!=image_id or c.get('Image')!=image_tag or labels.get('com.docker.compose.project')!=project
         or labels.get('com.docker.compose.service')!='api' or c.get('User')!=spec['user'] or int(c['User'].split(':')[0])!=uid
         or (c.get('Cmd') or [])!=(image_config.get('Cmd') or []) or (c.get('Entrypoint') or [])!=(image_config.get('Entrypoint') or [])
         or c.get('WorkingDir')!=image_config.get('WorkingDir') or not h.get('ReadonlyRootfs') or h.get('Privileged')
         or h.get('CapAdd') or sorted(h.get('CapDrop') or [])!=['ALL'] or sorted(h.get('SecurityOpt') or [])!=['no-new-privileges:true']
         or h.get('PidMode')=='host' or h.get('IpcMode')=='host' or h.get('Memory')!=192*1024**2 or h.get('MemorySwap')!=192*1024**2
         or h.get('NanoCpus')!=500000000 or h.get('PidsLimit')!=64
-        or h.get('PortBindings')!={'8080/tcp':[{'HostIp':'127.0.0.1','HostPort':'18081'}]}):
+        or h.get('PortBindings')!={'8080/tcp':[{'HostIp':'127.0.0.1','HostPort':str(port)}]}):
         raise ValueError('B2 container image, execution, limits or isolation differs.')
     env=dict(e.split('=',1) for e in c.get('Env',[]))
     if env!={**dict(e.split('=',1) for e in image_config.get('Env',[])),**spec['environment']}:raise ValueError('B2 environment differs.')

@@ -1,0 +1,21 @@
+{
+  "image": "village-business-api:stage-c1-scene",
+  "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+  "base_source": "public.ecr.aws/docker/library/node",
+  "code_sha256": "d4940cf801c78aeeeabe55fb99a18d6d3dab0e65505fe9b33eda903c99dae520",
+  "accepted_image_ids": [
+    "sha256:724a7ab324400cf298e698f5416ef4e249f3c91027ce057748ceb5e4955af3ac",
+    "sha256:4da8bc5bcd4a25aea432af45a810331b0a0ab1a25dbfb79f93b28422b334b594",
+    "sha256:5f4df3f82a78c98c41fa6d89d5c8eecda20d9f5c58b022f66539ed2e4f6c9ba4",
+    "sha256:61fb8fbd452eaec42bbe2fdb5556bddb752a6cd044665c4b3a0c3d043f579527",
+    "sha256:525c02ac8ed55275cb0d3b6369e2364309355b0c63bea815d6786a931f49697d",
+    "sha256:8bbdd87be2e0c09f05d96f437af88ec155c039ff95f813160dbef4277f6b6885",
+    "sha256:a43bedaf040c2bf3ae27a77206821e837e3290005bf484f224be811b94ac62b5"
+  ],
+  "os": "linux",
+  "architecture": "amd64",
+  "archive_filename": "village-business-api-stage-c1-scene-amd64.tar.gz",
+  "archive_bytes": 79446406,
+  "archive_sha256": "9ca70c0d9294653410b717d9f81ca74b5d1d3eb851d26e4a74d048b14b03ad71",
+  "runtime_execution": "pending_linux_container_smoke_test"
+}
