@@ -66,4 +66,5 @@
 
 - [x] User imported B2 image; Node22.23.3/import smoke, preflight/deploy and restart proof passed.
 - [x] Actual website admin login verified all 23 selected objects / 7,271,979 bytes; denied=0. Buckets: group-models2, house-photos11, village-datasets10. Final marker STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER.
-- [ ] Observe new API/host resource use and later representative load; native Linux symlink-denial scenario not deliberately exercised. No website cutover, upload/delete or C/D completion claim.
+- [x] Observe new API/host resource use: B2 API30.40 MiB, A API45.74 MiB, DB39.49 MiB; host available945 MiB, used667 MiB, swap0, observed CPU0%. No present memory-pressure signal.
+- [ ] Later representative concurrent/peak load and native Linux symlink-denial scenario remain unverified. No website cutover, upload/delete or C/D completion claim.
