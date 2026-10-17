@@ -33,10 +33,16 @@ export function validateDocument(d){
  jsonTree(d);
  if(d.assetRefs.some(v=>!seed(v)))throw error('FILES_NOT_READY');
  noFiles(d.objects);noFiles(d.metadata);noFiles(d.groups);
- const layers=new Set(),ids=new Set();
+ const layers=new Set(),ids=new Set(),groups=new Map();
  for(const l of d.layers){if(!object(l)||!text(l.id)||layers.has(l.id))fail();layers.add(l.id);}
+ for(const g of d.groups){
+  if(!object(g)||!text(g.id)||groups.has(g.id)||!Array.isArray(g.objectIds)||g.objectIds.length>5000||
+   g.objectIds.some(id=>!text(id))||new Set(g.objectIds).size!==g.objectIds.length)fail();
+  groups.set(g.id,g);
+ }
  for(const o of d.objects){
   if(!object(o)||!text(o.id)||ids.has(o.id)||!layers.has(o.layerId)||!['surface','line','asset','structure'].includes(o.kind)||!text(o.category)||!object(o.properties??{})||!object(o.geometry))fail();ids.add(o.id);
+  if(o.groupId!==undefined&&o.groupId!==null&&(!text(o.groupId)||!groups.has(o.groupId)))fail();
   if(o.zIndex!==undefined&&(!Number.isInteger(o.zIndex)||Math.abs(o.zIndex)>2147483647))fail();
   const g=o.geometry,c=g.coordinates;
   if(o.kind==='surface'){
@@ -48,6 +54,7 @@ export function validateDocument(d){
    if(!Array.isArray(o.transform.scale)||o.transform.scale.length!==3||o.transform.scale.some(n=>!Number.isFinite(n)||n<=0))fail();
   }
  }
+ for(const g of groups.values())if(g.objectIds.some(id=>!ids.has(id)))fail();
  return d;
 }
 const fields={find:['teachingProjectId','villageId','spaceId','groupId','scopeKind'],create:['teachingProjectId','villageId','spaceId','groupId','scopeKind','title','baselineRevision','selectionBoundary'],

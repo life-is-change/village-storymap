@@ -6,7 +6,7 @@ async function one(client,sql,args){return (await client.query(sql,args)).rows[0
 async function load(client,id){return one(client,'SELECT public.scene_edit_load_project($1::uuid) AS data',[id]);}
 async function lock(client,id){await client.query('SELECT public.scene_candidate_lock($1::uuid)',[id]);return load(client,id);}
 async function version(client,id){
- const row=(await client.query('SELECT project_id,document FROM public.scene_edit_versions WHERE id=$1::uuid',[id])).rows[0];
+ const row=(await client.query('SELECT project_id,document,preview_path FROM public.scene_edit_versions WHERE id=$1::uuid',[id])).rows[0];
  if(!row)throw error('FORBIDDEN');return row;
 }
 export async function executeOperation(c,op,i,identity){
@@ -20,7 +20,11 @@ export async function executeOperation(c,op,i,identity){
   [i.teachingProjectId,i.villageId,i.spaceId,i.groupId,i.title,i.baselineRevision,JSON.stringify(i.selectionBoundary??null),i.scopeKind]);
  let current;
  if(op==='restore'||op==='submit'){
-  const v=await version(c,i.versionId);current=await lock(c,v.project_id);validateDocument(v.document);
+  const v=await version(c,i.versionId);current=await lock(c,v.project_id);
+  // A legacy preview lives outside document JSON. Do not submit an unreadable
+  // reference or silently drop it while restoring in this file-free stage.
+  if(v.preview_path!==null)throw error('FILES_NOT_READY');
+  validateDocument(v.document);
  }else current=await lock(c,op==='save'?i.document.projectId:i.projectId);
  // C1 supports built-in scene elements only. Existing file-backed documents
  // must not become writable before the C2 resolver/upload lifecycle is ready.

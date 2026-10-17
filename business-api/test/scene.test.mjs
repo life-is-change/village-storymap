@@ -29,6 +29,17 @@ test('built-in seed references remain editable without opening private file path
  assert.throws(()=>contracts.parseOperation('save',{document:{...d,assetRefs:['seed:../../private']}}));
 });
 
+test('group records cannot corrupt editor load or refer to missing objects/groups',()=>{
+ for(const groups of [[null],[{id:'g',objectIds:'bad'}],[{id:'g',objectIds:['missing']}],
+  [{id:'g',objectIds:[]},{id:'g',objectIds:[]}],[{id:'',objectIds:[]}]]){
+  assert.throws(()=>contracts.parseOperation('save',{document:{...document,groups}}),{code:'INVALID_INPUT'});
+ }
+ const item={id:'paving',kind:'surface',category:'paving',layerId:'design',groupId:'g',geometry:{type:'Polygon',coordinates:[[[113,23],[114,23],[114,24],[113,23]]]},properties:{}};
+ const valid={...document,objects:[item],groups:[{id:'g',name:'Group',objectIds:['paving']}]};
+ assert.equal(contracts.parseOperation('save',{document:valid}).input.document,valid);
+ assert.throws(()=>contracts.parseOperation('save',{document:{...valid,groups:[]}}),{code:'INVALID_INPUT'});
+});
+
 test('scene configuration cannot connect to A/B2 databases or accept server keys',()=>{
  const dir=mkdtempSync(join(tmpdir(),'village-scene-config-')),password=join(dir,'secret');writeFileSync(password,'synthetic-test-password-1234567890',{mode:0o600});
  const env={PGUSER:'village_scene_login',PGDATABASE:'village_scene_validation',PGHOST:'village-api-validation-postgres',PGPASSWORD_FILE:password,

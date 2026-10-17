@@ -1,4 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import pg from 'pg';
+import {createServer} from 'node:http';import {createSceneHandler} from '../scene/http.mjs';
+import sceneClient from '../../3D_scenes_edit/persistence/scene-api-client.js';
 const mod=await import('../scene/database.mjs').catch(()=>({}));
 const raw=process.env.VILLAGE_TEST_PG_URL;if(!raw)throw Error('Explicit disposable PG URL required');
 const url=new URL(raw);if(!['127.0.0.1','localhost'].includes(url.hostname)||url.username!=='village_test_admin'||url.pathname!=='/postgres')throw Error('Disposable loopback cluster only');
@@ -37,12 +39,21 @@ test('real source scene RPCs preserve scopes, atomic revisions, milestones, rest
   assert.equal(results.filter(r=>r.status==='fulfilled').length,1);const failed=results.find(r=>r.status==='rejected').reason;
   assert.equal(failed.code,'REVISION_CONFLICT');assert.equal(failed.remoteRevision,1);
   const saved=await run(a,'load',{projectId:pid});assert.equal(saved.revision,1);
+  for(const groups of [[null],[{id:'bad',objectIds:'string'}],[{id:'bad',objectIds:['unknown']}],[{id:'bad',objectIds:[]},{id:'bad',objectIds:[]}]]){
+   await assert.rejects(()=>run(a,'save',{document:{...saved,groups}}),{code:'INVALID_INPUT'});
+   assert.deepEqual(await run(a,'load',{projectId:pid}),saved,'Rejected group document must leave stored content/revision unchanged');
+  }
   await assert.rejects(()=>run(a,'save',{document:{...saved,baselineRef:{spaceId:'B',revision:0}}}),{code:'BASELINE_MISMATCH'});
   await assert.rejects(()=>run(a,'save',{document:{...saved,metadata:{scopeKind:'group',ownerId:b}}}),{code:'BASELINE_MISMATCH'});
   const version=await run(a,'version',{projectId:pid,revision:1,label:'Milestone'});
   assert.equal((await run(a,'versions',{projectId:pid})).length,1);
   await assert.rejects(()=>run(a,'version',{projectId:pid,revision:1,label:'Milestone'}),{code:'INVALID_INPUT'});
   assert.equal((await run(a,'load',{projectId:pid})).revision,1);
+  const legacy=(await setup.query(`INSERT INTO scene_edit_versions(project_id,revision,label,document,preview_path,created_by)
+   VALUES($1,1,'Legacy preview',$2::jsonb,'group/group-a/private-preview.png',$3) RETURNING id`,[pid,JSON.stringify(saved),a])).rows[0];
+  for(const op of ['submit','restore'])await assert.rejects(()=>run(a,op,{versionId:legacy.id,...(op==='restore'?{title:'Not dropped silently'}:{})}),{code:'FILES_NOT_READY'});
+  assert.equal((await setup.query('SELECT submission_status FROM scene_edit_versions WHERE id=$1',[legacy.id])).rows[0].submission_status,'milestone');
+  assert.equal((await setup.query("SELECT status FROM scene_edit_projects WHERE id=$1",[pid])).rows[0].status,'draft');
   const restored=await run(a,'restore',{versionId:version.id,title:'Restored'});assert.equal(restored.revision,1);
   assert.equal((await run(a,'load',{projectId:restored.id})).baselineRef.spaceId,'A');
   const branch=await run(a,'branch',{projectId:pid,baselineRevision:2,title:'Branch'});assert.equal((await run(a,'load',{projectId:branch.id})).baselineRef.revision,2);
@@ -51,6 +62,23 @@ test('real source scene RPCs preserve scopes, atomic revisions, milestones, rest
   const sandbox=await run(adminId,'create',{...context,groupId:null,scopeKind:'admin_sandbox'});
   await assert.rejects(()=>run(teacher,'load',{projectId:sandbox.id}),{code:'FORBIDDEN'});
   await assert.rejects(()=>run(a,'create',{...context,groupId:null,scopeKind:'admin_sandbox'}),{code:'FORBIDDEN'});
+  // Exercise the exact browser adapter -> HTTP JSON -> role/RPC path too.
+  const server=createServer(createSceneHandler({database:db,verifyIdentity:async h=>{
+   if(h!=='Bearer synthetic-only-token')throw {code:'UNAUTHORIZED'};return {userId:a};
+  }}));
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try{
+   const browser=sceneClient.createSceneApiClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/api/v1/scene',getAccessToken:async()=> 'synthetic-only-token'});
+   const made=await browser.createProject({...context,title:'Browser test'});assert.equal(made.ok,true);
+   const loaded=await browser.loadProject(made.data.id);assert.equal(loaded.ok,true);
+   loaded.data.objects=[{id:'bench',kind:'asset',category:'bench',layerId:'design',groupId:null,zIndex:0,
+    geometry:{type:'Point',coordinates:[113,23]},transform:{headingDeg:0,pitchDeg:0,rollDeg:0,heightOffsetM:0,scale:[1,1,1]},properties:{assetRef:'seed:bench:wood'}}];
+   loaded.data.assetRefs=['seed:bench:wood'];assert.equal((await browser.saveDraft(loaded.data)).data.revision,1);
+   const stale=await browser.saveDraft(loaded.data);assert.equal(stale.code,'REVISION_CONFLICT');assert.equal(stale.remoteRevision,1);
+   const fresh=await browser.loadProject(made.data.id);const milestone=await browser.createVersion({document:fresh.data,label:'Browser milestone'});assert.equal(milestone.ok,true);
+   assert.equal((await browser.restoreVersionAsDraft({versionId:milestone.data.id,title:'Browser restore'})).ok,true);
+   assert.equal((await browser.submitVersion(milestone.data.id)).data.submissionStatus,'submitted');
+  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
   await setup.query("DELETE FROM group_memberships WHERE group_id='group-a'");
   const restoredDoc=await run(teacher,'load',{projectId:restored.id});
   await assert.rejects(()=>run(a,'save',{document:restoredDoc}),{code:'FORBIDDEN'});

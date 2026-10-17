@@ -1,6 +1,6 @@
 # 三维方案写入候选实施计划（C1）
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 在独立候选数据库验证三维方案创建、保存、冲突、里程碑、分支及恢复，不提前切换网站。
 
@@ -33,11 +33,11 @@
 
 **Interfaces:** `createSceneHandler({verifyIdentity,database})`；`createSceneDatabase(config).run(identity, operation, input)`；`createSceneApiClient({baseUrl,getAccessToken,fetchImpl})` 返回原编辑器项目生命周期方法，文件/素材方法显式未迁移。
 
-- [ ] 先写失败测试：方法/令牌/正文限制、固定参数、错误脱敏、前端不回退；真实 PG 使用源 Scene Edit SQL 验证两个用户、教师、管理员、成员撤销、竞争保存、版本恢复和回滚。
-- [ ] 运行 RED，确认缺失实现。
-- [ ] 实现入口、事务、固定 SQL、参数与文档检查；复用源权限与版本 RPC，不编辑线上 SQL。
-- [ ] GREEN：`node --test business-api/test/scene*.test.mjs 3D_scenes_edit/persistence/scene-api-client.test.js`；显式本地废弃集群运行 `scene.integration.mjs`。
-- [ ] 提交实现与测试。
+- [x] 先写失败测试：方法/令牌/正文限制、固定参数、错误脱敏、前端不回退；真实 PG 使用源 Scene Edit SQL 验证两个用户、教师、管理员、成员撤销、竞争保存、版本恢复和回滚。
+- [x] 运行 RED，确认缺失实现。
+- [x] 实现入口、事务、固定 SQL、参数与文档检查；复用源权限与版本 RPC，不编辑线上 SQL。
+- [x] GREEN：`node --test business-api/test/scene*.test.mjs 3D_scenes_edit/persistence/scene-api-client.test.js`；显式本地废弃集群运行 `scene.integration.mjs`。
+- [x] 提交实现与测试。
 
 ### Task 2: 独立候选部署、离线镜像与真实登录探测
 
@@ -45,13 +45,13 @@
 
 **Interfaces:** 新镜像 `village-business-api:stage-c1-scene` 包含 scene 入口但 A/B2 构建默认不包含；部署 `--check/--deploy/--verify`，探测用隐藏网站密码，不输入数据库密码。
 
-- [ ] RED：镜像隔离、数据库名/HBA/角色/端口/挂载、拒绝覆盖或未知状态；探测必须实际保存并读取且验证冲突/重启持久性，不能凭 health 通过。
-- [ ] 实现新数据库从已校验归档恢复；不重复导入集群角色；保留失败现场；两连接池、192 MiB API，限制内部网络。
-- [ ] GREEN：对应 Python 测试、旧 A/B2 回归；构建有摘要的离线镜像。
-- [ ] 提交并写明人工上传/部署步骤和剩余 C2、GPU 桥接、D 刷新/HTTPS 边界。
+- [x] RED：镜像隔离、数据库名/HBA/角色/端口/挂载、拒绝覆盖或未知状态；探测必须实际保存并读取且验证冲突/重启持久性，不能凭 health 通过。
+- [x] 实现新数据库从已校验归档恢复；不重复导入集群角色；保留失败现场；两连接池、192 MiB API，限制内部网络。
+- [x] GREEN：对应 Python 测试、旧 A/B2 回归；构建有摘要的离线镜像。
+- [x] 提交并写明人工上传/部署步骤和剩余 C2、GPU 桥接、D 刷新/HTTPS 边界。
 
 ### Task 3: 整体验证和交付
 
-- [ ] 全部相关 Node/Python 与平台前端回归；记录真实输出。
-- [ ] 一次独立整体代码审查；重要问题用 RED→GREEN 修复。
+- [x] 全部相关 Node/Python 与平台前端回归；记录真实输出。
+- [x] 一次独立整体代码审查；重要问题用 RED→GREEN 修复。
 - [ ] 推送 main；只给用户当前可执行命令，云端验收前不声明 C1 完成。
