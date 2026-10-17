@@ -60,4 +60,10 @@
 
 - [x] Write failing tests for denial/no-readable files, checksum mismatch, failed auth/no hidden input and stale/mismatched runtime proof; implement fixed safe diagnostics with no tokens/paths/private names.
 - [x] Run Node/Python suites and root frontend tests; independent whole-change review and one fix pass for actionable issues. Final: Node 19, real PG 3, Python 171 passed / 1 skipped, root frontend 1004 passed; both Important findings fixed with RED→GREEN regressions.
-- [x] Commit original main and prepare upload/checksum/load/check/deploy/verify/probe handoff in linux/README.storage-read.md; push follows final checks in this turn. Cloud acceptance remains pending user output.
+- [x] Commit/push original main ed90f89 and deliver upload/checksum/load/check/deploy/verify/probe handoff in linux/README.storage-read.md.
+
+## Cloud acceptance 2026-10-17
+
+- [x] User imported B2 image; Node22.23.3/import smoke, preflight/deploy and restart proof passed.
+- [x] Actual website admin login verified all 23 selected objects / 7,271,979 bytes; denied=0. Buckets: group-models2, house-photos11, village-datasets10. Final marker STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER.
+- [ ] Observe new API/host resource use and later representative load; native Linux symlink-denial scenario not deliberately exercised. No website cutover, upload/delete or C/D completion claim.

@@ -20,17 +20,26 @@
 
 复核提出两项 Important，均完成有失败证据的回归修正：
 
-1. 两 API 共用 4 连接限额会争用。B2 改为专属 `village_storage_read_login`，连接池及角色上限均为 2，A 的 4 连接上限不变；可丢弃真实 PG 测试同时持有 A 的 4 条和 B2 的 2 条连接，额外 B2 请求排队后完成。候选角色由版本化 SQL 创建，不修改业务行，禁止超级用户/BYPASSRLS/角色管理权限。对应 HBA 增加同子网/同数据库/仅 B2 的 SCRAM 行，私有备份并原子替换/重载；专门回归拒绝未知/放宽规则。实际 Linux 替换与 B2 TCP 验证仍待云端执行。
+1. 两 API 共用 4 连接限额会争用。B2 改为专属 `village_storage_read_login`，连接池及角色上限均为 2，A 的 4 连接上限不变；可丢弃真实 PG 测试同时持有 A 的 4 条和 B2 的 2 条连接，额外 B2 请求排队后完成。候选角色由版本化 SQL 创建，不修改业务行，禁止超级用户/BYPASSRLS/角色管理权限。对应 HBA 增加同子网/同数据库/仅 B2 的 SCRAM 行，私有备份并原子替换/重载；专门回归拒绝未知/放宽规则。实际 Linux 部署及 B2 TCP 验证已由下述云端结果确认。
 2. 只核对对象 UUID/桶/路径遗漏版本漂移。索引现保留 B1 的更新时间、声明大小、eTag 和版本；部署与每次读取都核对，UTC 微秒精度保留，字段变化返回失败且不发送旧字节。已覆盖相同身份但四种版本字段分别变化的拒绝，以及真实 PG 微秒/版本元数据读取。
 
-没有单列 Minor。复核未判断的上传/删除/业务写入仍归 C；线上源增量归 D；实际 Docker/Linux 链接/资源容量仍待云端验收。宿主机可信操作者在摘要校验后主动改写同一 inode 不属于只读容器可防御的边界，运维须保持 B1 文件不可原地改写；最终刷新使用新验收副本。
+没有单列 Minor。复核未判断的上传/删除/业务写入仍归 C；线上源增量归 D；实际 Docker 启动及账号读取已通过；Linux 原生链接拒绝专项和资源容量仍待专门验证。宿主机可信操作者在摘要校验后主动改写同一 inode 不属于只读容器可防御的边界，运维须保持 B1 文件不可原地改写；最终刷新使用新验收副本。
 
-## 待云端验证
+## 阿里云实际验收（2026-10-17）
 
-本机没有 Docker；镜像仅从已核验的官方 Node 22 Linux amd64 基础镜像和锁定的纯 JS 依赖离线构建，不能把归档正确当作 Linux 容器已运行。
+用户手动导入已交付镜像后，回传以下真实执行结果：
 
-用户仍需按 [操作说明](../../linux/README.storage-read.md) 上传、校验、导入镜像，执行候选检查/部署/重启验证与隐藏输入的真实网站账号探针。实际对象可读数、字节、权限和资源结果须以用户回传为准。
+- `Loaded image: village-business-api:stage-b2-read`；Node `v22.23.3`；`STORAGE_RUNTIME_IMPORT_OK`。
+- `STORAGE_READ_PREFLIGHT_OK`，随后 `STORAGE_READ_INTERNAL_DEPLOYED_NOT_ACCEPTED`；候选部署成功。
+- `STORAGE_READ_RESTART_VERIFIED`；候选 API 重启及实际数据库 TCP/存储查询核对通过。
+- 用户以网站管理员账号隐藏输入登录密码，取得 `authenticated_files_probe_passed`：selected=23、readable=23、denied=0、verified_bytes=7271979。
+- 可读桶计数：`group-models` 2、`house-photos` 11、`village-datasets` 10。
+- 最终标记：`STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER`。
 
-只有云端真实探针取得 `STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER` 后，才登记 B2 读取候选验收完成。此记录目前没有宣称该标记或线上切换。
+该脚本在返回成功前检查无令牌/无效令牌拒绝、实际下载的字节数及 SHA-256、HEAD 与 Range，以及当前运行指纹和近期重启证明。因此本次确认的是管理员真实文件读取和这些内部接口检查，不把合成 A/B 用户隔离测试冒充为云端学生账号验收。场景资产和预览桶在 B1 快照中均无文件，本次没有实际文件可读覆盖。
 
-最终本地修正提交：`e58b451`。最终镜像为 `village-business-api:stage-b2-read`，压缩包 79,441,255 字节，SHA-256 为 `1da2b55b35c8692cc809c6825d6f40eedc94eeb3dfffdd44b8d8ba911ed2a13a`。已独立解码并核对各层摘要、平台、导入身份和运行时代码摘要；Linux 容器运行仍待用户验收。
+B2 读取候选的部署、重启及管理员文件验收完成；主机新增 API 的资源观察、并发/峰值容量、Linux 原生链接拒绝专项仍未回传。上传/删除、完整业务写入、GPU 桥接、最终刷新和正式网站切换尚未实施；网站仍使用原 Supabase 路径。
+
+最终本地修正提交：`e58b451`，交付提交：`ed90f89`。镜像为 `village-business-api:stage-b2-read`，压缩包 79,441,255 字节，SHA-256 为 `1da2b55b35c8692cc809c6825d6f40eedc94eeb3dfffdd44b8d8ba911ed2a13a`。归档、平台和代码身份已于本地核对，Linux 容器运行与上述真实登录读取由用户回传结果确认。
+
+操作入口：[B2 部署与验收说明](../../linux/README.storage-read.md)。不需要为本次成功结果重复部署、重启或下载。
