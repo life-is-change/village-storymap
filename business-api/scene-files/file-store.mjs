@@ -10,6 +10,7 @@ export async function createFileStore({root,maxUploads=2}){
  let active=0;const key=id=>{if(!uuid(id))throw fault('INVALID_INPUT');return id;};
  async function checked(path,write=false){await noLinks(path);const h=await open(path,(write?constants.O_RDWR:constants.O_RDONLY)|(constants.O_NOFOLLOW??0));try{privateStat(await h.stat());return h;}catch(e){await h.close();throw e;}}
  return {
+  root,
   async stage({fileId,role,size,mime,extension,stream}){
    key(fileId);const limit=fileLimit({role,mime,extension},extension==='glb'?'model':role==='display'?'texture':undefined);if(!Number.isSafeInteger(size)||size<=0||size>limit)throw fault('FILE_TOO_LARGE');if(active>=maxUploads)throw fault('FILE_BUSY');active++;
    let h,created=false;const p=join(temp,fileId);
