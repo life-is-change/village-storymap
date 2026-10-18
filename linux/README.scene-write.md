@@ -99,6 +99,12 @@ python3 linux/scripts/probe-scene-write.py
 
 仍输入管理员学号与网站登录密码。新的安全诊断 `ADMIN_PROFILE_REQUIRED` 表示候选资料中该身份不是管理员，`NO_VALID_SCENE_CONTEXT` 表示没有可关联的项目/村庄/空间，`CONTEXT_QUERY_FAILED` 表示查询失败；不会打印私有行或令牌。不要再次运行 `--deploy` 覆盖已经存在的测试库。
 
+### 已保存但旧 probe 报 `phase=write_version_restart`
+
+旧脚本把所有写入/版本步骤归到一个错误阶段，并把版本列表中的 bigint 版本号直接与 Python 整数比较。Node pg 的普通 SELECT 默认将 bigint 返回为字符串（例如 `"1"`），而 RPC JSON 返回整数 `1`，会使正常的里程碑误报不存在。已用真实 PostgreSQL → HTTP → 原 Python probe 复现并修正：仅接受精确整数或相同的规范十进制字符串，拒绝 bool、浮点和非规范数字文本；初次列表和重启后的列表均检查。
+
+更新后仍执行上面的 `git pull` → `--verify` → probe，无需重传镜像或重新 `--deploy`。probe 失败现在报告具体步骤（例如 `list_versions`、`restore`、`restart`）、错误类别，以及可用的 HTTP 状态/允许公开的 API 错误码。不会打印响应消息、SQL、URL 参数、token 或业务行。重复执行是新测试，先前失败的测试方案保留。
+
 ## 验收范围及后续
 
 本机使用 PostgreSQL 17.11 和源 Scene Edit SQL 的合成场景，验证跨组、教师/管理员、沙盒、成员撤销、并发保存、回滚、版本恢复；阿里云是 PostgreSQL 17.6，必须再执行上述实际候选和登录探测。云端管理员探测不等同于云端多学生并发/跨账号验收。

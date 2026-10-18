@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import io
 from pathlib import Path
 import pytest
 P=Path(__file__).resolve().parents[1]/'scripts/probe-scene-write.py'
@@ -28,6 +29,40 @@ def test_probe_requires_save_conflict_versions_and_persistence():
     assert calls.count(('restart',200,False))==1
     assert ('save',409,False) in calls and ('load',401,True) in calls
     assert checkpoints and checkpoints[0]['phase']=='created'
+
+def test_probe_accepts_exact_bigint_revision_strings_from_pg_query_rows():
+    m=module();doc={'projectId':'p','revision':0,'baselineRef':{'revision':0},'objects':[]}
+    def call(op,input,expected=200,anonymous=False):
+        if anonymous:return {'error':{'code':'UNAUTHORIZED'}}
+        if op=='create':return {'id':'p','revision':0}
+        if op=='load':return dict(doc,projectId=input['projectId'],revision=0 if input['projectId']=='branch' else doc['revision'])
+        if op=='save':
+            if expected==409:return {'error':{'code':'REVISION_CONFLICT','remoteRevision':1}}
+            doc.update(input['document']);doc['revision']=1;return {'revision':1}
+        if op=='version':return {'id':'v','revision':1}
+        if op=='versions':return [{'id':'v','revision':'1','submission_status':'submitted'}]
+        if op=='restore':return {'id':'restored','revision':1}
+        if op=='branch':return {'id':'branch','revision':0}
+        if op=='submit':return {'submissionStatus':'submitted'}
+    assert m.perform_write_probe(call,{},lambda:None,lambda v:None)['status']=='authenticated_scene_write_probe_passed'
+
+def test_revision_comparison_never_accepts_bool_float_or_noncanonical_numbers():
+    m=module()
+    for value in (1,'1'):assert m.revision_matches(value,1)
+    for value in (True,1.0,'01','+1','1.0','1private',None):assert not m.revision_matches(value,1)
+
+def test_failed_http_probe_exposes_only_step_status_and_allowlisted_api_code():
+    m=module()
+    class Response(io.BytesIO):status=503
+    class Client:
+        def open(self,*args,**kwargs):return Response(b'{"error":{"code":"DB_UNAVAILABLE","message":"private SQL credential","token":"secret"}}')
+    with pytest.raises(ValueError) as caught:m.json_response(Client(),object())
+    assert caught.value.http_status==503 and caught.value.api_code=='DB_UNAVAILABLE'
+    assert 'private' not in str(caught.value) and 'secret' not in str(caught.value)
+    with pytest.raises(ValueError) as diagnostic:
+        def call(*args,**kwargs):raise caught.value
+        m.perform_write_probe(call,{},lambda:None,lambda v:None)
+    assert 'phase=anonymous' in str(diagnostic.value) and 'http_status=503' in str(diagnostic.value)
 
 def test_probe_rejects_lost_persistence_after_restart():
     m=module();doc={'projectId':'p','revision':0,'baselineRef':{'revision':0},'objects':[]};restarted=False

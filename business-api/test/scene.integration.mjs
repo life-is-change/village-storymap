@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import pg from 'pg';
 import {createServer} from 'node:http';import {createSceneHandler} from '../scene/http.mjs';
 import sceneClient from '../../3D_scenes_edit/persistence/scene-api-client.js';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {fileURLToPath} from 'node:url';
 const mod=await import('../scene/database.mjs').catch(()=>({}));
 const raw=process.env.VILLAGE_TEST_PG_URL;if(!raw)throw Error('Explicit disposable PG URL required');
 const url=new URL(raw);if(!['127.0.0.1','localhost'].includes(url.hostname)||url.username!=='village_test_admin'||url.pathname!=='/postgres')throw Error('Disposable loopback cluster only');
@@ -89,6 +90,20 @@ test('real source scene RPCs preserve scopes, atomic revisions, milestones, rest
    const fresh=await browser.loadProject(made.data.id);const milestone=await browser.createVersion({document:fresh.data,label:'Browser milestone'});assert.equal(milestone.ok,true);
    assert.equal((await browser.restoreVersionAsDraft({versionId:milestone.data.id,title:'Browser restore'})).ok,true);
    assert.equal((await browser.submitVersion(milestone.data.id)).data.submissionStatus,'submitted');
+   // Run the actual Python probe against real HTTP/pg responses, including pg's
+   // default bigint strings in SELECT results. Restart is separately exercised
+   // by the cloud verifier; this local case covers the complete probe contract.
+   const python=`import importlib.util,json,sys
+from pathlib import Path
+s=importlib.util.spec_from_file_location('local_scene_probe',Path('linux/scripts/probe-scene-write.py'))
+m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+m.BASE=sys.argv[1]
+r=m.perform_write_probe(m.api_caller('synthetic-only-token'),json.loads(sys.argv[2]),lambda:None,lambda v:None)
+print(r['status'])`;
+   const result=await promisify(execFile)(process.env.VILLAGE_TEST_PYTHON||(process.platform==='win32'?'python':'python3'),
+    ['-c',python,'http://127.0.0.1:'+server.address().port+'/api/v1/scene/',JSON.stringify({...context,spaceId:'P',groupId:null,scopeKind:'admin_sandbox'})],
+    {cwd:fileURLToPath(new URL('../../',import.meta.url)),timeout:20000});
+   assert.equal(result.stdout.trim(),'authenticated_scene_write_probe_passed');
   }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
   await setup.query("DELETE FROM group_memberships WHERE group_id='group-a'");
   const restoredDoc=await run(teacher,'load',{projectId:restored.id});
