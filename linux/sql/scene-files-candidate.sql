@@ -99,6 +99,31 @@ END;$$;
 CREATE FUNCTION scene_files.cleanup_done(p_id uuid) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
  UPDATE scene_files.files f SET state='deleted' WHERE id=p_id AND EXISTS(SELECT 1 FROM scene_files.sessions s WHERE s.id=f.session_id AND s.state='aborted')
 $$;
+CREATE FUNCTION scene_files.resolve_path(p_path text) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+ SELECT scene_files.authorize_file(id) FROM scene_files.files WHERE logical_path=p_path
+$$;
+CREATE FUNCTION scene_files.project_scope(p_id uuid) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+ SELECT jsonb_build_object('scopeKind',p.scope_kind,'courseId',t.course_id,'groupId',p.group_id,'ownerId',p.created_by)
+ FROM public.scene_edit_projects p JOIN public.teaching_projects t ON t.id=p.teaching_project_id
+ WHERE p.id=p_id AND public.can_read_scene_edit_project(p.id)
+$$;
+CREATE FUNCTION scene_files.lock_project(p_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+BEGIN
+ IF NOT public.can_read_scene_edit_project(p_id) THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;
+ PERFORM id FROM public.scene_edit_projects WHERE id=p_id FOR UPDATE;IF NOT FOUND THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;
+END;$$;
+CREATE FUNCTION scene_files.lock_assets(p_ids uuid[]) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+DECLARE ids uuid[];BEGIN
+ SELECT array_agg(id ORDER BY id) INTO ids FROM (SELECT id FROM public.scene_edit_assets WHERE id=ANY(p_ids) AND public.can_read_scene_edit_asset(scope_kind,course_id,group_id,owner_id) ORDER BY id FOR UPDATE) a;
+ IF coalesce(cardinality(ids),0)<>coalesce(cardinality(p_ids),0) THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;
+ RETURN (SELECT coalesce(jsonb_agg(to_jsonb(a) ORDER BY id),'[]'::jsonb) FROM public.scene_edit_assets a WHERE id=ANY(ids));
+END;$$;
+CREATE FUNCTION scene_files.lock_component(p_id uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+DECLARE c public.scene_edit_components;BEGIN
+ SELECT * INTO c FROM public.scene_edit_components WHERE id=p_id AND public.can_read_scene_edit_asset(scope_kind,course_id,group_id,owner_id) FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;RETURN to_jsonb(c);
+END;$$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA scene_files FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION scene_files.lock_session(uuid),scene_files.pending_budget(),scene_files.new_session(uuid,uuid,text,jsonb,jsonb),scene_files.claim_file(uuid,text),scene_files.finish_file(uuid,uuid,text),scene_files.fail_file(uuid,uuid),scene_files.complete_session(uuid,text,jsonb),scene_files.authorize_file(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION scene_files.resolve_path(text),scene_files.project_scope(uuid),scene_files.lock_project(uuid),scene_files.lock_assets(uuid[]),scene_files.lock_component(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION scene_files.cleanup_candidates(boolean),scene_files.cleanup_done(uuid) TO village_scene_files_login;

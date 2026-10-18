@@ -1,5 +1,6 @@
 import pg from 'pg';import {uuid,fault} from './contracts.mjs';
-function mapped(e){const source=String(e?.message??'');const codes={FILES_FORBIDDEN:'FORBIDDEN',FILES_CONFLICT:'UPLOAD_CONFLICT',FILES_EXPIRED:'UPLOAD_EXPIRED',SCENE_EDIT_ASSET_SCOPE_INVALID:'FORBIDDEN',SCENE_EDIT_ASSET_PUBLISH_REQUIRED:'FORBIDDEN',SCENE_EDIT_FORBIDDEN:'FORBIDDEN'};return e?.status?e:fault(codes[source]??'DB_UNAVAILABLE');}
+import {safeError as sceneError} from '../scene/errors.mjs';
+function mapped(e){const source=String(e?.message??'');const codes={FILES_FORBIDDEN:'FORBIDDEN',FILES_CONFLICT:'UPLOAD_CONFLICT',FILES_EXPIRED:'UPLOAD_EXPIRED',SCENE_EDIT_ASSET_SCOPE_INVALID:'FORBIDDEN',SCENE_EDIT_ASSET_PUBLISH_REQUIRED:'FORBIDDEN',SCENE_EDIT_COMPONENT_SCOPE_INVALID:'FORBIDDEN',SCENE_EDIT_COMPONENT_PUBLISH_REQUIRED:'FORBIDDEN',SCENE_EDIT_FORBIDDEN:'FORBIDDEN'};return e?.status?e:codes[source]?fault(codes[source]):sceneError(e);}
 export function createSceneFilesDatabase(config){
  const pool=config.pool??new pg.Pool({...config,max:2,connectionTimeoutMillis:3000,idleTimeoutMillis:30000});pool.on?.('error',()=>{});
  async function transaction(identity,fn){let c,discard;try{if(identity&&!uuid(identity.userId))throw fault('UNAUTHORIZED');c=await pool.connect();await c.query('BEGIN');await c.query("SET LOCAL statement_timeout='5s'; SET LOCAL lock_timeout='3s'; SET LOCAL idle_in_transaction_session_timeout='10s'");

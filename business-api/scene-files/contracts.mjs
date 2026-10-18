@@ -2,7 +2,7 @@ import {UUID} from '../src/contracts.mjs';
 export const MiB=1024*1024;
 const status={INVALID_INPUT:400,INVALID_FILE:422,FILE_TYPE_UNSUPPORTED:415,FILE_TOO_LARGE:413,FILE_BUSY:503,FILE_UNAVAILABLE:503,FORBIDDEN:403,UNAUTHORIZED:401,NOT_FOUND:404,UPLOAD_CONFLICT:409,UPLOAD_EXPIRED:410,QUOTA_EXCEEDED:507,FILES_NOT_READY:409,FILE_SCOPE_MISMATCH:403,DB_UNAVAILABLE:503,AUTH_UNAVAILABLE:503,PROFILE_NOT_SYNCED:403,REVISION_CONFLICT:409,METHOD_NOT_ALLOWED:405,UNSUPPORTED_MEDIA_TYPE:415,PROJECT_SUBMITTED:409,BASELINE_MISMATCH:409};
 export const fault=code=>Object.assign(new Error(Object.hasOwn(status,code)?code:'FILE_UNAVAILABLE'),{code:Object.hasOwn(status,code)?code:'FILE_UNAVAILABLE',status:status[code]??503});
-export function safeError(e){return Object.hasOwn(status,e?.code)?fault(e.code):fault('DB_UNAVAILABLE');}
+export function safeError(e){const safe=Object.hasOwn(status,e?.code)?fault(e.code):fault('DB_UNAVAILABLE');if(safe.code==='REVISION_CONFLICT'&&Number.isSafeInteger(e.remoteRevision)&&e.remoteRevision>=0)safe.remoteRevision=e.remoteRevision;return safe;}
 export const uuid=v=>typeof v==='string'&&UUID.test(v)&&v===v.toLowerCase();
 export const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 export const text=(v,n=200)=>typeof v==='string'&&v.length>0&&v.length<=n&&!/[\x00-\x1f\x7f]/.test(v);
