@@ -14,10 +14,11 @@ BASE_LAYERS=[('7fd1ebe418b5079d4aa36f416af9b143d127bc75b0155d71cb5fd559b5e04d39'
 ROOT=Path(__file__).resolve().parents[2]
 def sha(raw):return hashlib.sha256(raw).hexdigest()
 def encoded(value):return json.dumps(value,separators=(',',':'),sort_keys=True).encode()
-def code_digest(root,*,include_scene=False):
+def code_digest(root,*,include_scene=False,include_scene_files=False):
     h=hashlib.sha256()
     files=[Path(root)/'package.json',Path(root)/'package-lock.json',*sorted((Path(root)/'src').rglob('*.mjs'))]
     if include_scene:files+=sorted((Path(root)/'scene').rglob('*.mjs'))
+    if include_scene_files:files+=sorted((Path(root)/'scene-files').rglob('*.mjs'))
     for p in files:
         if p.is_symlink():raise ValueError('Linked runtime file.')
         # Git converts text newlines between Windows development and Linux deploy.
@@ -64,12 +65,12 @@ def manifest_image_ids(cbytes,layers):
     return list(dict.fromkeys(ids))
 
 def metadata_filename(image):
-    names={'village-business-api:stage-a1':'business-api-image.json','village-business-api:stage-b2-read':'storage-read-image.json','village-business-api:stage-c1-scene':'scene-write-image.json'}
+    names={'village-business-api:stage-a1':'business-api-image.json','village-business-api:stage-b2-read':'storage-read-image.json','village-business-api:stage-c1-scene':'scene-write-image.json','village-business-api:stage-c2a-scene-files':'scene-files-image.json'}
     if image not in names:raise ValueError('Unsupported candidate image tag.')
     return names[image]
 
 def build(base,output,api_root,*,image='village-business-api:stage-a1'):
-    metadata_filename(image);scene=image.endswith(':stage-c1-scene')
+    metadata_filename(image);scene_files=image.endswith(':stage-c2a-scene-files');scene=image.endswith(':stage-c1-scene') or scene_files
     output=Path(output)
     if output.exists():raise ValueError('Output already exists; choose a new archive name.')
     config,layers=validate_base(base);api_root=Path(api_root)
@@ -77,15 +78,16 @@ def build(base,output,api_root,*,image='village-business-api:stage-a1'):
     # pg is pure JS here. Native modules need a Linux build instead of host copying.
     runtime=[api_root/'package.json',api_root/'package-lock.json',*sorted((api_root/'src').rglob('*')),*sorted((api_root/'node_modules').rglob('*'))]
     if scene:runtime+=sorted((api_root/'scene').rglob('*'))
+    if scene_files:runtime+=sorted((api_root/'scene-files').rglob('*'))
     stream=io.BytesIO()
     with tarfile.open(fileobj=stream,mode='w') as t:
         for p in runtime:
             if p.is_symlink() or p.suffix.lower() in ('.node','.dll','.exe'):raise ValueError('Native/linked runtime dependency requires a Linux build.')
             if p.is_file():add(t,'app/'+p.relative_to(api_root).as_posix(),p.read_bytes())
-    raw=stream.getvalue();blob=gzip.compress(raw,mtime=0);digest=code_digest(api_root,include_scene=scene)
+    raw=stream.getvalue();blob=gzip.compress(raw,mtime=0);digest=code_digest(api_root,include_scene=scene,include_scene_files=scene_files)
     layers.append((sha(blob)+'.tar.gz',blob,len(raw),sha(raw)))
     config['rootfs']['diff_ids'].append('sha256:'+sha(raw))
-    config['config'].update({'WorkingDir':'/app','User':'1000:1000','Entrypoint':None,'Cmd':['node','scene/main.mjs' if scene else 'src/main.mjs']})
+    config['config'].update({'WorkingDir':'/app','User':'1000:1000','Entrypoint':None,'Cmd':['node','scene-files/main.mjs' if scene_files else 'scene/main.mjs' if scene else 'src/main.mjs']})
     config['config'].setdefault('Labels',{}).update({'village.api.code-sha256':digest,'org.opencontainers.image.source':'https://github.com/life-is-change/village-storymap'})
     config.setdefault('history',[]).append({'created':'2026-10-15T00:00:00Z','created_by':'verified Node base + npm ci pure JS runtime'})
     cbytes=encoded(config);configsha=sha(cbytes);manifest=[{'Config':configsha+'.json','RepoTags':[image],'Layers':[x[0] for x in layers]}]
@@ -101,7 +103,7 @@ def build(base,output,api_root,*,image='village-business-api:stage-a1'):
     return meta
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base-archive',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    p.add_argument('--image',choices=['village-business-api:stage-a1','village-business-api:stage-b2-read','village-business-api:stage-c1-scene'],default='village-business-api:stage-a1')
+    p.add_argument('--image',choices=['village-business-api:stage-a1','village-business-api:stage-b2-read','village-business-api:stage-c1-scene','village-business-api:stage-c2a-scene-files'],default='village-business-api:stage-a1')
     args=p.parse_args();meta=build(args.base_archive,args.output,ROOT/'business-api',image=args.image)
     name=metadata_filename(args.image)
     (ROOT/'linux'/name).write_text(json.dumps(meta,indent=2)+'\n')

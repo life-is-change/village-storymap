@@ -56,7 +56,7 @@ def validate_hba(docker):
     wanted=storage_hba(deploy.restricted_hba(docker))
     # C1 can add precisely one different database/login pair. This never grants
     # the C1 login access to village_copy or widens existing A/B2 access.
-    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf') not in (wanted,scene_hba(wanted)):raise ValueError('B2/A internal SCRAM rules differ.')
+    if docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf') not in (wanted,scene_hba(wanted),scene_files_hba(scene_hba(wanted))):raise ValueError('B2/A internal SCRAM rules differ.')
     if docker.sql('SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL;').strip()!='0':raise ValueError('HBA parse errors; retain backup and inspect.')
 
 def scene_hba(storage_rules):
@@ -65,6 +65,13 @@ def scene_hba(storage_rules):
     base='\n'.join([lines[0],lines[1],*lines[3:]])+'\n'
     if storage_hba(base)!=storage_rules:raise ValueError('Unknown A/B2 rules.')
     return '\n'.join([*lines[:3],lines[1].replace('village_copy village_api_login','village_scene_validation village_scene_login'),*lines[3:]])+'\n'
+
+def scene_files_hba(scene_rules):
+    lines=scene_rules.splitlines()
+    if len(lines)!=6:raise ValueError('Require exact A/B2/C1 rules before adding C2a.')
+    old='\n'.join([*lines[:3],*lines[4:]])+'\n'
+    if scene_hba(old)!=scene_rules:raise ValueError('Unknown A/B2/C1 rules.')
+    return '\n'.join([*lines[:4],lines[1].replace('village_copy village_api_login','village_scene_files_validation village_scene_files_login'),*lines[4:]])+'\n'
 
 def install_hba(docker):
     original=deploy.restricted_hba(docker);wanted=storage_hba(original)

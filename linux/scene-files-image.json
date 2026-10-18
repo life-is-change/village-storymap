@@ -1,0 +1,21 @@
+{
+  "image": "village-business-api:stage-c2a-scene-files",
+  "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+  "base_source": "public.ecr.aws/docker/library/node",
+  "code_sha256": "078dc22749700afba62b68208d60975e2153fbbc6207dfdd8b3eaec05928497b",
+  "accepted_image_ids": [
+    "sha256:7bf4bcc199121eb293183004ebc62ffd020e7254f0fa635af79f4503e60c7219",
+    "sha256:2918b72a5e8da46ac22f8b788463d31f88e8db42d4bed63bbaa8e9c3d2a65d2e",
+    "sha256:355077430804028a8b81d34778f9e7160724b09a14ccd8a613b2682b7ca14b9a",
+    "sha256:ef1899547164a61f6c420835c86118dfb5fea05334db73747575799f73a34c7e",
+    "sha256:c001ca7a095c1dec066766d271b77600838e1593735394ff0962d47427445da0",
+    "sha256:6aeab51b6f49a6c9759390600e891914c88c6e89d54a08d6e0e9ac8bd3d777c9",
+    "sha256:022fd9a9973ae152fa027f6e6e4055400d2462555f1a3c9132576c63a48a0f71"
+  ],
+  "os": "linux",
+  "architecture": "amd64",
+  "archive_filename": "village-business-api-stage-c2a-scene-files-amd64.tar.gz",
+  "archive_bytes": 79458077,
+  "archive_sha256": "31444d6e4495ce4bfcfaadc45da6fcbd9a6cdbb76fdee58442b2ae9fbc7832eb",
+  "runtime_execution": "pending_linux_container_smoke_test"
+}

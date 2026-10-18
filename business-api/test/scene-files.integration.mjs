@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import pg from 'pg';import {readFile,mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {Readable} from 'node:stream';
 import {assetInput,glb,png,userA} from './fixtures/scene-files.mjs';import {createFileStore} from '../scene-files/file-store.mjs';import {randomUUID} from 'node:crypto';
 import {createServer} from 'node:http';import {createSceneFilesHandler} from '../scene-files/http.mjs';import fileClient from '../../3D_scenes_edit/persistence/scene-files-api-client.js';
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {fileURLToPath} from 'node:url';
 const dbmod=await import('../scene-files/database.mjs').catch(()=>({})),upmod=await import('../scene-files/uploads.mjs').catch(()=>({}));
 const raw=process.env.VILLAGE_TEST_PG_URL;if(!raw)throw Error('Explicit disposable PG URL required');const url=new URL(raw);if(!['127.0.0.1','localhost'].includes(url.hostname)||url.username!=='village_test_admin'||url.pathname!=='/postgres')throw Error('Disposable loopback cluster only');
 const userB='20000000-0000-4000-8000-000000000002';
@@ -63,13 +64,21 @@ test('real source permissions, idempotent files, rollback, cleanup and revocatio
   const fresh=await scenes.run(a,'create',{...context,title:'Fresh'});const empty=await scenes.run(a,'load',{projectId:fresh.id});await assert.rejects(()=>scenes.run(a,'save',{document:{...empty,assetRefs:[groupCopy.id]}}),{code:'FILES_NOT_READY'});
   assert.equal((await scenes.run(a,'resolveAsset',{assetId:shared.id,variant:'display'})).fileId,file.id);
   const retained=await service.read(a,file.id);await retained.close();await assert.rejects(()=>scenes.run(b,'load',{projectId:project.id}),{code:'FORBIDDEN'});
-  const server=createServer(createSceneFilesHandler({verifyIdentity:async h=>{if(h!=='Bearer good')throw {code:'UNAUTHORIZED'};return a;},database:scenes,uploads:previewService}));await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const server=createServer(createSceneFilesHandler({verifyIdentity:async h=>{if(h==='Bearer admin')return {userId:'40000000-0000-4000-8000-000000000004'};if(h!=='Bearer good')throw {code:'UNAUTHORIZED'};return a;},database:scenes,uploads:previewService}));await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const client=fileClient.createSceneFilesClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/api/v1/scene-files',getAccessToken:async()=>'good'});
   try{
    const uploaded=await client.uploadBundle({context:{courseId:'course',groupId:'group-a',scopeKind:'group',kind:'model'},record:commit,files:[{role:'display',file:new Blob([glb()],{type:'model/gltf-binary'})}]});assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
    const created=await client.dataClient.createProject({...context,title:'HTTP actual'});assert.equal(created.ok,true);const loaded=await client.dataClient.loadProject(created.data.id);assert.equal(loaded.ok,true);loaded.data.assetRefs=[uploaded.data.id];assert.equal((await client.dataClient.saveDraft(loaded.data)).ok,true);
    const current=await client.dataClient.loadProject(created.data.id);const version=await client.uploadPreview({purpose:'version-preview',context:{projectId:created.data.id,revision:current.data.revision},blob:new Blob([png],{type:'image/png'}),record:{label:'HTTP preview',description:''}});assert.equal(version.ok,true,JSON.stringify(version));
    const resolved=await client.resolveAsset(uploaded.data.id);assert.equal(resolved.ok,true);assert.ok(resolved.url.startsWith('blob:'));assert.equal((await client.dataClient.restoreVersionAsDraft({versionId:version.data.id,title:'HTTP restored'})).ok,true);
+   // Exercise the exact cloud Python protocol with synthetic identities. The local
+   // restart callback is deliberately a no-op; cloud persistence still needs --verify.
+   const script=`import importlib.util,json,sys\nspec=importlib.util.spec_from_file_location('probe',sys.argv[1]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\nm.BASE=sys.argv[2]\ncontext=json.loads(sys.argv[3])\nprint(json.dumps(m.perform_probe(m.caller('admin'),m.caller('good'),context,lambda f,r:m.download('admin',f,r),lambda:None,lambda v:None)))`;
+   const probeContext={membership:{courseId:'course',groupId:'group-a'},context:{...context,scopeKind:'admin_sandbox',groupId:null,courseId:'course'}};
+   const python=process.env.VILLAGE_TEST_PYTHON||'python3';
+   const started=performance.now();const protocol=await promisify(execFile)(python,['-c',script,fileURLToPath(new URL('../../linux/scripts/probe-scene-files.py',import.meta.url)),'http://127.0.0.1:'+server.address().port+'/api/v1/scene-files',JSON.stringify(probeContext)],{timeout:60000});
+   const proof=JSON.parse(protocol.stdout);assert.equal(proof.status,'authenticated_scene_files_probe_passed');assert.equal(proof.file_objects,3);assert.equal(proof.created_drafts,4);
+   console.log('SYNTHETIC_PYTHON_PROTOCOL_OK elapsed_ms='+Math.round(performance.now()-started)+' process_rss_mib='+Math.round(process.memoryUsage().rss/1024**2));
   }finally{client.dispose();server.closeAllConnections();await new Promise(r=>server.close(r));}
   const expectedAssets=(await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count;
   await assert.rejects(()=>db.withIdentity(a,c=>c.query("UPDATE scene_files.sessions SET state='committed' WHERE id=$1",[session.id])),{code:'DB_UNAVAILABLE'});
