@@ -12,10 +12,11 @@
   async function upload({purpose,context,files,record,requestId=globalThis.crypto.randomUUID()}){
    const typed=files.map(({role,file})=>{const extension=(file.name?.match(/\.([a-z0-9]+)$/i)?.[1]??({'model/gltf-binary':'glb','image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type]??(context.kind==='model'?'glb':''))).toLowerCase(),mime={glb:'model/gltf-binary',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp'}[extension]??file.type;return {role,file,extension,mime,size:file.size};});
    const created=await send('/sessions',{data:{requestId,purpose,context,files:typed.map(({file,...f})=>f)}});if(!created.ok)return created;const session=created.data,id=session.id;
-   if(session.state==='committed')return send('/sessions/'+id+'/commit',{data:record});
+   // Explicit replays must resend bytes: descriptors and commit metadata alone
+   // cannot distinguish different binary content of the same length.
    for(const f of typed){const result=await send('/sessions/'+id+'/files/'+f.role,{method:'PUT',body:f.file,mime:f.mime});if(!result.ok)return {...result,sessionId:id,requestId};}
    const result=await send('/sessions/'+id+'/commit',{data:record});if(result.code!=='NETWORK_ERROR')return result;
-   const status=await send('/sessions/'+id,{method:'GET'});return status.ok&&status.data.state==='committed'?{ok:true,data:status.data.result}:{...result,sessionId:id,requestId};
+   const status=await send('/sessions/'+id,{method:'GET'});return status.ok&&status.data.state==='committed'?send('/sessions/'+id+'/commit',{data:record}):{...result,sessionId:id,requestId};
   }
   const notReady=async()=>({ok:false,code:'FILES_NOT_READY'});
   const dataClient={findActiveProject:s=>call('find',{teachingProjectId:s.teachingProjectId,villageId:s.villageId,spaceId:s.spaceId,groupId:s.groupId??null,scopeKind:s.scopeKind||'group'}),createProject:i=>call('create',{...i,groupId:i.groupId??null,scopeKind:i.scopeKind||'group'}),loadProject:projectId=>call('load',{projectId}),saveDraft:document=>call('save',{document}),branchFromBaseline:i=>call('branch',i),restoreVersionAsDraft:i=>call('restore',i),submitVersion:versionId=>call('submit',{versionId}),listVersions:projectId=>call('versions',{projectId}),

@@ -56,7 +56,9 @@ END;$$;
 CREATE FUNCTION scene_files.claim_file(p_id uuid,p_role text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
 DECLARE s jsonb;f scene_files.files;BEGIN
  s:=scene_files.lock_session(p_id);
- IF s->>'state'='aborted' OR (s->>'expires_at')::timestamptz<=now() THEN RAISE EXCEPTION 'FILES_EXPIRED';END IF;
+ -- Committed sessions only compare immutable ready bytes on replay; the 24h
+ -- expiry applies to unfinished uploads, never grants another write/registration.
+ IF s->>'state'='aborted' OR s->>'state'<>'committed' AND (s->>'expires_at')::timestamptz<=now() THEN RAISE EXCEPTION 'FILES_EXPIRED';END IF;
  SELECT * INTO f FROM scene_files.files WHERE session_id=p_id AND role=p_role FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;
  IF f.state='ready' THEN RETURN to_jsonb(f);END IF;

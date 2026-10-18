@@ -2,20 +2,20 @@
   "image": "village-business-api:stage-c2a-scene-files",
   "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
   "base_source": "public.ecr.aws/docker/library/node",
-  "code_sha256": "078dc22749700afba62b68208d60975e2153fbbc6207dfdd8b3eaec05928497b",
+  "code_sha256": "56705d4a32cb177db81db79b2a6ac066493ace4b93833f78a508770a67d46289",
   "accepted_image_ids": [
-    "sha256:7bf4bcc199121eb293183004ebc62ffd020e7254f0fa635af79f4503e60c7219",
-    "sha256:2918b72a5e8da46ac22f8b788463d31f88e8db42d4bed63bbaa8e9c3d2a65d2e",
-    "sha256:355077430804028a8b81d34778f9e7160724b09a14ccd8a613b2682b7ca14b9a",
-    "sha256:ef1899547164a61f6c420835c86118dfb5fea05334db73747575799f73a34c7e",
-    "sha256:c001ca7a095c1dec066766d271b77600838e1593735394ff0962d47427445da0",
-    "sha256:6aeab51b6f49a6c9759390600e891914c88c6e89d54a08d6e0e9ac8bd3d777c9",
-    "sha256:022fd9a9973ae152fa027f6e6e4055400d2462555f1a3c9132576c63a48a0f71"
+    "sha256:6dd6454a8201bf5049541472f7cef4d64920dbdb54a809ac1ed26e1998e4f387",
+    "sha256:58767cb503f408214c35e7f11a2f86f4438ed762ef6bf7a779f65ed42e6a5e1d",
+    "sha256:11c5b4ea0c355fe357ee49d54f8c93c381699f1e473d0b2e20ab014a9b67bee4",
+    "sha256:cca9b6c1ee6fa2962d4680eee6536c2492aba7b766b1e2b047ece57e5ca9fcae",
+    "sha256:819d3e7506bb840d53e8a9a9e0a85204e54d036848c08b08ebc87120d9460f86",
+    "sha256:bd2607d205ff44d18154b33fffbe99766b050b65e64573726e3c28fa54e03a3c",
+    "sha256:ddedce7c992906a4e843335446e5db2b5162c3db965a75cb8b6e2fb7e3d70f0b"
   ],
   "os": "linux",
   "architecture": "amd64",
   "archive_filename": "village-business-api-stage-c2a-scene-files-amd64.tar.gz",
-  "archive_bytes": 79458077,
-  "archive_sha256": "31444d6e4495ce4bfcfaadc45da6fcbd9a6cdbb76fdee58442b2ae9fbc7832eb",
+  "archive_bytes": 79458071,
+  "archive_sha256": "b9a18028fce60b228c8d8b9c534c2c221e10512de8bb1ca8ef9d43b604e7ec1a",
   "runtime_execution": "pending_linux_container_smoke_test"
 }

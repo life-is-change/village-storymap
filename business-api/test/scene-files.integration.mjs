@@ -67,6 +67,14 @@ test('real source permissions, idempotent files, rollback, cleanup and revocatio
   const server=createServer(createSceneFilesHandler({verifyIdentity:async h=>{if(h==='Bearer admin')return {userId:'40000000-0000-4000-8000-000000000004'};if(h!=='Bearer good')throw {code:'UNAUTHORIZED'};return a;},database:scenes,uploads:previewService}));await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const client=fileClient.createSceneFilesClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/api/v1/scene-files',getAccessToken:async()=>'good'});
   try{
+   const retryRequest=randomUUID(),retryBundle={requestId:retryRequest,context:{courseId:'course',groupId:null,scopeKind:'personal',kind:'model'},record:commit,files:[{role:'display',file:new Blob([glb()],{type:'model/gltf-binary'})}]};
+   const firstRetry=await client.uploadBundle(retryBundle);assert.equal(firstRetry.ok,true);
+   const rowsBeforeRetry=(await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count;
+   await setup.query("UPDATE scene_files.sessions SET expires_at=now()-interval '1 hour' WHERE request_id=$1",[retryRequest]);
+   assert.equal((await client.uploadBundle(retryBundle)).data?.id,firstRetry.data.id,'committed exact replay remains valid after pending expiry');
+   const changed=Buffer.from(glb());changed[changed.length-1]^=1;
+   assert.equal((await client.uploadBundle({...retryBundle,files:[{role:'display',file:new Blob([changed],{type:'model/gltf-binary'})}]})).code,'UPLOAD_CONFLICT','equal-size changed replay is refused over real HTTP');
+   assert.equal((await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count,rowsBeforeRetry);
    const uploaded=await client.uploadBundle({context:{courseId:'course',groupId:'group-a',scopeKind:'group',kind:'model'},record:commit,files:[{role:'display',file:new Blob([glb()],{type:'model/gltf-binary'})}]});assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
    const created=await client.dataClient.createProject({...context,title:'HTTP actual'});assert.equal(created.ok,true);const loaded=await client.dataClient.loadProject(created.data.id);assert.equal(loaded.ok,true);loaded.data.assetRefs=[uploaded.data.id];assert.equal((await client.dataClient.saveDraft(loaded.data)).ok,true);
    const current=await client.dataClient.loadProject(created.data.id);const version=await client.uploadPreview({purpose:'version-preview',context:{projectId:created.data.id,revision:current.data.revision},blob:new Blob([png],{type:'image/png'}),record:{label:'HTTP preview',description:''}});assert.equal(version.ok,true,JSON.stringify(version));
