@@ -1,6 +1,6 @@
 # C1 三维方案内部写入：本地交付记录
 
-状态：本地测试通过，离线镜像已准备；实现及审查修复已推送 GitHub main（代码版本 `ddea890`）；阿里云尚未执行 C1 命令，无云端验收标记。正式网站仍使用 Supabase。
+状态：实现及审查修复已推送 GitHub main（核心代码版本 `ddea890`）。2026-10-18 用户已在阿里云完成镜像、部署和重启检查；登录后在 probe 的 context 阶段停止，尚无完整云端写入验收标记。正式网站仍使用 Supabase。
 
 ## 交付内容
 
@@ -32,3 +32,11 @@
 C1 仅闭合内置元素的场景方案生命周期；不是完整三维模块/数据库生产切换。C2 文件上传/删除和引用、其他普通业务写入、共享权限/身份同步、4090 桥接、并发容量、最新数据刷新及 HTTPS/正式切换仍未完成。旧库和 GPU 通道均未改动。
 
 人工云端步骤见 [C1 操作说明](../../linux/README.scene-write.md)。最终以实际 `SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER` 和后续记录为准。
+
+## 2026-10-18 云端进度与 context 修复
+
+用户实际输出已达到 `SCENE_IMAGE_ARCHIVE_VERIFIED_LOADED`、`SCENE_WRITE_PREFLIGHT_OK`、`SCENE_WRITE_INTERNAL_DEPLOYED_NOT_ACCEPTED` 和 `SCENE_WRITE_RESTART_VERIFIED`，说明该镜像的 Linux Node 22/模块执行、候选部署、重启及实际数据库 TCP 路径已通过。管理员登录后在 `phase=context` 停止；不能把这些标记当作完整写入/版本/持久性验收。
+
+对与候选恢复输入相同、哈希已核对的本地归档做只读聚合检查：`group_plan` 为 0、练习共享空间为 2。根因是探测脚本假定已有正式组方案。修复为读取已有项目/村庄/空间并使用原 RPC 支持的管理员私有沙盒，不变更 API 运行代码、数据库结构、镜像或既有课程/组空间。
+
+已补充 Python 拒绝/诊断测试及实际 PostgreSQL 上“没有正式组方案”的上下文查询测试，并通过真实客户端→HTTP→数据库的管理员沙盒保存、版本与恢复流程。用户只需拉取修复、重新 `--verify` 和 probe；无需重传镜像或重复 `--deploy`。

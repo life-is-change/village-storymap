@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import pytest
 P=Path(__file__).resolve().parents[1]/'scripts/probe-scene-write.py'
@@ -50,3 +51,24 @@ def test_acceptance_requires_current_recent_proof():
     m.acceptance_ready(p,'same',now=20)
     for f,n in [('wrong',20),('same',4000),('same',5)]:
         with pytest.raises(ValueError):m.acceptance_ready(p,f,now=n)
+
+def test_admin_probe_uses_private_sandbox_when_formal_group_plans_do_not_exist():
+    m=module();uid='40000000-0000-4000-8000-000000000004'
+    context={'teachingProjectId':'project','villageId':'village','spaceId':'practice','groupId':None,'scopeKind':'admin_sandbox','baselineRevision':0}
+    class Docker:
+        def sql(self,query,database):
+            assert database=='village_scene_validation'
+            # The copied dataset has practice spaces, but zero group_plan rows.
+            if "s.space_type='group_plan'" in query:return ''
+            return json.dumps({'is_admin':True,'context':context})
+    assert m.admin_context(Docker(),uid)==context
+
+@pytest.mark.parametrize('result,code',[
+    ({'is_admin':False,'context':None},'ADMIN_PROFILE_REQUIRED'),
+    ({'is_admin':True,'context':None},'NO_VALID_SCENE_CONTEXT'),
+])
+def test_context_failure_reports_fixed_reason_without_private_rows(result,code):
+    m=module()
+    class Docker:
+        def sql(self,*args):return json.dumps(result)
+    with pytest.raises(ValueError,match=code):m.admin_context(Docker(),'40000000-0000-4000-8000-000000000004')

@@ -22,9 +22,20 @@ test('real source scene RPCs preserve scopes, atomic revisions, milestones, rest
    ALTER TABLE group_memberships ADD course_id text DEFAULT 'course';
    INSERT INTO course_groups VALUES('group-a'),('group-b');INSERT INTO villages VALUES('${context.villageId}');
    INSERT INTO teaching_projects VALUES('${context.teachingProjectId}','course');
-   UPDATE planning_spaces SET teaching_project_id='${context.teachingProjectId}',village_id='${context.villageId}',space_type='group_plan';`);
+   UPDATE planning_spaces SET teaching_project_id='${context.teachingProjectId}',village_id='${context.villageId}',space_type='group_plan';
+   INSERT INTO planning_spaces(id,title,space_type,teaching_project_id,village_id)
+    VALUES('P','Practice','practice_shared','${context.teachingProjectId}','${context.villageId}');`);
   const source=await readFile(new URL('../../supabase_SQL/Scene Edit Studio.sql',import.meta.url),'utf8');
   await setup.query(source.split('insert into storage.buckets')[0]);
+  // The real restored snapshot may have practice spaces but no group plans.
+  // Exercise the probe's exact SELECT with that shape, not only a SQL mock.
+  await setup.query("UPDATE planning_spaces SET space_type='practice_shared'");
+  const contextSql=await readFile(new URL('../../linux/sql/scene-write-probe-context.sql',import.meta.url),'utf8');
+  const adminProbe=(await setup.query(contextSql.replace('__PROBE_USER_UUID__',adminId))).rows[0].data;
+  assert.equal(adminProbe.is_admin,true);assert.equal(adminProbe.context.scopeKind,'admin_sandbox');assert.equal(adminProbe.context.groupId,null);
+  const studentProbe=(await setup.query(contextSql.replace('__PROBE_USER_UUID__',a))).rows[0].data;
+  assert.equal(studentProbe.is_admin,false);assert.equal(studentProbe.context,null);
+  await setup.query("UPDATE planning_spaces SET space_type='group_plan' WHERE id<>'P'");
   await setup.query((await readFile(new URL('../../linux/sql/scene-write-candidate.sql',import.meta.url),'utf8')).replaceAll('village_scene_validation',name));
   await setup.query("ALTER ROLE village_scene_login PASSWORD 'synthetic-scene-only-01234567890123456789'");
   db=mod.createSceneDatabase({host:url.hostname,port:Number(url.port),database:name,user:'village_scene_login',password:'synthetic-scene-only-01234567890123456789'});
@@ -64,12 +75,12 @@ test('real source scene RPCs preserve scopes, atomic revisions, milestones, rest
   await assert.rejects(()=>run(a,'create',{...context,groupId:null,scopeKind:'admin_sandbox'}),{code:'FORBIDDEN'});
   // Exercise the exact browser adapter -> HTTP JSON -> role/RPC path too.
   const server=createServer(createSceneHandler({database:db,verifyIdentity:async h=>{
-   if(h!=='Bearer synthetic-only-token')throw {code:'UNAUTHORIZED'};return {userId:a};
+   if(h!=='Bearer synthetic-only-token')throw {code:'UNAUTHORIZED'};return {userId:adminId};
   }}));
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   try{
    const browser=sceneClient.createSceneApiClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/api/v1/scene',getAccessToken:async()=> 'synthetic-only-token'});
-   const made=await browser.createProject({...context,title:'Browser test'});assert.equal(made.ok,true);
+   const made=await browser.createProject({...context,title:'Browser sandbox test',spaceId:'P',groupId:null,scopeKind:'admin_sandbox'});assert.equal(made.ok,true);
    const loaded=await browser.loadProject(made.data.id);assert.equal(loaded.ok,true);
    loaded.data.objects=[{id:'bench',kind:'asset',category:'bench',layerId:'design',groupId:null,zIndex:0,
     geometry:{type:'Point',coordinates:[113,23]},transform:{headingDeg:0,pitchDeg:0,rollDeg:0,heightOffsetM:0,scale:[1,1,1]},properties:{assetRef:'seed:bench:wood'}}];

@@ -24,6 +24,10 @@ BASE='http://127.0.0.1:18082/api/v1/scene/'
 ORIGIN='https://rzmbmwauomzwiyenafha.supabase.co'
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):raise ValueError('Redirect refused')
+class ContextFailure(ValueError):
+    def __init__(self,code):
+        if code not in ('ADMIN_PROFILE_REQUIRED','NO_VALID_SCENE_CONTEXT','CONTEXT_QUERY_FAILED','CONTEXT_FORMAT_INVALID'):raise ValueError('Invalid diagnostic')
+        self.code=code;super().__init__(code)
 
 def opener():return urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
 
@@ -59,13 +63,19 @@ def api_caller(token):
 def admin_context(docker,uid):
     if not re.fullmatch('[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}',uid):raise ValueError('Invalid identity')
     # UUID is strictly validated, fixed SQL only; no private rows are printed.
-    value=docker.sql("""SELECT json_build_object('teachingProjectId',s.teaching_project_id,'villageId',s.village_id,
-     'spaceId',s.id,'groupId',s.group_id,'scopeKind','group','baselineRevision',0)
-     FROM public.planning_spaces s JOIN public.teaching_projects t ON t.id=s.teaching_project_id
-     WHERE s.space_type='group_plan' AND s.group_id IS NOT NULL AND s.village_id IS NOT NULL
-     AND EXISTS(SELECT 1 FROM public.profiles WHERE id='"""+uid+"'::uuid AND role='admin') ORDER BY s.id LIMIT 1;",deploy.DATABASE).strip()
-    if not value:raise ValueError('Use the existing website administrator account for C1 acceptance')
-    return json.loads(value)
+    template=(S.parent/'sql/scene-write-probe-context.sql').read_text(encoding='utf-8')
+    if template.count('__PROBE_USER_UUID__')!=1:raise ContextFailure('CONTEXT_FORMAT_INVALID')
+    try:value=docker.sql(template.replace('__PROBE_USER_UUID__',uid),deploy.DATABASE).strip()
+    except (RuntimeError,OSError):raise ContextFailure('CONTEXT_QUERY_FAILED') from None
+    try:result=json.loads(value)
+    except (ValueError,TypeError):raise ContextFailure('CONTEXT_FORMAT_INVALID') from None
+    if not isinstance(result,dict):raise ContextFailure('CONTEXT_FORMAT_INVALID')
+    if result.get('is_admin') is not True:raise ContextFailure('ADMIN_PROFILE_REQUIRED')
+    context=result.get('context')
+    if context is None:raise ContextFailure('NO_VALID_SCENE_CONTEXT')
+    if not isinstance(context,dict) or context.get('scopeKind')!='admin_sandbox' or context.get('groupId') is not None:
+        raise ContextFailure('CONTEXT_FORMAT_INVALID')
+    return context
 
 def document_digest(document):return hashlib.sha256(json.dumps(document,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 
@@ -137,6 +147,8 @@ def main():
         current=deploy.runtime_fingerprint(docker);fresh=deploy.copy.read_private_json(deploy.STATE/'verification.json');acceptance_ready(fresh,current)
         deploy.copy.write_private_json(path,{**result,'status':'internal_scene_writes_validated_not_cut_over','runtime_fingerprint':current,'verification_attempt_id':fresh['attempt_id'],'checked_at':time.time()})
         print(json.dumps(result));print('SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER');return 0
+    except ContextFailure as e:
+        print('STOP: SCENE_PROBE_FAILED phase=context category='+e.code+'. Keep private logs; do not paste private rows.',file=sys.stderr);return 1
     except (ValueError,RuntimeError,OSError,KeyError,TypeError,getpass.GetPassWarning):
         print('STOP: SCENE_PROBE_FAILED phase='+phase+'. Keep private candidate data/logs. Do not paste credentials or private rows.',file=sys.stderr);return 1
 if __name__=='__main__':raise SystemExit(main())

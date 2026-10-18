@@ -71,7 +71,7 @@ python3 linux/scripts/probe-scene-write.py
 probe 输入管理员网站学号（例如 `332`）及**网站登录密码**，隐藏输入；不是数据库密码或 Secret key。请在 `--verify` 后一小时内运行。probe 会：
 
 1. 拒绝无令牌访问，验证原 Supabase 登录。
-2. 从独立测试库选择已有教学项目/组空间上下文，以 `C1 validation` 标题创建新测试方案。
+2. 从独立测试库选择已有教学项目/村庄/空间上下文，优先练习共享空间，以 `admin_sandbox` 和 `C1 validation` 标题创建仅管理员本人可访问的新测试方案；不要求快照中已存在正式 `group_plan` 空间。
 3. 保存一张测试长椅并读回，确认旧 revision 再保存得到 409。
 4. 创建里程碑、恢复新草稿、创建分支、提交里程碑。
 5. 再重启 C1 API，重新读取原方案、里程碑、恢复和分支，确认持久性。
@@ -85,6 +85,19 @@ SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER
 ```
 
 失败时只发送终端最后的固定错误阶段；不要发送密码、token、SQL、私有 JSON 报告或业务行。不要靠改前端 URL 绕过测试。
+
+### 已部署后出现 `phase=context`
+
+旧探测脚本仅选择 `group_plan`，而这份已校验快照只有练习/历史空间，正式组方案空间数为 0，因此会在登录成功后停止。修复后的探测使用源场景 RPC 已支持的管理员沙盒；只读选择已有上下文，不创建组空间或修改课程数据，也不需要新镜像或重部署。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/deploy-scene-write-validation.py --verify &&
+python3 linux/scripts/probe-scene-write.py
+```
+
+仍输入管理员学号与网站登录密码。新的安全诊断 `ADMIN_PROFILE_REQUIRED` 表示候选资料中该身份不是管理员，`NO_VALID_SCENE_CONTEXT` 表示没有可关联的项目/村庄/空间，`CONTEXT_QUERY_FAILED` 表示查询失败；不会打印私有行或令牌。不要再次运行 `--deploy` 覆盖已经存在的测试库。
 
 ## 验收范围及后续
 
