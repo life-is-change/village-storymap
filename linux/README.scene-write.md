@@ -1,5 +1,7 @@
 # 三维方案写入候选 C1：内部验收，尚未切换
 
+2026-10-18 云端已验收：用户在版本 `063808f` 取得 `SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER`；真实管理员探测返回 3 个草稿、1 个里程碑、`restart_persistence=true`。无需重复部署。以下命令保留为操作记录；下一阶段是 C2 私有文件生命周期，正式网站仍使用 Supabase。完整证据见 [C1 验收记录](../docs/migration/2026-10-17-scene-write-validation.md)。
+
 C1 提供固定操作的方案创建、读取、保存、里程碑、提交、分支和恢复。内置 `seed:` 引用可以保存；私有照片、GLB、素材管理、预览上传/路径暂返回 `FILES_NOT_READY`，留待 C2 完整处理。C1 客户端可显式注入编辑器服务，但本次未接入正式 `app.js`，不要用它替换全局 Supabase 客户端。
 
 旧快照里的里程碑若带非空 `preview_path`，C1 同样拒绝提交和恢复；不会因恢复新草稿而悄悄舍弃预览。待 C2 文件生命周期接入后再开放这些版本。

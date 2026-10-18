@@ -1,6 +1,6 @@
 # C1 三维方案内部写入：本地交付记录
 
-状态：实现及审查修复已推送 GitHub main（核心代码版本 `ddea890`）。2026-10-18 用户已在阿里云完成镜像、部署和重启检查；登录后在 probe 的 context 阶段停止，尚无完整云端写入验收标记。正式网站仍使用 Supabase。
+状态：2026-10-18 用户在阿里云拉取 `063808f` 后，完成真实管理员登录、场景写入及重启持久性验收，取得 `SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER`。C1 内部候选通过；正式网站仍使用 Supabase。
 
 ## 交付内容
 
@@ -50,3 +50,17 @@ C1 仅闭合内置元素的场景方案生命周期；不是完整三维模块/�
 错误输出改为具体步骤和经过白名单处理的 HTTP/API 错误信息；响应正文、凭据和私有行不输出。原先仅有大阶段提示不足以定位错误，这是探测工具的问题，不应归咎于用户密码或服务器。
 
 本次按用户请求重新尝试浏览器控制。浏览器扩展能列出标签，但读取 Workbench 原点时，工具返回保存的网站权限/管理策略拒绝页面观察；没有网络超时或阿里云认证失败证据。遵守工具的禁止绕过要求，未改用其他浏览器、CDP 或其他通道规避。继续由用户执行云端命令。
+
+## 2026-10-18 阿里云 C1 最终验收
+
+证据来源：用户手动执行并回传终端输出；不是本机模拟或代理远控结果。执行版本 `063808f`，先运行 `deploy-scene-write-validation.py --verify`，再运行 `probe-scene-write.py`，以管理员学号 `332` 隐藏输入网站密码。
+
+```text
+SCENE_WRITE_RESTART_VERIFIED - real login/save/version probe still required.
+{"status": "authenticated_scene_write_probe_passed", "created_drafts": 3, "milestones": 1, "revision": 1, "restart_persistence": true}
+SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER
+```
+
+完整探测已走过创建、保存、旧 revision 冲突、里程碑、恢复、分支、提交，以及 API 重启后读回的检查。此结果验证候选内置元素方案生命周期，不包含真实学生账号的云端写入、多用户并发容量或 C2 私有文件生命周期。测试草稿和候选数据保留，不清理源 Supabase。
+
+下一阶段为 C2：私有照片/GLB/素材与版本预览的授权上传、引用、读取和删除；先核对权限与文件/数据库一致性设计，再实施独立候选验证。当前无需重新上传 C1 镜像、重复恢复数据库或开启公网 API。
