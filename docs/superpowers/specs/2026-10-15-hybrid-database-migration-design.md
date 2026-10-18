@@ -126,7 +126,8 @@ Compose 为 API 和数据库配置私有网络，数据库不发布宿主机端�
 - 普通文件：B1 在版本 `29cab53` 完成云端复制及落盘校验，23 个对象共 7,271,979 字节，pending/source_changed/missing/failed 均为 0；114 个 GPU 产物排除且源端保留。详见 [B1 验收记录](../../migration/2026-10-16-storage-copy-validation.md)。
 - 文件读取候选：2026-10-17 B2 已通过真实 Linux 部署、重启及管理员文件读取验收，23 个对象 / 7,271,979 字节全部可读，denied=0；最终标记为 `STORAGE_READ_INTERNAL_VALIDATED_NOT_CUT_OVER`。详见 [B2 读取验收记录](../../migration/2026-10-16-storage-read-validation.md)。验收后的资源快照：B2 API 30.40 MiB、A API 45.74 MiB、DB 39.49 MiB，主机 available 945 MiB；并发/峰值容量尚未验证。
 - 三维写入候选：2026-10-18 在版本 `063808f` 完成管理员真实登录、创建/保存/冲突/版本/恢复/分支/提交及 API 重启读回；3 个草稿、1 个里程碑，`restart_persistence=true`，最终标记 `SCENE_WRITE_INTERNAL_VALIDATED_NOT_CUT_OVER`。详见 [C1 验收记录](../../migration/2026-10-17-scene-write-validation.md)。此项仅覆盖内置元素，不代表完整三维文件或生产切换。
-- 未完成：C2 文件上传/删除与引用、其他业务写入、任务桥接、完整业务模块权限与负载验收、最新数据刷新及线上切换。网站当前仍访问 Supabase；副本不会自动接收源库后续写入。
+- C2a 三维文件：本地实现、合成真实 PG/HTTP/前端/Python 协议联测及离线镜像已交付准备；独立审查与用户云端验收状态见 [C2a 记录](../../migration/2026-10-18-scene-files-validation.md)。正式客户端未切换。
+- 未完成：C2a 云端文件生命周期验收、其他业务写入、任务桥接、完整业务模块权限与负载验收、最新数据刷新及线上切换。网站当前仍访问 Supabase；副本不会自动接收源库后续写入。
 - 资源观察：隔离副本验证完成时容器占用 41.98 MiB / 768 MiB，CPU 0.03%；尚不能据此推断教学并发负载或完整服务栈容量。
 - 执行方式：阿里云终端由用户手动操作；本地改动先提交 GitHub main，再由用户拉取部署。浏览器工具会话拒绝不通过其他通道绕过。
 

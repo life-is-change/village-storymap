@@ -13,3 +13,5 @@ Task 5 本地记录：Python 部署回归 204 passed / 1 skipped；真实 C2a PG
 部署在同一 PG 实例新建候选库和受限角色，仅新增精确 HBA 行、reload，不恢复集群角色。旧验证脚本接受这一条新行，否则精确比较会误报旧服务配置漂移；旧运行代码、镜像集合和原网络规则未扩大。候选 API 仅 loopback18083、256 MiB、最多 2 连接/2 上传，只有自己的私有文件卷可写。
 
 待阿里云回传：`SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER`、成功聚合计数、API/PG 内存与主机 available。此前不标记 C2a 云端完成。正式网站、Supabase Auth/业务源和 4090 不切换；最新数据交接、其余业务写入与 GPU 桥接仍未实施。
+
+整体验证：平台 `npm test` 1010/1010，API 单元 `node --test business-api/test/*.test.mjs` 36/36；Python 204 passed / 1 skipped（Windows 不允许创建符号链接，硬链接拒绝已测）。A/B2/C1/C2a 真实 PG 集成逐文件串行通过4/4。C2a Python协议复跑约10秒、Node RSS65MiB。Linux符号链接/UID验证在云端补齐。
