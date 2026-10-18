@@ -1,0 +1,23 @@
+import {randomUUID} from 'node:crypto';import {pipeline} from 'node:stream/promises';import {byteRange} from '../src/storage.mjs';import {fault,safeError,uuid} from './contracts.mjs';
+const prefix='/api/v1/scene-files',ops=new Set(['find','create','load','save','versions','branch','version','restore','submit','assets','components','resolveAsset','publishAsset','copyAsset','archiveAsset','updateAssetMetadata','saveComponent','publishComponent','copyComponent','archiveComponent']);
+async function jsonBody(req){if(req.headers['content-type']?.split(';')[0].trim().toLowerCase()!=='application/json'||req.headers['content-encoding'])throw fault('UNSUPPORTED_MEDIA_TYPE');const length=req.headers['content-length'];if(length!==undefined&&(!/^\d+$/.test(length)||Number(length)>2*1024*1024))throw fault('PAYLOAD_TOO_LARGE');let n=0;const parts=[];for await(const b of req){n+=b.length;if(n>2*1024*1024)throw fault('PAYLOAD_TOO_LARGE');parts.push(b);}try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(parts)));}catch{throw fault('INVALID_INPUT');}}
+function sessionView(s){return {id:s.id,state:s.state,expires_at:s.expires_at,files:s.files.map(f=>({id:f.id,role:f.role,size:Number(f.size),mime:f.mime,extension:f.extension,state:f.state,sha256:f.sha256})),...(s.state==='committed'?{result:s.result}:{})};}
+export function createSceneFilesHandler({verifyIdentity,database,uploads}){
+ let reads=0,writes=0;return async(req,res)=>{
+  const requestId=randomUUID(),send=(status,value)=>{if(!res.destroyed&&!res.headersSent){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','X-Request-Id':requestId});res.end(JSON.stringify(value));}};
+  try{
+   if(req.url==='/healthz'){if(req.method!=='GET')throw fault('METHOD_NOT_ALLOWED');return send(200,{status:'ok'});}
+   let match=/^\/api\/v1\/scene-files\/(sessions(?:\/([0-9a-f-]{36})(?:\/(commit|files\/([a-z-]+)))?)?|files\/([0-9a-f-]{36})|scene\/([a-zA-Z]+))$/.exec(req.url??'');if(!match)throw fault('NOT_FOUND');
+   const [,route,sessionId,tail,role,fileId,op]=match;if(sessionId&&!uuid(sessionId)||fileId&&!uuid(fileId)||op&&!ops.has(op))throw fault('NOT_FOUND');
+   const method=fileId?['GET','HEAD']:sessionId?(tail?.startsWith('files/')?['PUT']:tail==='commit'?['POST']:['GET']):['POST'];if(!method.includes(req.method))throw fault('METHOD_NOT_ALLOWED');
+   if((req.rawHeaders??[]).filter((v,i)=>i%2===0&&v.toLowerCase()==='authorization').length!==1)throw fault('UNAUTHORIZED');const identity=await verifyIdentity(req.headers.authorization);
+   if(fileId){if(reads>=4)throw fault('FILE_BUSY');reads++;let opened;try{opened=await uploads.read(identity,fileId);const range=byteRange(req.headers.range,opened.size);if(!range){res.writeHead(416,{'Content-Range':'bytes */'+opened.size,'Cache-Control':'private, no-store'});res.end();return;}
+     const headers={'Content-Type':opened.mime,'Content-Length':range.end-range.start+1,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Accept-Ranges':'bytes','X-Request-Id':requestId};if(range.status===206)headers['Content-Range']=`bytes ${range.start}-${range.end}/${opened.size}`;if(['original','low-original'].includes(opened.role))headers['Content-Disposition']='attachment; filename="scene-original.'+opened.extension+'"';
+     res.writeHead(range.status,headers);if(req.method==='HEAD'){res.end();return;}await pipeline(opened.stream(range),res);return;
+    }finally{try{await opened?.close();}finally{reads--;}}}
+   if(role){if(writes>=2)throw fault('FILE_BUSY');writes++;try{if(req.headers['content-encoding'])throw fault('UNSUPPORTED_MEDIA_TYPE');const s=await uploads.status(identity,sessionId),f=s.files.find(f=>f.role===role),length=req.headers['content-length'];if(!f)throw fault('INVALID_INPUT');if(!/^\d+$/.test(length??'')||Number(length)!==Number(f.size))throw fault('INVALID_INPUT');if(req.headers['content-type']?.split(';')[0].trim().toLowerCase()!==f.mime)throw fault('UNSUPPORTED_MEDIA_TYPE');return send(200,{data:await uploads.upload(identity,sessionId,role,req)});}finally{writes--;}}
+   if(sessionId)return send(200,{data:tail==='commit'?await uploads.commit(identity,sessionId,await jsonBody(req)):sessionView(await uploads.status(identity,sessionId))});
+   const input=await jsonBody(req);if(op)return send(200,{data:await database.run(identity,op,input)});return send(200,{data:sessionView(await uploads.create(identity,input))});
+  }catch(e){const safe=safeError(e);send(safe.status,{error:{code:safe.code,requestId,...(safe.remoteRevision!==undefined?{remoteRevision:safe.remoteRevision}:{})}});if(req.readable&&!req.complete)req.resume();}
+ };
+}

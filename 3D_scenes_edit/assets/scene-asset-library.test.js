@@ -53,6 +53,14 @@ function glb(json = modelJson()) {
   return bytes;
 }
 
+test('injected bundle preserves normalized display and low anchors without legacy storage calls',async()=>{
+ let captured;const original=makeFile('injected.glb','model/gltf-binary',glb());
+ const library=Assets.createAssetLibrary({uploadBundle:async bundle=>{captured=bundle;return {ok:true,data:{id:'new-asset'}};}});
+ const result=await library.upload(original,{kind:'model',courseId:'course',scope:'group',groupId:'g',ownerId:'g',metersPerUnit:.01});
+ assert.equal(result.ok,true);assert.equal(captured.context.courseId,'course');assert.equal(captured.files.find(f=>f.role==='original').file,original);
+ const high=Glb.inspectGlb(await captured.files.find(f=>f.role==='display').file.arrayBuffer());const low=Glb.inspectGlb(await captured.files.find(f=>f.role==='low').file.arrayBuffer());assert.equal(high.anchor,'bottom-center');assert.deepEqual(low.normalization.originalCenter,high.normalization.originalCenter);assert.ok(!('lowStoragePath' in captured.record.metadata));
+});
+
 test('single model uploads automatically persist both anchored display variants and their source', async () => {
   const uploads = new Map(), signed = [];
   const original = makeFile('student.glb', 'model/gltf-binary', glb());

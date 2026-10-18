@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,writeFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {loadSceneFilesConfig} from '../scene-files/config.mjs';
+test('C2 configuration rejects source databases, server keys and overlapping legacy writable roots',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'village-files-config-')),password=join(root,'password');await writeFile(password,'synthetic-test-password-1234567890',{mode:0o600});
+ const env={PGUSER:'village_scene_files_login',PGDATABASE:'village_scene_files_validation',PGHOST:'db',PGPASSWORD_FILE:password,SUPABASE_AUTH_ORIGIN:'https://rzmbmwauomzwiyenafha.supabase.co',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test',SCENE_FILES_ROOT:join(root,'new')};
+ try{assert.equal(loadSceneFilesConfig(env).database.maxConnections,2);for(const patch of [{PGDATABASE:'village_copy'},{PGUSER:'postgres'},{SUPABASE_PUBLISHABLE_KEY:'sb_secret_bad'},{SCENE_LEGACY_ROOT:root,SCENE_LEGACY_INDEX:join(root,'index.json')},{SCENE_LEGACY_ROOT:join(root,'new','nested'),SCENE_LEGACY_INDEX:join(root,'index.json')}])assert.throws(()=>loadSceneFilesConfig({...env,...patch}));}finally{await rm(root,{recursive:true,force:true});}
+});

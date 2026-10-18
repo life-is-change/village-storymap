@@ -123,7 +123,10 @@ DECLARE c public.scene_edit_components;BEGIN
  SELECT * INTO c FROM public.scene_edit_components WHERE id=p_id AND public.can_read_scene_edit_asset(scope_kind,course_id,group_id,owner_id) FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'FILES_FORBIDDEN';END IF;RETURN to_jsonb(c);
 END;$$;
+CREATE FUNCTION scene_files.startup_files() RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=scene_files,public,pg_temp AS $$
+ SELECT coalesce(jsonb_agg(jsonb_build_object('id',f.id,'size',f.size,'sha256',f.sha256)),'[]'::jsonb) FROM scene_files.files f JOIN scene_files.sessions s ON s.id=f.session_id WHERE s.state='committed' AND f.state='ready'
+$$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA scene_files FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION scene_files.lock_session(uuid),scene_files.pending_budget(),scene_files.new_session(uuid,uuid,text,jsonb,jsonb),scene_files.claim_file(uuid,text),scene_files.finish_file(uuid,uuid,text),scene_files.fail_file(uuid,uuid),scene_files.complete_session(uuid,text,jsonb),scene_files.authorize_file(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION scene_files.resolve_path(text),scene_files.project_scope(uuid),scene_files.lock_project(uuid),scene_files.lock_assets(uuid[]),scene_files.lock_component(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION scene_files.cleanup_candidates(boolean),scene_files.cleanup_done(uuid) TO village_scene_files_login;
+GRANT EXECUTE ON FUNCTION scene_files.cleanup_candidates(boolean),scene_files.cleanup_done(uuid),scene_files.startup_files() TO village_scene_files_login;

@@ -198,6 +198,8 @@
 
   function createAssetLibrary(options) {
     const storage = options?.storage;
+    const resolveAsset = options?.resolveAsset;
+    const uploadBundle = options?.uploadBundle;
     const dataClient = options?.dataClient;
     const uuid = options?.uuid || randomId;
     const now = options?.now || (() => new Date());
@@ -251,6 +253,22 @@
           return blob;
         }
         const display = normalized ? displayFile(normalized.buffer, file.name) : file;
+        if (typeof uploadBundle === "function") {
+          const bundleFiles = [{ role: "display", file: display }];
+          if (normalized) bundleFiles.unshift({ role: "original", file });
+          if (lowNormalized) {
+            if (input.lowFile) bundleFiles.push({ role: "low-original", file: input.lowFile });
+            bundleFiles.push({ role: "low", file: displayFile(lowNormalized.buffer, "low.glb") });
+          }
+          if (input.topViewBlob && input.kind === "model") bundleFiles.push({ role: "top", file: input.topViewBlob });
+          const metadata = { ...(input.metadata || {}), inspection: normalized?.inspection || validation.inspection || null,
+            measuredSizeM: normalized ? [normalized.inspection.bounds.size[0], normalized.inspection.bounds.size[2], normalized.inspection.bounds.size[1]] : input.metadata?.measuredSizeM || null,
+            ...(normalized ? { normalized: true, anchor: normalized.inspection.anchor, bounds: normalized.inspection.bounds } : {}),
+            ...(lowNormalized ? { lowInspection: lowNormalized.inspection } : {}), ...(processing ? { processing } : {}) };
+          try { return await uploadBundle({ context: { courseId: input.courseId, groupId: input.groupId || null, scopeKind: input.scope, kind: input.kind },
+            files: bundleFiles, record: { displayName: sanitizeDisplayName(input.displayName || file.name), metadata, license: input.license || "student-provided" } }); }
+          catch { return { ok: false, code: "UPLOAD_FAILED", message: "UPLOAD_FAILED" }; }
+        }
         const path = buildStoragePath({ scope: input.scope, ownerId: input.ownerId, fileName: file.name, uuid: uuid(), date: now().toISOString().slice(0, 10) });
         const originalPath = normalized ? path.replace(/\.glb$/i, ".original.glb") : null;
         const lowPath = lowNormalized ? path.replace(/\.glb$/i, ".low.glb") : null;
@@ -311,6 +329,7 @@
         return registered;
       },
       async resolveUrl(asset, options = {}) {
+        if (typeof resolveAsset === "function") return resolveAsset(asset.id, options.variant || "display");
         const record = normalizeAssetRecord(asset);
         const path = options.variant === "low" ? record?.metadata?.lowStoragePath : record?.storagePath;
         if (!path) return { ok: false, code: "MISSING_VARIANT", message: "模型版本不存在。" };

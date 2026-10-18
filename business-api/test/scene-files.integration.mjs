@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import pg from 'pg';import {readFile,mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {Readable} from 'node:stream';
 import {assetInput,glb,png,userA} from './fixtures/scene-files.mjs';import {createFileStore} from '../scene-files/file-store.mjs';import {randomUUID} from 'node:crypto';
+import {createServer} from 'node:http';import {createSceneFilesHandler} from '../scene-files/http.mjs';import fileClient from '../../3D_scenes_edit/persistence/scene-files-api-client.js';
 const dbmod=await import('../scene-files/database.mjs').catch(()=>({})),upmod=await import('../scene-files/uploads.mjs').catch(()=>({}));
 const raw=process.env.VILLAGE_TEST_PG_URL;if(!raw)throw Error('Explicit disposable PG URL required');const url=new URL(raw);if(!['127.0.0.1','localhost'].includes(url.hostname)||url.username!=='village_test_admin'||url.pathname!=='/postgres')throw Error('Disposable loopback cluster only');
 const userB='20000000-0000-4000-8000-000000000002';
@@ -62,20 +63,29 @@ test('real source permissions, idempotent files, rollback, cleanup and revocatio
   const fresh=await scenes.run(a,'create',{...context,title:'Fresh'});const empty=await scenes.run(a,'load',{projectId:fresh.id});await assert.rejects(()=>scenes.run(a,'save',{document:{...empty,assetRefs:[groupCopy.id]}}),{code:'FILES_NOT_READY'});
   assert.equal((await scenes.run(a,'resolveAsset',{assetId:shared.id,variant:'display'})).fileId,file.id);
   const retained=await service.read(a,file.id);await retained.close();await assert.rejects(()=>scenes.run(b,'load',{projectId:project.id}),{code:'FORBIDDEN'});
+  const server=createServer(createSceneFilesHandler({verifyIdentity:async h=>{if(h!=='Bearer good')throw {code:'UNAUTHORIZED'};return a;},database:scenes,uploads:previewService}));await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const client=fileClient.createSceneFilesClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/api/v1/scene-files',getAccessToken:async()=>'good'});
+  try{
+   const uploaded=await client.uploadBundle({context:{courseId:'course',groupId:'group-a',scopeKind:'group',kind:'model'},record:commit,files:[{role:'display',file:new Blob([glb()],{type:'model/gltf-binary'})}]});assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
+   const created=await client.dataClient.createProject({...context,title:'HTTP actual'});assert.equal(created.ok,true);const loaded=await client.dataClient.loadProject(created.data.id);assert.equal(loaded.ok,true);loaded.data.assetRefs=[uploaded.data.id];assert.equal((await client.dataClient.saveDraft(loaded.data)).ok,true);
+   const current=await client.dataClient.loadProject(created.data.id);const version=await client.uploadPreview({purpose:'version-preview',context:{projectId:created.data.id,revision:current.data.revision},blob:new Blob([png],{type:'image/png'}),record:{label:'HTTP preview',description:''}});assert.equal(version.ok,true,JSON.stringify(version));
+   const resolved=await client.resolveAsset(uploaded.data.id);assert.equal(resolved.ok,true);assert.ok(resolved.url.startsWith('blob:'));assert.equal((await client.dataClient.restoreVersionAsDraft({versionId:version.data.id,title:'HTTP restored'})).ok,true);
+  }finally{client.dispose();server.closeAllConnections();await new Promise(r=>server.close(r));}
+  const expectedAssets=(await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count;
   await assert.rejects(()=>db.withIdentity(a,c=>c.query("UPDATE scene_files.sessions SET state='committed' WHERE id=$1",[session.id])),{code:'DB_UNAVAILABLE'});
   const pending=await service.create(a,assetInput());await assert.rejects(()=>service.commit(a,pending.id,commit),{code:'FILES_NOT_READY'});
   const orphan=await service.create(a,assetInput());await service.upload(a,orphan.id,'display',Readable.from([glb()]));
   await setup.query(`CREATE FUNCTION public.fail_files_test_commit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.id='${orphan.id}'::uuid AND NEW.state='committed' THEN RAISE EXCEPTION 'synthetic commit failure';END IF;RETURN NEW;END;$$;
    CREATE TRIGGER fail_files_test_commit BEFORE UPDATE ON scene_files.sessions FOR EACH ROW EXECUTE FUNCTION public.fail_files_test_commit()`);
   await assert.rejects(()=>service.commit(a,orphan.id,commit),{code:'DB_UNAVAILABLE'});
-  assert.equal((await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count,'3','source RPC insert rolls back with session failure');await assert.rejects(()=>service.read(a,orphan.files[0].id),{code:'FORBIDDEN'});
+  assert.equal((await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count,expectedAssets,'source RPC insert rolls back with session failure');await assert.rejects(()=>service.read(a,orphan.files[0].id),{code:'FORBIDDEN'});
   await setup.query('DROP TRIGGER fail_files_test_commit ON scene_files.sessions');
   const limited=upmod.createUploadService({database:db,store,spaceAvailable:async()=>0});await assert.rejects(()=>limited.create(a,assetInput()),{code:'QUOTA_EXCEEDED'});
   const second=await service.create(a,assetInput());await service.upload(a,second.id,'display',Readable.from([glb()]));
   await setup.query("DELETE FROM group_memberships WHERE group_id='group-a'");
   await assert.rejects(()=>scenes.run(a,'resolveAsset',{assetId:groupCopy.id,variant:'display'}),{code:'FORBIDDEN'});
   await assert.rejects(()=>service.commit(a,second.id,commit),{code:'FORBIDDEN'});
-  assert.equal((await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count,'3');await assert.rejects(()=>service.read(a,second.files[0].id),{code:'FORBIDDEN'});
+  assert.equal((await setup.query('SELECT count(*) FROM scene_edit_assets')).rows[0].count,expectedAssets);await assert.rejects(()=>service.read(a,second.files[0].id),{code:'FORBIDDEN'});
   await setup.query("UPDATE scene_files.sessions SET expires_at=now()-interval '25 hours' WHERE id=$1",[second.id]);
   const report=await service.cleanup({execute:false});assert.equal(report.files,1);
   const [cleaned,expiredCommit]=await Promise.allSettled([service.cleanup({execute:true}),service.commit(a,second.id,commit)]);assert.equal(cleaned.status,'fulfilled');assert.equal(expiredCommit.status,'rejected');
