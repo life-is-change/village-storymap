@@ -7,12 +7,15 @@ CREATE TABLE api_private.event_log(
  context jsonb,targets uuid[]
 );
 CREATE INDEX event_log_created_idx ON api_private.event_log(created_at);
+CREATE TABLE api_private.event_retention(singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),floor_cursor bigint NOT NULL DEFAULT 0);
+INSERT INTO api_private.event_retention DEFAULT VALUES;
 -- Serialize cursor allocation until commit; a late commit cannot fall behind an
 -- already delivered cursor. Rolled-back events and their business writes vanish together.
 CREATE FUNCTION api_private.event_record(k text,c jsonb,t uuid[] DEFAULT NULL) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
- SET search_path=pg_catalog,api_private,pg_temp AS $$BEGIN
+ SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE removed bigint;BEGIN
  PERFORM pg_advisory_xact_lock(728190,7);
- DELETE FROM api_private.event_log WHERE created_at<clock_timestamp()-interval '24 hours';
+ WITH expired AS(DELETE FROM api_private.event_log WHERE created_at<clock_timestamp()-interval '24 hours' RETURNING id) SELECT max(id) INTO removed FROM expired;
+ UPDATE api_private.event_retention SET floor_cursor=greatest(floor_cursor,coalesce(removed,0));
  INSERT INTO api_private.event_log(kind,context,targets) VALUES(k,c,t);
 END$$;
 CREATE FUNCTION api_private.event_append(k text,c jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
@@ -21,12 +24,12 @@ CREATE FUNCTION api_private.event_append(k text,c jsonb) RETURNS void LANGUAGE p
 END$$;
 CREATE FUNCTION api_private.event_read(contexts jsonb,cursor bigint DEFAULT NULL) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,api_private,auth,pg_temp AS $$
-DECLARE c jsonb;latest bigint;first_id bigint;result jsonb;refresh boolean;BEGIN
+DECLARE c jsonb;latest bigint;floor_id bigint;result jsonb;refresh boolean;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  IF jsonb_typeof(contexts)<>'array' OR jsonb_array_length(contexts) NOT BETWEEN 1 AND 8 OR cursor<0 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  FOR c IN SELECT value FROM jsonb_array_elements(contexts) LOOP PERFORM api_private.assert_context(c);END LOOP;
- SELECT coalesce(max(id),0),min(id) FILTER(WHERE created_at>=now()-interval '24 hours') INTO latest,first_id FROM api_private.event_log;
- refresh:=cursor IS NULL OR cursor>latest OR (cursor<latest AND (first_id IS NULL OR cursor<first_id-1));
+ SELECT greatest(coalesce(max(id),0),(SELECT floor_cursor FROM api_private.event_retention)),greatest(coalesce(max(id) FILTER(WHERE created_at<now()-interval '24 hours'),0),(SELECT floor_cursor FROM api_private.event_retention)) INTO latest,floor_id FROM api_private.event_log;
+ refresh:=cursor IS NULL OR cursor>latest OR cursor<floor_id;
  IF refresh THEN RETURN jsonb_build_object('refresh',true,'cursor',latest::text,'events','[]'::jsonb);END IF;
  SELECT coalesce(jsonb_agg(jsonb_build_object('cursor',id::text,'kind',kind,'context',context) ORDER BY id),'[]') INTO result FROM (
   SELECT id,kind,context FROM api_private.event_log e WHERE id>cursor AND created_at>=now()-interval '24 hours'
