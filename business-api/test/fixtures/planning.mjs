@@ -5,6 +5,7 @@ export async function preparePlanning(setup){
  await prepareSurvey(setup);
  const versioning=await source('Shared Current Survey Versioning and Feature Locks.sql'),survey=await source('Shared Survey Calibration and Freeze.sql'),group=await source('Group Plan Baseline Update.sql'),repair=await source('Multi-Village Dual-Track Repair.sql'),personal=await source('Personal Figure Ground Spaces and Layer Versions.sql');
  await tables(setup,await source('Planning features table with RLS and timestamps.sql'),['planning_features']);
+ await setup.query((await source('Planning features table with RLS and timestamps.sql')).match(/create unique index if not exists planning_features_space_layer_code_uidx[\s\S]*?;/i)[0]);
  await tables(setup,versioning,['feature_change_batches','feature_versions','feature_snapshots','feature_snapshot_items']);
  await setup.query(`ALTER TABLE planning_features ADD teaching_project_id uuid,ADD village_id uuid,ADD operation_kind text,ADD base_object_code text,ADD base_snapshot_id uuid REFERENCES feature_snapshots,ADD feature_revision bigint DEFAULT 0;
   ALTER TABLE feature_change_batches ADD teaching_project_id uuid,ADD village_id uuid,ADD editor_user_id uuid;
