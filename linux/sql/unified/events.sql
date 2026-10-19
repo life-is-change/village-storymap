@@ -42,6 +42,11 @@ END$$;
 CREATE FUNCTION api_private.event_changed() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
 DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;c jsonb;sid text;targets uuid[];pid uuid;vid uuid;BEGIN
+ IF TG_TABLE_SCHEMA='api_private' AND TG_TABLE_NAME IN('comment_likes','comment_replies') THEN
+  SELECT to_jsonb(x) INTO r FROM public.object_comments x WHERE id=(r->>'comment_id')::bigint;
+ ELSIF TG_TABLE_SCHEMA='api_private' AND TG_TABLE_NAME IN('message_likes','message_replies') THEN
+  SELECT to_jsonb(x) INTO r FROM public.community_tasks x WHERE id=(r->>'issue_id')::bigint;
+ END IF;
  sid:=r->>'space_id';
  IF TG_TABLE_NAME='planning_spaces' THEN sid:=r->>'id';END IF;
  IF sid IS NOT NULL THEN SELECT teaching_project_id,village_id INTO pid,vid FROM public.planning_spaces WHERE id=sid;END IF;
@@ -53,7 +58,7 @@ DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) 
   -- lifecycle changes are global; personal/administrative changes target UUIDs.
   IF TG_TABLE_NAME NOT IN('courses','villages','teaching_projects','village_datasets','village_reality_models') THEN
    SELECT array_agg(DISTINCT id) INTO targets FROM public.profiles WHERE id=auth.uid()
-    OR (TG_TABLE_NAME='profiles' AND id=(r->>'id')::uuid)
+    OR (id=CASE WHEN TG_TABLE_NAME='profiles' THEN (r->>'id')::uuid END)
     OR (r->>'owner_id'=id::text) OR (r->>'student_key'=student_id||'::'||display_name);
    IF targets IS NULL THEN RETURN NULL;END IF;
   END IF;
@@ -73,6 +78,11 @@ DO $$DECLARE item text[];BEGIN
   IF to_regclass('public.'||item[1]) IS NOT NULL THEN
    EXECUTE format('CREATE TRIGGER unified_invalidation AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION api_private.event_changed(%L)',item[1],item[2]);
   END IF;
+ END LOOP;
+END$$;
+DO $$DECLARE t text;BEGIN
+ FOREACH t IN ARRAY ARRAY['comment_likes','comment_replies','object_reactions','message_likes','message_replies'] LOOP
+  EXECUTE format('CREATE TRIGGER unified_invalidation AFTER INSERT OR UPDATE OR DELETE ON api_private.%I FOR EACH ROW EXECUTE FUNCTION api_private.event_changed(%L)',t,'community');
  END LOOP;
 END$$;
 REVOKE ALL ON ALL TABLES IN SCHEMA api_private FROM PUBLIC,anon,authenticated,village_unified_login;

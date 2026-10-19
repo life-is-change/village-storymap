@@ -11,6 +11,8 @@ test('committed invalidations are context authorized; rollback and old cursors c
    await setup.query("UPDATE planning_features SET props='{\"private\":\"never broadcast\"}' WHERE space_id='A'");
    const events=await read(start.cursor);assert.ok(events.events.length);assert.equal(events.events[0].kind,'planning');assert.deepEqual(events.events[0].context,c);assert.equal(JSON.stringify(events).includes('never broadcast'),false);
    const beforeForeign=events.cursor;await setup.query("UPDATE planning_features SET props='{}' WHERE space_id='B'");assert.equal((await read(beforeForeign)).events.length,0);
+   await setup.query("INSERT INTO api_private.comment_likes(comment_id,actor_id) VALUES(899,'10000000-0000-4000-8000-000000000001') ON CONFLICT DO NOTHING");
+   assert.ok((await read(beforeForeign)).events.some(e=>e.kind==='community'),'local-only reaction tables must also invalidate their authorized context');
    await setup.query("UPDATE api_private.event_log SET created_at=now()-interval '25 hours'");assert.equal((await read(start.cursor)).refresh,true);
    await setup.query("DELETE FROM group_memberships WHERE student_key='A17::Alice'");await assert.rejects(read(events.cursor),{code:'FORBIDDEN'});
   }finally{await db.close();}
