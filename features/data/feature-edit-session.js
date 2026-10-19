@@ -80,6 +80,7 @@
 
   async function acquireFeatureEditLock(deps, target, editorName) {
     const context = requireContext(deps, target);
+    if(deps.services?.planning)return deps.services.planning.execute('planning.acquireLock',{...context,layerKey:target.layerKey,objectCode:target.objectCode});
     const lockTarget = buildLockTarget(target?.spaceId, target?.layerKey, target?.objectCode);
     const client = deps?.getSupabaseClient?.();
     if (!lockTarget || !normalize(editorName)) {
@@ -101,6 +102,7 @@
   }
 
   async function heartbeatFeatureEditLock(deps, lock) {
+    if(deps.services?.planning)return deps.services.planning.execute('planning.heartbeatLock',{...requireContext(deps,lock),layerKey:lock.layerKey,objectCode:lock.objectCode,lockToken:lock.lockToken});
     const client = deps?.getSupabaseClient?.();
     if (!client || lock?.offline) return { success: true };
     const context = requireContext(deps, lock);
@@ -119,6 +121,7 @@
   }
 
   async function releaseFeatureEditLock(deps, lock) {
+    if(deps.services?.planning)return deps.services.planning.execute('planning.releaseLock',{...requireContext(deps,lock),layerKey:lock.layerKey,objectCode:lock.objectCode,lockToken:lock.lockToken});
     const client = deps?.getSupabaseClient?.();
     if (!lock || !client || lock.offline) return { success: true };
     const context = requireContext(deps, lock);
@@ -137,6 +140,7 @@
 
   async function saveFeatureEditBatch(deps, payload) {
     const context = requireContext(deps, payload);
+    if(deps.services?.planning){const batch=await deps.services.planning.execute('planning.saveBatch',{...context,changes:payload.changes,summary:normalize(payload.summary),note:normalize(payload.note),requestId:payload.requestId||globalThis.crypto.randomUUID()});return {success:true,batchId:typeof batch==='string'?batch:batch?.batchId,result:batch};}
     const client = deps?.getSupabaseClient?.();
     if (!client) throw new Error("当前未连接 Supabase，无法保存并同步本次编辑。");
     const { data, error } = await client.rpc("save_feature_edit_batch", {
@@ -153,6 +157,7 @@
   }
 
   async function saveGroupPlanEditBatch(deps, payload = {}) {
+    if(deps.services?.planning){const result=await deps.services.planning.execute('planning.saveBatch',{...requireContext(deps,payload),changes:payload.changes,summary:normalize(payload.summary),requestId:payload.requestId||globalThis.crypto.randomUUID()});return {success:true,result};}
     const rawContext = payload.context || deps?.getContext?.() || {};
     if (normalize(rawContext.spaceType ?? rawContext.space_type) !== "group_plan") {
       throw new Error("GROUP_PLAN_SPACE_REQUIRED");
@@ -189,6 +194,7 @@
 
   async function listSnapshots(deps, spaceId) {
     const context = requireContext(deps, { spaceId });
+    if(deps.services?.planning)return deps.services.planning.execute('planning.snapshots',context);
     const client = deps?.getSupabaseClient?.();
     if (!client) return [];
     const { data, error } = await client
@@ -204,6 +210,7 @@
 
   async function listRecentVersions(deps, spaceId, limit = 20) {
     const context = requireContext(deps, { spaceId });
+    if(deps.services?.planning)return deps.services.planning.execute('planning.versions',{...context,limit});
     const client = deps?.getSupabaseClient?.();
     if (!client) return [];
     const { data, error } = await client
@@ -219,6 +226,7 @@
   }
 
   async function listSnapshotItems(deps, snapshotId) {
+    if(deps.services?.planning)return deps.services.planning.execute('planning.snapshotItems',{snapshotId});
     const client = deps?.getSupabaseClient?.();
     if (!client || !normalize(snapshotId)) return [];
     const { data, error } = await client
@@ -232,6 +240,7 @@
 
   async function freezeSnapshot(deps, payload) {
     const context = requireContext(deps, payload);
+    if(deps.services?.planning)return deps.services.planning.execute('planning.freezeSnapshot',{...context,label:payload.versionName,description:payload.description||'',versionType:payload.versionType||'published',requestId:payload.requestId||globalThis.crypto.randomUUID()});
     const client = deps?.getSupabaseClient?.();
     if (!client) throw new Error("当前未配置 Supabase。");
     const { data, error } = await client.rpc("freeze_feature_snapshot", {
@@ -250,6 +259,7 @@
 
   async function freezeSurveySnapshot(deps, payload) {
     const context = requireContext(deps, payload);
+    if(deps.services?.survey)return deps.services.survey.execute('survey.freezeSnapshot',{...context,label:payload.versionName,description:payload.description||'',recommendedForGroups:Boolean(payload.recommendedForGroups),requestId:payload.requestId||globalThis.crypto.randomUUID()});
     const client = deps?.getSupabaseClient?.();
     if (!client) throw new Error("当前未配置 Supabase。");
     const { data, error } = await client.rpc("freeze_shared_survey_snapshot", {

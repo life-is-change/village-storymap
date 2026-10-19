@@ -10,10 +10,7 @@ CREATE FUNCTION api_private.staff() RETURNS boolean LANGUAGE sql STABLE SECURITY
  SET search_path=pg_catalog,api_private,pg_temp AS $$SELECT coalesce(api_private.current_role() IN ('teacher','admin'),false)$$;
 CREATE FUNCTION api_private.context_accessible(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
- SELECT api_private.profile_status()='active' AND EXISTS(
- SELECT 1 FROM public.planning_spaces s JOIN public.teaching_projects project ON project.id=s.teaching_project_id
- WHERE s.id=sid AND s.teaching_project_id=pid AND s.village_id=vid AND s.space_type<>'legacy_unscoped'
- AND (api_private.staff() OR s.owner_id=auth.uid() OR EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.student_key=api_private.student_key() AND (s.space_type IN ('practice_shared','formal_shared') OR m.group_id=s.group_id))))
+ SELECT api_private.profile_status()='active' AND public.context_space_accessible(pid,vid,sid)
 $$;
 CREATE FUNCTION api_private.assert_context(p jsonb) RETURNS void LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,api_private,pg_temp AS $$BEGIN
@@ -21,10 +18,7 @@ CREATE FUNCTION api_private.assert_context(p jsonb) RETURNS void LANGUAGE plpgsq
 END$$;
 CREATE FUNCTION api_private.context_mutable(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
- SELECT api_private.profile_status()='active' AND EXISTS(SELECT 1 FROM public.planning_spaces s JOIN public.teaching_projects project ON project.id=s.teaching_project_id
- WHERE s.id=sid AND s.teaching_project_id=pid AND s.village_id=vid AND s.readonly=false AND s.edit_enabled=true
- AND s.space_type IN ('practice_shared','formal_shared','practice_personal','formal_personal','group_plan')
- AND (api_private.staff() OR (s.space_type IN ('practice_personal','formal_personal') AND s.owner_id=auth.uid()) OR (s.space_type IN ('practice_shared','formal_shared') AND EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.student_key=api_private.student_key())) OR (s.space_type='group_plan' AND EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.group_id=s.group_id AND m.student_key=api_private.student_key()))))
+ SELECT api_private.profile_status()='active' AND public.context_space_mutable(pid,vid,sid)
 $$;
 CREATE FUNCTION api_private.catalog_read(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE result jsonb; BEGIN

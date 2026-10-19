@@ -8,7 +8,30 @@
     return response?.data ?? null;
   }
 
-  function createPersonalSpaceClient({ supabaseClient }) {
+  function createPersonalSpaceClient({ supabaseClient, services, uuid=()=>globalThis.crypto.randomUUID() }) {
+    if(services?.planning){
+      const call=(action,input={},write=false)=>services.planning.execute('personal.'+action,{...input,...(write?{requestId:uuid()}: {})});
+      return {
+        ensure(input){return call('ensure',input,true);},
+        listVersions(spaceId){return call('listVersions',{spaceId});},
+        listSelections(spaceId){return call('listSelections',{spaceId});},
+        listFeatures(versionId){return call('listFeatures',{versionId});},
+        async refreshCurrentLayers(spaceId){return Promise.all((await this.listSelections(spaceId)).filter(row=>row.current_version_id).map(row=>this.listFeatures(row.current_version_id)));},
+        async upsertFeature({spaceId,versionId,layerKey,objectCode,objectName,geom,props={}}){
+          if(layerKey==='contours')throw new Error('CONTOURS_READ_ONLY');
+          return this.saveEdits(spaceId,[{action:'update',layerKey,objectCode,...(objectName?{objectName}:{}),afterGeom:geom,afterProps:props,layerVersionId:versionId}]);
+        },
+        softDeleteFeature(versionId,objectCode){return call('deleteFeature',{versionId,objectCode},true);},
+        setCurrentVersion(spaceId,layerKey,versionId){return call('setVersion',{spaceId,layerKey,versionId},true);},
+        deleteVersion(versionId){return call('deleteVersion',{versionId},true);},
+        async saveEdits(spaceId,changes){
+          const selections=await this.listSelections(spaceId);
+          const versionApi=typeof module==='object'&&module.exports?require('./personal-edit-version.js'):globalThis.PersonalEditVersionModule;
+          versionApi.assertChangesMatchSelections(changes,selections);return call('saveBatch',{spaceId,changes},true);
+        },
+        invalidateCache(){} // Responses remain scoped to each authenticated API request.
+      };
+    }
     if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
     const selectionCache = new Map();
     const featureCache = new Map();
