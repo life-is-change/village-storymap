@@ -5,7 +5,7 @@ function privateStat(st,dir=false){if(!(dir?st.isDirectory():st.isFile()&&st.nli
 async function syncDir(path){if(process.platform!=='win32'){const h=await open(path,'r');try{await h.sync();}finally{await h.close();}}}
 async function digest(h){const hash=createHash('sha256'),buf=Buffer.alloc(65536);let p=0;for(;;){const {bytesRead}=await h.read(buf,0,buf.length,p);if(!bytesRead)break;hash.update(buf.subarray(0,bytesRead));p+=bytesRead;}return {size:p,sha256:hash.digest('hex')};}
 export async function createBusinessFileStore({root,instanceId,maxUploads=2}){
- if(typeof instanceId!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/.test(instanceId))throw fault('INVALID_INPUT');
+ if(typeof instanceId!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/.test(instanceId)||!Number.isInteger(maxUploads)||maxUploads<1||maxUploads>2)throw fault('INVALID_INPUT');
  root=resolve(root);await noLinks(root);privateStat(await lstat(root),true);const temp=join(root,'pending'),blobs=join(root,'blobs');
  const marker=join(root,'instance');let markerHandle;try{markerHandle=await open(marker,constants.O_CREAT|constants.O_EXCL|constants.O_WRONLY,0o600);await markerHandle.writeFile(instanceId);await markerHandle.sync();}catch(e){if(e.code!=='EEXIST')throw e;await noLinks(marker);markerHandle=await open(marker,constants.O_RDONLY|(constants.O_NOFOLLOW??0));privateStat(await markerHandle.stat());if(await markerHandle.readFile('utf8')!==instanceId)throw fault('FILE_UNAVAILABLE');}finally{await markerHandle?.close();}
  for(const p of [temp,blobs]){await mkdir(p,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e;});await noLinks(p);privateStat(await lstat(p),true);}
@@ -20,9 +20,9 @@ export async function createBusinessFileStore({root,instanceId,maxUploads=2}){
     await noLinks(temp);h=await open(p,constants.O_RDWR|constants.O_CREAT|constants.O_EXCL|(constants.O_NOFOLLOW??0),0o600);created=true;const hash=createHash('sha256');let count=0;
     for await(const chunk of stream){if(!Buffer.isBuffer(chunk)&&!(chunk instanceof Uint8Array))throw fault('INVALID_FILE');count+=chunk.length;if(count>size)throw fault('FILE_TOO_LARGE');hash.update(chunk);let off=0;while(off<chunk.length){const r=await h.write(chunk,off,chunk.length-off);if(!r.bytesWritten)throw fault('FILE_UNAVAILABLE');off+=r.bytesWritten;}}
     if(count!==size)throw fault('INVALID_FILE');
-    if(extension==='geojson')await validateGeoJSON(h,size);
-    else if(extension==='json'){const bytes=Buffer.alloc(size);await h.read(bytes,0,size,0);try{const v=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));if(!v||typeof v!=='object'||Array.isArray(v))throw Error();}catch{throw fault('INVALID_FILE');}}
-    else await validateFile({handle:h,size,mime,extension});await h.sync();return {fileId,size,sha256:hash.digest('hex'),mime,extension};
+    let validation={};if(extension==='geojson')validation=await validateGeoJSON(h,size,role);
+    else if(extension==='json'){const bytes=Buffer.alloc(size);let p=0;while(p<size){const {bytesRead}=await h.read(bytes,p,size-p,p);if(!bytesRead)throw fault('INVALID_FILE');p+=bytesRead;}try{const v=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));if(!v||typeof v!=='object'||Array.isArray(v))throw Error();}catch{throw fault('INVALID_FILE');}}
+    else await validateFile({handle:h,size,mime,extension});await h.sync();return {fileId,size,sha256:hash.digest('hex'),mime,extension,validation};
    }catch(e){if(h){await h.close();h=null;}if(created)await unlink(p).catch(()=>{});throw e?.status?e:fault(e?.code==='EEXIST'?'UPLOAD_CONFLICT':'FILE_UNAVAILABLE');}
    finally{if(h)await h.close();active--;}
   },

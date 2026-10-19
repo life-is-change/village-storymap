@@ -24,3 +24,12 @@ test('a photo registration cannot carry a client-supplied uploader or storage UR
  assert.equal(typeof api.parseBusinessCommit,'function');assert.doesNotThrow(()=>api.parseBusinessCommit('photo',{objectCode:'B1',objectType:'building'}));
  for(const record of [{objectCode:'B1',objectType:'building',photoUrl:'http://x'},{objectCode:'B1',objectType:'building',uploaderName:'admin'}])assert.throws(()=>api.parseBusinessCommit('photo',record));
 });
+test('large GeoJSON is streamed with real feature counts, geometry types and WGS84 bounds',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'unified-geojson-'));
+ try{const store=await storeAPI.createBusinessFileStore({root,instanceId:'json-test'}),geometry={type:'Polygon',coordinates:[[[113,23],[114,23],[114,24],[113,23]]]};
+  const stage=value=>{const bytes=Buffer.from(typeof value==='string'?value:JSON.stringify(value));return store.stage({fileId:randomUUID(),role:'buildings.geojson',mime:'application/geo+json',extension:'geojson',size:bytes.length,stream:Readable.from([bytes])});};
+  const fc={type:'FeatureCollection',features:[{type:'Feature',properties:{name:'Village'},geometry}]};
+  assert.equal((await stage(fc)).validation.featureCount,1);
+  for(const value of [{type:'FeatureCollection',features:[{}]},{...fc,features:[{...fc.features[0],geometry:{type:'Point',coordinates:[113,23]}}]},{...fc,features:[{...fc.features[0],geometry:{...geometry,coordinates:[[[181,23],[114,23],[114,24],[181,23]]]}}]},'{"type":"FeatureCollection",\u00a0"features":[]}'])await assert.rejects(stage(value),{code:'INVALID_FILE'});
+ }finally{await rm(root,{recursive:true,force:true});}
+});

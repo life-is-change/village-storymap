@@ -22,7 +22,7 @@ CREATE TABLE api_private.business_files(
  id uuid PRIMARY KEY,session_id uuid NOT NULL REFERENCES api_private.file_sessions(id),role text NOT NULL,
  size bigint NOT NULL CHECK(size>0 AND size<=52428800),mime text NOT NULL,extension text NOT NULL,
  logical_path text UNIQUE NOT NULL,sha256 text CHECK(sha256~'^[a-f0-9]{64}$'),
- state text NOT NULL DEFAULT 'pending' CHECK(state IN('pending','uploading','ready','failed')),archived_at timestamptz,
+ state text NOT NULL DEFAULT 'pending' CHECK(state IN('pending','uploading','ready','failed')),archived_at timestamptz,validation jsonb NOT NULL DEFAULT '{}',
  UNIQUE(session_id,role)
 );
 CREATE FUNCTION api_private.file_guard(purpose text,c jsonb,writing boolean DEFAULT false) RETURNS void LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -79,10 +79,10 @@ CREATE FUNCTION api_private.file_claim(sid uuid,r text) RETURNS jsonb LANGUAGE p
  IF f.state<>'pending' THEN RAISE EXCEPTION 'UPLOAD_CONFLICT';END IF;
  UPDATE api_private.business_files SET state='uploading' WHERE id=f.id;RETURN to_jsonb(f);
 END$$;
-CREATE FUNCTION api_private.file_finish(sid uuid,fid uuid,digest text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+CREATE FUNCTION api_private.file_finish(sid uuid,fid uuid,digest text,validated jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE s jsonb;BEGIN
  s:=api_private.file_session(sid);IF s->>'state'='committed' OR (s->>'expires_at')::timestamptz<=now() THEN RAISE EXCEPTION 'UPLOAD_EXPIRED';END IF;
- UPDATE api_private.business_files SET state='ready',sha256=digest WHERE id=fid AND session_id=sid AND state='uploading';IF NOT FOUND THEN RAISE EXCEPTION 'UPLOAD_CONFLICT';END IF;
+ UPDATE api_private.business_files SET state='ready',sha256=digest,validation=validated WHERE id=fid AND session_id=sid AND state='uploading';IF NOT FOUND THEN RAISE EXCEPTION 'UPLOAD_CONFLICT';END IF;
  IF NOT EXISTS(SELECT 1 FROM api_private.business_files WHERE session_id=sid AND state<>'ready') THEN UPDATE api_private.file_sessions SET state='ready' WHERE id=sid;END IF;RETURN api_private.file_session(sid);
 END$$;
 CREATE FUNCTION api_private.file_fail(sid uuid,fid uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
@@ -91,7 +91,7 @@ CREATE FUNCTION api_private.file_fail(sid uuid,fid uuid) RETURNS void LANGUAGE p
 END$$;
 CREATE FUNCTION api_private.file_commit(sid uuid,d text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
-DECLARE s jsonb;f api_private.business_files;c jsonb;result jsonb;space public.planning_spaces;personal public.course_personal_spaces;metadata jsonb;scope text;asset uuid;BEGIN
+DECLARE s jsonb;f api_private.business_files;c jsonb;v_result jsonb;space public.planning_spaces;personal public.course_personal_spaces;metadata jsonb;scope text;asset uuid;BEGIN
  s:=api_private.file_session(sid);IF s->>'state'='committed' THEN IF s->>'commit_digest'<>d THEN RAISE EXCEPTION 'UPLOAD_CONFLICT';END IF;RETURN s->'result';END IF;
  IF s->>'state'<>'ready' OR (s->>'expires_at')::timestamptz<=now() THEN RAISE EXCEPTION 'FILES_NOT_READY';END IF;c:=s->'context';
  IF EXISTS(SELECT 1 FROM api_private.business_files WHERE session_id=sid AND state<>'ready') THEN RAISE EXCEPTION 'FILES_NOT_READY';END IF;
@@ -99,21 +99,21 @@ DECLARE s jsonb;f api_private.business_files;c jsonb;result jsonb;space public.p
   IF EXISTS(SELECT 1 FROM public.planning_spaces WHERE id=c->>'spaceId') THEN PERFORM api_private.survey_gate(c||p);END IF;
   SELECT * INTO f FROM api_private.business_files WHERE session_id=sid AND role='photo';
   INSERT INTO public.object_photos(object_code,object_type,photo_url,photo_path,uploaded_by,survey_layer_key,teaching_project_id,village_id,space_id,file_id,local_actor_id)
-   VALUES(p->>'objectCode',p->>'objectType','local-file:'||f.id,f.logical_path,public.current_profile_display_name(),p->>'surveyLayerKey',(c->>'teachingProjectId')::uuid,(c->>'villageId')::uuid,c->>'spaceId',f.id,auth.uid()) RETURNING to_jsonb(object_photos)||jsonb_build_object('fileId',f.id) INTO result;
+   VALUES(p->>'objectCode',p->>'objectType','local-file:'||f.id,f.logical_path,public.current_profile_display_name(),p->>'surveyLayerKey',(c->>'teachingProjectId')::uuid,(c->>'villageId')::uuid,c->>'spaceId',f.id,auth.uid()) RETURNING to_jsonb(object_photos)||jsonb_build_object('fileId',f.id) INTO v_result;
  ELSIF s->>'purpose'='group-model' THEN
   SELECT * INTO f FROM api_private.business_files WHERE session_id=sid AND role='display';
   SELECT * INTO space FROM public.planning_spaces WHERE id=c->>'spaceId';
   SELECT * INTO personal FROM public.course_personal_spaces WHERE id::text=c->>'spaceId' AND owner_id=auth.uid();
   scope:=CASE WHEN personal.id IS NOT NULL THEN 'personal' WHEN space.space_type IN('practice_shared','formal_shared') THEN 'shared' WHEN space.group_id IS NOT NULL THEN 'group' ELSE NULL END;
   IF scope IS NULL THEN RAISE EXCEPTION 'FORBIDDEN';END IF;asset:=gen_random_uuid();
-  result:=to_jsonb(public.register_group_model(asset,p->>'name',f.logical_path,f.size,scope,space.group_id,coalesce(personal.course_id,space.course_id),c->>'spaceId'));
+  v_result:=to_jsonb(public.register_group_model(asset,p->>'name',f.logical_path,f.size,scope,space.group_id,coalesce(personal.course_id,space.course_id),c->>'spaceId'));
   metadata:=coalesce(p->'metadata','{}')||(SELECT coalesce(jsonb_object_agg(CASE role WHEN 'original' THEN 'originalStoragePath' WHEN 'low' THEN 'lowStoragePath' END,logical_path) FILTER(WHERE role IN('original','low')),'{}') FROM api_private.business_files WHERE session_id=sid);
-  UPDATE public.group_model_assets SET local_metadata=metadata WHERE id=asset;result:=result||jsonb_build_object('normalization',metadata,'local_metadata',metadata);
+  UPDATE public.group_model_assets SET local_metadata=metadata WHERE id=asset;v_result:=v_result||jsonb_build_object('normalization',metadata,'local_metadata',metadata);
  ELSIF s->>'purpose'='dataset' THEN
   PERFORM 1 FROM public.villages WHERE id=(c->>'villageId')::uuid AND name=p->>'villageName' FOR UPDATE;IF NOT FOUND THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
-  result:=to_jsonb(public.save_village_dataset_draft((c->>'villageId')::uuid,'uploaded_bundle',p->'imageryConfig',p->'layerManifest',p->'validationSummary','ready',NULL,p->>'versionLabel'));
+  v_result:=to_jsonb(public.save_village_dataset_draft((c->>'villageId')::uuid,'uploaded_bundle',p->'imageryConfig',p->'layerManifest',p->'validationSummary','ready',NULL,p->>'versionLabel'));
  ELSE RAISE EXCEPTION 'INVALID_INPUT';END IF;
- UPDATE api_private.file_sessions SET state='committed',commit_digest=d,result=file_commit.result WHERE id=sid;RETURN result;
+ UPDATE api_private.file_sessions SET state='committed',commit_digest=d,result=v_result WHERE id=sid;RETURN v_result;
 END$$;
 CREATE FUNCTION api_private.model_can_read(a public.group_model_assets) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$SELECT api_private.profile_status()='active' AND (
@@ -195,6 +195,6 @@ UPDATE public.object_photos p SET file_id=o.id FROM storage.objects o WHERE p.fi
 UPDATE public.object_photos p SET local_actor_id=names.id FROM (SELECT min(id::text)::uuid id,display_name FROM public.profiles GROUP BY display_name HAVING count(*)=1)names WHERE p.local_actor_id IS NULL AND p.uploaded_by=names.display_name;
 REVOKE ALL ON ALL TABLES IN SCHEMA api_private FROM PUBLIC,anon,authenticated,village_unified_login;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA api_private FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION api_private.file_session(uuid),api_private.file_existing(uuid,text),api_private.file_budget(),api_private.file_begin(uuid,text,jsonb,jsonb),api_private.file_claim(uuid,text),api_private.file_finish(uuid,uuid,text),api_private.file_fail(uuid,uuid),api_private.file_commit(uuid,text,jsonb),api_private.file_authorize(uuid),api_private.file_resolve_path(text,text),api_private.file_archive(uuid),api_private.models_execute(text,jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION api_private.file_session(uuid),api_private.file_existing(uuid,text),api_private.file_budget(),api_private.file_begin(uuid,text,jsonb,jsonb),api_private.file_claim(uuid,text),api_private.file_finish(uuid,uuid,text,jsonb),api_private.file_fail(uuid,uuid),api_private.file_commit(uuid,text,jsonb),api_private.file_authorize(uuid),api_private.file_resolve_path(text,text),api_private.file_archive(uuid),api_private.models_execute(text,jsonb) TO authenticated;
 REVOKE EXECUTE ON FUNCTION api_private.file_cleanup(boolean),api_private.file_cleanup_done(uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION api_private.file_cleanup(boolean),api_private.file_cleanup_done(uuid) TO village_unified_login;

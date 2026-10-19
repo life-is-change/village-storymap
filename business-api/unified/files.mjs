@@ -14,7 +14,8 @@ export function createBusinessFilesService({database,store,legacyReader,spaceAva
   for(const d of manifest.files){if(!DATASET_NAMES.includes(d.path)||['manifest.json','validation.json'].includes(d.path)||files.get(d.path)?.sha256!==String(d.sha256).toLowerCase())throw fault('INVALID_FILE');}
   const expected={building:'buildings.geojson',road:'roads.geojson',water:'water.geojson',contours:'contours.geojson'};
   if(new Set(manifest.layers.map(d=>d.type)).size!==4)throw fault('INVALID_FILE');
-  for(const d of manifest.layers)if(expected[d.type]!==d.path||!Number.isSafeInteger(d.featureCount)||d.featureCount<0)throw fault('INVALID_FILE');
+  for(const d of manifest.layers)if(expected[d.type]!==d.path||!Number.isSafeInteger(d.featureCount)||d.featureCount<0||d.featureCount!==files.get(d.path)?.validation?.featureCount)throw fault('INVALID_FILE');
+  if(!files.get('boundary.geojson')?.validation?.featureCount)throw fault('INVALID_FILE');
   const safe=(value,depth=0)=>{if(depth>32)throw fault('INVALID_FILE');if(Array.isArray(value))value.forEach(x=>safe(x,depth+1));else if(value&&typeof value==='object')for(const[k,v]of Object.entries(value)){if(/url|uri|__proto__|constructor|prototype/i.test(k)||k==='path'&&!DATASET_NAMES.includes(v))throw fault('INVALID_FILE');safe(v,depth+1);}};safe(manifest);safe(validation);
   const path=r=>files.get(r).logical_path;
   return {...record,villageName:manifest.village.name,imageryConfig:{...manifest.imagery,path:path('imagery.webp')},layerManifest:{layers:manifest.layers.map(d=>({...d,path:path(d.path)}))},validationSummary:{valid:true,fileCount:10,bounds:manifest.village.bounds,featureCounts:Object.fromEntries(manifest.layers.map(d=>[d.type,d.featureCount]))}};
@@ -29,7 +30,7 @@ export function createBusinessFilesService({database,store,legacyReader,spaceAva
   async status(identity,id){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,c=>lock(c,id));},
   async put(identity,id,role,stream){if(!uuid(id)||typeof role!=='string')throw fault('INVALID_INPUT');const f=await tx(identity,c=>one(c,'SELECT api_private.file_claim($1,$2) AS data',[id,role]));
    if(f.state==='ready'){const hash=createHash('sha256');let bytes=0;for await(const part of stream){bytes+=part.length;if(bytes>Number(f.size))throw fault('UPLOAD_CONFLICT');hash.update(part);}if(bytes!==Number(f.size)||hash.digest('hex')!==f.sha256)throw fault('UPLOAD_CONFLICT');return {id:f.id,size:bytes,sha256:f.sha256};}
-   try{const rec=await store.stage({fileId:f.id,role:f.role,size:Number(f.size),mime:f.mime,extension:f.extension,stream});await store.persist(f.id);await tx(identity,c=>one(c,'SELECT api_private.file_finish($1,$2,$3) AS data',[id,f.id,rec.sha256]));return {id:f.id,size:rec.size,sha256:rec.sha256};}
+   try{const rec=await store.stage({fileId:f.id,role:f.role,size:Number(f.size),mime:f.mime,extension:f.extension,stream});await store.persist(f.id);await tx(identity,c=>one(c,'SELECT api_private.file_finish($1,$2,$3,$4::jsonb) AS data',[id,f.id,rec.sha256,JSON.stringify(rec.validation)]));return {id:f.id,size:rec.size,sha256:rec.sha256};}
    catch(e){await tx(identity,c=>c.query('SELECT api_private.file_fail($1,$2)',[id,f.id])).catch(()=>{});throw e;}
   },
   async commit(identity,id,input){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,async c=>{
