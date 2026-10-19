@@ -44,7 +44,7 @@ test('expiration during a mutation rolls the transaction back rather than commit
 });
 
 test('known restored RPC and constraint failures are sanitized into business errors',async()=>{
- for(const [error,code] of [[{code:'P0001',message:'VILLAGE_IN_USE'},'FORBIDDEN'],[{code:'23505',message:'private index detail'},'REVISION_CONFLICT'],[{code:'23503',message:'private foreign key detail'},'INVALID_INPUT']]){
+ for(const [error,code] of [[{code:'P0001',message:'FEATURE_LOCK_REQUIRED'},'FORBIDDEN'],[{code:'P0001',message:'GEOMETRY_REVISION_CONFLICT'},'REVISION_CONFLICT'],[{code:'P0001',message:'VILLAGE_IN_USE'},'FORBIDDEN'],[{code:'23505',message:'private index detail'},'REVISION_CONFLICT'],[{code:'23503',message:'private foreign key detail'},'INVALID_INPUT']]){
   const h=fake(),db=api.createUnifiedDatabase({pool:h.pool});await assert.rejects(db.withIdentity(identity(),()=>{throw error;}),e=>e.code===code&&!e.message.includes('private'));await db.close();
  }
 });

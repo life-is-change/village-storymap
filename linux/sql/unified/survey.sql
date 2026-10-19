@@ -10,6 +10,12 @@ CREATE TABLE api_private.community_history(issue_id bigint NOT NULL REFERENCES p
 CREATE TABLE api_private.message_replies(id text DEFAULT gen_random_uuid()::text,issue_id bigint NOT NULL REFERENCES public.community_tasks(id),actor_id uuid,author_snapshot text,body text NOT NULL CHECK(length(body) BETWEEN 1 AND 200),deleted_at timestamptz,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(issue_id,id));
 CREATE TABLE api_private.message_likes(issue_id bigint NOT NULL REFERENCES public.community_tasks(id),actor_id uuid NOT NULL,reply_id text NOT NULL DEFAULT '',PRIMARY KEY(issue_id,actor_id,reply_id));
 CREATE TABLE api_private.local_points(actor_id uuid NOT NULL,issue_id bigint NOT NULL,reason text NOT NULL,delta integer NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(actor_id,issue_id,reason));
+CREATE TABLE api_private.legacy_likes(kind text,object_id bigint,reply_id text,name text,PRIMARY KEY(kind,object_id,reply_id,name));
+CREATE TABLE api_private.legacy_statistics(actor_id uuid PRIMARY KEY,total_points bigint NOT NULL,reports_count bigint NOT NULL,verify_count bigint NOT NULL,snapshot_day date NOT NULL,positive_today bigint NOT NULL);
+INSERT INTO api_private.legacy_statistics
+ SELECT names.user_id,coalesce(sum(stats.total_points),0),coalesce(sum(stats.reports_count),0),coalesce(sum(stats.verify_count),0),(now() AT TIME ZONE 'Asia/Shanghai')::date,
+ coalesce((SELECT sum(greatest(ledger.delta,0)) FROM public.points_ledger ledger WHERE ledger.user_name IN (SELECT split_part(a.student_key,'::',2) FROM api_private.profile_key_aliases a WHERE a.user_id=names.user_id AND NOT EXISTS(SELECT 1 FROM api_private.profile_key_aliases x WHERE split_part(x.student_key,'::',2)=split_part(a.student_key,'::',2) AND x.user_id<>a.user_id)) AND ledger.created_at>=date_trunc('day',now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai'),0)
+ FROM (SELECT split_part(student_key,'::',2) name,min(user_id::text)::uuid user_id FROM api_private.profile_key_aliases GROUP BY split_part(student_key,'::',2) HAVING count(DISTINCT user_id)=1)names JOIN public.user_stats stats ON stats.user_name=names.name GROUP BY names.user_id;
 CREATE FUNCTION api_private.begin_operation(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,api_private,auth,pg_temp AS $$DECLARE r api_private.operation_receipts;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  IF p->>'requestId' IS NULL THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
@@ -30,7 +36,7 @@ CREATE FUNCTION api_private.survey_gate(p jsonb) RETURNS void LANGUAGE plpgsql S
  IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;END IF;
 END$$;
 CREATE FUNCTION api_private.comment_interactions(cid bigint) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,api_private,pg_temp AS $$
- SELECT jsonb_build_object('likes',coalesce((SELECT jsonb_agg(p.display_name ORDER BY p.id) FROM api_private.comment_likes l JOIN public.profiles p ON p.id=l.actor_id WHERE l.comment_id=cid),'[]'),'replies',coalesce((SELECT jsonb_agg(jsonb_build_object('id',r.id,'author',coalesce(p.display_name,r.author_snapshot),'content',r.body,'created_at',r.created_at) ORDER BY r.created_at) FROM api_private.comment_replies r LEFT JOIN public.profiles p ON p.id=r.actor_id WHERE r.comment_id=cid),'[]'))
+ SELECT jsonb_build_object('likes',coalesce((SELECT jsonb_agg(name ORDER BY name) FROM (SELECT p.display_name name FROM api_private.comment_likes l JOIN public.profiles p ON p.id=l.actor_id WHERE l.comment_id=cid UNION SELECT name FROM api_private.legacy_likes WHERE kind='comment' AND object_id=cid)likes),'[]'),'replies',coalesce((SELECT jsonb_agg(jsonb_build_object('id',r.id,'author',coalesce(p.display_name,r.author_snapshot),'content',r.body,'created_at',r.created_at) ORDER BY r.created_at) FROM api_private.comment_replies r LEFT JOIN public.profiles p ON p.id=r.actor_id WHERE r.comment_id=cid),'[]'))
 $$;
 CREATE FUNCTION api_private.survey_read(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE result jsonb;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;PERFORM api_private.assert_context(p);
@@ -84,9 +90,9 @@ CREATE FUNCTION api_private.community_read(a text,p jsonb) RETURNS jsonb LANGUAG
  IF p ? 'id' THEN SELECT * INTO issue FROM public.community_tasks WHERE id=(p->>'id')::bigint AND teaching_project_id=(p->>'teachingProjectId')::uuid AND village_id=(p->>'villageId')::uuid AND space_id=p->>'spaceId' AND deleted_at IS NULL;IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;END IF;
  CASE a
  WHEN 'community.listTasks','community.listMessages' THEN SELECT coalesce(jsonb_agg(to_jsonb(t)-'local_actor_id'||jsonb_build_object('revision',t.local_revision)),'[]') INTO result FROM (SELECT * FROM public.community_tasks WHERE teaching_project_id=(p->>'teachingProjectId')::uuid AND village_id=(p->>'villageId')::uuid AND space_id=p->>'spaceId' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 200)t;
- WHEN 'community.listReplies' THEN SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'author',coalesce(u.display_name,r.author_snapshot),'content',r.body,'created_at',r.created_at,'likers',coalesce((SELECT jsonb_agg(pf.display_name) FROM api_private.message_likes l JOIN public.profiles pf ON pf.id=l.actor_id WHERE l.issue_id=issue.id AND l.reply_id=r.id),'[]')) ORDER BY r.created_at),'[]') INTO result FROM api_private.message_replies r LEFT JOIN public.profiles u ON u.id=r.actor_id WHERE r.issue_id=issue.id AND r.deleted_at IS NULL;
- WHEN 'community.listLikes' THEN SELECT coalesce(jsonb_agg(u.display_name),'[]') INTO result FROM api_private.message_likes l JOIN public.profiles u ON u.id=l.actor_id WHERE l.issue_id=issue.id AND l.reply_id='';
- WHEN 'community.stats' THEN SELECT jsonb_build_object('user_name',pf.display_name,'total_points',coalesce((SELECT sum(delta) FROM api_private.local_points WHERE actor_id=auth.uid()),0),'reports_count',(SELECT count(*) FROM public.community_tasks WHERE local_actor_id=auth.uid()),'verify_count',0,'level',1) INTO result FROM public.profiles pf WHERE id=auth.uid();
+ WHEN 'community.listReplies' THEN SELECT coalesce(jsonb_agg(jsonb_build_object('id',r.id,'author',coalesce(u.display_name,r.author_snapshot),'content',r.body,'created_at',r.created_at,'likers',coalesce((SELECT jsonb_agg(name) FROM (SELECT pf.display_name name FROM api_private.message_likes l JOIN public.profiles pf ON pf.id=l.actor_id WHERE l.issue_id=issue.id AND l.reply_id=r.id UNION SELECT name FROM api_private.legacy_likes WHERE kind='message' AND object_id=issue.id AND reply_id=r.id)likes),'[]')) ORDER BY r.created_at),'[]') INTO result FROM api_private.message_replies r LEFT JOIN public.profiles u ON u.id=r.actor_id WHERE r.issue_id=issue.id AND r.deleted_at IS NULL;
+ WHEN 'community.listLikes' THEN SELECT coalesce(jsonb_agg(name),'[]') INTO result FROM (SELECT u.display_name name FROM api_private.message_likes l JOIN public.profiles u ON u.id=l.actor_id WHERE l.issue_id=issue.id AND l.reply_id='' UNION SELECT name FROM api_private.legacy_likes WHERE kind='message' AND object_id=issue.id AND reply_id='')likes;
+ WHEN 'community.stats' THEN SELECT jsonb_build_object('user_name',pf.display_name,'total_points',coalesce(base.total_points,0)+coalesce((SELECT sum(delta) FROM api_private.local_points WHERE actor_id=auth.uid()),0),'reports_count',coalesce(base.reports_count,0)+(SELECT count(*) FROM public.community_tasks WHERE local_actor_id=auth.uid()),'verify_count',coalesce(base.verify_count,0),'level',greatest(1,floor((coalesce(base.total_points,0)+coalesce((SELECT sum(delta) FROM api_private.local_points WHERE actor_id=auth.uid()),0))/100.0)+1)) INTO result FROM public.profiles pf LEFT JOIN api_private.legacy_statistics base ON base.actor_id=pf.id WHERE pf.id=auth.uid();
  ELSE RAISE EXCEPTION 'NOT_FOUND';END CASE;RETURN result;
 END$$;
 CREATE FUNCTION api_private.community_write(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE prior jsonb;result jsonb;issue public.community_tasks;reply api_private.message_replies;actor text;liked boolean;delta integer;BEGIN
@@ -110,7 +116,7 @@ CREATE FUNCTION api_private.community_write(a text,p jsonb) RETURNS jsonb LANGUA
  UPDATE public.community_tasks SET status=p->>'status',settled_at=now(),local_revision=local_revision+1 WHERE id=issue.id RETURNING * INTO issue;
  IF issue.status='resolved' THEN
   PERFORM pg_advisory_xact_lock(hashtextextended(auth.uid()::text||'points',0));
-  SELECT greatest(0,least(3,20-coalesce(sum(delta),0))) INTO delta FROM api_private.local_points WHERE actor_id=auth.uid() AND created_at>=date_trunc('day',now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai';
+  SELECT greatest(0,least(3,20-coalesce(sum(delta),0)-coalesce((SELECT positive_today FROM api_private.legacy_statistics WHERE actor_id=auth.uid() AND snapshot_day=(now() AT TIME ZONE 'Asia/Shanghai')::date),0))) INTO delta FROM api_private.local_points WHERE actor_id=auth.uid() AND created_at>=date_trunc('day',now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai';
   INSERT INTO api_private.local_points VALUES(auth.uid(),issue.id,'resolved',delta,now()) ON CONFLICT DO NOTHING;
  END IF;
  WHEN 'community.addReply' THEN INSERT INTO api_private.message_replies(issue_id,actor_id,body) VALUES(issue.id,auth.uid(),p->>'body');result:=api_private.community_read('community.listReplies',p);
@@ -139,6 +145,26 @@ INSERT INTO api_private.message_replies(id,issue_id,author_snapshot,body,created
  FROM public.community_tasks t JOIN public.object_attribute_edits e ON e.object_code='MSG_'||t.id AND e.object_type='message_replies' AND e.teaching_project_id=t.teaching_project_id AND e.village_id=t.village_id AND e.space_id=t.space_id
  CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(e.data->'replies')='array' THEN e.data->'replies' ELSE '[]' END) WITH ORDINALITY x(value,ordinality)
  WHERE length(coalesce(x.value->>'content',''))>0 ON CONFLICT DO NOTHING;
+
+-- Migrate recognizable likes to UUIDs; unresolvable names stay read-only snapshots.
+CREATE TABLE api_private.like_import(kind text,object_id bigint,reply_id text,name text);
+INSERT INTO api_private.like_import
+ SELECT 'comment',c.id,'',x.name FROM public.object_comments c JOIN public.object_attribute_edits e ON e.object_code='COMMENT_'||c.id AND e.object_type='object_comment_interactions' AND e.teaching_project_id=c.teaching_project_id AND e.village_id=c.village_id AND e.space_id=c.space_id
+ CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(e.data->'likes')='array' THEN e.data->'likes' ELSE '[]' END)x(name);
+INSERT INTO api_private.like_import
+ SELECT 'message',t.id,'',x.name FROM public.community_tasks t JOIN public.object_attribute_edits e ON e.object_code='MSG_'||t.id AND e.object_type='message_likes' AND e.teaching_project_id=t.teaching_project_id AND e.village_id=t.village_id AND e.space_id=t.space_id
+ CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(e.data->'likers')='array' THEN e.data->'likers' ELSE '[]' END)x(name);
+INSERT INTO api_private.like_import
+ SELECT 'message',t.id,coalesce(nullif(x.value->>'id',''),'legacy-'||x.ordinality),l.name FROM public.community_tasks t JOIN public.object_attribute_edits e ON e.object_code='MSG_'||t.id AND e.object_type='message_replies' AND e.teaching_project_id=t.teaching_project_id AND e.village_id=t.village_id AND e.space_id=t.space_id
+ CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(e.data->'replies')='array' THEN e.data->'replies' ELSE '[]' END) WITH ORDINALITY x(value,ordinality)
+ CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(x.value->'likers')='array' THEN x.value->'likers' ELSE '[]' END)l(name);
+INSERT INTO api_private.comment_likes
+ SELECT l.object_id,p.id FROM api_private.like_import l JOIN public.profiles p ON p.display_name=l.name WHERE kind='comment' AND (SELECT count(*) FROM public.profiles p2 WHERE p2.display_name=l.name)=1 ON CONFLICT DO NOTHING;
+INSERT INTO api_private.message_likes
+ SELECT l.object_id,p.id,l.reply_id FROM api_private.like_import l JOIN public.profiles p ON p.display_name=l.name WHERE kind='message' AND (SELECT count(*) FROM public.profiles p2 WHERE p2.display_name=l.name)=1 ON CONFLICT DO NOTHING;
+INSERT INTO api_private.legacy_likes SELECT DISTINCT l.* FROM api_private.like_import l WHERE (SELECT count(*) FROM public.profiles p WHERE p.display_name=l.name)<>1 ON CONFLICT DO NOTHING;
+DROP TABLE api_private.like_import;
+
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA api_private FROM PUBLIC,anon;
 REVOKE EXECUTE ON FUNCTION api_private.begin_operation(text,jsonb),api_private.finish_operation(text,jsonb,jsonb),api_private.survey_gate(jsonb),api_private.comment_interactions(bigint) FROM authenticated,village_unified_login;
 GRANT EXECUTE ON FUNCTION api_private.survey_read(text,jsonb),api_private.survey_write(text,jsonb),api_private.community_read(text,jsonb),api_private.community_write(text,jsonb) TO authenticated;

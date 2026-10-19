@@ -17,6 +17,14 @@ test('native survey gate, UUID ownership, revisions, tombstones and cross-space 
   await setup.query(`INSERT INTO object_comments(id,object_code,object_type,author_name,content,teaching_project_id,village_id,space_id) VALUES(899,'B2','building','Legacy author','Legacy comment','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','A');
    INSERT INTO object_attribute_edits(object_code,object_type,data,teaching_project_id,village_id,space_id) VALUES('COMMENT_899','object_comment_interactions','{"likes":["A","Unknown legacy"],"replies":[{"author":"Legacy reply","content":"Kept"}]}','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','A');
    INSERT INTO user_stats(user_name,total_points) VALUES('A',17);INSERT INTO points_ledger(user_name,delta,reason) VALUES('A',17,'Legacy points');`);
+
+  const locks=await readFile(new URL('../../supabase_SQL/Shared Current Survey Versioning and Feature Locks.sql',import.meta.url),'utf8');
+  await setup.query(locks.match(/create table if not exists public.feature_edit_locks \([\s\S]*?\n\);/i)[0]);
+  await setup.query('ALTER TABLE feature_edit_locks ADD teaching_project_id uuid,ADD village_id uuid,ADD editor_user_id uuid;ALTER TABLE survey_feature_reviews ADD first_reviewed_by uuid,ADD first_reviewed_at timestamptz,ADD latest_modified_by uuid,ADD latest_modified_at timestamptz,ADD updated_at timestamptz');
+  for(const [file,names] of [['Multi-Village Dual-Track Repair.sql',['context_space_accessible','context_space_mutable']],['Shared Survey Calibration and Freeze.sql',['assert_survey_review_context','confirm_survey_feature_geometry']]]){
+   const source=await readFile(new URL('../../supabase_SQL/'+file,import.meta.url),'utf8');
+   for(const name of names){const definition=source.match(new RegExp('create or replace function public.'+name+'\\([\\s\\S]*?\\n\\$[a-z_]*\\$;','i'))?.[0];assert.ok(definition,name);await setup.query(definition);}
+  }
   await install();await setup.query(await readFile(new URL('../../linux/sql/unified/catalog.sql',import.meta.url),'utf8'));await setup.query(await readFile(new URL('../../linux/sql/unified/survey.sql',import.meta.url),'utf8'));
   const db=dbAPI.createUnifiedDatabase(config),service=api.createSurveyService({database:db,files:{},taskReferences:{async assertPhotoMutable(){}}}),social=community.createCommunityService({database:db});
   const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A',objectCode:'B1',objectType:'building'},context={teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:c.spaceId};let seq=0;
@@ -25,7 +33,11 @@ test('native survey gate, UUID ownership, revisions, tombstones and cross-space 
    await assert.rejects(service.execute(testIdentity(USERS.other),'survey.getAttributes',c),{code:'FORBIDDEN'},'shared space still requires course membership');
    await setup.query("INSERT INTO group_memberships(course_id,group_id,student_key,student_name,student_id) VALUES('course','group-a','b::B','B','b')");
    await assert.rejects(write('survey.saveAttributes',{...c,surveyLayerKey:'building',data:{name:'Blocked'}}),{code:'FORBIDDEN'});
-   await setup.query("UPDATE survey_feature_reviews SET geometry_status='confirmed_unchanged'");
+
+   await assert.rejects(write('survey.confirmGeometry',{...context,layerKey:'building',objectCode:'B1',revision:0,lockToken:'e0000000-0000-4000-8000-000000000001'}),{code:'FORBIDDEN'});
+   await setup.query("INSERT INTO feature_edit_locks(space_id,layer_key,object_code,editor_name,editor_user_id,lock_token,expires_at,teaching_project_id,village_id) VALUES('A','building','B1','A','10000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000001',now()+interval '1 minute','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001')");
+   const confirmed=await write('survey.confirmGeometry',{...context,layerKey:'building',objectCode:'B1',revision:0,lockToken:'e0000000-0000-4000-8000-000000000001'});assert.equal(confirmed.geometry_revision,1);assert.equal((await setup.query('SELECT count(*) n FROM feature_edit_locks')).rows[0].n,'0');
+
    await write('survey.saveAttributes',{...c,surveyLayerKey:'building',data:{name:'Local'}});assert.equal((await service.execute(testIdentity(),'survey.getAttributes',c)).name,'Local');
    await assert.rejects(service.execute(testIdentity(),'survey.getAttributes',{...c,spaceId:'B'}),{code:'FORBIDDEN'});
 
