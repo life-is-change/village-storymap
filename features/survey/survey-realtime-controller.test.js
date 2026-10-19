@@ -34,6 +34,11 @@ test("subscribes to reviews and locks with one space filter", async () => {
   assert.ok(client.filters.every((item) => item.filter.filter === "space_id=eq.s1"));
 });
 
+test('local survey subscribes to authorized events without opening a source channel',async()=>{
+ const calls=[];const controller=createSurveyRealtimeController({services:{events:{createClient(options){return {async start(c){calls.push(c);options.onInvalidate();},async stop(){}};}}},client:{channel(){throw Error('SOURCE_CHANNEL_FORBIDDEN');}},loadLatest:()=>calls.push('refreshed')});
+ await controller.start({spaceId:'A'});assert.deepEqual(calls,[{spaceId:'A'},'refreshed']);
+});
+
 test("realtime reloads facts after reconnect before reporting connected", async () => {
   const calls = [];
   let emitStatus;

@@ -3620,6 +3620,7 @@ async function syncSurveyRealtimeSubscription() {
   surveyRealtimeContextKey = key;
   surveyRealtimeController ||= window.SurveyRealtimeControllerModule.createSurveyRealtimeController({
     client: supabaseClient,
+    services: window.VillageBusinessServices,
     loadLatest: refreshSurveyReviewState,
     onConnectionChange: setSurveyRealtimeState
   });
@@ -8564,6 +8565,41 @@ const GROUP_PLAN_REALTIME_DELAY = 180;
 let groupPlanRealtimeTimer = null;
 let groupPlanRealtimeChannel = null;
 let groupPlanRealtimeKey = "";
+let businessEventClient = null;
+let businessEventContextKey = "";
+
+async function syncBusinessEventSubscription() {
+  const services = window.VillageBusinessServices;
+  if (!services?.events) return;
+  const space = getCurrentSpace();
+  const context = { teachingProjectId: activeVillageContext?.teachingProjectId, villageId: activeVillageContext?.villageId, spaceId: space?.actualSpaceId || space?.id };
+  const key = JSON.stringify(context);
+  if (key === businessEventContextKey) return;
+  businessEventContextKey = key;
+  await businessEventClient?.stop();
+  if (Object.values(context).some(value => !value)) return;
+  businessEventClient = services.events.createClient({
+    onConnectionChange: setSurveyRealtimeState,
+    onInvalidate() {
+      scheduleRealtimeRefresh(async () => {
+        invalidateBuildingDbCache(); invalidateRoadDbCache(); invalidateCroplandDbCache(); invalidateOpenSpaceDbCache(); invalidateWaterDbCache();
+        invalidateCommunityTaskCache(currentSpaceId);
+        await syncSpacesFromSupabase(); renderSpaceList();
+        await refreshCommunityTasksOnMapAsync(); await refreshCommunityScoreBadge(); await refreshCommunityMessageBoard();
+        await refreshSurveyReviewState();
+        if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
+          showToast("其他成员已保存修改；请先保存或放弃当前草稿后再刷新图层。", "info"); return;
+        }
+        if (getCurrentSpace()?.spaceType === 'group_plan') await refreshActiveGroupPlan();
+        else {
+          if (plan2dView?.classList.contains('active')) await refresh2DOverlay({forceFullRebuild:true});
+          if (model3dView?.classList.contains('active')) await window.Village3D?.reload?.();
+        }
+      });
+    }
+  });
+  await businessEventClient.start(context);
+}
 
 function scheduleGroupPlanRealtimeRefresh(refreshFn) {
   if (groupPlanRealtimeTimer) clearTimeout(groupPlanRealtimeTimer);
@@ -8596,6 +8632,7 @@ async function refreshActiveGroupPlan() {
 }
 
 async function syncGroupPlanRealtimeSubscription() {
+  if (window.VillageBusinessServices?.events) return syncBusinessEventSubscription();
   if (!supabaseClient) return;
   const space = getCurrentSpace();
   const actualSpaceId = space?.actualSpaceId || space?.id || "";
@@ -8649,6 +8686,7 @@ function scheduleRealtimeRefresh(refreshFn) {
 }
 
 function initRealtimeSubscriptions() {
+  if (window.VillageBusinessServices?.events) { void syncBusinessEventSubscription(); return; }
   if (!supabaseClient) {
     console.warn("Supabase 未配置，跳过 Realtime 订阅");
     return;

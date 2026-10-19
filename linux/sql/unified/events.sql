@@ -25,8 +25,8 @@ DECLARE c jsonb;latest bigint;first_id bigint;result jsonb;refresh boolean;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  IF jsonb_typeof(contexts)<>'array' OR jsonb_array_length(contexts) NOT BETWEEN 1 AND 8 OR cursor<0 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  FOR c IN SELECT value FROM jsonb_array_elements(contexts) LOOP PERFORM api_private.assert_context(c);END LOOP;
- SELECT coalesce(max(id),0),min(id) INTO latest,first_id FROM api_private.event_log WHERE created_at>=now()-interval '24 hours';
- refresh:=cursor IS NULL OR cursor>latest OR (cursor>0 AND (first_id IS NULL OR cursor<first_id-1));
+ SELECT coalesce(max(id),0),min(id) FILTER(WHERE created_at>=now()-interval '24 hours') INTO latest,first_id FROM api_private.event_log;
+ refresh:=cursor IS NULL OR cursor>latest OR (cursor<latest AND (first_id IS NULL OR cursor<first_id-1));
  IF refresh THEN RETURN jsonb_build_object('refresh',true,'cursor',latest::text,'events','[]'::jsonb);END IF;
  SELECT coalesce(jsonb_agg(jsonb_build_object('cursor',id::text,'kind',kind,'context',context) ORDER BY id),'[]') INTO result FROM (
   SELECT id,kind,context FROM api_private.event_log e WHERE id>cursor AND created_at>=now()-interval '24 hours'

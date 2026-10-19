@@ -7,7 +7,7 @@ test('committed invalidations are context authorized; rollback and old cursors c
   const read=(cursor=null)=>db.withIdentity(testIdentity(),async q=>(await q.query('SELECT api_private.event_read($1::jsonb,$2) data',[JSON.stringify([c]),cursor])).rows[0].data,{readOnly:true});
   try{
    const start=await read();assert.equal(start.refresh,true);
-   await setup.query('BEGIN');await setup.query("UPDATE planning_features SET props='{\"private\":\"rollback\"}' WHERE space_id='A'");await setup.query('ROLLBACK');assert.equal((await read(start.cursor)).events.length,0);
+   await setup.query('BEGIN');await setup.query("UPDATE planning_features SET props='{\"private\":\"rollback\"}' WHERE space_id='A'");assert.equal((await read(start.cursor)).events.length,0,'uncommitted writes must be invisible');await setup.query('ROLLBACK');assert.equal((await read(start.cursor)).events.length,0);
    await setup.query("UPDATE planning_features SET props='{\"private\":\"never broadcast\"}' WHERE space_id='A'");
    const events=await read(start.cursor);assert.ok(events.events.length);assert.equal(events.events[0].kind,'planning');assert.deepEqual(events.events[0].context,c);assert.equal(JSON.stringify(events).includes('never broadcast'),false);
    const beforeForeign=events.cursor;await setup.query("UPDATE planning_features SET props='{}' WHERE space_id='B'");assert.equal((await read(beforeForeign)).events.length,0);
