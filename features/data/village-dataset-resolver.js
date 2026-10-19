@@ -108,6 +108,10 @@
   }
 
   async function createSignedUrlMap(supabaseClient, dataset, options = {}) {
+    if (options.services?.files) {
+      const entries=await Promise.all(collectStoragePaths(dataset).map(async path=>[path,await options.services.files.resolvePathUrl('village-datasets',path)]));
+      return Object.fromEntries(entries);
+    }
     if (!supabaseClient?.storage?.from) throw new Error("DATASET_STORAGE_REQUIRED");
     const bucket = String(options.bucket || "village-datasets");
     const expiresIn = Number(options.expiresIn || 900);

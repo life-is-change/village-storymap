@@ -127,8 +127,9 @@
     return metadata;
   }
 
-  function createGroupModelLibrary({ client, bucket = DEFAULT_BUCKET, now = () => Date.now(),
+  function createGroupModelLibrary({ client, services, getContext, uuid = randomId, bucket = DEFAULT_BUCKET, now = () => Date.now(),
     fetcher = (...args) => globalThis.fetch(...args) } = {}) {
+    if (services?.models) return createLocalLibrary({services,getContext,uuid,now,fetcher});
     if (!client) throw new Error('Supabase 客户端未初始化。');
     const signedUrlCache = new Map();
     const pendingSignedUrls = new Map();
@@ -377,6 +378,44 @@
       getBinding,
       listBindings
     };
+  }
+
+  function createLocalLibrary({services,getContext,uuid,now,fetcher}) {
+    function context(spaceId) {
+      const c = getContext?.() || {};
+      return {teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:spaceId||c.spaceId};
+    }
+    const run=(a,input,write=false)=>services.models.execute('models.'+a,{...input,...(write?{requestId:uuid()}: {})});
+    const library={
+      listAssets:()=>run('list',context()),
+      createSignedUrl:asset=>library.createSignedUrlForPath(asset.storage_path),
+      createSignedUrlForPath:path=>services.files.resolvePathUrl('group-models',path),
+      async getAssetMetadata(asset) {
+        if (asset.local_metadata && Object.keys(asset.local_metadata).length) return asset.local_metadata;
+        if (asset.normalization && Object.keys(asset.normalization).length) return asset.normalization;
+        const url=await library.createSignedUrl(asset),response=await fetcher(url);
+        if(!response.ok)throw Error('FILE_UNAVAILABLE');
+        const {json}=normalizer.readGlb(await response.arrayBuffer());
+        return readModelMetadata(json.extras?.villageModel,asset.storage_path);
+      },
+      async uploadAsset({file,lowFile,name,scope,metersPerUnit=1}) {
+        const validation=validateGlbFile(file);if(!validation.valid)throw Error(validation.message);
+        if(!normalizer||typeof file.arrayBuffer!=='function')throw Error('GLB_NORMALIZATION_REQUIRED');
+        const original=await file.arrayBuffer();
+        const result=lowFile?await normalizer.normalizeGlbAsync(original,{metersPerUnit}):await normalizer.createModelVariantsAsync(original,{metersPerUnit});
+        let low=result.lowBuffer;
+        if(lowFile){const v=validateGlbFile(lowFile);if(!v.valid)throw Error(v.message);low=await lowFile.arrayBuffer();}
+        if(!low)throw Error('LOW_MODEL_REQUIRED');validateLowAnchor(result.inspection,await normalizer.inspectGlbAsync(low));
+        const {lowStoragePath,originalStoragePath,...metadata}=result.inspection.normalization||{};
+        return services.files.uploadModel({context:context(),files:{display:new Blob([result.buffer],{type:'model/gltf-binary'}),original:file,low:new Blob([low],{type:'model/gltf-binary'})},name:String(name||file.name.replace(/\.glb$/i,'')).slice(0,100),metadata:{...metadata,bounds:result.inspection.bounds,size:result.inspection.bounds.size,triangleCount:result.inspection.triangleCount,primitiveCount:result.inspection.primitiveCount,textureCount:result.inspection.textureCount}});
+      },
+      placeAsset:({assetId,spaceId,objectCode,transform={}})=>run('place',{...context(spaceId),assetId,objectCode,transform},true),
+      restoreWhiteModel:({spaceId,objectCode})=>run('restoreWhiteModel',{...context(spaceId),objectCode},true),
+      deleteAsset:asset=>run('delete',{assetId:asset.id},true),
+      async getBinding(spaceId,objectCode){return (await library.listBindings(spaceId)).find(r=>r.object_code===objectCode)||null;},
+      listBindings:spaceId=>run('bindings',context(spaceId))
+    };
+    return library;
   }
 
   async function restoreBuildingModel({ library, spaceId, objectCode, clearLegacy }) {

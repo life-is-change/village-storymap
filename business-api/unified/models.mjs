@@ -1,0 +1,2 @@
+import {parseOperation,fault} from './contracts.mjs';
+export function createModelsService({database}){return {execute(identity,action,input){if(!action.startsWith('models.'))throw fault('NOT_FOUND');const p=parseOperation(action,input);return database.withIdentity(identity,async c=>(await c.query('SELECT api_private.models_execute($1,$2::jsonb) AS data',[action,JSON.stringify(p.input)])).rows[0]?.data,{readOnly:p.readOnly});}};}

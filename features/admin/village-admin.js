@@ -69,7 +69,7 @@
   }
 
   function createVillageAdminController({
-    root = null, client, boundary, geoprocessing = null, supabaseClient = null, datasets = [],
+    root = null, client, boundary, geoprocessing = null, supabaseClient = null, services = null, datasets = [],
     notify = () => {}, confirm = async () => true
   } = {}) {
     if (!client) throw codedError("VILLAGE_CLIENT_REQUIRED");
@@ -276,6 +276,10 @@
       if (!selectedVillage) throw codedError("VILLAGE_REQUIRED");
       if (manifestVillage && manifestVillage !== String(selectedVillage.name || "").trim()) {
         throw codedError("PACKAGE_VILLAGE_MISMATCH");
+      }
+      if (services?.files) {
+        const saved = await services.files.uploadDataset({villageId,selection,versionLabel:packageId||`${selection.manifest.village.slug||'v0'}-${Date.now()}`});
+        notify("V0 数据包校验并上传完成，可在第 3 步发布", "success");await refresh();return saved;
       }
       const uploadInput = await packageModule.uploadVillagePackage({
         supabaseClient,

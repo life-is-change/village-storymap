@@ -1,0 +1,6 @@
+const test=require('node:test'),assert=require('node:assert/strict');const {createGroupModelLibrary}=require('./group-model-library.js');
+test('local model library routes normalization, variants, placement and restoration through injected services',async()=>{
+ const calls=[];const library=createGroupModelLibrary({services:{models:{async execute(a,p){calls.push([a,p]);return []; }},files:{async resolvePathUrl(bucket,path){calls.push([bucket,path]);return 'blob:local';},async uploadModel(input){calls.push(['upload',input]);return {id:'model',storage_path:'private.glb'};}}},getContext:()=>({teachingProjectId:'p',villageId:'v',spaceId:'s'}),uuid:()=> 'request',client:{from(){throw Error('SOURCE_TOUCHED');},storage:{from(){throw Error('SOURCE_STORAGE_TOUCHED');}}}});
+ await library.listAssets({kind:'group',groupId:'g'});await library.placeAsset({assetId:'a',spaceId:'s',objectCode:'B1',transform:{rotation:1}});await library.restoreWhiteModel({spaceId:'s',objectCode:'B1'});await library.createSignedUrlForPath('private.glb');
+ assert.equal(calls[0][0],'models.list');assert.equal(calls[1][0],'models.place');assert.equal(calls[1][1].transform.rotation,1);assert.equal(calls[2][0],'models.restoreWhiteModel');assert.equal(calls[3][0],'group-models');
+});

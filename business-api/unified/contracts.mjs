@@ -2,7 +2,7 @@ import {UUID} from '../src/contracts.mjs';
 
 export const MAX_JSON_BYTES = 2 * 1024 * 1024;
 export const MAX_BATCH_ITEMS = 500;
-const statuses = {INVALID_INPUT:400,NOT_FOUND:404,PAYLOAD_TOO_LARGE:413,UNAUTHORIZED:401,FORBIDDEN:403,DB_UNAVAILABLE:503,AUTH_UNAVAILABLE:503,PROFILE_NOT_SYNCED:403,PROFILE_DISABLED:403,REVISION_CONFLICT:409,NOT_IMPLEMENTED:501,RATE_LIMITED:429};
+const statuses = {INVALID_INPUT:400,NOT_FOUND:404,PAYLOAD_TOO_LARGE:413,UNAUTHORIZED:401,FORBIDDEN:403,DB_UNAVAILABLE:503,AUTH_UNAVAILABLE:503,PROFILE_NOT_SYNCED:403,PROFILE_DISABLED:403,REVISION_CONFLICT:409,NOT_IMPLEMENTED:501,RATE_LIMITED:429,FILE_IN_USE:409,UPLOAD_CONFLICT:409,UPLOAD_EXPIRED:410,FILES_NOT_READY:409,FILE_TOO_LARGE:413,FILE_TYPE_UNSUPPORTED:415,INVALID_FILE:422,FILE_BUSY:503,FILE_UNAVAILABLE:503,QUOTA_EXCEEDED:507};
 export const fault = code => Object.assign(Error(Object.hasOwn(statuses,code)?code:'DB_UNAVAILABLE'), {code:Object.hasOwn(statuses,code)?code:'DB_UNAVAILABLE',status:statuses[code]??503});
 const invalid = () => { throw fault('INVALID_INPUT'); };
 const plain = value => value !== null && typeof value === 'object' && [Object.prototype,null].includes(Object.getPrototypeOf(value));
@@ -115,7 +115,7 @@ for(const [name,fields,readOnly,source] of [
 ]) add('personal.'+name,fields,readOnly,'features/data/personal-space-client.js -> '+source);
 for(const [name,fields,readOnly,source] of [
  ['list',{...context},true,'group_model_assets'],['bindings',context,true,'building_model_bindings'],
- ['place',{...context,assetId:uuid,objectCode:str(200),...replay},false,'place_group_model'],
+ ['place',{...context,assetId:uuid,objectCode:str(200),transform:optional(json),...replay},false,'place_group_model'],
  ['restoreWhiteModel',{...context,objectCode:str(200),...replay},false,'restore_building_white_model'],
  ['delete',{assetId:uuid,...replay},false,'delete_group_model']
 ]) add('models.'+name,fields,readOnly,'features/models/group-model-library.js -> '+source);
