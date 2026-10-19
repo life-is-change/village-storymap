@@ -3,7 +3,8 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SurveyRealtimeControllerModule = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
-  function createSurveyRealtimeController({ client, loadLatest, onConnectionChange, debounceMs = 160 } = {}) {
+  function createSurveyRealtimeController({ client, services, loadLatest, onConnectionChange, debounceMs = 160 } = {}) {
+    if (services?.events) return services.events.createClient({ onInvalidate: () => { void loadLatest?.(); }, onConnectionChange });
     if (!client) throw new Error("REALTIME_CLIENT_REQUIRED");
     let channel = null;
     let context = null;

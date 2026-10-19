@@ -2,7 +2,7 @@ import {UUID} from '../src/contracts.mjs';
 
 export const MAX_JSON_BYTES = 2 * 1024 * 1024;
 export const MAX_BATCH_ITEMS = 500;
-const statuses = {INVALID_INPUT:400,NOT_FOUND:404,PAYLOAD_TOO_LARGE:413,UNAUTHORIZED:401,FORBIDDEN:403,DB_UNAVAILABLE:503,AUTH_UNAVAILABLE:503,PROFILE_NOT_SYNCED:403,PROFILE_DISABLED:403,REVISION_CONFLICT:409,NOT_IMPLEMENTED:501};
+const statuses = {INVALID_INPUT:400,NOT_FOUND:404,PAYLOAD_TOO_LARGE:413,UNAUTHORIZED:401,FORBIDDEN:403,DB_UNAVAILABLE:503,AUTH_UNAVAILABLE:503,PROFILE_NOT_SYNCED:403,PROFILE_DISABLED:403,REVISION_CONFLICT:409,NOT_IMPLEMENTED:501,RATE_LIMITED:429};
 export const fault = code => Object.assign(Error(Object.hasOwn(statuses,code)?code:'DB_UNAVAILABLE'), {code:Object.hasOwn(statuses,code)?code:'DB_UNAVAILABLE',status:statuses[code]??503});
 const invalid = () => { throw fault('INVALID_INPUT'); };
 const plain = value => value !== null && typeof value === 'object' && [Object.prototype,null].includes(Object.getPrototypeOf(value));
