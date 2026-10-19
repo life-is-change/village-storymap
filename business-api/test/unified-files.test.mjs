@@ -33,3 +33,15 @@ test('large GeoJSON is streamed with real feature counts, geometry types and WGS
   for(const value of [{type:'FeatureCollection',features:[{}]},{...fc,features:[{...fc.features[0],geometry:{type:'Point',coordinates:[113,23]}}]},{...fc,features:[{...fc.features[0],geometry:{...geometry,coordinates:[[[181,23],[114,23],[114,24],[181,23]]]}}]},'{"type":"FeatureCollection",\u00a0"features":[]}'])await assert.rejects(stage(value),{code:'INVALID_FILE'});
  }finally{await rm(root,{recursive:true,force:true});}
 });
+test('two uploads share a bounded budget and a full 50 MiB GLB streams without buffering the body',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'unified-large-'));
+ try{const store=await storeAPI.createBusinessFileStore({root,instanceId:'large-test'});let release,entered=0;const gate=new Promise(r=>release=r),small=glbHeader();
+  async function* slow(){entered++;await gate;yield small;}
+  const descriptor={role:'display',size:small.length,mime:'model/gltf-binary',extension:'glb'};
+  const a=store.stage({...descriptor,fileId:randomUUID(),stream:Readable.from(slow())}),b=store.stage({...descriptor,fileId:randomUUID(),stream:Readable.from(slow())});
+  while(entered<2)await new Promise(r=>setTimeout(r,2));await assert.rejects(store.stage({...descriptor,fileId:randomUUID(),stream:Readable.from([small])}),{code:'FILE_BUSY'});release();await Promise.all([a,b]);
+  const size=50*1024**2;let binSize=size-glbHeader(4).length;binSize-=binSize%4;let header=glbHeader(binSize);binSize=size-header.length;header=glbHeader(binSize);
+  async function* large(){yield header;for(let n=0;n<binSize;){const count=Math.min(65536,binSize-n);yield Buffer.alloc(count);n+=count;}}
+  const id=randomUUID(),record=await store.stage({...descriptor,fileId:id,size,stream:Readable.from(large())});assert.equal(record.size,size);await store.persist(id);const h=await store.open(id,record);await h.close();
+ }finally{await rm(root,{recursive:true,force:true});}
+});

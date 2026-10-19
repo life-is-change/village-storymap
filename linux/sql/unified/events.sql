@@ -57,7 +57,8 @@ DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) 
  IF sid IS NOT NULL AND pid IS NULL THEN
   SELECT s.teaching_project_id,CASE WHEN s.village_id::text~'^[a-fA-F0-9-]{36}$' THEN s.village_id::text::uuid ELSE NULL END INTO pid,vid FROM public.course_personal_spaces s WHERE s.id::text=sid;
  END IF;
- pid:=coalesce((r->>'teaching_project_id')::uuid,pid);vid:=coalesce((r->>'village_id')::uuid,vid);
+ pid:=coalesce((r->>'teaching_project_id')::uuid,pid);
+ vid:=coalesce(CASE WHEN r->>'village_id'~'^[a-fA-F0-9-]{36}$' THEN (r->>'village_id')::uuid END,vid);
  IF pid IS NOT NULL AND vid IS NOT NULL AND sid IS NOT NULL THEN
   c:=jsonb_build_object('teachingProjectId',pid,'villageId',vid,'spaceId',sid);
  ELSE
