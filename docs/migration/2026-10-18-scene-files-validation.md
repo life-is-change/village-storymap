@@ -46,3 +46,9 @@ Task 5 本地记录：Python 部署回归 204 passed / 1 skipped；真实 C2a PG
 用户明确批准专用合成上下文后，新增 `prepare-scene-files-test-context.py --check|--create`。限定原 C2a 候选和账号332/25213040，在单事务追加六类 TEST 记录；重复一致只复核、冲突停止，不 UPDATE/DELETE/GRANT、不重建库、不更改源权限。旧证明归档后需重新验证/探测。
 
 本机新增6项Python测试，全部部署回归210 passed / 1 symlink skip。专用loopback PG测试验证空成员起点、失败事务回滚、幂等、保留原课程、冲突拒绝、原成员权限RPC，并以两个合成身份通过真正C2 HTTP→PG→文件→Python完整探测。没有导入私有业务行；本机用文本domain代替PostGIS geometry，仅测试固定EWKT的传递与事务，原生PostGIS转换仍待云端实际运行。API源码/镜像摘要未变，无需重传镜像。
+
+### 当前教学项目唯一约束修复
+
+用户回传创建失败的私有日志主错误：`duplicate key value violates unique constraint "teaching_projects_one_current_idx"`。源索引按全局常量 `(true)` 唯一，条件为 stage 不属于 completed/archived；原候选已有当前项目，而初版 TEST 项目也用了 design 状态。本地最小集成 schema 未包含这条部分唯一索引，是测试覆盖遗漏。
+
+新增真实源索引及已有 design 项目的回归场景后，旧实现复现相同23505错误（RED）。修复只将新 TEST 项目创建为 completed，并在重复运行检查中核对此状态；不删除/重建索引，不更新或归档原当前项目。GREEN验证新增成功、重复无额外记录、原项目字段完全不变、当前项目计数仍1，原权限RPC及完整C2 HTTP/Python文件保存版本流程通过。Python回归210 passed / 1 skip。该次云端失败发生在显式事务中，连接退出会回滚，不需要人工删表或清空库；重新运行先经只读冲突检查。

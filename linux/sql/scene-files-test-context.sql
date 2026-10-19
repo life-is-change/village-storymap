@@ -22,7 +22,7 @@ BEGIN
  SELECT reserved=6
   AND EXISTS(SELECT 1 FROM public.courses WHERE id='c2a-test-20261019' AND title='C2a TEST course' AND village_id='c2a00000-0000-4000-8000-000000000001')
   AND EXISTS(SELECT 1 FROM public.villages WHERE id='c2a00000-0000-4000-8000-000000000001' AND name='C2a TEST village' AND is_practice AND created_by=owner_row.id AND boundary::text=('__BOUNDARY_EWKT__'::extensions.geometry)::text)
-  AND EXISTS(SELECT 1 FROM public.teaching_projects WHERE id='c2a00000-0000-4000-8000-000000000002' AND name='C2a TEST project' AND course_id='c2a-test-20261019' AND practice_village_id='c2a00000-0000-4000-8000-000000000001' AND created_by=owner_row.id)
+  AND EXISTS(SELECT 1 FROM public.teaching_projects WHERE id='c2a00000-0000-4000-8000-000000000002' AND name='C2a TEST project' AND course_id='c2a-test-20261019' AND practice_village_id='c2a00000-0000-4000-8000-000000000001' AND stage='completed' AND created_by=owner_row.id)
   AND EXISTS(SELECT 1 FROM public.course_groups WHERE id='c2a-test-group-20261019' AND course_id='c2a-test-20261019' AND name='C2a TEST group' AND space_id='c2a-test-space-20261019' AND created_by=owner_row.student_id||'::'||owner_row.display_name)
   AND EXISTS(SELECT 1 FROM public.planning_spaces WHERE id='c2a-test-space-20261019' AND title='C2a TEST space' AND course_id='c2a-test-20261019' AND group_id='c2a-test-group-20261019' AND space_type='group_plan' AND teaching_project_id='c2a00000-0000-4000-8000-000000000002' AND village_id='c2a00000-0000-4000-8000-000000000001')
   AND EXISTS(SELECT 1 FROM public.group_memberships WHERE course_id='c2a-test-20261019' AND group_id='c2a-test-group-20261019' AND student_key=member_row.student_id||'::'||member_row.display_name AND student_id=member_row.student_id AND student_name=member_row.display_name AND role='member') INTO ready;
@@ -31,7 +31,9 @@ BEGIN
  IF reserved=0 THEN
   INSERT INTO public.villages(id,name,is_practice,boundary,status,created_by) VALUES('c2a00000-0000-4000-8000-000000000001','C2a TEST village',true,'__BOUNDARY_EWKT__'::extensions.geometry,'draft',owner_row.id);
   INSERT INTO public.courses(id,title,village_id) VALUES('c2a-test-20261019','C2a TEST course','c2a00000-0000-4000-8000-000000000001');
-  INSERT INTO public.teaching_projects(id,course_id,name,practice_village_id,stage,created_by) VALUES('c2a00000-0000-4000-8000-000000000002','c2a-test-20261019','C2a TEST project','c2a00000-0000-4000-8000-000000000001','design',owner_row.id);
+  -- Finished synthetic context avoids the global one-current-project slot.
+  -- Scene save/version RPCs use explicit context and permit completed projects.
+  INSERT INTO public.teaching_projects(id,course_id,name,practice_village_id,stage,created_by) VALUES('c2a00000-0000-4000-8000-000000000002','c2a-test-20261019','C2a TEST project','c2a00000-0000-4000-8000-000000000001','completed',owner_row.id);
   INSERT INTO public.course_groups(id,course_id,name,join_code,created_by,space_id) VALUES('c2a-test-group-20261019','c2a-test-20261019','C2a TEST group','C2A-TEST-'||replace(gen_random_uuid()::text,'-',''),owner_row.student_id||'::'||owner_row.display_name,'c2a-test-space-20261019');
   INSERT INTO public.planning_spaces(id,title,course_id,group_id,space_type,teaching_project_id,village_id,creator_name,readonly,edit_enabled) VALUES('c2a-test-space-20261019','C2a TEST space','c2a-test-20261019','c2a-test-group-20261019','group_plan','c2a00000-0000-4000-8000-000000000002','c2a00000-0000-4000-8000-000000000001','C2a TEST',false,true);
   INSERT INTO public.group_memberships(course_id,group_id,student_key,student_name,student_id,role) VALUES('c2a-test-20261019','c2a-test-group-20261019',member_row.student_id||'::'||member_row.display_name,member_row.display_name,member_row.student_id,'member');

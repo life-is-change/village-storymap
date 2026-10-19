@@ -17,11 +17,21 @@ test('approved synthetic context is isolated, idempotent, transactional and obey
    CREATE TABLE course_groups(id text PRIMARY KEY,course_id text REFERENCES courses,name text,join_code text UNIQUE,created_by text,space_id text);
    ALTER TABLE group_memberships ADD id bigserial PRIMARY KEY,ADD course_id text REFERENCES courses,ADD student_name text,ADD student_id text,ADD role text DEFAULT 'member',ADD UNIQUE(course_id,student_key),ADD FOREIGN KEY(group_id) REFERENCES course_groups;
    ALTER TABLE planning_spaces ADD creator_name text,ADD readonly boolean DEFAULT false,ADD edit_enabled boolean DEFAULT true,ADD expanded boolean DEFAULT true,ADD created_at timestamptz DEFAULT now(),ADD FOREIGN KEY(teaching_project_id) REFERENCES teaching_projects,ADD FOREIGN KEY(village_id) REFERENCES villages;`);
+  // Preserve the real source invariant and an already-open semester. The initial
+  // fixture implementation missed this partial unique index and failed in cloud.
+  const foundation=await readFile(new URL('../../supabase_SQL/Multi-Village Dual-Track Foundation.sql',import.meta.url),'utf8');
+  const oneCurrent=foundation.match(/create unique index if not exists teaching_projects_one_current_idx[\s\S]*?;/i)?.[0];assert.ok(oneCurrent);
+  await db.query(oneCurrent);
+  await db.query("INSERT INTO villages VALUES('e0000000-0000-4000-8000-000000000001','Existing village',true,'synthetic','draft','40000000-0000-4000-8000-000000000004');INSERT INTO teaching_projects VALUES('e0000000-0000-4000-8000-000000000002','course','Existing current project','e0000000-0000-4000-8000-000000000001','design','40000000-0000-4000-8000-000000000004')");
+  const beforeProjects=(await db.query('SELECT * FROM teaching_projects ORDER BY id')).rows;
   const before=await db.query('SELECT * FROM courses ORDER BY id');const read=await fixtureSQL(false),write=await fixtureSQL(true);
   assert.ok((await db.query(read)).some(r=>r.rows?.some(v=>v.data?.status==='empty')));assert.equal((await db.query('SELECT count(*) FROM group_memberships')).rows[0].count,'0');
   await db.query(`CREATE FUNCTION fail_test_context() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'synthetic failure';END$$;CREATE TRIGGER fail_test_context BEFORE INSERT ON group_memberships FOR EACH ROW EXECUTE FUNCTION fail_test_context()`);
   await assert.rejects(()=>db.query(write));await db.query('ROLLBACK');assert.equal((await db.query('SELECT 1 FROM courses WHERE id=$1',[course])).rowCount,0,'entire fixture rolls back');await db.query('DROP TRIGGER fail_test_context ON group_memberships');
   await db.query(write);await db.query(write);assert.equal((await db.query('SELECT count(*) FROM group_memberships')).rows[0].count,'1');
+  assert.equal((await db.query("SELECT stage FROM teaching_projects WHERE id='c2a00000-0000-4000-8000-000000000002'")).rows[0].stage,'completed','synthetic project must not occupy the one-current slot');
+  assert.deepEqual((await db.query("SELECT * FROM teaching_projects WHERE id<>'c2a00000-0000-4000-8000-000000000002' ORDER BY id")).rows,beforeProjects,'existing current project untouched');
+  assert.equal((await db.query("SELECT count(*) FROM teaching_projects WHERE stage NOT IN ('completed','archived')")).rows[0].count,'1');
   assert.deepEqual((await db.query("SELECT * FROM courses WHERE id<>$1 ORDER BY id",[course])).rows,before.rows,'existing course untouched');
   assert.equal((await db.query("SELECT count(*) FROM profiles WHERE student_id IN ('25213040','332')")).rows[0].count,'2','no new identities');
   await db.query((await readFile(new URL('../../supabase_SQL/Scene Edit Studio.sql',import.meta.url),'utf8')).split('insert into storage.buckets')[0]);

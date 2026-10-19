@@ -90,6 +90,8 @@ python3 linux/scripts/probe-scene-files.py
 
 `--check` 只读验证目标库、两个现有档案/Auth 用户和保留 ID；`--create` 明确在一个事务新增六类记录，标题均含 `C2a TEST`，几何为合成小方形，不复制原村庄数据。已有同名不同内容会拒绝，完整一致则只复核、不重复插入；不执行 UPDATE/DELETE 或删除重建。成功标记 `SCENE_FILES_TEST_CONTEXT_READY_NOT_ACCEPTED` 只表示上下文准备好。
 
+源数据库的 `teaching_projects_one_current_idx` 只允许一个未完成且未归档的教学项目。专用 TEST 项目使用 `completed` 状态，不占当前学期名额；既有教学项目及索引保持原样。这只是测试上下文的生命周期状态，不表示文件验收完成。原场景 RPC 支持明确指定此上下文，仍须走完整上传和版本探测。
+
 创建操作归档旧 C2a verification/acceptance 证明并保留私有 `test-context.json` 收据，随后必须重新 `--verify` 和真实账号上传探测。先输入管理员 `332` 的网站密码，再按提示输入成员 `25213040` 的网站密码；无需数据库密码或 Secret key。只有最后的 `SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER` 才表示完整内部验收通过。创建失败保留现场与私有日志，不自动清理重试。
 
 文件维护没有 HTTP 删除入口；有业务/历史引用的文件不会作为孤儿清理。GLB 单文件 50 MiB、贴图 10 MiB、PNG 符号 5 MiB、预览/俯视图 10 MiB；SVG 与外部资源 GLB 拒绝。调查照片、旧 group-models 库和村庄数据集的写入、任务桥接、最新数据同步、HTTPS 与正式切换不在本次交付范围。
