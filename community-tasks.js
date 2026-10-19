@@ -1,4 +1,7 @@
 ﻿(function () {
+  function localCall(deps,action,input={},write=false) {
+    return deps.services.community.execute('community.'+action,{...requireContext(deps),...input,...(write?{requestId:deps.uuid?deps.uuid():window.crypto.randomUUID()}: {})});
+  }
   function requireSupabase(deps) {
     const client = deps.getSupabaseClient();
     if (!client) throw new Error("当前未配置 Supabase。");
@@ -32,6 +35,7 @@
     },
 
     async listCommunityTasks(deps, spaceId) {
+      if(deps.services?.community)return localCall(deps,'listTasks');
       const context = requireContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !deps.getCommunityGameTablesReady()) return [];
@@ -58,6 +62,7 @@
     },
 
     async listCommunityTasksCached(deps, spaceId, options = {}) {
+      if(deps.services?.community)return localCall(deps,'listTasks');
       const { force = false } = options;
       const key = deps.getBuildingSpaceCacheKey(spaceId);
       const cache = deps.getCommunityTasksCache();
@@ -79,6 +84,7 @@
       targetLayerKey = null,
       targetObjectCode = null
     }) {
+      if(deps.services?.community)return localCall(deps,'createTask',{body:description,category:category||'',lng:lng==null?null:Number(lng),lat:lat==null?null:Number(lat),targetLayerKey,targetObjectCode},true);
       const context = requireContext(deps, spaceId);
       if (targetLayerKey && targetObjectCode) {
         await deps.assertSurveyDownstreamReady?.({
@@ -132,6 +138,7 @@
     },
 
     async deleteCommunityMessage(deps, messageId) {
+      if(deps.services?.community)return localCall(deps,'deleteMessage',{id:Number(messageId)},true);
       const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
@@ -156,6 +163,7 @@
     },
 
     async fetchMessageReplies(deps, messageId) {
+      if(deps.services?.community)return localCall(deps,'listReplies',{id:Number(messageId)});
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !messageId) return [];
@@ -177,6 +185,7 @@
     },
 
     async addMessageReply(deps, { messageId, authorName, content }) {
+      if(deps.services?.community)return localCall(deps,'addReply',{id:Number(messageId),body:content},true);
       const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId) throw new Error("参数不足");
@@ -217,6 +226,7 @@
     },
 
     async deleteMessageReply(deps, { messageId, replyId }) {
+      if(deps.services?.community)return localCall(deps,'deleteReply',{id:Number(messageId),replyId:String(replyId)},true);
       const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !replyId) throw new Error("参数不足");
@@ -244,6 +254,7 @@
     },
 
     async fetchMessageLikes(deps, messageId) {
+      if(deps.services?.community)return localCall(deps,'listLikes',{id:Number(messageId)});
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !messageId) return [];
@@ -265,6 +276,7 @@
     },
 
     async toggleMessageLike(deps, { messageId, likerName }) {
+      if(deps.services?.community)return localCall(deps,'react',{id:Number(messageId),reaction:'toggle'},true);
       const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !likerName) throw new Error("参数不足");
@@ -299,6 +311,7 @@
     },
 
     async toggleReplyLike(deps, { messageId, replyId, likerName }) {
+      if(deps.services?.community)return localCall(deps,'likeReply',{id:Number(messageId),replyId:String(replyId)},true);
       const context = requireContext(deps);
       const supabaseClient = requireSupabase(deps);
       if (!supabaseClient || !messageId || !replyId || !likerName) throw new Error("参数不足");
@@ -340,6 +353,7 @@
     },
 
     async awardCommunityPoints(deps, { userName, delta, reason, taskId, spaceId }) {
+      if(deps.services?.community)return {awarded:0,capped:false,serverManaged:true}; // Rewards commit with the verified lifecycle operation.
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !userName || !Number.isFinite(delta) || delta === 0) {
         return { awarded: 0, capped: false };
@@ -439,6 +453,7 @@
     },
 
     async transitionCommunityTaskStatus(deps, { taskRow, operatorName, nextStatus }) {
+      if(deps.services?.community)return localCall(deps,'transition',{id:Number(taskRow.id),status:nextStatus},true);
       const context = requireContext(deps, taskRow?.space_id);
       const supabaseClient = requireSupabase(deps);
       ensureCommunityGameReady(deps);
@@ -512,6 +527,7 @@
     },
 
     async getCurrentUserStats(deps, userName) {
+      if(deps.services?.community)return localCall(deps,'stats');
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !deps.getCommunityGameTablesReady() || !userName) return null;
       const { data, error } = await supabaseClient

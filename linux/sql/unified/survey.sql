@@ -23,7 +23,7 @@ END$$;
 CREATE FUNCTION api_private.survey_gate(p jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE layer text;kind text;BEGIN
  PERFORM api_private.assert_context(p);
  SELECT space_type INTO kind FROM public.planning_spaces WHERE id=p->>'spaceId';
- IF EXISTS(SELECT 1 FROM public.planning_spaces WHERE id=p->>'spaceId' AND readonly) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF NOT api_private.context_mutable((p->>'teachingProjectId')::uuid,(p->>'villageId')::uuid,p->>'spaceId') THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  layer:=CASE WHEN p->>'objectType' IN ('building','road','water') THEN p->>'objectType' ELSE coalesce(p->>'surveyLayerKey',p->>'targetLayerKey') END;
  IF kind='formal_shared' AND layer IN ('building','road','water') THEN
  PERFORM 1 FROM public.survey_feature_reviews WHERE teaching_project_id=(p->>'teachingProjectId')::uuid AND village_id=(p->>'villageId')::uuid AND space_id=p->>'spaceId' AND layer_key=layer AND object_code=coalesce(p->>'objectCode',p->>'targetObjectCode') AND geometry_status IN ('confirmed_unchanged','modified','added') AND NOT is_deleted FOR SHARE;

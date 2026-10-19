@@ -8,13 +8,24 @@ CREATE FUNCTION api_private.student_key() RETURNS text LANGUAGE sql STABLE SECUR
  SET search_path=pg_catalog,public,auth,pg_temp AS $$SELECT student_id||'::'||display_name FROM public.profiles WHERE id=auth.uid()$$;
 CREATE FUNCTION api_private.staff() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,api_private,pg_temp AS $$SELECT coalesce(api_private.current_role() IN ('teacher','admin'),false)$$;
+CREATE FUNCTION api_private.context_accessible(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
+ SELECT api_private.profile_status()='active' AND EXISTS(
+ SELECT 1 FROM public.planning_spaces s JOIN public.teaching_projects project ON project.id=s.teaching_project_id
+ WHERE s.id=sid AND s.teaching_project_id=pid AND s.village_id=vid AND s.space_type<>'legacy_unscoped'
+ AND (api_private.staff() OR s.owner_id=auth.uid() OR EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.student_key=api_private.student_key() AND (s.space_type IN ('practice_shared','formal_shared') OR m.group_id=s.group_id))))
+$$;
 CREATE FUNCTION api_private.assert_context(p jsonb) RETURNS void LANGUAGE plpgsql STABLE SECURITY DEFINER
- SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$BEGIN
- IF NOT EXISTS(SELECT 1 FROM public.planning_spaces s WHERE s.id=p->>'spaceId'
-   AND s.teaching_project_id=(p->>'teachingProjectId')::uuid AND s.village_id=(p->>'villageId')::uuid
-   AND (api_private.staff() OR s.owner_id=auth.uid() OR s.space_type IN ('practice_shared','formal_shared')
-     OR EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.group_id=s.group_id AND m.student_key=api_private.student_key()))) THEN RAISE EXCEPTION 'FORBIDDEN'; END IF;
+ SET search_path=pg_catalog,api_private,pg_temp AS $$BEGIN
+ IF NOT api_private.context_accessible((p->>'teachingProjectId')::uuid,(p->>'villageId')::uuid,p->>'spaceId') THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
 END$$;
+CREATE FUNCTION api_private.context_mutable(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$
+ SELECT api_private.profile_status()='active' AND EXISTS(SELECT 1 FROM public.planning_spaces s JOIN public.teaching_projects project ON project.id=s.teaching_project_id
+ WHERE s.id=sid AND s.teaching_project_id=pid AND s.village_id=vid AND s.readonly=false AND s.edit_enabled=true
+ AND s.space_type IN ('practice_shared','formal_shared','practice_personal','formal_personal','group_plan')
+ AND (api_private.staff() OR (s.space_type IN ('practice_personal','formal_personal') AND s.owner_id=auth.uid()) OR (s.space_type IN ('practice_shared','formal_shared') AND EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.student_key=api_private.student_key())) OR (s.space_type='group_plan' AND EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.course_id=project.course_id AND m.group_id=s.group_id AND m.student_key=api_private.student_key()))))
+$$;
 CREATE FUNCTION api_private.catalog_read(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE result jsonb; BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
@@ -29,7 +40,7 @@ CREATE FUNCTION api_private.catalog_read(a text,p jsonb) RETURNS jsonb LANGUAGE 
  SELECT coalesce(jsonb_agg(to_jsonb(e)),'[]') INTO result FROM (SELECT * FROM public.activity_events WHERE course_id=p->>'courseId' ORDER BY occurred_at DESC LIMIT least(coalesce((p->>'limit')::integer,100),200))e;
  WHEN 'catalog.getActiveContext' THEN result:=public.get_active_project_context();
  WHEN 'catalog.listVillages' THEN SELECT coalesce(jsonb_agg(to_jsonb(v)||jsonb_build_object('village_datasets',coalesce((SELECT jsonb_agg(to_jsonb(d)) FROM public.village_datasets d WHERE d.village_id=v.id AND (api_private.staff() OR d.status='published')),'[]'),'village_reality_models',coalesce((SELECT jsonb_agg(to_jsonb(r)) FROM public.village_reality_models r WHERE r.village_id=v.id AND (api_private.staff() OR r.status='published')),'[]'))),'[]') INTO result FROM (SELECT * FROM public.villages WHERE status='published' OR api_private.staff() ORDER BY name LIMIT 200)v;
- WHEN 'catalog.listSpaces' THEN SELECT coalesce(jsonb_agg(to_jsonb(s)),'[]') INTO result FROM (SELECT * FROM public.planning_spaces s WHERE s.teaching_project_id=(p->>'teachingProjectId')::uuid AND s.village_id=(p->>'villageId')::uuid AND (api_private.staff() OR s.owner_id=auth.uid() OR s.space_type IN ('practice_shared','formal_shared') OR EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.group_id=s.group_id AND m.student_key=api_private.student_key())) ORDER BY s.id LIMIT 200)s;
+ WHEN 'catalog.listSpaces' THEN SELECT coalesce(jsonb_agg(to_jsonb(s)),'[]') INTO result FROM (SELECT * FROM public.planning_spaces s WHERE s.teaching_project_id=(p->>'teachingProjectId')::uuid AND s.village_id=(p->>'villageId')::uuid AND api_private.context_accessible(s.teaching_project_id,s.village_id,s.id) ORDER BY s.id LIMIT 200)s;
  WHEN 'catalog.getSpace' THEN PERFORM api_private.assert_context(p);SELECT to_jsonb(s) INTO result FROM public.planning_spaces s WHERE s.id=p->>'spaceId';
  WHEN 'admin.listUsers' THEN IF api_private.current_role()<>'admin' THEN RAISE EXCEPTION 'FORBIDDEN';END IF;SELECT coalesce(jsonb_agg(to_jsonb(u)),'[]') INTO result FROM (SELECT id,student_id,display_name,role,gender,class_name,grade,disabled_at FROM public.profiles ORDER BY student_id LIMIT 500)u;
  WHEN 'admin.previewVillageRemoval' THEN IF api_private.current_role()<>'admin' THEN RAISE EXCEPTION 'FORBIDDEN';END IF;result:=public.get_village_removal_preview((p->>'villageId')::uuid);
@@ -93,8 +104,8 @@ CREATE FUNCTION api_private.catalog_bootstrap() RETURNS jsonb LANGUAGE plpgsql S
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  RETURN jsonb_build_object('profile',api_private.profile_self(),'courses',api_private.catalog_read('catalog.listCourses','{}'),
  'memberships',coalesce((SELECT jsonb_agg(to_jsonb(m)) FROM (SELECT * FROM public.group_memberships WHERE student_key=api_private.student_key() LIMIT 200)m),'[]'),
- 'spaces',coalesce((SELECT jsonb_agg(to_jsonb(s)) FROM (SELECT * FROM public.planning_spaces s WHERE api_private.staff() OR s.owner_id=auth.uid() OR s.space_type IN ('practice_shared','formal_shared') OR EXISTS(SELECT 1 FROM public.group_memberships m WHERE m.group_id=s.group_id AND m.student_key=api_private.student_key()) LIMIT 200)s),'[]'));
+ 'spaces',coalesce((SELECT jsonb_agg(to_jsonb(s)) FROM (SELECT * FROM public.planning_spaces s WHERE api_private.context_accessible(s.teaching_project_id,s.village_id,s.id) LIMIT 200)s),'[]'));
 END$$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA api_private FROM PUBLIC,anon;
-REVOKE EXECUTE ON FUNCTION api_private.student_key(),api_private.staff(),api_private.assert_context(jsonb),api_private.catalog_read(text,jsonb),api_private.catalog_write(text,jsonb),api_private.catalog_bootstrap() FROM authenticated,village_unified_login;
+REVOKE EXECUTE ON FUNCTION api_private.student_key(),api_private.staff(),api_private.assert_context(jsonb),api_private.context_accessible(uuid,uuid,text),api_private.context_mutable(uuid,uuid,text),api_private.catalog_read(text,jsonb),api_private.catalog_write(text,jsonb),api_private.catalog_bootstrap() FROM authenticated,village_unified_login;
 GRANT EXECUTE ON FUNCTION api_private.catalog_read(text,jsonb),api_private.catalog_write(text,jsonb),api_private.catalog_bootstrap() TO authenticated;

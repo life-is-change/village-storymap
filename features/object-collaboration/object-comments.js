@@ -4,6 +4,10 @@
   if (root) root.ObjectCommentsModule = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
   const INTERACTION_TYPE = "object_comment_interactions";
+  function localCall(deps,action,input={},write=false) {
+    const {teachingProjectId,villageId,spaceId}=requireContext(deps);
+    return deps.services.survey.execute('survey.'+action,{teachingProjectId,villageId,spaceId,...input,...(write?{requestId:deps.uuid?deps.uuid():globalThis.crypto.randomUUID()}: {})});
+  }
 
   function requireContext(deps) {
     const context = deps.getContext?.() || {};
@@ -75,6 +79,7 @@
   }
 
   async function list(deps, objectCode, objectType) {
+    if(deps.services?.survey)return localCall(deps,'listComments',{objectCode,objectType});
     const context = requireContext(deps);
     const client = deps.getClient();
     if (!client || !objectCode || !objectType) return [];
@@ -95,6 +100,7 @@
   }
 
   async function create(deps, { objectCode, objectType, layerKey = null, authorName, content }) {
+    if(deps.services?.survey)return localCall(deps,'addComment',{objectCode,objectType,surveyLayerKey:layerKey,body:content},true);
     const context = requireContext(deps);
     await deps.assertSurveyDownstreamReady?.({ objectCode, layerKey });
     const client = deps.getClient();
@@ -115,6 +121,7 @@
   }
 
   async function like(deps, commentId, actorName) {
+    if(deps.services?.survey)return localCall(deps,'likeComment',{commentId:Number(commentId)},true);
     const context = requireContext(deps);
     const client = deps.getClient();
     const current = await readInteraction(client, deps.editsTable, commentId, context);
@@ -122,6 +129,7 @@
   }
 
   async function reply(deps, commentId, authorName, content) {
+    if(deps.services?.survey)return localCall(deps,'replyComment',{commentId:Number(commentId),body:content},true);
     const context = requireContext(deps);
     const client = deps.getClient();
     const current = await readInteraction(client, deps.editsTable, commentId, context);

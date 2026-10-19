@@ -1,5 +1,9 @@
 ﻿(function () {
   const PHOTO_UPLOADER_MAP_KEY = "village_photo_uploader_map_v1";
+  function localCall(deps,action,input={},write=false) {
+    const {teachingProjectId,villageId,spaceId}=requireContext(deps);
+    return deps.services.survey.execute('survey.'+action,{teachingProjectId,villageId,spaceId,...input,...(write?{requestId:deps.uuid?deps.uuid():window.crypto.randomUUID()}: {})});
+  }
 
   function normalizeIdentityName(deps, name) {
     if (deps && typeof deps.normalizeIdentityName === "function") {
@@ -88,6 +92,7 @@
 
   const api = {
     async fetchObjectEdits(deps, sourceCode, objectType) {
+      if(deps.services?.survey)return localCall(deps,'getAttributes',{objectCode:sourceCode,objectType});
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !sourceCode || !objectType) return null;
@@ -111,6 +116,7 @@
     },
 
     async saveObjectEdits(deps, sourceCode, objectType, payload, surveyLayerKey = null) {
+      if(deps.services?.survey)return localCall(deps,'saveAttributes',{objectCode:sourceCode,objectType,data:payload,surveyLayerKey},true);
       const context = requireContext(deps);
       const normalizedSurveyLayerKey = normalizeSurveyLayerKey(surveyLayerKey);
       await assertSurveyDownstreamReady(deps, {
@@ -219,6 +225,10 @@
     },
 
     async fetchObjectPhotos(deps, sourceCode, objectType) {
+      if(deps.services?.survey){
+        const rows=await localCall(deps,'listPhotos',{objectCode:sourceCode,objectType});
+        return Promise.all(rows.map(async row=>({...row,photo_url:await deps.services.files.resolveFileUrl(row.fileId)})));
+      }
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !sourceCode || !objectType) return [];
@@ -280,6 +290,10 @@
     },
 
     async uploadObjectPhoto(deps, file, sourceCode, objectType, uploadedBy, surveyLayerKey = null) {
+      if(deps.services?.survey){
+        const {teachingProjectId,villageId,spaceId}=requireContext(deps);
+        return deps.services.files.uploadPhoto({teachingProjectId,villageId,spaceId,objectCode:sourceCode,objectType,surveyLayerKey},file);
+      }
       const context = requireContext(deps);
       const normalizedSurveyLayerKey = normalizeSurveyLayerKey(surveyLayerKey);
       await assertSurveyDownstreamReady(deps, {
@@ -356,6 +370,7 @@
     },
 
     async deleteObjectPhoto(deps, photoRecord) {
+      if(deps.services?.survey)return deps.services.survey.execute('survey.deletePhoto',{photoId:Number(photoRecord.id),requestId:deps.uuid?deps.uuid():window.crypto.randomUUID()});
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {

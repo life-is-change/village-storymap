@@ -61,11 +61,19 @@
     return context;
   }
 
-  function createSurveyAdminController({ root: panelRoot, supabaseClient, notify } = {}) {
-    if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
+  function createSurveyAdminController({ root: panelRoot, supabaseClient, services, uuid=()=>globalThis.crypto.randomUUID(), notify } = {}) {
+    if (!supabaseClient && !services) throw new Error("SUPABASE_REQUIRED");
     let currentContext = null;
     let listenersBound = false;
     async function rpc(name, args) {
+      if(services?.survey){
+        const context={teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id,spaceId:args.p_space_id};
+        if(name==='get_shared_survey_dashboard')return services.survey.execute('survey.dashboard',context);
+        if(name==='list_shared_survey_features')return services.survey.execute('survey.listFeatures',{...context,layerKey:args.p_layer_key,geometryStatus:args.p_geometry_status,actorId:args.p_actor_id});
+        if(name==='restore_survey_feature_version')return services.survey.execute('survey.restoreVersion',{...context,layerKey:args.p_layer_key,objectCode:args.p_object_code,versionId:args.p_feature_version_id,revision:args.p_expected_revision,requestId:uuid()});
+        if(name==='freeze_shared_survey_snapshot')return services.survey.execute('survey.freezeSnapshot',{...context,label:args.p_version_name,description:args.p_description,recommendedForGroups:args.p_recommended_for_groups,requestId:uuid()});
+        throw new Error('UNSUPPORTED_OPERATION');
+      }
       const response = await supabaseClient.rpc(name, args);
       if (response?.error) throw response.error;
       return response?.data;
@@ -131,6 +139,7 @@
       },
       async loadHistory(input) {
         const context = requireContext(input);
+        if(services?.survey)return services.survey.execute('survey.history',{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:context.spaceId,layerKey:input.layerKey,objectCode:input.objectCode});
         const response = await supabaseClient.from("feature_versions")
           .select("id,action,created_at,created_by,created_by_user_id")
           .eq("teaching_project_id", context.teachingProjectId)

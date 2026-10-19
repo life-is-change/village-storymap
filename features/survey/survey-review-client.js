@@ -36,7 +36,16 @@
     return response?.data ?? null;
   }
 
-  function createSurveyReviewClient({ supabaseClient, getContext }) {
+  function createSurveyReviewClient({ supabaseClient, services, getContext, uuid=()=>globalThis.crypto.randomUUID() }) {
+    if(services?.survey){
+      const call=(action,input={},write=false)=>services.survey.execute('survey.'+action,{...requireSharedContext(getContext),...input,...(write?{requestId:uuid()}: {})});
+      return {
+        initializeReviews(datasetId,items){return call('initializeReviews',{datasetId,items},true);},
+        listReviews(){return call('listReviews');},
+        getReview(layerKey,objectCode){return call('getReview',requireTarget(layerKey,objectCode));},
+        confirmGeometry(input){return call('confirmGeometry',{...requireTarget(input.layerKey,input.objectCode),revision:input.expectedRevision,lockToken:input.lockToken},true);}
+      };
+    }
     if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
 
     function contextualQuery() {
