@@ -18,3 +18,8 @@ test('revocation ends a stream before another event, and backpressure has a dead
  await assert.rejects(stream.next(),{code:'FORBIDDEN'});const next=await service.open({...identity,userId:'20000000-0000-4000-8000-000000000002'},[context],null).catch(e=>e);assert.equal(next.code,'FORBIDDEN');
  allowed=true;const slow=await service.open(identity,[context],null);clock+=30001;assert.equal((await slow.next()).done,true);await service.close();
 });
+test('the global stream budget stays at 32 with no permanently borrowed clients',async()=>{
+ let borrowed=0;const service=api.createEventService({database:{async withIdentity(i,fn){borrowed++;try{return await fn({async query(){return {rows:[{data:{cursor:'0',refresh:true,events:[]}}]};}});}finally{borrowed--;}}}});
+ for(let i=0;i<32;i++)await service.open({...identity,userId:String(i)},[context]);
+ assert.equal(borrowed,0);await assert.rejects(service.open({...identity,userId:'new'},[context]),{code:'RATE_LIMITED'});await service.close();
+});
