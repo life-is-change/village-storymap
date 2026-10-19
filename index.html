@@ -341,6 +341,9 @@
   <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 启动；3D 脚本进入 3D 时再按需加载 -->
   <script defer src="features/auth/supabase-auth-model.js?v=20261008-entry-auth-lock"></script>
   <script defer src="features/auth/access-control.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="deployment-config.js"></script>
+  <script defer src="features/data/deployment-mode.js"></script>
+  <script defer src="features/auth/deployment-profile.js"></script>
   <script defer src="auth-system.js?v=20261008-entry-auth-lock"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>

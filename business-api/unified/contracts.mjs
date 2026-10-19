@@ -10,6 +10,7 @@ const sampleUuid = 'a0000000-0000-4000-8000-000000000001';
 const field = (check,example,required=true) => Object.freeze({check,example,required});
 const optional = f => field(f.check,f.example,false);
 const str = (max=200,example='TEST') => field(value=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!/[\x00-\x1f\x7f]/.test(value),example);
+const displayField = max => field(value=>typeof value==='string'&&value.length<=max&&!/[\x00-\x1f\x7f]/.test(value),'');
 const id = field(value=>typeof value==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,199}$/.test(value),'test-id');
 const uuid = field(value=>typeof value==='string'&&UUID.test(value)&&value===value.toLowerCase(),sampleUuid);
 const integer = (min=0,max=Number.MAX_SAFE_INTEGER) => field(value=>Number.isSafeInteger(value)&&value>=min&&value<=max,min);
@@ -25,13 +26,13 @@ const definitions = Object.create(null);
 function add(action,fields,readOnly,source,path) {
   if(Object.hasOwn(definitions,action)) throw Error('DUPLICATE_OPERATION');
   const [domain,name]=action.split('.');
-  const prefix={identity:'',catalog:'spaces',survey:'survey',planning:'planning',personal:'personal',models:'models',community:'community',mc:'mc',tasks:'tasks',admin:'admin'}[domain];
+  const prefix={identity:'identity',catalog:'spaces',survey:'survey',planning:'planning',personal:'personal',models:'models',community:'community',mc:'mc',tasks:'tasks',admin:'admin'}[domain];
   definitions[action]=Object.freeze({fields:Object.freeze({...fields}),readOnly,source,path:'/api/v1'+(path??('/'+prefix+'/'+name.replace(/[A-Z]/g,v=>'-'+v.toLowerCase()))),method:domain==='identity'&&readOnly?'GET':'POST'});
 }
 add('identity.me',{},true,'auth-system.js:loadProfile','/me');
 add('identity.bootstrap',{},true,'app.js:startup; auth-system.js:loadProfile','/bootstrap');
 add('identity.ensureProfile',{},false,'auth-system.js:register');
-add('identity.updateProfile',{displayName:optional(str(20)),gender:optional(str(12)),className:optional(str(30)),grade:optional(str(20))},false,'auth-system.js:updateProfile');
+add('identity.updateProfile',{displayName:optional(str(20)),gender:optional(displayField(12)),className:optional(displayField(30)),grade:optional(displayField(20))},false,'auth-system.js:updateProfile');
 add('admin.listUsers',{},true,'supabase/functions/admin-delete-user; auth-system.js');
 add('admin.disableUser',{userId:uuid,...replay},false,'supabase/functions/admin-delete-user (local business disable only)');
 

@@ -13,6 +13,7 @@ export function poolOptions(config) {
 function safeError(error){
   if(error?.code==='42501')return fault('FORBIDDEN');
   const known=['UNAUTHORIZED','FORBIDDEN','PROFILE_NOT_SYNCED','PROFILE_DISABLED','REVISION_CONFLICT','INVALID_INPUT','NOT_FOUND','PAYLOAD_TOO_LARGE','NOT_IMPLEMENTED'];
+  if(error?.code==='P0001'&&known.includes(error.message))return fault(error.message);
   if(known.includes(error?.code)){
     const result=fault(error.code);
     if(error.code==='REVISION_CONFLICT'&&Number.isSafeInteger(error.remoteRevision)&&error.remoteRevision>=0)result.remoteRevision=error.remoteRevision;

@@ -36,6 +36,16 @@ function runtime(options = {}) {
   const window = { VillageSupabaseClient: client, SupabaseAuthModel: {
     profileToLegacyUser(user, row) { return { authUserId: user.id, studentId: row.student_id, name: row.display_name, role: row.role }; }
   }, addEventListener() {}, dispatchEvent() {} };
+  if (options.localProfile) {
+    window.VILLAGE_DEPLOYMENT = {mode:'aliyun'};
+    window.location = {origin:'https://platform.example'};
+    window.DeploymentProfileModule = {createDeploymentProfileClient() {
+      return {instanceId:'aliyun-test', async load() {
+        if (options.disabled) throw Object.assign(Error('PROFILE_DISABLED'),{code:'PROFILE_DISABLED'});
+        return {...profile,display_name:'Local name'};
+      }};
+    }};
+  }
   const sandbox = { window, localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
     document: { getElementById() { return null; } }, console: { warn() {}, error() {} },
     CustomEvent: class {}, setTimeout, clearTimeout };
@@ -74,4 +84,13 @@ test('session recovery failure settles readiness instead of leaving the entry qu
   const env = runtime({ sessionError: true });
   await settles(env.api.ready);
   assert.equal(env.api.getCurrentUser(), null);
+});
+
+test('Aliyun startup reads local profile authority and never queries source profile tables',async()=>{
+ const env=runtime({localProfile:true,emitDuringSession:true});await settles(env.api.ready);
+ assert.equal(env.api.getCurrentUser().name,'Local name');assert.equal(env.getQueries(),0);
+});
+test('local disabled account cannot fall back to an active source profile',async()=>{
+ const env=runtime({localProfile:true,disabled:true});await settles(env.api.ready);
+ assert.equal(env.api.getCurrentUser(),null);assert.equal(env.getQueries(),0);
 });

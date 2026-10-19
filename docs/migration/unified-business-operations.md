@@ -8,8 +8,8 @@
 | --- | --- | --- | --- | --- | --- |
 | `identity.me` | `GET /api/v1/me` | 读 |  | auth-system.js:loadProfile | DTO: unified-contracts.test.mjs |
 | `identity.bootstrap` | `GET /api/v1/bootstrap` | 读 |  | app.js:startup; auth-system.js:loadProfile | DTO: unified-contracts.test.mjs |
-| `identity.ensureProfile` | `POST /api/v1//ensure-profile` | 写 |  | auth-system.js:register | DTO: unified-contracts.test.mjs |
-| `identity.updateProfile` | `POST /api/v1//update-profile` | 写 | displayName, gender, className, grade | auth-system.js:updateProfile | DTO: unified-contracts.test.mjs |
+| `identity.ensureProfile` | `POST /api/v1/identity/ensure-profile` | 写 |  | auth-system.js:register | DTO: unified-contracts.test.mjs |
+| `identity.updateProfile` | `POST /api/v1/identity/update-profile` | 写 | displayName, gender, className, grade | auth-system.js:updateProfile | DTO: unified-contracts.test.mjs |
 | `admin.listUsers` | `POST /api/v1/admin/list-users` | 读 |  | supabase/functions/admin-delete-user; auth-system.js | DTO: unified-contracts.test.mjs |
 | `admin.disableUser` | `POST /api/v1/admin/disable-user` | 写 | userId, requestId | supabase/functions/admin-delete-user (local business disable only) | DTO: unified-contracts.test.mjs |
 | `catalog.listCourses` | `POST /api/v1/courses/list-courses` | 读 |  | features/course/course-service.js;features/villages/village-client.js -> courses | DTO: unified-contracts.test.mjs |

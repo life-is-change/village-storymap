@@ -39,3 +39,11 @@ test('village draft contracts preserve source options and use the real publish-m
  assert.doesNotThrow(()=>api.parseOperation('admin.publishRealityModel',{modelId:context.villageId,requestId}));
  assert.throws(()=>api.parseOperation('admin.publishRealityModel',{villageId:context.villageId,requestId}),{code:'INVALID_INPUT'});
 });
+test('profile can clear optional display fields without accepting a role or changing student identity',()=>{
+ assert.doesNotThrow(()=>api.parseOperation('identity.updateProfile',{gender:'',className:'',grade:''}));
+ assert.throws(()=>api.parseOperation('identity.updateProfile',{studentId:'other'}),{code:'INVALID_INPUT'});
+});
+test('identity mutation routes have one unambiguous path separator',()=>{
+ assert.equal(api.OPERATIONS['identity.ensureProfile'].path,'/api/v1/identity/ensure-profile');
+ assert.equal(api.OPERATIONS['identity.updateProfile'].path,'/api/v1/identity/update-profile');
+});

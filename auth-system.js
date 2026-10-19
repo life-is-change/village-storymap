@@ -28,6 +28,22 @@
 
   if (supabaseClient) window.VillageSupabaseClient = supabaseClient;
 
+  let deploymentProfile = null;
+  let deploymentError = null;
+  try {
+    if (window.VILLAGE_DEPLOYMENT?.mode === 'aliyun' && !window.DeploymentProfileModule) throw new Error('INVALID_DEPLOYMENT');
+    deploymentProfile = window.DeploymentProfileModule?.createDeploymentProfileClient({
+      config: window.VILLAGE_DEPLOYMENT,
+      origin: window.location?.origin,
+      getAccessToken: async () => {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) throw error;
+        return data?.session?.access_token;
+      }
+    }) || null;
+  } catch (error) { deploymentError = error; }
+  const userCacheKey = deploymentProfile ? USER_CACHE_KEY + ':' + deploymentProfile.instanceId : USER_CACHE_KEY;
+
   let currentUser = loadCachedUser();
   let authModalOverlay = null;
   let authMode = "login";
@@ -42,7 +58,8 @@
 
   function loadCachedUser() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(USER_CACHE_KEY) || "null");
+      if (deploymentError) return null;
+      const parsed = JSON.parse(localStorage.getItem(userCacheKey) || "null");
       return parsed && parsed.authUserId && parsed.studentId ? parsed : null;
     } catch (_) {
       return null;
@@ -51,10 +68,10 @@
 
   function cacheUser(user) {
     try {
-      if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-      else localStorage.removeItem(USER_CACHE_KEY);
+      if (user) localStorage.setItem(userCacheKey, JSON.stringify(user));
+      else localStorage.removeItem(userCacheKey);
     } catch (_) {
-      // Local storage is only a display cache; Supabase remains authoritative.
+      // Local storage is only a display cache; the selected server is authoritative.
     }
   }
 
@@ -92,6 +109,8 @@
 
   async function loadProfile(authUser, retryCount = 3) {
     if (!supabaseClient || !authUser?.id) return null;
+    if (deploymentError) throw deploymentError;
+    if (deploymentProfile) return model.profileToLegacyUser(authUser, await deploymentProfile.load(authUser));
     let lastError = null;
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       const { data, error } = await supabaseClient
@@ -108,6 +127,9 @@
   }
 
   function translateAuthError(error, fallback) {
+    if (error?.code === 'PROFILE_DISABLED') return '此站点账号已停用，请联系管理员';
+    if (error?.code === 'AUTH_UNAVAILABLE') return '登录认证服务暂时不可用，请稍后重试';
+    if (error?.code === 'DB_UNAVAILABLE') return '此站点资料服务暂时不可用，请稍后重试';
     const text = String(error?.message || "").toLowerCase();
     if (text.includes("invalid login credentials")) return "学号或密码不正确";
     if (text.includes("user already registered")) return "该学号已注册，请直接登录";
@@ -159,7 +181,9 @@
       };
     }
 
-    const user = await loadProfile(data.user);
+    let user;
+    try { user = await loadProfile(data.user); }
+    catch (error) { setCurrentUser(null); return {success:false,message:translateAuthError(error,'本站用户资料暂时不可用')}; }
     if (!user) return { success: false, message: "账号已创建，但用户资料尚未就绪，请稍后重新登录" };
     setCurrentUser(user);
     return { success: true, message: "注册并登录成功", user, isNew: true };
@@ -182,7 +206,9 @@
     });
     if (error) return { success: false, message: translateAuthError(error, "登录失败") };
 
-    const user = await loadProfile(data.user);
+    let user;
+    try { user = await loadProfile(data.user); }
+    catch (error) { setCurrentUser(null); return {success:false,message:translateAuthError(error,'本站用户资料暂时不可用')}; }
     if (!user) {
       await supabaseClient.auth.signOut();
       return { success: false, message: "未找到该账号的用户资料，请联系管理员" };
@@ -224,6 +250,17 @@
       payload.grade = String(profileDetails.grade || "").trim().slice(0, 20);
     }
     if (!Object.keys(payload).length) return { success: true, message: "资料无变化", user: currentUser };
+
+    if (deploymentError) return {success:false,message:'站点配置未就绪，请联系管理员'};
+    if (deploymentProfile) {
+      try {
+        const row = await deploymentProfile.update(payload);
+        if (row.id !== currentUser.authUserId) throw new Error('UNAUTHORIZED');
+        const user = model.profileToLegacyUser({id:currentUser.authUserId},row);
+        setCurrentUser(user);
+        return {success:true,message:'资料已保存',user};
+      } catch (error) { return {success:false,message:translateAuthError(error,'资料保存失败，请稍后重试')}; }
+    }
 
     const { error } = await supabaseClient.from("profiles").update(payload).eq("id", currentUser.authUserId);
     if (error) return { success: false, message: "资料保存失败，请稍后重试" };
