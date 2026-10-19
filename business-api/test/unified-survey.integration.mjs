@@ -18,6 +18,8 @@ test('native survey gate, UUID ownership, revisions, tombstones and cross-space 
   const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A',objectCode:'B1',objectType:'building'},context={teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:c.spaceId};let seq=0;
   const write=(action,input,user=USERS.student)=>service.execute(testIdentity(user),action,{...input,requestId:'c0000000-0000-4000-8000-'+String(++seq).padStart(12,'0')});
   try{
+   await assert.rejects(service.execute(testIdentity(USERS.other),'survey.getAttributes',c),{code:'FORBIDDEN'},'shared space still requires course membership');
+   await setup.query("INSERT INTO group_memberships(course_id,group_id,student_key,student_name,student_id) VALUES('course','group-a','b::B','B','b')");
    await assert.rejects(write('survey.saveAttributes',{...c,surveyLayerKey:'building',data:{name:'Blocked'}}),{code:'FORBIDDEN'});
    await setup.query("UPDATE survey_feature_reviews SET geometry_status='confirmed_unchanged'");
    await write('survey.saveAttributes',{...c,surveyLayerKey:'building',data:{name:'Local'}});assert.equal((await service.execute(testIdentity(),'survey.getAttributes',c)).name,'Local');
