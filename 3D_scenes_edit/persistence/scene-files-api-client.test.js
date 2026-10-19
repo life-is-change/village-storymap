@@ -35,3 +35,8 @@ test('committed replay with equal-size changed binary must fail before returning
  const result=await client.uploadBundle({requestId:'10000000-0000-4000-8000-000000000002',context:{kind:'model'},record:{displayName:'same'},files:[{role:'display',file:new Blob(['new'],{type:'model/gltf-binary'})}]});
  assert.equal(result.code,'UPLOAD_CONFLICT');assert.equal(puts,1);assert.equal(commits,0);
 });
+test('logout or identity changes reject late JSON responses and cancel in-flight work',async()=>{
+ let release,identity='one';const gate=new Promise(r=>release=r);let signal;
+ const client=api.createSceneFilesClient({baseUrl:'http://127.0.0.1/api/v1/scene-files',getAccessToken:async()=> 'token',getIdentityKey:()=>identity,fetchImpl:async(url,o)=>{signal=o.signal;await gate;return json({id:'old-user-project'});}});
+ const pending=client.dataClient.loadProject('p');await new Promise(r=>setImmediate(r));identity='two';client.dispose();release();assert.equal((await pending).ok,false);assert.equal(signal.aborted,true);
+});

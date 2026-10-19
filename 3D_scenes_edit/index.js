@@ -329,7 +329,7 @@
           if (!refs.has(asset.id) || asset.topViewUrl || asset.fileType !== "glb") continue;
           try {
             let url = null;
-            if (asset.topViewPath && options.assetResolver) url = await options.assetResolver({ storagePath: asset.topViewPath });
+            if (asset.topViewPath && options.assetResolver) url = await options.assetResolver(asset, {variant:'top'});
             else if (options.topViewGenerator) url = await options.topViewGenerator(asset);
             if (url) {
               asset.topViewUrl = url;
@@ -491,7 +491,12 @@
         return { ok: true, mode };
       },
       async createMilestone() {
-        await autosave.flush();
+        let saved;
+        for(let attempt=0;attempt<4;attempt++){
+          saved=await autosave.flush();if(!saved.ok)return saved;
+          if(!['dirty','saving'].includes(autosave.getState().status))break;
+        }
+        if(['dirty','saving','offline','conflict'].includes(autosave.getState().status))return {ok:false,code:'DRAFT_NOT_SAVED'};
         const result = await options.onMilestone?.({ document, client, context }) || { ok: false, code: "MILESTONE_DIALOG_UNAVAILABLE" };
         if (result.ok && client.listVersions) {
           const listed = await client.listVersions(document.projectId);
@@ -599,7 +604,7 @@
     };
     const dispatch = createActionDispatcher({ controller, lifecycle });
     if (!document.selectionBoundary) controller.setTool("draw-boundary");
-    const dispose = () => { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); };
+    const dispose = () => { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); options.services?.dispose?.(); };
     try {
       await lifecycle.switchMode("3d");
       panel.focus();

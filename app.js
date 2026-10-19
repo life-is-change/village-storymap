@@ -3105,6 +3105,10 @@ function getSceneStudioTopViewThumbnailer() {
 }
 
 async function resolveSceneStudioAssetUrl(asset, options = {}) {
+  if (options.variant === 'top' && (asset?.topViewPath || asset?.metadata?.topViewPath)) {
+    const {data,error}=await supabaseClient.storage.from('scene-assets').createSignedUrl(asset.topViewPath || asset.metadata.topViewPath,3600);
+    if(error)throw error;return data.signedUrl;
+  }
   if (options.variant === 'low' && asset?.metadata?.lowStoragePath) {
     const {data,error}=await supabaseClient.storage.from('scene-assets').createSignedUrl(asset.metadata.lowStoragePath,3600);
     if(error)throw error;return data.signedUrl;
@@ -3116,15 +3120,15 @@ async function resolveSceneStudioAssetUrl(asset, options = {}) {
   return data.signedUrl;
 }
 
-async function generateSceneStudioTopView(assetOrFile) {
+async function generateSceneStudioTopView(assetOrFile, services = null) {
   const thumbnailer = getSceneStudioTopViewThumbnailer();
   if (!thumbnailer) return { ok: false, code: "TOP_VIEW_RENDERER_UNAVAILABLE", message: "俯视图渲染器不可用" };
   if (typeof assetOrFile?.arrayBuffer === "function") return thumbnailer.generate(assetOrFile);
-  return thumbnailer.generateFromUrl(await resolveSceneStudioAssetUrl(assetOrFile));
+  return thumbnailer.generateFromUrl(await (services ? services.resolveAssetUrl(assetOrFile) : resolveSceneStudioAssetUrl(assetOrFile)));
 }
 
-async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
-  if (!supabaseClient?.storage) return { ok: false, code: "STORAGE_UNAVAILABLE", message: "素材存储服务不可用" };
+async function uploadSceneStudioAsset({ assetLibrary, client, context, services = null }) {
+  if (!services && !supabaseClient?.storage) return { ok: false, code: "STORAGE_UNAVAILABLE", message: "素材存储服务不可用" };
   const selectedFiles = await chooseSceneStudioFile();
   const file = selectedFiles?.file;
   if (!file) return { ok: false, code: "CANCELLED" };
@@ -3136,8 +3140,8 @@ async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
     validate: (value) => allowed.includes(String(value).trim()) ? "" : "请输入列表中的英文类别"
   });
   if (category === null) return { ok: false, code: "CANCELLED" };
-  const storageBucket = supabaseClient.storage.from("scene-assets");
-  const library = assetLibrary.createAssetLibrary({
+  const storageBucket = services ? null : supabaseClient.storage.from("scene-assets");
+  const library = services ? {upload:(file,input)=>services.uploadAsset({file,...input})} : assetLibrary.createAssetLibrary({
     dataClient: client,
     storage: {
       upload: (path, data, options) => storageBucket.upload(path, data, options),
@@ -3162,10 +3166,10 @@ async function uploadSceneStudioAsset({ assetLibrary, client, context }) {
   const asset = assetLibrary.toCatalogAsset(result.data);
   if (asset.topViewPath) {
     try {
-      asset.topViewUrl = await resolveSceneStudioAssetUrl({ storagePath: asset.topViewPath });
+      asset.topViewUrl = services ? await services.resolveAssetUrl(asset,{variant:'top'}) : await resolveSceneStudioAssetUrl({ storagePath: asset.topViewPath });
     } catch (error) {
       console.warn("读取已上传的二维俯视图失败，将暂时使用本地预览：", error);
-      if (topView.ok) asset.topViewUrl = URL.createObjectURL(topView.blob);
+      if (topView.ok) asset.topViewUrl = services ? services.createObjectURL(topView.blob) : URL.createObjectURL(topView.blob);
     }
   }
   showToast(context.scopeKind === "admin_sandbox" ? "轻量版本已自动准备，素材已加入你的个人素材库，可在场景中放置" : "轻量版本已自动准备，素材已加入本小组素材库，可在场景中放置", "success");
@@ -3193,7 +3197,7 @@ async function captureSceneStudioPreview(context, projectId) {
   }
 }
 
-async function createSceneStudioMilestone({ document: sceneDocument, client, context }) {
+async function createSceneStudioMilestone({ document: sceneDocument, client, context, services = null }) {
   const label = await customPrompt("为当前阶段命名（1–40 个字符）", "方案里程碑", "创建里程碑", {
     maxLength: 40,
     validate: (value) => String(value).trim().length >= 1 ? "" : "里程碑名称不能为空"
@@ -3201,8 +3205,18 @@ async function createSceneStudioMilestone({ document: sceneDocument, client, con
   if (label === null) return { ok: false, code: "CANCELLED" };
   const description = await customPrompt("可选：说明本阶段的设计意图或主要变化", "", "里程碑说明", { maxLength: 500, required: false });
   if (description === null) return { ok: false, code: "CANCELLED" };
-  const previewPath = await captureSceneStudioPreview(context, sceneDocument.projectId);
-  const result = await client.createVersion({ document: sceneDocument, label: label.trim(), description: description.trim(), previewPath });
+  let result;
+  if (services) {
+    let previewBlob = null;
+    sceneStudioMount?.classList?.add('is-capturing');
+    try { const canvas = sceneStudioMount?.querySelector?.('canvas');if(canvas?.toBlob)previewBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png',.86)); }
+    catch { previewBlob = null; }
+    finally { sceneStudioMount?.classList?.remove('is-capturing'); }
+    result=await services.createMilestone({document:sceneDocument,label:label.trim(),description:description.trim(),previewBlob});
+  } else {
+    const previewPath = await captureSceneStudioPreview(context, sceneDocument.projectId);
+    result = await client.createVersion({ document: sceneDocument, label: label.trim(), description: description.trim(), previewPath });
+  }
   showToast(result.ok ? "里程碑已保存" : (result.message || "里程碑保存失败"), result.ok ? "success" : "error");
   return result;
 }
@@ -3269,6 +3283,7 @@ function renderSceneStudioViewport(model, root) {
 }
 
 function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
+  const sceneServices = window.VillageBusinessServices?.scene?.createServices({context,storage:localStorage});
   const ensureScene3D = window.SceneStudioStartupModule.create3DReadiness({
     load: ensureVillage3DLoaded,
     preparedApi: runtimeOptions.prepared3D || null
@@ -3276,6 +3291,7 @@ function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
   return {
     root: sceneStudioMount,
     context,
+    services: sceneServices,
     supabaseClient,
     map: planMap,
     ol: window.ol,
@@ -3291,8 +3307,8 @@ function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
       }
     },
     onClose: closeSceneStudioWorkspace,
-    onUploadAsset: uploadSceneStudioAsset,
-    onMilestone: createSceneStudioMilestone,
+    onUploadAsset: sceneServices ? args=>uploadSceneStudioAsset({...args,services:sceneServices}) : uploadSceneStudioAsset,
+    onMilestone: sceneServices ? args=>createSceneStudioMilestone({...args,services:sceneServices}) : createSceneStudioMilestone,
     onKeepLocalCopy: downloadSceneStudioLocalCopy,
     confirmAction: (message) => customConfirm(message),
     confirmBaselineUpgrade: () => customConfirm("平台现状数据已更新。是否保留旧方案，并基于新版现状另建一个方案分支？"),
@@ -3301,11 +3317,11 @@ function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
       window.setTimeout(() => void openSceneStudioWorkspace(), 0);
     },
     onStatus: (status) => showToast(status?.message || status?.code || "公共空间设计状态已更新", status?.level === "error" ? "error" : "info"),
-    assetResolver: resolveSceneStudioAssetUrl,
+    assetResolver: sceneServices ? (asset,options)=>sceneServices.resolveAssetUrl(asset,options) : resolveSceneStudioAssetUrl,
     topViewGenerator: async (asset) => {
-      const result = await generateSceneStudioTopView(asset);
+      const result = await generateSceneStudioTopView(asset,sceneServices);
       if (!result.ok) console.warn("二维素材俯视图生成失败：", asset?.id, result.code, result.message, result.stack || "");
-      return result.ok ? URL.createObjectURL(result.blob) : null;
+      return result.ok ? (sceneServices ? sceneServices.createObjectURL(result.blob) : URL.createObjectURL(result.blob)) : null;
     },
     ensure3D: async () => {
       const api = await ensureScene3D();
