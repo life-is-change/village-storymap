@@ -19,6 +19,8 @@ test('native ordinary files commit atomically, preserve model history and author
    const indexPath=join(root,'index.json');await writeFile(indexPath,JSON.stringify(index),{mode:0o600});
    db=createUnifiedDatabase(config);const store=await createBusinessFileStore({root:next,instanceId:'aliyun-files-test'}),legacyReader=await createStorageReader({root:legacy,indexPath});
    const files=createBusinessFilesService({database:db,store,legacyReader,spaceAvailable:async()=>10*1024**3}),models=createModelsService({database:db});
+   const personalContext={...c,spaceId:'a0000000-0000-4000-8000-000000000001'};
+   await db.withIdentity(testIdentity(),q=>q.query('SELECT api_private.event_read($1::jsonb,NULL)',[JSON.stringify([personalContext])]));
    for(const object of index.objects){const h=await files.read(testIdentity(USERS.admin),object.id);assert.equal(h.size,object.size);await h.close();}
    await setup.query("UPDATE object_photos SET space_id='B' WHERE photo_path=$1",[index.objects[0].name]);await assert.rejects(files.read(testIdentity(),index.objects[0].id),{code:'FORBIDDEN'});
    const request={requestId:randomUUID(),purpose:'photo',context:c,files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]};
