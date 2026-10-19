@@ -11,7 +11,7 @@ test('ordinary upload contracts fix file roles and never accept paths, owners or
 test('immutable file store rejects partial bytes, external GLB URIs, links and cross-instance reuse',async()=>{
  assert.equal(typeof storeAPI.createBusinessFileStore,'function');const root=await mkdtemp(join(tmpdir(),'village-business-files-'));
  try{const store=await storeAPI.createBusinessFileStore({root,instanceId:'aliyun-test'}),fileId=randomUUID(),bytes=png;
-  const input={fileId,role:'photo',size:bytes.length,mime:'image/png',extension:'png',stream:Readable.from([bytes])};const rec=await store.stage(input);await store.persist(fileId);const opened=await store.open(fileId,rec);assert.equal(opened.size,bytes.length);await opened.close();
+  const input={fileId,role:'photo',size:bytes.length,mime:'image/png',extension:'png',stream:Readable.from([bytes])};const rec=await store.stage(input);await store.persist(fileId);const opened=await store.open(fileId,rec);assert.equal(opened.size,bytes.length);const range=[];for await(const chunk of opened.stream({start:1,end:4}))range.push(chunk);assert.deepEqual(Buffer.concat(range),bytes.subarray(1,5));await opened.close();
   await assert.rejects(store.stage({...input,stream:Readable.from([bytes])}),{code:'UPLOAD_CONFLICT'});
   await assert.rejects(storeAPI.createBusinessFileStore({root,instanceId:'other-instance'}));
   await assert.rejects(store.stage({...input,fileId:randomUUID(),stream:Readable.from([bytes.subarray(0,8)])}),{code:'INVALID_FILE'});
