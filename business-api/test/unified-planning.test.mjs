@@ -11,3 +11,8 @@ test('planning actions borrow the same identity pool and never accept a remote R
  assert.equal((await service.execute({},'planning.acquireLock',{...c,layerKey:'building',objectCode:'B1'})).success,false);assert.match(calls[1][0],/api_private.planning_write/);
  await assert.rejects(service.execute({},'catalog.createGroup',{}),{code:'NOT_FOUND'});
 });
+
+test('baseline conflict DTO uses the actual reviewed source resolution names',async()=>{
+ const {parseOperation}=await import('../unified/contracts.mjs');
+ for(const resolution of ['keep_group','use_new_baseline','manual_merge'])assert.doesNotThrow(()=>parseOperation('planning.resolveConflict',{conflictId:c.teachingProjectId,resolution,payload:{},requestId:c.villageId}));
+});

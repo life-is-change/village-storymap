@@ -102,7 +102,7 @@ for(const [name,fields,readOnly,source] of [
  ['baselineState',context,true,'get_group_plan_baseline_state'],['previewBaseline',{...context,targetSnapshotId:uuid},true,'preview_group_baseline_update'],
  ['applyBaseline',{...context,targetSnapshotId:uuid,expectedBaseSnapshotId:uuid,...replay},false,'apply_group_baseline_update'],
  ['conflicts',{...context,includeResolved:optional(bool)},true,'group_baseline_conflicts'],
- ['resolveConflict',{conflictId:uuid,resolution:choice('keep_local','use_baseline','manual'),payload:optional(json),...replay},false,'resolve_group_baseline_conflict'],
+ ['resolveConflict',{conflictId:uuid,resolution:choice('keep_group','use_new_baseline','manual_merge'),payload:optional(json),...replay},false,'resolve_group_baseline_conflict'],
  ['restorePoints',context,true,'group_plan_restore_points'],['restorePoint',{restorePointId:uuid,...replay},false,'restore_group_plan_restore_point']
 ]) add('planning.'+name,fields,readOnly,'features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> '+source);
 for(const [name,fields,readOnly,source] of [

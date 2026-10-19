@@ -26,7 +26,23 @@
     return normalized;
   }
 
-  function createGroupBaselineClient({ supabaseClient, getContext } = {}) {
+  function createGroupBaselineClient({ supabaseClient, services, getContext, uuid=()=>globalThis.crypto.randomUUID() } = {}) {
+    if(services?.planning){
+      const call=(action,input={},write=false)=>{
+        const context=getContext();if((context.spaceType??context.space_type)!=='group_plan')throw new Error('GROUP_PLAN_SPACE_REQUIRED');
+        const {teachingProjectId,villageId,spaceId}=context;
+        return services.planning.execute('planning.'+action,{teachingProjectId,villageId,spaceId,...input,...(write?{requestId:uuid()}: {})});
+      };
+      return {
+        getState(){return call('baselineState');},
+        previewUpdate(input){return call('previewBaseline',input);},
+        applyUpdate(input){return call('applyBaseline',input,true);},
+        listConflicts({includeResolved=false}={}){return call('conflicts',{includeResolved});},
+        resolveConflict({conflictId,resolution,payload={}}){return services.planning.execute('planning.resolveConflict',{conflictId,resolution,payload,requestId:uuid()});},
+        listRestorePoints(){return call('restorePoints');},
+        restorePoint({restorePointId}){return services.planning.execute('planning.restorePoint',{restorePointId,requestId:uuid()});}
+      };
+    }
     if (!supabaseClient) throw new Error("SUPABASE_CLIENT_REQUIRED");
     if (typeof getContext !== "function") throw new Error("GROUP_CONTEXT_PROVIDER_REQUIRED");
 

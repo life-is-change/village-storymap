@@ -122,6 +122,7 @@
 
   function listLayerFeaturesFromDb(deps, spaceId, layerKey) {
     const context = resolveContext(deps, spaceId);
+    if(deps.services?.planning)return deps.services.planning.execute('planning.listFeatures',{...context,layerKey});
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listLayerFeaturesFromLocal(spaceId, layerKey));
 
@@ -156,6 +157,7 @@
 
   function listDeletedLayerFeatureCodesFromDb(deps, spaceId, layerKey) {
     const context = resolveContext(deps, spaceId);
+    if(deps.services?.planning)return deps.services.planning.execute('planning.listFeatures',{...context,layerKey,includeDeleted:true}).then(rows=>rows.filter(row=>row.is_deleted).map(row=>row.object_code));
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listDeletedLayerFeatureCodesFromLocal(spaceId, layerKey));
 
@@ -184,6 +186,7 @@
 
   function hasAnyLayerFeaturesInDb(deps, spaceId, layerKey) {
     const context = resolveContext(deps, spaceId);
+    if(deps.services?.planning)return deps.services.planning.execute('planning.listFeatures',{...context,layerKey}).then(rows=>rows.length>0);
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) return Promise.resolve(listLayerFeaturesFromLocal(spaceId, layerKey).length > 0);
 
@@ -355,6 +358,7 @@
     },
 
     async upsertBuildingFeatureToDb(deps, { spaceId, objectCode, objectName, geom, props = {} }) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
@@ -390,6 +394,7 @@
     },
 
     async upsertRoadFeatureToDb(deps, { spaceId, objectCode, objectName, geom, props = {} }) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
@@ -425,6 +430,7 @@
     },
 
     async upsertLayerFeatureToDb(deps, { spaceId, layerKey, objectCode, objectName, geom, props = {} }) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
 
@@ -460,6 +466,7 @@
     },
 
     async softDeleteBuildingFeatureInDb(deps, spaceId, objectCode) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
@@ -516,6 +523,7 @@
     },
 
     async softDeleteRoadFeatureInDb(deps, spaceId, objectCode) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
@@ -572,6 +580,7 @@
     },
 
     async softDeleteLayerFeatureInDb(deps, spaceId, layerKey, objectCode) {
+      if(deps.services?.planning)throw new Error('EDIT_SESSION_REQUIRED');
       const context = resolveContext(deps, spaceId);
       if (layerKey === "building") return api.softDeleteBuildingFeatureInDb(deps, spaceId, objectCode);
       if (layerKey === "road") return api.softDeleteRoadFeatureInDb(deps, spaceId, objectCode);
