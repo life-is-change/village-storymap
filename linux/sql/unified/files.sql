@@ -96,7 +96,7 @@ DECLARE s jsonb;f api_private.business_files;c jsonb;result jsonb;space public.p
  IF s->>'state'<>'ready' OR (s->>'expires_at')::timestamptz<=now() THEN RAISE EXCEPTION 'FILES_NOT_READY';END IF;c:=s->'context';
  IF EXISTS(SELECT 1 FROM api_private.business_files WHERE session_id=sid AND state<>'ready') THEN RAISE EXCEPTION 'FILES_NOT_READY';END IF;
  IF s->>'purpose'='photo' THEN
-  IF EXISTS(SELECT 1 FROM public.planning_spaces WHERE id=c->>'spaceId') THEN PERFORM api_private.survey_gate(c||p,p->>'surveyLayerKey');END IF;
+  IF EXISTS(SELECT 1 FROM public.planning_spaces WHERE id=c->>'spaceId') THEN PERFORM api_private.survey_gate(c||p);END IF;
   SELECT * INTO f FROM api_private.business_files WHERE session_id=sid AND role='photo';
   INSERT INTO public.object_photos(object_code,object_type,photo_url,photo_path,uploaded_by,survey_layer_key,teaching_project_id,village_id,space_id,file_id,local_actor_id)
    VALUES(p->>'objectCode',p->>'objectType','local-file:'||f.id,f.logical_path,public.current_profile_display_name(),p->>'surveyLayerKey',(c->>'teachingProjectId')::uuid,(c->>'villageId')::uuid,c->>'spaceId',f.id,auth.uid()) RETURNING to_jsonb(object_photos)||jsonb_build_object('fileId',f.id) INTO result;
@@ -135,7 +135,7 @@ DECLARE result jsonb;previous jsonb;asset public.group_model_assets;transform js
  WHEN 'models.place' THEN
   SELECT * INTO asset FROM public.group_model_assets WHERE id=(p->>'assetId')::uuid FOR UPDATE;
   IF NOT FOUND OR asset.archived_at IS NOT NULL OR NOT api_private.model_can_read(asset) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
-  IF NOT EXISTS(SELECT 1 FROM public.course_personal_spaces WHERE id::text=p->>'spaceId' AND owner_id=auth.uid()) THEN PERFORM api_private.survey_gate(p,'building');END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.course_personal_spaces WHERE id::text=p->>'spaceId' AND owner_id=auth.uid()) THEN PERFORM api_private.survey_gate(p||jsonb_build_object('surveyLayerKey','building'));END IF;
   transform:=coalesce(p->'transform','{}')-'lowStoragePath';
   IF EXISTS(SELECT 1 FROM jsonb_object_keys(transform) k WHERE k~*'(url|uri|path|storage|owner|fileId|assetId)') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF asset.local_metadata ? 'lowStoragePath' THEN transform:=transform||jsonb_build_object('lowStoragePath',asset.local_metadata->'lowStoragePath');END IF;
