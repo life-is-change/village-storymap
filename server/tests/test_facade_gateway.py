@@ -214,6 +214,55 @@ def test_storage_photo_has_ten_megabyte_stream_limit(monkeypatch, tmp_path):
         FacadeGateway(FakeSupabase(), http_client=http).download_photo(run, tmp_path / "source.jpg")
 
 
+def test_bridge_photo_uses_only_fixed_private_bucket_and_verified_signed_stream(monkeypatch, tmp_path):
+    import hashlib
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    content = b"\xff\xd8\xffprivate-photo"
+    digest = hashlib.sha256(content).hexdigest()
+    path = f"aliyun-test/photos/10000000-0000-4000-8000-000000000001/{digest}.jpg"
+    signed = []
+
+    class Bucket:
+        def create_signed_url(self, name, expires):
+            signed.append((name, expires))
+            return {"signedURL": f"https://project.supabase.co/storage/v1/object/sign/aliyun-task-inputs/{name}?token=opaque"}
+
+    class Storage:
+        def from_(self, bucket):
+            assert bucket == "aliyun-task-inputs"
+            return Bucket()
+
+    client = FakeSupabase()
+    client.storage = Storage()
+    row = run_row(photo_id=None, origin_instance_id="aliyun-test", source_photo_bucket="aliyun-task-inputs", source_photo_path=path,
+                  source_photo_sha256=digest, source_photo_size=len(content), source_photo_mime="image/jpeg")
+    http = FakeHttp([content])
+    run = FacadeRun.from_row(row)
+    output = FacadeGateway(client, http_client=http).download_photo(run, tmp_path / "source.jpg")
+    assert output.read_bytes() == content
+    assert signed == [(path, 60)]
+    assert http.calls[0][2]["follow_redirects"] is False
+    bad = FacadeRun.from_row({**row, "source_photo_sha256": "f" * 64})
+    with pytest.raises(ValueError, match="BRIDGE_PHOTO"):
+        FacadeGateway(client, http_client=http).download_photo(bad, tmp_path / "bad.jpg")
+    assert not (tmp_path / "bad.jpg").exists()
+
+
+@pytest.mark.parametrize("changes", [
+    {"source_photo_bucket": "house-photos"}, {"source_photo_path": "other/photos/photo.jpg"},
+    {"source_photo_sha256": None}, {"source_photo_size": 10 * 1024 * 1024 + 1},
+    {"source_photo_mime": "image/svg+xml"}, {"origin_instance_id": "unknown"},
+])
+def test_bridge_photo_rejects_unsupported_scope_before_network(monkeypatch, tmp_path, changes):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    row = run_row(photo_id=None, origin_instance_id="aliyun-test", source_photo_bucket="aliyun-task-inputs",
+        source_photo_path="aliyun-test/photos/10000000-0000-4000-8000-000000000001/" + "a" * 64 + ".jpg",
+        source_photo_sha256="a" * 64, source_photo_size=20, source_photo_mime="image/jpeg")
+    run = FacadeRun.from_row({**row, **changes})
+    with pytest.raises(ValueError):
+        FacadeGateway(FakeSupabase(), http_client=FakeHttp([])).download_photo(run, tmp_path / "source.jpg")
+
+
 def test_renew_rejects_lost_lease():
     client = FakeSupabase()
     client.rpc_results["renew_facade_run_lease"] = False

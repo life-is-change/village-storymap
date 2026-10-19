@@ -16,6 +16,11 @@ class FacadeRun:
     roof_type: str | None = None
     building_width: float | None = None
     building_depth: float | None = None
+    origin_instance_id: str = "supabase"
+    source_photo_bucket: str = "house-photos"
+    source_photo_sha256: str | None = None
+    source_photo_size: int | None = None
+    source_photo_mime: str | None = None
 
     @classmethod
     def from_row(cls, row: dict) -> "FacadeRun":
@@ -33,6 +38,11 @@ class FacadeRun:
             roof_type=str(row["roof_type"]) if row.get("roof_type") else None,
             building_width=_optional_float(row.get("building_width")),
             building_depth=_optional_float(row.get("building_depth")),
+            origin_instance_id=str(row.get("origin_instance_id") or "supabase"),
+            source_photo_bucket=str(row.get("source_photo_bucket") or "house-photos"),
+            source_photo_sha256=row.get("source_photo_sha256"),
+            source_photo_size=int(row["source_photo_size"]) if row.get("source_photo_size") is not None else None,
+            source_photo_mime=row.get("source_photo_mime"),
         )
 
     @property

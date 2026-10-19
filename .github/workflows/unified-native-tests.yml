@@ -2,7 +2,7 @@ name: Unified native database tests
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['business-api/**', 'linux/sql/unified/**', '.github/workflows/unified-native-tests.yml']
+    paths: ['business-api/**', 'linux/sql/unified/**', 'supabase_SQL/Aliyun Task Bridge.sql', '.github/workflows/unified-native-tests.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -54,9 +54,9 @@ jobs:
           docker exec village-unified-ci psql -X -v ON_ERROR_STOP=1 -U village_test_admin -d postgres -c \
             'SELECT pg_reload_conf(); CREATE SCHEMA extensions; CREATE EXTENSION postgis WITH SCHEMA extensions; SELECT extensions.postgis_lib_version();'
       - name: Unit contracts and shared pool
-        run: node --test business-api/test/unified-contracts.test.mjs business-api/test/unified-database.test.mjs business-api/test/unified-identity.test.mjs business-api/test/unified-catalog.test.mjs business-api/test/unified-survey.test.mjs business-api/test/unified-community.test.mjs business-api/test/unified-planning.test.mjs business-api/test/unified-events.test.mjs business-api/test/unified-files.test.mjs
+        run: node --test business-api/test/unified-contracts.test.mjs business-api/test/unified-database.test.mjs business-api/test/unified-identity.test.mjs business-api/test/unified-catalog.test.mjs business-api/test/unified-survey.test.mjs business-api/test/unified-community.test.mjs business-api/test/unified-planning.test.mjs business-api/test/unified-events.test.mjs business-api/test/unified-files.test.mjs business-api/test/unified-bridge.test.mjs
       - name: Native permission, geometry and connection budget integration
-        run: node --test --test-concurrency=1 business-api/test/unified-database.integration.mjs business-api/test/unified-identity.integration.mjs business-api/test/unified-catalog.integration.mjs business-api/test/unified-survey.integration.mjs business-api/test/unified-planning.integration.mjs business-api/test/unified-events.integration.mjs business-api/test/unified-files.integration.mjs
+        run: node --test --test-concurrency=1 business-api/test/unified-database.integration.mjs business-api/test/unified-identity.integration.mjs business-api/test/unified-catalog.integration.mjs business-api/test/unified-survey.integration.mjs business-api/test/unified-planning.integration.mjs business-api/test/unified-events.integration.mjs business-api/test/unified-files.integration.mjs business-api/test/unified-bridge.integration.mjs
       - name: Database startup diagnostics on failure
         if: failure()
         run: docker logs --tail 70 village-unified-ci

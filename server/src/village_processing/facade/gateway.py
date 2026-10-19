@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 import re
 import time
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 from urllib.parse import quote
 
 import httpx
@@ -19,6 +19,7 @@ BUCKET = "facade-generation"
 PHOTO_BUCKET = "house-photos"
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png"}
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
+BRIDGE_PHOTO_BUCKET = "aliyun-task-inputs"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -169,6 +170,15 @@ class FacadeGateway:
         return bool(result.data and result.data.get("status") == "cancel_requested")
 
     def download_photo(self, run: FacadeRun, destination: Path) -> Path:
+        if run.origin_instance_id != "supabase":
+            content = self._download_bridge_photo(run)
+            if not _looks_like_supported_photo(content):
+                raise ValueError("PHOTO_CONTENT_INVALID")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+            return destination
+        if run.source_photo_bucket != PHOTO_BUCKET:
+            raise ValueError("PHOTO_BUCKET_INVALID")
         storage_path = str(run.source_photo_path or "").strip()
         if storage_path:
             if PurePosixPath(storage_path).is_absolute() or ".." in PurePosixPath(storage_path).parts:
@@ -189,6 +199,33 @@ class FacadeGateway:
         destination.write_bytes(content)
         return destination
 
+    def _download_bridge_photo(self, run: FacadeRun) -> bytes:
+        instance = run.origin_instance_id
+        digest = str(run.source_photo_sha256 or "")
+        path = str(run.source_photo_path or "")
+        if (not re.fullmatch(r"aliyun-[a-zA-Z0-9_-]{1,92}", instance)
+                or run.source_photo_bucket != BRIDGE_PHOTO_BUCKET
+                or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                or not isinstance(run.source_photo_size, int) or not 0 < run.source_photo_size <= MAX_PHOTO_BYTES
+                or run.source_photo_mime not in ALLOWED_PHOTO_CONTENT_TYPES
+                or run.source_photo_url
+                or not re.fullmatch(re.escape(instance) + r"/photos/[a-f0-9-]{36}/" + digest + r"\.(?:jpg|png)", path)
+                or (run.source_photo_mime == "image/png") != path.endswith(".png")):
+            raise ValueError("BRIDGE_PHOTO_SCOPE_INVALID")
+        result = self.client.storage.from_(BRIDGE_PHOTO_BUCKET).create_signed_url(path, 60)
+        signed = str(result.get("signedURL") or result.get("signedUrl") or "")
+        target = urlsplit(signed)
+        base = urlsplit(os.environ.get("SUPABASE_URL", ""))
+        if (target.scheme != "https" or not base.hostname or target.hostname != base.hostname
+                or target.port not in (None, 443) or target.username or target.password or target.fragment
+                or target.path != f"/storage/v1/object/sign/{BRIDGE_PHOTO_BUCKET}/{quote(path, safe='/')}"
+                or set(parse_qs(target.query)) != {"token"} or len(target.query) > 8192):
+            raise ValueError("BRIDGE_PHOTO_URL_INVALID")
+        content = self._stream_photo_url(signed, expected_mime=run.source_photo_mime)
+        if len(content) != run.source_photo_size or hashlib.sha256(content).hexdigest() != digest:
+            raise ValueError("BRIDGE_PHOTO_HASH_MISMATCH")
+        return content
+
     def _download_legacy_photo_url(self, database_url: str) -> bytes:
         target = urlsplit(database_url)
         supabase = urlsplit(os.environ.get("SUPABASE_URL", ""))
@@ -197,6 +234,9 @@ class FacadeGateway:
                 or target.hostname != supabase.hostname or target.port not in (None, 443)
                 or target.username or target.password or not target.path.startswith(allowed_prefix)):
             raise ValueError("PHOTO_URL_INVALID")
+        return self._stream_photo_url(database_url)
+
+    def _stream_photo_url(self, database_url: str, *, expected_mime: str | None = None) -> bytes:
         chunks: list[bytes] = []
         size = 0
         with self.http_client.stream(
@@ -209,8 +249,12 @@ class FacadeGateway:
                 if exc.response.status_code in (403, 404):
                     raise ValueError("PHOTO_NOT_FOUND") from exc
                 raise
+            if not 200 <= getattr(response, "status_code", 200) < 300:
+                raise ValueError("PHOTO_REDIRECT_FORBIDDEN")
             content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
             if content_type not in ALLOWED_PHOTO_CONTENT_TYPES:
+                raise ValueError("PHOTO_CONTENT_TYPE_INVALID")
+            if expected_mime and content_type != expected_mime:
                 raise ValueError("PHOTO_CONTENT_TYPE_INVALID")
             length = response.headers.get("content-length")
             if length and int(length) > MAX_PHOTO_BYTES:
