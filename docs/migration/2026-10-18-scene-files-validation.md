@@ -1,6 +1,6 @@
 # C2a 三维文件生命周期验收记录
 
-状态：本地实现和独立审查已完成，待用户手动云端部署；尚无阿里云最终成功回传。操作见 [部署说明](../../linux/README.scene-files.md)。
+状态：云端C2a候选已部署并通过重启验证；旧快照无课程成员，完整真实账号文件验收待完成。操作见 [部署说明](../../linux/README.scene-files.md)。
 
 新增独立运行目录 `business-api/scene-files`，覆盖限额流式上传、文件结构校验、SHA-256 落盘、幂等会话提交、源权限注册、模型/组件/预览引用、保存/版本/恢复/归档和认证文件读取。新浏览器客户端与素材库钩子仅显式注入时启用，生产 `app.js` 不变。
 
@@ -36,3 +36,13 @@ Task 5 本地记录：Python 部署回归 204 passed / 1 skipped；真实 C2a PG
 9. 保留源teacher/admin读取权限，不重设计既有授权；其广泛读取能力属于源策略。HTTPS/正式切换/最新数据同步、调查照片与GPU桥接按设计另做；当前网站仍依赖Supabase，尚无对应流畅度改善承诺。
 
 无延期Minor。云端成功回传前，本地任务交付不等同于数据主写入点切换。
+
+## 2026-10-19 云端部署和空成员快照
+
+用户回传：镜像完整校验/加载、预检、部署及重启验证通过，分别取得 `SCENE_FILES_IMAGE_ARCHIVE_VERIFIED_LOADED`、`SCENE_FILES_PREFLIGHT_OK`、`SCENE_FILES_INTERNAL_DEPLOYED_NOT_ACCEPTED`、`SCENE_FILES_RESTART_VERIFIED`。管理员和成员登录进入 context 阶段，成员 `25213040` 因 `CONTEXT_MEMBERSHIP_REQUIRED` 停止，尚未开始文件上传。
+
+本机只解码原归档中的 profiles/group_memberships，不恢复私有业务行到测试库、不接触线上：聚合结果为 4 个 profile、0 条 group_memberships，目标账号 profile 存在，因此更换账号不能使旧快照通过课程成员检查。
+
+用户明确批准专用合成上下文后，新增 `prepare-scene-files-test-context.py --check|--create`。限定原 C2a 候选和账号332/25213040，在单事务追加六类 TEST 记录；重复一致只复核、冲突停止，不 UPDATE/DELETE/GRANT、不重建库、不更改源权限。旧证明归档后需重新验证/探测。
+
+本机新增6项Python测试，全部部署回归210 passed / 1 symlink skip。专用loopback PG测试验证空成员起点、失败事务回滚、幂等、保留原课程、冲突拒绝、原成员权限RPC，并以两个合成身份通过真正C2 HTTP→PG→文件→Python完整探测。没有导入私有业务行；本机用文本domain代替PostGIS geometry，仅测试固定EWKT的传递与事务，原生PostGIS转换仍待云端实际运行。API源码/镜像摘要未变，无需重传镜像。

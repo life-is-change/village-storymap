@@ -73,6 +73,25 @@ df -h /
 python3 linux/scripts/deploy-scene-files-validation.py --cleanup-report
 ```
 
+## 旧快照没有课程成员时：已批准的测试上下文
+
+2026-10-19 已确认本次 2026-10-15 备份有 4 个 profile、0 条 group_memberships。用户已明确批准：只在 C2a 候选库创建合成测试课程、小组、村庄、教学项目和规划空间，并将现有账号 `25213040` 加入该测试小组。管理员仍使用 `332`。不新增 Auth 用户、不改 profile、不更改任何权限函数/角色/HBA，不修改其他库或线上 Supabase。
+
+**C2a 已部署时不要重新 load/deploy，也不需要重传镜像。** 源码干净后执行：
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/prepare-scene-files-test-context.py --check &&
+python3 linux/scripts/prepare-scene-files-test-context.py --create &&
+python3 linux/scripts/deploy-scene-files-validation.py --verify &&
+python3 linux/scripts/probe-scene-files.py
+```
+
+`--check` 只读验证目标库、两个现有档案/Auth 用户和保留 ID；`--create` 明确在一个事务新增六类记录，标题均含 `C2a TEST`，几何为合成小方形，不复制原村庄数据。已有同名不同内容会拒绝，完整一致则只复核、不重复插入；不执行 UPDATE/DELETE 或删除重建。成功标记 `SCENE_FILES_TEST_CONTEXT_READY_NOT_ACCEPTED` 只表示上下文准备好。
+
+创建操作归档旧 C2a verification/acceptance 证明并保留私有 `test-context.json` 收据，随后必须重新 `--verify` 和真实账号上传探测。先输入管理员 `332` 的网站密码，再按提示输入成员 `25213040` 的网站密码；无需数据库密码或 Secret key。只有最后的 `SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER` 才表示完整内部验收通过。创建失败保留现场与私有日志，不自动清理重试。
+
 文件维护没有 HTTP 删除入口；有业务/历史引用的文件不会作为孤儿清理。GLB 单文件 50 MiB、贴图 10 MiB、PNG 符号 5 MiB、预览/俯视图 10 MiB；SVG 与外部资源 GLB 拒绝。调查照片、旧 group-models 库和村庄数据集的写入、任务桥接、最新数据同步、HTTPS 与正式切换不在本次交付范围。
 
 ## 本地验证边界
