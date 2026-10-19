@@ -17,5 +17,6 @@
   "archive_filename": "village-business-api-stage-c2a-scene-files-amd64.tar.gz",
   "archive_bytes": 79458071,
   "archive_sha256": "b9a18028fce60b228c8d8b9c534c2c221e10512de8bb1ca8ef9d43b604e7ec1a",
-  "runtime_execution": "pending_linux_container_smoke_test"
+  "runtime_execution": "linux_container_node22_import_and_scene_files_probe_verified",
+  "runtime_verification_date": "2026-10-19"
 }
