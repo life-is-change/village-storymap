@@ -8,9 +8,10 @@ function fake({status='active',rollbackFails=false}={}){
 }
 test('unified pool has one fixed four-connection budget and ignores no extra connection overrides',()=>{
  assert.equal(typeof api.poolOptions,'function');
- const options=api.poolOptions({host:'db',port:5432,database:'village_unified_candidate',user:'village_unified_login',password:'synthetic-only-unified-00000000000'});
+ const config={host:'db',port:5432,database:'village_unified_candidate',user:'village_unified_login',password:'synthetic-only-unified-00000000000'};
+ const options=api.poolOptions(config);
  assert.equal(options.max,4);assert.equal(options.connectionTimeoutMillis,3000);
- for(const change of [{max:99},{database:'postgres'},{user:'postgres'},{connectionString:'postgres://evil/db'}])assert.throws(()=>api.poolOptions({...options,...change}),/INVALID_CONFIGURATION/);
+ for(const change of [{max:99},{database:'postgres'},{user:'postgres'},{connectionString:'postgres://evil/db'}])assert.throws(()=>api.poolOptions({...config,...change}),/INVALID_CONFIGURATION/);
  assert.throws(()=>api.createUnifiedDatabase({pool:{...fake().pool,options:{max:20}}}),/INVALID_CONFIGURATION/);
 });
 test('identity transaction commits and resets claimed identity using local transaction state',async()=>{
@@ -33,7 +34,7 @@ test('unknown and disabled profiles fail closed and rollback without private SQL
 });
 test('expired, malformed and foreign identities never borrow a database connection',async()=>{
  assert.equal(typeof api.createUnifiedDatabase,'function');const h=fake(),db=api.createUnifiedDatabase({pool:h.pool});
- for(const bad of [{...identity(),expiry:0},{...identity(),userId:'invalid'},{...identity(),issuer:'https://evil.example'}])await assert.rejects(db.withIdentity(bad,()=>{}),{code:'UNAUTHORIZED'});
+ for(const bad of [null,undefined,{...identity(),expiry:0},{...identity(),userId:'invalid'},{...identity(),issuer:'https://evil.example'}])await assert.rejects(db.withIdentity(bad,()=>{}),{code:'UNAUTHORIZED'});
  assert.equal(h.calls.length,0);await db.close();
 });
 test('expiration during a mutation rolls the transaction back rather than committing',async()=>{
