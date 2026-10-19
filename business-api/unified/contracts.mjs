@@ -85,13 +85,20 @@ for(const [name,fields,readOnly,source] of [
  ['freezeSnapshot',{...context,label:str(100),description:optional(displayField(2000)),recommendedForGroups:optional(bool),...replay},false,'freeze_shared_survey_snapshot']
 ]) add('survey.'+name,fields,readOnly,'features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> '+source);
 
-const change=field(value=>plain(value)&&Object.keys(value).every(k=>['action','layerKey','objectCode','objectName','geom','props','expectedRevision'].includes(k))&&['add','update','delete'].includes(value.action)&&id.check(value.layerKey)&&str(200).check(value.objectCode)&&(value.props===undefined||plain(value.props))&&(value.geom===undefined||plain(value.geom))&&(value.expectedRevision===undefined||integer().check(value.expectedRevision)),{action:'update',layerKey:'building',objectCode:'B1',geom:{type:'Point',coordinates:[113,23]},props:{}});
+const editableLayer=choice('building','road','water','cropland','openSpace');
+const change=field(value=>plain(value)&&Object.keys(value).every(k=>['action','layerKey','objectCode','objectName','baseObjectCode','afterGeom','afterProps','beforeGeom','beforeProps','expectedRevision','expectedGeometryRevision','lockToken','layerVersionId'].includes(k))&&['add','update','delete'].includes(value.action)&&editableLayer.check(value.layerKey)&&str(200).check(value.objectCode)
+ && ['afterProps','beforeProps','afterGeom','beforeGeom'].every(k=>value[k]===undefined||value[k]===null||plain(value[k]))
+ && ['expectedRevision','expectedGeometryRevision'].every(k=>value[k]===undefined||integer().check(value[k]))
+ && ['lockToken','layerVersionId'].every(k=>value[k]===undefined||uuid.check(value[k]))
+ && ['objectName','baseObjectCode'].every(k=>value[k]===undefined||str(200).check(value[k])),{action:'update',layerKey:'building',objectCode:'B1',afterGeom:{type:'Polygon',coordinates:[[[113,23],[113.001,23],[113.001,23.001],[113,23]]]},afterProps:{}});
+const lockTarget={...context,layerKey:editableLayer,objectCode:str(200)};
 for(const [name,fields,readOnly,source] of [
  ['listFeatures',{...context,layerKey:id,includeDeleted:optional(bool)},true,'planning_features;resolve_group_plan_features'],
- ['acquireLock',{...featureTarget},false,'acquire_feature_edit_lock'],['heartbeatLock',{...featureTarget,lockToken:uuid},false,'heartbeat_feature_edit_lock'],['releaseLock',{...featureTarget,lockToken:uuid},false,'release_feature_edit_lock'],
- ['saveBatch',{...context,changes:list(change,500,1),...replay},false,'save_feature_edit_batch;save_group_plan_edit_batch'],
+ ['acquireLock',{...lockTarget},false,'acquire_feature_edit_lock'],['heartbeatLock',{...lockTarget,lockToken:uuid},false,'heartbeat_feature_edit_lock'],['releaseLock',{...lockTarget,lockToken:uuid},false,'release_feature_edit_lock'],
+ ['saveBatch',{...context,changes:list(change,500,1),summary:optional(displayField(200)),note:optional(displayField(2000)),...replay},false,'save_feature_edit_batch;save_group_plan_edit_batch'],
  ['versions',{...context,limit:optional(integer(1,200))},true,'feature_versions;feature_snapshots'],
- ['freezeSnapshot',{...context,label:str(100),...replay},false,'freeze_feature_snapshot'],
+ ['snapshots',context,true,'feature_snapshots'],['snapshotItems',{snapshotId:uuid},true,'feature_snapshot_items'],
+ ['freezeSnapshot',{...context,label:str(100),description:optional(displayField(2000)),versionType:optional(choice('initial','published')),...replay},false,'freeze_feature_snapshot'],
  ['baselineState',context,true,'get_group_plan_baseline_state'],['previewBaseline',{...context,targetSnapshotId:uuid},true,'preview_group_baseline_update'],
  ['applyBaseline',{...context,targetSnapshotId:uuid,expectedBaseSnapshotId:uuid,...replay},false,'apply_group_baseline_update'],
  ['conflicts',{...context,includeResolved:optional(bool)},true,'group_baseline_conflicts'],
@@ -101,6 +108,7 @@ for(const [name,fields,readOnly,source] of [
 for(const [name,fields,readOnly,source] of [
  ['ensure',{courseId:id,teachingProjectId:uuid,villageId:uuid,spaceType:choice('practice_personal','formal_personal'),title:optional(str(100)),...replay},false,'ensure_course_personal_space'],
  ['listVersions',{spaceId:id},true,'personal_layer_versions'],['listSelections',{spaceId:id},true,'personal_layer_selections'],['listFeatures',{versionId:uuid},true,'personal_layer_features'],
+ ['deleteFeature',{versionId:uuid,objectCode:str(200),...replay},false,'save_personal_feature_edit_batch'],
  ['saveBatch',{spaceId:id,changes:list(change,500,1),...replay},false,'save_personal_feature_edit_batch'],
  ['setVersion',{spaceId:id,layerKey:id,versionId:uuid,...replay},false,'set_personal_layer_version'],
  ['deleteVersion',{versionId:uuid,...replay},false,'delete_personal_layer_version']

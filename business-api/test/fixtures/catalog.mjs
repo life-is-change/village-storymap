@@ -10,4 +10,10 @@ export async function prepareCatalog(setup){
   await setup.query("ALTER TABLE villages ALTER id SET DEFAULT gen_random_uuid(),ADD is_practice boolean DEFAULT false,ADD default_crs text DEFAULT 'EPSG:4326',ADD created_by uuid REFERENCES auth.users,ADD created_at timestamptz DEFAULT now(),ADD updated_at timestamptz DEFAULT now();ALTER TABLE teaching_projects ADD formal_village_id uuid,ADD formal_project_open boolean DEFAULT false");
   for(const name of ['village_datasets','village_reality_models']){const ddl=foundation.match(new RegExp('create table if not exists public.'+name+' \\([\\s\\S]*?\\n\\);','i'))?.[0];assert.ok(ddl);await setup.query(ddl);}
   for(const [source,names] of [[foundation,['create_village_draft']],[lifecycle,['village_usage_breakdown','delete_unused_village']]])for(const name of names){const definition=source.match(new RegExp('create or replace function public.'+name+'\\([\\s\\S]*?\\n\\$\\$;','i'))?.[0];assert.ok(definition);await setup.query(definition);}
+
+  const repair=await readFile(new URL('../../../supabase_SQL/Multi-Village Dual-Track Repair.sql',import.meta.url),'utf8');
+  await setup.query(repair.match(/create table if not exists public.legacy_personal_space_scopes \([\s\S]*?\n\);/i)[0]);
+  for(const name of ['context_space_accessible','context_space_mutable']){
+   const matches=[...repair.matchAll(new RegExp('create or replace function public.'+name+'\\([\\s\\S]*?\\n\\$\\$;','ig'))];assert.ok(matches.length);await setup.query(matches.at(-1)[0]);
+  }
 }

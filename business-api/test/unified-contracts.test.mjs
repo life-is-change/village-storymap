@@ -19,7 +19,7 @@ test('unknown actions, pollution keys, spoofed actor and invalid scoped IDs are 
 });
 test('bulk edits are limited to 500 and ordinary JSON payloads to 2 MiB',()=>{
  assert.equal(typeof api.parseOperation,'function');
- const edit={action:'update',layerKey:'building',objectCode:'B1',geom:{type:'Point',coordinates:[113,23]},props:{}};
+ const edit={action:'update',layerKey:'building',objectCode:'B1',afterGeom:{type:'Point',coordinates:[113,23]},afterProps:{}};
  assert.equal(api.parseOperation('planning.saveBatch',{...context,requestId:'c0000000-0000-4000-8000-000000000001',changes:Array.from({length:500},()=>edit)}).input.changes.length,500);
  assert.throws(()=>api.parseOperation('planning.saveBatch',{...context,requestId:'c0000000-0000-4000-8000-000000000001',changes:Array.from({length:501},()=>edit)}),{code:'INVALID_INPUT'});
  assert.throws(()=>api.parseOperation('survey.saveAttributes',{...context,objectCode:'B1',objectType:'building',data:{value:'x'.repeat(2*1024*1024)}}),{code:'PAYLOAD_TOO_LARGE'});
