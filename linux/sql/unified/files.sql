@@ -1,5 +1,15 @@
 -- Private ordinary bytes and authoritative registrations. Never apply upstream.
 DO $$BEGIN IF current_database()<>'village_unified_candidate' OR api_private.installation_version()<>1 THEN RAISE EXCEPTION 'UNIFIED_TARGET_DATABASE_REQUIRED';END IF;END$$;
+-- The restored context predicate covers shared/group/legacy planning spaces;
+-- modern course-personal spaces have their own UUID table and owner boundary.
+CREATE OR REPLACE FUNCTION api_private.context_accessible(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$SELECT api_private.profile_status()='active' AND (
+ public.context_space_accessible(pid,vid,sid) OR EXISTS(SELECT 1 FROM public.course_personal_spaces s JOIN public.teaching_projects t ON t.id=s.teaching_project_id
+ WHERE s.id::text=sid AND s.owner_id=auth.uid() AND s.teaching_project_id=pid AND s.course_id=t.course_id AND s.village_id::text=vid::text AND t.stage<>'archived'))$$;
+CREATE OR REPLACE FUNCTION api_private.context_mutable(pid uuid,vid uuid,sid text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$SELECT api_private.profile_status()='active' AND (
+ public.context_space_mutable(pid,vid,sid) OR EXISTS(SELECT 1 FROM public.course_personal_spaces s JOIN public.teaching_projects t ON t.id=s.teaching_project_id
+ WHERE s.id::text=sid AND s.owner_id=auth.uid() AND s.teaching_project_id=pid AND s.course_id=t.course_id AND s.village_id::text=vid::text AND t.stage<>'archived'))$$;
 ALTER TABLE public.group_model_assets ADD COLUMN local_metadata jsonb NOT NULL DEFAULT '{}',ADD COLUMN archived_at timestamptz;
 CREATE TABLE api_private.file_sessions(
  id uuid PRIMARY KEY,actor_id uuid NOT NULL REFERENCES profiles(id),request_id uuid NOT NULL,digest text NOT NULL,

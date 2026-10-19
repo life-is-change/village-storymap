@@ -51,8 +51,12 @@ DECLARE r jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) 
   SELECT to_jsonb(x) INTO r FROM public.community_tasks x WHERE id=(r->>'issue_id')::bigint;
  END IF;
  sid:=r->>'space_id';
- IF TG_TABLE_NAME='planning_spaces' THEN sid:=r->>'id';END IF;
+ IF TG_TABLE_NAME IN('planning_spaces','course_personal_spaces') THEN sid:=r->>'id';END IF;
+ IF TG_TABLE_NAME='group_model_assets' THEN sid:=r->>'source_space_id';END IF;
  IF sid IS NOT NULL THEN SELECT teaching_project_id,village_id INTO pid,vid FROM public.planning_spaces WHERE id=sid;END IF;
+ IF sid IS NOT NULL AND pid IS NULL THEN
+  SELECT s.teaching_project_id,CASE WHEN s.village_id::text~'^[a-fA-F0-9-]{36}$' THEN s.village_id::text::uuid ELSE NULL END INTO pid,vid FROM public.course_personal_spaces s WHERE s.id::text=sid;
+ END IF;
  pid:=coalesce((r->>'teaching_project_id')::uuid,pid);vid:=coalesce((r->>'village_id')::uuid,vid);
  IF pid IS NOT NULL AND vid IS NOT NULL AND sid IS NOT NULL THEN
   c:=jsonb_build_object('teachingProjectId',pid,'villageId',vid,'spaceId',sid);
@@ -73,10 +77,10 @@ DO $$DECLARE item text[];BEGIN
   ['planning_features','planning'],['planning_spaces','catalog'],['feature_edit_locks','survey'],['survey_feature_reviews','survey'],
   ['object_attribute_edits','survey'],['object_comments','survey'],['object_photos','photos'],['community_tasks','community'],
   ['group_baseline_updates','planning'],['group_baseline_conflicts','planning'],['planning_snapshots','planning'],
-  ['personal_layer_versions','personal'],['personal_space_layer_selections','personal'],['personal_space_features','personal'],
+  ['personal_layer_versions','personal'],['personal_layer_selections','personal'],['personal_layer_features','personal'],['course_personal_spaces','catalog'],
   ['courses','catalog'],['course_groups','catalog'],['group_memberships','catalog'],['profiles','catalog'],
   ['villages','catalog'],['teaching_projects','catalog'],['village_datasets','catalog'],['village_reality_models','catalog'],
-  ['scene_drafts','scene'],['scene_versions','scene'],['scene_assets','scene'],['group_models','models']
+  ['scene_edit_projects','scene'],['scene_edit_versions','scene'],['scene_edit_assets','scene'],['group_model_assets','models'],['building_model_bindings','models']
  ] LOOP
   IF to_regclass('public.'||item[1]) IS NOT NULL THEN
    EXECUTE format('CREATE TRIGGER unified_invalidation AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION api_private.event_changed(%L)',item[1],item[2]);

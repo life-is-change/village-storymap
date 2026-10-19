@@ -238,12 +238,13 @@
         return result;
       }
       if (preview?.action !== "delete") throw codedError(preview?.reason || "VILLAGE_REMOVAL_BLOCKED");
-      if (!await confirm("该村庄尚未投入教学。此操作将永久删除管理员准备的数据与文件，是否继续？")) return false;
+      if (!await confirm(services?.files ? "该村庄尚未投入教学。将删除村庄记录，本地文件保留供历史引用和备份校验，是否继续？" : "该村庄尚未投入教学。此操作将永久删除管理员准备的数据与文件，是否继续？")) return false;
       const paths = storagePaths(preview);
       if (paths.length) {
         if (services?.files) {
           // Local history keeps immutable bytes; never delete a live/referenced
           // file based on a list of legacy paths returned by the old lifecycle RPC.
+          const result = await client.deleteUnusedVillage({villageId});
           notify("村庄记录已删除；本地文件保留供历史引用与备份校验。", "success");await refresh();return result;
         }
         if (!supabaseClient?.storage?.from) throw codedError("STORAGE_CLEANUP_FAILED");

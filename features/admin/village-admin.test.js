@@ -45,6 +45,11 @@ function makeDeps(overrides = {}) {
   };
 }
 
+test('local village removal deletes metadata once and retains immutable history bytes',async()=>{
+ const calls=[],controller=createVillageAdminController(makeDeps({calls,services:{files:{}},removalPreview:{action:'delete',storage_paths:['old/file']},supabaseClient:{storage:{from(){throw Error('SOURCE_STORAGE_TOUCHED');}}}}));
+ await controller.refresh();await controller.deleteVillage('v1');assert.equal(calls.filter(c=>c.name==='deleteUnusedVillage').length,1);
+});
+
 test("没有建筑成果时不能发布V0", async () => {
   const calls = [];
   const controller = createVillageAdminController(makeDeps({
