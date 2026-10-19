@@ -95,7 +95,7 @@ CREATE FUNCTION api_private.community_read(a text,p jsonb) RETURNS jsonb LANGUAG
  WHEN 'community.stats' THEN SELECT jsonb_build_object('user_name',pf.display_name,'total_points',coalesce(base.total_points,0)+coalesce((SELECT sum(delta) FROM api_private.local_points WHERE actor_id=auth.uid()),0),'reports_count',coalesce(base.reports_count,0)+(SELECT count(*) FROM public.community_tasks WHERE local_actor_id=auth.uid()),'verify_count',coalesce(base.verify_count,0),'level',greatest(1,floor((coalesce(base.total_points,0)+coalesce((SELECT sum(delta) FROM api_private.local_points WHERE actor_id=auth.uid()),0))/100.0)+1)) INTO result FROM public.profiles pf LEFT JOIN api_private.legacy_statistics base ON base.actor_id=pf.id WHERE pf.id=auth.uid();
  ELSE RAISE EXCEPTION 'NOT_FOUND';END CASE;RETURN result;
 END$$;
-CREATE FUNCTION api_private.community_write(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE prior jsonb;result jsonb;issue public.community_tasks;reply api_private.message_replies;actor text;liked boolean;delta integer;BEGIN
+CREATE FUNCTION api_private.community_write(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE prior jsonb;result jsonb;issue public.community_tasks;reply api_private.message_replies;actor text;liked boolean;v_delta integer;BEGIN
  prior:=api_private.begin_operation(a,p);IF prior IS NOT NULL THEN RETURN prior->'result';END IF;
  PERFORM api_private.survey_gate(p);SELECT display_name INTO actor FROM public.profiles WHERE id=auth.uid();
  IF p ? 'id' THEN
@@ -116,8 +116,8 @@ CREATE FUNCTION api_private.community_write(a text,p jsonb) RETURNS jsonb LANGUA
  UPDATE public.community_tasks SET status=p->>'status',settled_at=now(),local_revision=local_revision+1 WHERE id=issue.id RETURNING * INTO issue;
  IF issue.status='resolved' THEN
   PERFORM pg_advisory_xact_lock(hashtextextended(auth.uid()::text||'points',0));
-  SELECT greatest(0,least(3,20-coalesce(sum(delta),0)-coalesce((SELECT positive_today FROM api_private.legacy_statistics WHERE actor_id=auth.uid() AND snapshot_day=(now() AT TIME ZONE 'Asia/Shanghai')::date),0))) INTO delta FROM api_private.local_points WHERE actor_id=auth.uid() AND created_at>=date_trunc('day',now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai';
-  INSERT INTO api_private.local_points VALUES(auth.uid(),issue.id,'resolved',delta,now()) ON CONFLICT DO NOTHING;
+  SELECT greatest(0,least(3,20-coalesce(sum(delta),0)-coalesce((SELECT positive_today FROM api_private.legacy_statistics WHERE actor_id=auth.uid() AND snapshot_day=(now() AT TIME ZONE 'Asia/Shanghai')::date),0))) INTO v_delta FROM api_private.local_points WHERE actor_id=auth.uid() AND created_at>=date_trunc('day',now() AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai';
+  INSERT INTO api_private.local_points VALUES(auth.uid(),issue.id,'resolved',v_delta,now()) ON CONFLICT DO NOTHING;
  END IF;
  WHEN 'community.addReply' THEN INSERT INTO api_private.message_replies(issue_id,actor_id,body) VALUES(issue.id,auth.uid(),p->>'body');result:=api_private.community_read('community.listReplies',p);
  WHEN 'community.deleteReply' THEN
