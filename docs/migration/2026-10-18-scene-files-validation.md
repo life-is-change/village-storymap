@@ -1,6 +1,6 @@
 # C2a 三维文件生命周期验收记录
 
-状态：2026-10-19 云端C2a真实账号文件生命周期验收通过；验收后资源快照和云端确切Git版本待补。操作见 [部署说明](../../linux/README.scene-files.md)。
+状态：2026-10-19 云端版本66b8110完成C2a真实账号文件生命周期验收及验收后资源记录；教学并发/峰值容量另行验证。操作见 [部署说明](../../linux/README.scene-files.md)。
 
 新增独立运行目录 `business-api/scene-files`，覆盖限额流式上传、文件结构校验、SHA-256 落盘、幂等会话提交、源权限注册、模型/组件/预览引用、保存/版本/恢复/归档和认证文件读取。新浏览器客户端与素材库钩子仅显式注入时启用，生产 `app.js` 不变。
 
@@ -8,11 +8,11 @@
 
 Task 5 本地记录：Python 部署回归 204 passed / 1 skipped；真实 C2a PG/HTTP/前端/Python 协议联测通过。代表性合成流程含 3 个文件、4 个草稿和 1 个版本，Python 协议约 10.3 秒、Node 进程 RSS 65 MiB；Task 1 合成 50 MiB 流上传观察 RSS 51–59 MiB。均为单流程本机观测，不代表目标容器峰值或教学并发容量。
 
-离线构建沿用已验证 Node 22 linux/amd64 基础归档和锁定纯 JS 依赖。旧 B2 摘要 `bb703c4251520d7f4548120933d29708551f2e5a483f36cd5cd02019ce99d256`、C1 摘要 `5e17959052a4711ec8a3ba2b31295e2f0b7797ee103838f3e4d79074bae2ec7c` 构建前后必须相同。C2a 归档由 [镜像元数据](../../linux/scene-files-image.json) 精确绑定；本机没有 Docker 引擎；Linux 容器 smoke、真实账号及实际 API 重启已由用户云端回传验证，验收后资源快照仍待补。
+离线构建沿用已验证 Node 22 linux/amd64 基础归档和锁定纯 JS 依赖。旧 B2 摘要 `bb703c4251520d7f4548120933d29708551f2e5a483f36cd5cd02019ce99d256`、C1 摘要 `5e17959052a4711ec8a3ba2b31295e2f0b7797ee103838f3e4d79074bae2ec7c` 构建前后必须相同。C2a 归档由 [镜像元数据](../../linux/scene-files-image.json) 精确绑定；本机没有 Docker 引擎；Linux 容器 smoke、真实账号及实际 API 重启已由用户云端回传验证，验收后资源快照已补录于文末。
 
 部署在同一 PG 实例新建候选库和受限角色，仅新增精确 HBA 行、reload，不恢复集群角色。旧验证脚本接受这一条新行，否则精确比较会误报旧服务配置漂移；旧运行代码、镜像集合和原网络规则未扩大。候选 API 仅 loopback18083、256 MiB、最多 2 连接/2 上传，只有自己的私有文件卷可写。
 
-已取得阿里云 `SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER` 和成功聚合计数；API/PG 内存、主机 available 与云端确切Git版本待补。正式网站、Supabase Auth/业务源和 4090 不切换；最新数据交接、其余业务写入与 GPU 桥接仍未实施。
+已取得阿里云 `SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER` 和成功聚合计数；云端版本66b8110、API/PG内存与主机available已由用户回传核对。正式网站、Supabase Auth/业务源和 4090 不切换；最新数据交接、其余业务写入与 GPU 桥接仍未实施。
 
 整体验证：平台 `npm test` 修复后 1012/1012，API 单元 `node --test business-api/test/*.test.mjs` 36/36；Python 204 passed / 1 skipped（Windows 不允许创建符号链接，硬链接拒绝已测）。A/B2/C1/C2a 真实 PG 集成逐文件串行通过4/4。C2a Python协议复跑约10秒、Node RSS65MiB。真实云端文件路径/UID/权限检查已在成功流程运行；主动构造符号链接的Linux拒绝回归未单独执行。
 
@@ -64,4 +64,20 @@ Task 5 本地记录：Python 部署回归 204 passed / 1 skipped；真实 C2a PG
 
 最终标记：`SCENE_FILES_INTERNAL_VALIDATED_NOT_CUT_OVER`。该探测涵盖真实登录、合成GLB/PNG上传及摘要读回、登记重放、课程发布/小组复制、放置与保存、旧revision冲突、版本/组件预览、恢复/分支、归档新增引用拒绝、里程碑提交、实际API重启与再次读取。3个对象/540字节是本次合成探测文件数，并非全部原业务文件数。
 
-专用TEST课程/小组等由用户明确批准，仅存在于C2a候选，保留测试记录与私有证明；源Supabase及其他候选未切换。本回传未附服务器HEAD和资源快照；最后交付的功能修复为66b8110，不能据此冒称已核对云端HEAD。下一步补采Git短SHA、C2a/PG容器内存和主机available，教学并发/峰值容量仍未验证。剩余普通业务写入、最新数据交接、任务桥接、HTTPS及正式前端切换另行推进。
+专用TEST课程/小组等由用户明确批准，仅存在于C2a候选，保留测试记录与私有证明；源Supabase及其他候选未切换。用户随后回传Git短SHA与资源快照，核对云端HEAD为66b8110，资源见下表；教学并发/峰值容量仍未验证。剩余普通业务写入、最新数据交接、任务桥接、HTTPS及正式前端切换另行推进。
+
+
+### 验收后云端资源快照
+
+用户直接执行 `git rev-parse --short HEAD`、指定C2a/PG的 `docker stats --no-stream` 和 `free -h`，回传如下：
+
+| 项目 | 实测值 |
+| --- | --- |
+| 云端源码版本 | `66b8110` |
+| C2a API | 20.36 MiB / 256 MiB，CPU 0.00%，11 PIDs |
+| PostgreSQL | 123.9 MiB / 768 MiB，CPU 0.00%，6 PIDs |
+| 主机内存 | total 1.6 GiB / used 842 MiB / free 122 MiB / shared 103 MiB / buff-cache 941 MiB |
+| 主机 available | 770 MiB |
+| Swap | 0 B |
+
+这是完整功能探测之后的单次采样，说明采样时仍有可用内存；不表示峰值或教学并发负载已达标。功能执行版本66b8110与后续仅记录验收结果的GitHub提交不同是正常的，本次记录更新不要求重建镜像或重启容器。C2a候选功能与验收后资源记录已齐，正式主写入点仍未切换。
