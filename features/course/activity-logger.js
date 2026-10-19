@@ -61,6 +61,21 @@
   }
 
   function createActivityLogger(deps = {}) {
+    if (deps.services?.catalog) {
+      const rows=[];
+      return {
+        async record(action,target={},metadata={}) {
+          const context=await deps.getContext();
+          const input={courseId:context.courseId,teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:context.spaceId,
+            ...(context.taskId?{taskId:context.taskId}:{}),action:String(action),targetType:String(target.type||''),targetId:String(target.id||''),viewMode:String(metadata.viewMode||context.viewMode||''),metadata,
+            requestId:deps.uuid?deps.uuid():root.crypto.randomUUID()};
+          const result=await deps.services.catalog.execute('catalog.recordActivity',input);
+          const event={...result,action:input.action,syncStatus:'synced'};rows.push(event);return clone(event);
+        },
+        async flush(){return clone(rows);},
+        listLocalEvents(filters={}){return clone(rows.filter(row=>!filters.action||row.action===filters.action));}
+      };
+    }
     const storage = deps.storage || root?.localStorage;
     purgeLegacyAdminEventsOnce(storage);
     const now = deps.now || (() => new Date().toISOString());

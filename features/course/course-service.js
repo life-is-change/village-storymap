@@ -55,6 +55,25 @@
     const uuid =
       deps.uuid ||
       (() => root?.crypto?.randomUUID?.() || `course-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+    if (deps.services?.catalog) {
+      const execute = (name,input={}) => deps.services.catalog.execute('catalog.'+name,{courseId:course.id,...input});
+      const group = row => row && ({...row,courseId:row.course_id,name:row.name,joinCode:row.join_code,spaceId:row.space_id,createdBy:row.created_by,syncPending:false});
+      const membership = row => row && ({...row,courseId:row.course_id,groupId:row.group_id,studentKey:row.student_key,studentName:row.student_name,studentId:row.student_id,syncPending:false});
+      async function loadContext(user) {
+        const value=await execute('getCourseContext');
+        return {...value,course:value.course||course,user,teachingProjectId:deps.teachingProjectId||course.teachingProjectId,group:group(value.group),membership:membership(value.membership)};
+      }
+      return {
+        loadContext,
+        async listGroups(){return (await execute('listGroups')).map(group);},
+        async refreshGroupsFromRemote(){return (await execute('listGroups')).map(group);},
+        async createGroup(name){return group(await execute('createGroup',{name:String(name||'').trim(),requestId:uuid()}));},
+        async joinGroup(code,user){await execute('joinGroup',{code:normalizeGroupCode(code),requestId:uuid()});return loadContext(user);},
+        async setGroupLocked(groupId,locked){return group(await deps.services.catalog.execute('catalog.lockGroup',{groupId,locked:Boolean(locked),requestId:uuid()}));},
+        setTaskComplete(taskId,complete){return execute('setProgress',{taskId,complete:Boolean(complete),requestId:uuid()});},
+        getProgress(){return execute('getProgress');}
+      };
+    }
     const teachingProjectId = String(deps.teachingProjectId || course.teachingProjectId || "legacy").trim();
     const cacheScope = `${course.id}:${teachingProjectId}`;
     const keys = {

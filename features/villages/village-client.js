@@ -63,7 +63,26 @@
     };
   }
 
-  function createVillageClient({ supabaseClient }) {
+  function createVillageClient({ supabaseClient, services, uuid = () => globalThis.crypto.randomUUID() }) {
+    if (services?.catalog) {
+      const call=(action,input={},write=false)=>services.catalog.execute(action,{...input,...(write?{requestId:uuid()}: {})});
+      const mappings={createDraft:'createVillage',createTeachingProject:'createTeachingProject',archiveTeachingProject:'archiveTeachingProject',getVillageRemovalPreview:'previewVillageRemoval',archiveVillage:'archiveVillage',restoreVillage:'restoreVillage',deleteUnusedVillage:'deleteVillage',saveDatasetDraft:'saveDataset',publishDataset:'publishDataset',bindFormalVillage:'bindFormalVillage',saveRealityDraft:'saveRealityModel',publishRealityModel:'publishRealityModel'};
+      const client={
+        async listVillages(){return (await call('catalog.listVillages')).map(mapVillage);},
+        async listSpaces(input){return (await call('catalog.listSpaces',input)).map(mapSpace);},
+        async getActiveContext({onCatalog,includeSpaces=true}={}){
+          const raw=await call('catalog.getActiveContext');if(!raw?.project)return null;
+          const project=normalizeTeachingProject(raw.project),villages=await client.listVillages();
+          if(typeof onCatalog==='function')onCatalog({project,villages});
+          const villageId=project.formalProjectOpen&&project.formalVillageId?project.formalVillageId:project.practiceVillageId;
+          const profile=await services.identity.me();
+          return {project,villages,spaces:includeSpaces?await client.listSpaces({teachingProjectId:project.id,villageId}):[],actor:{userId:profile.id,groupId:null,isStaff:['teacher','admin'].includes(profile.role)}};
+        },
+        ensurePersonalSpace(input){return call('catalog.ensureSpace',{teachingProjectId:input.teachingProjectId,villageId:input.villageId,spaceType:input.villageRole==='practice'?SPACE_TYPES.PRACTICE_PERSONAL:SPACE_TYPES.FORMAL_PERSONAL,...(input.title?{title:input.title}:{})},true);}
+      };
+      for(const [method,name] of Object.entries(mappings))client[method]=input=>call('admin.'+name,input,name!=='previewVillageRemoval');
+      return client;
+    }
     if (!supabaseClient) throw createError("SUPABASE_REQUIRED");
 
     async function rpc(name, args) {

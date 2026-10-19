@@ -61,8 +61,8 @@
     }).join("");
   }
 
-  function createGroupPlanAdminController({ root: panelRoot, supabaseClient, notify, confirm, navigate } = {}) {
-    if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
+  function createGroupPlanAdminController({ root: panelRoot, supabaseClient, services, uuid=()=>globalThis.crypto.randomUUID(), notify, confirm, navigate } = {}) {
+    if (!supabaseClient && !services) throw new Error("SUPABASE_REQUIRED");
     const tell = typeof notify === "function" ? notify : () => {};
     const ask = typeof confirm === "function" ? confirm : async () => true;
     const go = typeof navigate === "function" ? navigate : (url) => { window.location.href = url; };
@@ -71,6 +71,13 @@
     let bound = false;
 
     async function rpc(name, args) {
+      if (services) {
+        if (name==='get_group_plan_admin_dashboard') return services.catalog.execute('admin.groupDashboard',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id});
+        if (name==='ensure_group_plan_space') return services.catalog.execute('admin.ensureGroupSpace',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id,groupId:args.p_group_id,...(args.p_snapshot_id?{snapshotId:args.p_snapshot_id}:{}),requestId:uuid()});
+        if (name==='apply_group_baseline_update') return services.planning.execute('planning.applyBaseline',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id,spaceId:args.p_space_id,targetSnapshotId:args.p_target_snapshot_id,expectedBaseSnapshotId:args.p_expected_base_snapshot_id,requestId:uuid()});
+        if (name==='restore_group_plan_restore_point') return services.planning.execute('planning.restorePoint',{restorePointId:args.p_restore_point_id,requestId:uuid()});
+        throw new Error('UNSUPPORTED_OPERATION');
+      }
       const response = await supabaseClient.rpc(name, args);
       if (response?.error) throw response.error;
       return response?.data;

@@ -42,3 +42,9 @@ test('expiration during a mutation rolls the transaction back rather than commit
  await assert.rejects(db.withIdentity({...identity(),expiry:101},async()=>{now=102000;}),{code:'UNAUTHORIZED'});
  assert.equal(h.calls.some(([s])=>s==='COMMIT'),false);assert.ok(h.calls.some(([s])=>s==='ROLLBACK'));await db.close();
 });
+
+test('known restored RPC and constraint failures are sanitized into business errors',async()=>{
+ for(const [error,code] of [[{code:'P0001',message:'VILLAGE_IN_USE'},'FORBIDDEN'],[{code:'23505',message:'private index detail'},'REVISION_CONFLICT'],[{code:'23503',message:'private foreign key detail'},'INVALID_INPUT']]){
+  const h=fake(),db=api.createUnifiedDatabase({pool:h.pool});await assert.rejects(db.withIdentity(identity(),()=>{throw error;}),e=>e.code===code&&!e.message.includes('private'));await db.close();
+ }
+});

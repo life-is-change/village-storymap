@@ -37,32 +37,32 @@ add('admin.listUsers',{},true,'supabase/functions/admin-delete-user; auth-system
 add('admin.disableUser',{userId:uuid,...replay},false,'supabase/functions/admin-delete-user (local business disable only)');
 
 for(const [name,fields,readOnly,source] of [
- ['listCourses',{},true,'courses'],['listGroups',{courseId:id},true,'course_groups'],
+ ['listCourses',{},true,'courses'],['getCourseContext',{courseId:id},true,'courses;group_memberships;task_progress'],['listGroups',{courseId:id},true,'course_groups'],
  ['createGroup',{courseId:id,name:str(100),...replay},false,'course_groups'],
  ['joinGroup',{courseId:id,code:str(32),...replay},false,'group_memberships'],
  ['lockGroup',{groupId:id,locked:bool,...replay},false,'course_groups'],
  ['getProgress',{courseId:id},true,'task_progress'],['setProgress',{courseId:id,taskId:id,complete:bool,...replay},false,'task_progress'],
  ['listActivity',{courseId:id,limit:optional(integer(1,200))},true,'activity_events'],
- ['recordActivity',{courseId:id,taskId:optional(id),eventType:choice('view','start','complete','save'),detail:optional(json),...replay},false,'activity_events'],
+ ['recordActivity',{courseId:id,...context,taskId:optional(id),action:str(100),targetType:optional(displayField(100)),targetId:optional(displayField(200)),viewMode:optional(displayField(30)),metadata:optional(json),...replay},false,'activity_events'],
  ['getActiveContext',{},true,'get_active_project_context'],['listVillages',{},true,'villages'],
  ['listSpaces',{teachingProjectId:uuid,villageId:uuid},true,'planning_spaces;course_personal_spaces'],
  ['getSpace',context,true,'planning_spaces;course_personal_spaces'],
  ['ensureSpace',{teachingProjectId:uuid,villageId:uuid,spaceType:choice('practice_personal','formal_personal'),title:optional(str(100)),...replay},false,'ensure_context_space']
 ]) add('catalog.'+name,fields,readOnly,'features/course/course-service.js;features/villages/village-client.js -> '+source,name.endsWith('Groups')||['listCourses','createGroup','joinGroup','lockGroup','getProgress','setProgress','listActivity','recordActivity'].includes(name)?'/courses/'+name.replace(/[A-Z]/g,v=>'-'+v.toLowerCase()):undefined);
 for(const [name,fields,readOnly,source] of [
- ['createVillage',{name:str(100),isPractice:optional(bool),boundary:optional(nullable(json)),defaultCrs:optional(choice('EPSG:4326')),...replay},false,'create_village_draft'],
+ ['createVillage',{name:str(80),isPractice:optional(bool),boundary:optional(nullable(json)),defaultCrs:optional(choice('EPSG:4326')),...replay},false,'create_village_draft'],
  ['createTeachingProject',{courseId:id,name:str(100),practiceVillageId:uuid,...replay},false,'create_teaching_project'],
  ['archiveTeachingProject',{teachingProjectId:uuid,...replay},false,'archive_teaching_project'],
  ['previewVillageRemoval',{villageId:uuid},true,'get_village_removal_preview'],
  ...['archiveVillage','restoreVillage','deleteVillage'].map((n,i)=>[n,{villageId:uuid,...replay},false,['archive_village','restore_village','delete_unused_village'][i]]),
- ['saveDataset',{villageId:uuid,sourceKind:id,imageryConfig:optional(nullable(json)),layerManifest:json,validationSummary:optional(json),status:optional(choice('draft','validated')),datasetId:optional(nullable(uuid)),versionLabel:optional(nullable(str(100))),...replay},false,'save_village_dataset_draft'],
+ ['saveDataset',{villageId:uuid,sourceKind:choice('platform_generated','uploaded_bundle'),imageryConfig:optional(nullable(json)),layerManifest:json,validationSummary:optional(json),status:optional(choice('draft','validating','ready','failed')),datasetId:optional(nullable(uuid)),versionLabel:optional(nullable(str(100))),...replay},false,'save_village_dataset_draft'],
  ['publishDataset',{datasetId:uuid,...replay},false,'publish_village_dataset'],
  ['bindFormalVillage',{teachingProjectId:uuid,villageId:uuid,...replay},false,'bind_formal_village'],
- ['saveRealityModel',{villageId:uuid,ionAssetId:integer(1),title:str(100),heightOffset:optional(field(v=>Number.isFinite(v)&&Math.abs(v)<=100000,0)),terrainEnabled:optional(bool),status:optional(choice('draft','validated')),modelId:optional(nullable(uuid)),...replay},false,'save_village_reality_model_draft'],
+ ['saveRealityModel',{villageId:uuid,ionAssetId:integer(1),title:str(100),heightOffset:optional(field(v=>Number.isFinite(v)&&Math.abs(v)<=1000,0)),terrainEnabled:optional(bool),status:optional(choice('draft','validating','ready')),modelId:optional(nullable(uuid)),...replay},false,'save_village_reality_model_draft'],
  ['publishRealityModel',{modelId:uuid,...replay},false,'publish_village_reality_model'],
  ['groupDashboard',{teachingProjectId:uuid,villageId:uuid},true,'get_group_plan_admin_dashboard'],
  ['groupContext',{...context},true,'get_group_plan_admin_context'],
- ['ensureGroupSpace',{teachingProjectId:uuid,villageId:uuid,groupId:id,...replay},false,'ensure_group_plan_space']
+ ['ensureGroupSpace',{teachingProjectId:uuid,villageId:uuid,groupId:id,snapshotId:optional(nullable(uuid)),...replay},false,'ensure_group_plan_space']
 ]) add('admin.'+name,fields,readOnly,'features/admin;features/villages/village-client.js -> '+source);
 
 const objectTarget={...context,objectCode:str(200),objectType:str(100)};

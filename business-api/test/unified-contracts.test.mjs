@@ -34,7 +34,7 @@ test('operations expose only fixed HTTP routes and protect mutation replay keys'
 test('village draft contracts preserve source options and use the real publish-model identifier',()=>{
  const requestId='c0000000-0000-4000-8000-000000000001';
  assert.doesNotThrow(()=>api.parseOperation('admin.createVillage',{name:'TEST',isPractice:true,boundary:null,defaultCrs:'EPSG:4326',requestId}));
- assert.doesNotThrow(()=>api.parseOperation('admin.saveDataset',{villageId:context.villageId,sourceKind:'manual',layerManifest:{},imageryConfig:null,validationSummary:{},status:'draft',datasetId:null,versionLabel:null,requestId}));
+ assert.doesNotThrow(()=>api.parseOperation('admin.saveDataset',{villageId:context.villageId,sourceKind:'uploaded_bundle',layerManifest:{},imageryConfig:null,validationSummary:{},status:'draft',datasetId:null,versionLabel:null,requestId}));
  assert.doesNotThrow(()=>api.parseOperation('admin.saveRealityModel',{villageId:context.villageId,ionAssetId:1,title:'TEST',heightOffset:0,terrainEnabled:true,status:'draft',modelId:null,requestId}));
  assert.doesNotThrow(()=>api.parseOperation('admin.publishRealityModel',{modelId:context.villageId,requestId}));
  assert.throws(()=>api.parseOperation('admin.publishRealityModel',{villageId:context.villageId,requestId}),{code:'INVALID_INPUT'});
