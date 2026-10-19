@@ -69,18 +69,20 @@ const objectTarget={...context,objectCode:str(200),objectType:str(100)};
 const featureTarget={...context,layerKey:choice('building','road','water','cropland','openSpace'),objectCode:str(200)};
 for(const [name,fields,readOnly,source] of [
  ['getAttributes',objectTarget,true,'object_attribute_edits'],['saveAttributes',{...objectTarget,data:json,surveyLayerKey:optional(nullable(choice('building','road','water'))),...replay},false,'object_attribute_edits'],
- ['listComments',objectTarget,true,'object_comments'],['addComment',{...objectTarget,body:multiline(),...replay},false,'object_comments'],
- ['editComment',{commentId:integer(1),body:multiline(),...replay},false,'object_comments'],['deleteComment',{commentId:integer(1),...replay},false,'object_comments'],
+ ['listComments',objectTarget,true,'object_comments'],['addComment',{...objectTarget,surveyLayerKey:optional(nullable(choice('building','road','water'))),body:multiline(200),...replay},false,'object_comments'],
+ ['editComment',{commentId:integer(1),body:multiline(200),...replay},false,'object_comments'],['deleteComment',{commentId:integer(1),...replay},false,'object_comments'],
+ ['likeComment',{...context,commentId:integer(1),...replay},false,'object_comment_interactions'],
+ ['replyComment',{...context,commentId:integer(1),body:multiline(200),...replay},false,'object_comment_interactions'],
  ['react',{...objectTarget,reaction:choice('like','dislike','none'),...replay},false,'object_attribute_edits'],
  ['listPhotos',objectTarget,true,'object_photos;list_object_photo_facade_usage'],
  ['deletePhoto',{photoId:integer(1),...replay},false,'delete_object_photo_safely'],
  ['listReviews',context,true,'survey_feature_reviews'],['getReview',featureTarget,true,'survey_feature_reviews'],
  ['initializeReviews',{...context,datasetId:uuid,items:list(json),...replay},false,'initialize_shared_survey_reviews'],
- ['confirmGeometry',{...featureTarget,geometry:json,revision:integer(),...replay},false,'confirm_survey_feature_geometry'],
- ['dashboard',{teachingProjectId:uuid,villageId:uuid},true,'get_shared_survey_dashboard'],
- ['listFeatures',{...context,layerKey:optional(id),limit:optional(integer(1,200))},true,'list_shared_survey_features'],
- ['history',featureTarget,true,'feature_versions'],['restoreVersion',{versionId:uuid,...replay},false,'restore_survey_feature_version'],
- ['freezeSnapshot',{...context,label:str(100),...replay},false,'freeze_shared_survey_snapshot']
+ ['confirmGeometry',{...featureTarget,revision:integer(),lockToken:uuid,...replay},false,'confirm_survey_feature_geometry'],
+ ['dashboard',context,true,'get_shared_survey_dashboard'],
+ ['listFeatures',{...context,layerKey:optional(nullable(choice('building','road','water'))),geometryStatus:optional(nullable(choice('pending','confirmed_unchanged','modified','deleted','added'))),actorId:optional(nullable(uuid)),limit:optional(integer(1,200))},true,'list_shared_survey_features'],
+ ['history',featureTarget,true,'feature_versions'],['restoreVersion',{...featureTarget,versionId:uuid,revision:integer(),...replay},false,'restore_survey_feature_version'],
+ ['freezeSnapshot',{...context,label:str(100),description:optional(displayField(2000)),recommendedForGroups:optional(bool),...replay},false,'freeze_shared_survey_snapshot']
 ]) add('survey.'+name,fields,readOnly,'features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> '+source);
 
 const change=field(value=>plain(value)&&Object.keys(value).every(k=>['action','layerKey','objectCode','objectName','geom','props','expectedRevision'].includes(k))&&['add','update','delete'].includes(value.action)&&id.check(value.layerKey)&&str(200).check(value.objectCode)&&(value.props===undefined||plain(value.props))&&(value.geom===undefined||plain(value.geom))&&(value.expectedRevision===undefined||integer().check(value.expectedRevision)),{action:'update',layerKey:'building',objectCode:'B1',geom:{type:'Point',coordinates:[113,23]},props:{}});
@@ -111,11 +113,16 @@ for(const [name,fields,readOnly,source] of [
 ]) add('models.'+name,fields,readOnly,'features/models/group-model-library.js -> '+source);
 for(const kind of ['Tasks','Messages']){
  add('community.list'+kind,context,true,'app.js;community_tasks;message-edits');
- add('community.create'+kind.slice(0,-1),{...context,body:multiline(),...replay},false,'app.js;community_tasks;object_attribute_edits');
- add('community.update'+kind.slice(0,-1),{...context,id:uuid,body:multiline(),revision:integer(),...replay},false,'app.js;community_tasks;object_attribute_edits');
- add('community.delete'+kind.slice(0,-1),{...context,id:uuid,...replay},false,'app.js;community_tasks;object_attribute_edits');
+ add('community.create'+kind.slice(0,-1),{...context,body:multiline(),category:optional(displayField(100)),lng:optional(nullable(field(v=>Number.isFinite(v)&&Math.abs(v)<=180,113))),lat:optional(nullable(field(v=>Number.isFinite(v)&&Math.abs(v)<=90,23))),targetLayerKey:optional(nullable(choice('building','road','water'))),targetObjectCode:optional(nullable(str(200))),...replay},false,'app.js;community_tasks;object_attribute_edits');
+ add('community.update'+kind.slice(0,-1),{...context,id:integer(1),body:multiline(),revision:integer(),...replay},false,'app.js;community_tasks;object_attribute_edits');
+ add('community.delete'+kind.slice(0,-1),{...context,id:integer(1),...replay},false,'app.js;community_tasks;object_attribute_edits');
 }
-add('community.react',{...context,id:uuid,reaction:choice('like','none'),...replay},false,'app.js:message-edits');
+add('community.react',{...context,id:integer(1),reaction:choice('like','none','toggle'),...replay},false,'app.js:message-edits');
+for(const [name,fields,readOnly] of [
+ ['listReplies',{id:integer(1)},true],['addReply',{id:integer(1),body:multiline(200),...replay},false],['deleteReply',{id:integer(1),replyId:id,...replay},false],
+ ['likeReply',{id:integer(1),replyId:id,...replay},false],['listLikes',{id:integer(1)},true],
+ ['transition',{id:integer(1),status:choice('resolved','archived'),...replay},false],['stats',{},true]
+])add('community.'+name,{...context,...fields},readOnly,'community-tasks.js');
 for(const name of ['getConfig','exportBuildings'])add('mc.'+name,context,true,'features/mc/mc-bridge.js;mc_sync_config');
 for(const [name,fields,readOnly,source] of [
  ['availability',{kind:choice('geoprocessing','facade','cloud-facade')},true,'get_worker_availability;get_facade_worker_availability;facade-cloud:capability'],
