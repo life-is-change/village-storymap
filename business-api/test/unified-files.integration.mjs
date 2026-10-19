@@ -4,7 +4,7 @@ import {createUnifiedDatabase} from '../unified/database.mjs';import {createStor
 const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A'};
 test('native ordinary files commit atomically, preserve model history and authorize all legacy mappings',async()=>{
  await withUnifiedFixture(async({setup,install,config})=>{
-  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','events'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
+  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
   const root=await mkdtemp(join(tmpdir(),'unified-files-native-'));let db;
   try{
    const next=join(root,'next'),legacy=join(root,'legacy');await mkdir(next,{mode:0o700});await mkdir(legacy,{mode:0o700});
@@ -17,11 +17,15 @@ test('native ordinary files commit atomically, preserve model history and author
     await writeFile(join(legacy,sha256),bytes,{mode:0o600});index.objects.push({id,bucket,name,size:bytes.length,sha256,declared_size:bytes.length,snapshot_updated_at:'2026-10-19T00:00:00.000000Z',snapshot_etag:'v1',snapshot_version:'v1'});
    }
    const indexPath=join(root,'index.json');await writeFile(indexPath,JSON.stringify(index),{mode:0o600});
+   for(const name of ['files','events'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
    db=createUnifiedDatabase(config);const store=await createBusinessFileStore({root:next,instanceId:'aliyun-files-test'}),legacyReader=await createStorageReader({root:legacy,indexPath});
    const files=createBusinessFilesService({database:db,store,legacyReader,spaceAvailable:async()=>10*1024**3}),models=createModelsService({database:db});
    const personalContext={...c,spaceId:'a0000000-0000-4000-8000-000000000001'};
    await db.withIdentity(testIdentity(),q=>q.query('SELECT api_private.event_read($1::jsonb,NULL)',[JSON.stringify([personalContext])]));
+   await assert.rejects(db.withIdentity(testIdentity(USERS.other),q=>q.query('SELECT api_private.event_read($1::jsonb,NULL)',[JSON.stringify([personalContext])])),{code:'FORBIDDEN'});
    for(const object of index.objects){const h=await files.read(testIdentity(USERS.admin),object.id);assert.equal(h.size,object.size);await h.close();}
+   const legacyPhotos=await db.withIdentity(testIdentity(),async q=>(await q.query('SELECT api_private.survey_read($1,$2::jsonb) data',['survey.listPhotos',JSON.stringify({...c,objectCode:'B1',objectType:'building'})])).rows[0].data);
+   assert.equal(legacyPhotos.length,11);assert.ok(legacyPhotos.every(p=>index.objects.some(o=>o.id===p.fileId)));
    await setup.query("UPDATE object_photos SET space_id='B' WHERE photo_path=$1",[index.objects[0].name]);await assert.rejects(files.read(testIdentity(),index.objects[0].id),{code:'FORBIDDEN'});
    const request={requestId:randomUUID(),purpose:'photo',context:c,files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]};
    const session=await files.begin(testIdentity(),request);assert.equal((await files.begin(testIdentity(),request)).id,session.id);await assert.rejects(files.read(testIdentity(),session.files[0].id),{code:'FORBIDDEN'});
@@ -39,6 +43,18 @@ test('native ordinary files commit atomically, preserve model history and author
    await assert.rejects(models.execute(testIdentity(USERS.admin),'models.place',{...place,requestId:randomUUID()}),{code:'FORBIDDEN'});
    assert.equal((await setup.query('SELECT count(*) n FROM model_operation_events WHERE asset_id=$1',[asset.id])).rows[0].n,'4');
    const abandoned=await files.begin(testIdentity(),{...request,requestId:randomUUID()});await assert.rejects(files.put(testIdentity(),abandoned.id,'photo',Readable.from([png.subarray(0,12)])),{code:'INVALID_FILE'});await files.archive(testIdentity(),abandoned.files[0].id);assert.equal((await files.cleanup({execute:true})).files,1);
+   const names=['boundary.geojson','imagery.webp','buildings.geojson','roads.geojson','waterways.geojson','water_areas.geojson','water.geojson','contours.geojson'],polygon={type:'Polygon',coordinates:[[[113,23],[113.001,23],[113.001,23.001],[113,23]]]};
+   const webp=Buffer.alloc(26);webp.write('RIFF');webp.writeUInt32LE(18,4);webp.write('WEBP',8);webp.write('VP8L',12);webp.writeUInt32LE(5,16);webp[20]=0x2f;
+   const contents=Object.fromEntries(names.map(name=>[name,name==='imagery.webp'?webp:Buffer.from(JSON.stringify({type:'FeatureCollection',features:['boundary.geojson','buildings.geojson'].includes(name)?[{type:'Feature',properties:{},geometry:polygon}]:[]}))]));
+   const manifest={schema_version:'village-v0-package/1',village:{name:'Synthetic',bounds:[113,23,113.001,23.001]},imagery:{path:'imagery.webp'},files:names.map(path=>({path,sha256:createHash('sha256').update(contents[path]).digest('hex')})),layers:[['building','buildings.geojson',1],['road','roads.geojson',0],['water','water.geojson',0],['contours','contours.geojson',0]].map(([type,path,featureCount])=>({type,path,featureCount}))};
+   contents['manifest.json']=Buffer.from(JSON.stringify(manifest));contents['validation.json']=Buffer.from('{"valid":true}');
+   const datasetRequest={requestId:randomUUID(),purpose:'dataset',context:{villageId:c.villageId},files:Object.entries(contents).map(([role,b])=>({role,size:b.length,mime:role.endsWith('.geojson')?'application/geo+json':role.endsWith('.webp')?'image/webp':'application/json',extension:role.split('.').at(-1)}))};
+   await assert.rejects(files.begin(testIdentity(),datasetRequest),{code:'FORBIDDEN'});
+   const packageSession=await files.begin(testIdentity(USERS.admin),datasetRequest);
+   for(const [role,b] of Object.entries(contents))await files.put(testIdentity(USERS.admin),packageSession.id,role,Readable.from([b]));
+   const dataset=await files.commit(testIdentity(USERS.admin),packageSession.id,{versionLabel:'Native package'});assert.equal(dataset.status,'ready');assert.match(dataset.imagery_config.path,/ordinary\//);
+   const imagery=packageSession.files.find(f=>f.role==='imagery.webp');await assert.rejects(files.read(testIdentity(),imagery.id),{code:'FORBIDDEN'});
+   await setup.query("UPDATE village_datasets SET status='published' WHERE id=$1",[dataset.id]);const published=await files.read(testIdentity(),imagery.id);await published.close();
   }finally{await db?.close();await rm(root,{recursive:true,force:true});}
  });
 });
