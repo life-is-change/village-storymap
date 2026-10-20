@@ -20,5 +20,5 @@ export function createTaskBridge({remote,instanceId}){
   let result;try{result=await remote.call(names[action],{p_instance_id:instanceId,p_request:structuredClone(input)});}catch(e){throw code(known.has(e?.code)?e.code:'BRIDGE_UNAVAILABLE');}
   if(!result||result.instanceId!==instanceId)throw code('BRIDGE_UNAVAILABLE');return result;
  }
- return Object.fromEntries(Object.keys(names).map(action=>[action,input=>call(action,input)]));
+ return {instanceId,...Object.fromEntries(Object.keys(names).map(action=>[action,input=>call(action,input)]))};
 }
