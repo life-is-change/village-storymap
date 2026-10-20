@@ -49,8 +49,8 @@ jobs:
           local all all trust
           host village_unified_candidate village_unified_login 0.0.0.0/0 scram-sha-256
           host all village_unified_login 0.0.0.0/0 reject
-          host village_unified_candidate village_auth_migrator 127.0.0.1/32 scram-sha-256
-          host village_unified_candidate village_auth_runtime 127.0.0.1/32 scram-sha-256
+          host village_unified_candidate village_auth_migrator 0.0.0.0/0 scram-sha-256
+          host village_unified_candidate village_auth_runtime 0.0.0.0/0 scram-sha-256
           host all village_test_admin 0.0.0.0/0 scram-sha-256
           HBA
           docker exec village-unified-ci psql -X -v ON_ERROR_STOP=1 -U village_test_admin -d postgres -c \

@@ -1,6 +1,6 @@
 {
   "version": "v2.197.0",
-  "image": "public.ecr.aws/supabase/gotrue@sha256:839f529492d116b4e8b7777c953a27c381d34c15a744b1bcefde5eefaa1f9f9f",
+  "image": "supabase/gotrue@sha256:839f529492d116b4e8b7777c953a27c381d34c15a744b1bcefde5eefaa1f9f9f",
   "os": "linux",
   "architecture": "amd64",
   "upstream_ref": "https://github.com/supabase/auth/tree/v2.197.0",

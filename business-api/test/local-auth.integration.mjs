@@ -24,7 +24,7 @@ test('pinned GoTrue preserves imported password identity and local session, prof
   const target=new URL(base);target.pathname='/village_unified_candidate';setup=new pg.Client({connectionString:target.href});await setup.connect();
   await setup.query('CREATE SCHEMA auth AUTHORIZATION village_auth_migrator;CREATE SCHEMA extensions;CREATE EXTENSION pgcrypto WITH SCHEMA extensions');
   const manifest=JSON.parse(await readFile(new URL('../../linux/auth-runtime.json',import.meta.url),'utf-8'));
-  assert.match(manifest.image,/^public\.ecr\.aws\/supabase\/gotrue@sha256:[a-f0-9]{64}$/);
+  assert.match(manifest.image,/^supabase\/gotrue@sha256:[a-f0-9]{64}$/);
   const env={GOTRUE_API_HOST:'127.0.0.1',GOTRUE_API_PORT:'9999',API_EXTERNAL_URL:origin+'/auth/v1',GOTRUE_SITE_URL:origin,GOTRUE_URI_ALLOW_LIST:origin,GOTRUE_DB_DRIVER:'postgres',GOTRUE_DB_NAMESPACE:'auth',GOTRUE_DB_MAX_POOL_SIZE:'2',GOTRUE_DB_MAX_IDLE_POOL_SIZE:'1',GOTRUE_JWT_SECRET:jwtSecret,GOTRUE_JWT_ISSUER:origin+'/auth/v1',GOTRUE_JWT_AUD:'authenticated',GOTRUE_JWT_DEFAULT_GROUP_NAME:'authenticated',GOTRUE_JWT_EXP:'900',GOTRUE_EXTERNAL_EMAIL_ENABLED:'true',GOTRUE_MAILER_AUTOCONFIRM:'true',GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED:'false',GOTRUE_EXTERNAL_PHONE_ENABLED:'false',GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED:'true',LOG_LEVEL:'warn'};
   const flags=Object.entries(env).flatMap(([k,v])=>['--env',k+'='+v]);
   const databaseURL=role=>`postgresql://${role}:${role==='village_auth_migrator'?'synthetic-ci-migration-only':'synthetic-ci-runtime-only'}@127.0.0.1:${base.port}/village_unified_candidate`;
