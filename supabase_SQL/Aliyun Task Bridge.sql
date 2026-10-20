@@ -84,12 +84,16 @@ DO $$DECLARE r record;def text;patched text;BEGIN
  END LOOP;
 END$$;
 CREATE FUNCTION aliyun_bridge.authorize(i text,r jsonb) RETURNS aliyun_bridge.requests LANGUAGE plpgsql STABLE SECURITY DEFINER
- SET search_path=pg_catalog,aliyun_bridge,pg_temp AS $$DECLARE request aliyun_bridge.requests;c aliyun_bridge.contexts;p aliyun_bridge.contexts;BEGIN
+ SET search_path=pg_catalog,aliyun_bridge,pg_temp AS $$DECLARE request aliyun_bridge.requests;c aliyun_bridge.contexts;p aliyun_bridge.contexts;photo aliyun_bridge.contexts;BEGIN
  SELECT * INTO request FROM aliyun_bridge.requests WHERE instance_id=i AND owner_id=(r->>'ownerId')::uuid AND request_id=(r->>'requestId')::uuid;
  IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
  SELECT * INTO c FROM aliyun_bridge.contexts WHERE instance_id=i AND local_kind='space' AND local_id=request.context_id;
  SELECT * INTO p FROM aliyun_bridge.contexts WHERE instance_id=i AND local_kind='profile' AND local_id=request.owner_id::text;
- IF c.tombstone IS DISTINCT FROM false OR p.tombstone IS DISTINCT FROM false OR NOT coalesce((p.payload->>'active')::boolean,false) OR NOT coalesce(c.payload->'members' ? request.owner_id::text,false) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;RETURN request;
+ IF c.tombstone IS DISTINCT FROM false OR p.tombstone IS DISTINCT FROM false OR NOT coalesce((p.payload->>'active')::boolean,false) OR NOT coalesce(c.payload->'members' ? request.owner_id::text,false) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF request.kind<>'geo' THEN
+  SELECT * INTO photo FROM aliyun_bridge.contexts WHERE instance_id=i AND local_kind='photo' AND local_id=request.request->>'photoId';
+  IF photo.tombstone IS DISTINCT FROM false OR photo.payload->>'contextId' IS DISTINCT FROM request.context_id THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ END IF;RETURN request;
 END$$;
 CREATE FUNCTION aliyun_bridge.cancel_run(k text,rid uuid) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,pg_temp AS $$BEGIN
@@ -142,7 +146,8 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
  ELSE
   SELECT * INTO photo FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='photo' AND local_id=p_request->>'photoId' FOR SHARE;
   IF photo.version IS DISTINCT FROM (p_request->>'photoVersion')::bigint OR photo.tombstone IS DISTINCT FROM false OR photo.payload->>'contextId' IS DISTINCT FROM ctx.local_id THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
-  IF photo.payload->>'sha256'!~'^[a-f0-9]{64}$' OR photo.payload->>'mime' NOT IN('image/jpeg','image/png') OR (photo.payload->>'size')::bigint NOT BETWEEN 1 AND 10485760 OR photo.payload->>'path'!~('^'||p_instance_id||'/photos/[a-f0-9-]{36}/'||(photo.payload->>'sha256')||CASE WHEN photo.payload->>'mime'='image/png' THEN '\.png$' ELSE '\.jpg$' END) OR input-'objectCode'<>'{}' OR length(input->>'objectCode') NOT BETWEEN 1 AND 200 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  IF NOT coalesce(photo.payload->>'sha256'~'^[a-f0-9]{64}$' AND photo.payload->>'mime' IN('image/jpeg','image/png') AND photo.payload->>'size'~'^[0-9]{1,8}$' AND photo.payload->>'path'~('^'||p_instance_id||'/photos/[a-f0-9-]{36}/'||(photo.payload->>'sha256')||CASE WHEN photo.payload->>'mime'='image/png' THEN '\.png$' ELSE '\.jpg$' END) AND input-'objectCode'='{}' AND length(input->>'objectCode') BETWEEN 1 AND 200,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  IF (photo.payload->>'size')::bigint NOT BETWEEN 1 AND 10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF kind='facade' THEN INSERT INTO public.facade_generation_runs(id,owner_id,course_id,space_id,object_code,photo_id,source_photo_bucket,source_photo_path,source_photo_url,source_photo_sha256,source_photo_size,source_photo_mime,origin_instance_id)
    VALUES(run_id,owner,p_instance_id||':'||(ctx.payload->>'courseId'),p_instance_id||':'||ctx.local_id,input->>'objectCode',NULL,'aliyun-task-inputs',photo.payload->>'path',NULL,photo.payload->>'sha256',(photo.payload->>'size')::bigint,photo.payload->>'mime',p_instance_id);
   ELSE INSERT INTO public.cloud_facade_runs(id,owner_id,course_id,space_id,object_code,photo_id,model,origin_instance_id,source_photo_bucket,source_photo_path,source_photo_sha256,source_photo_size,source_photo_mime)

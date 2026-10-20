@@ -1,10 +1,12 @@
 import {readFile} from 'node:fs/promises';import {prepareSurvey} from './survey.mjs';import assert from 'node:assert/strict';
 export async function prepareBridge(setup){
- await prepareSurvey(setup);await setup.query(`CREATE PUBLICATION supabase_realtime;
+ await prepareSurvey(setup);await setup.query(`ALTER TABLE object_photos ADD uploaded_at timestamptz DEFAULT now();
+  CREATE PUBLICATION supabase_realtime;
   CREATE ROLE service_role NOLOGIN BYPASSRLS;
+  CREATE FUNCTION public.current_profile_display_name() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$SELECT display_name FROM profiles WHERE id=auth.uid()$$;
   CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$SELECT current_setting('request.jwt.claim.role',true)$$;
   CREATE SCHEMA storage;CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-  CREATE TABLE storage.objects(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),bucket_id text,name text,metadata jsonb DEFAULT '{}');
+  CREATE TABLE storage.objects(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),bucket_id text,name text,owner_id text,metadata jsonb DEFAULT '{}');
   CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql IMMUTABLE AS $$SELECT (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1]$$;
   GRANT USAGE ON SCHEMA public,auth,storage TO authenticated,anon,service_role;GRANT SELECT ON storage.objects TO authenticated,anon;
   ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;CREATE POLICY deliberately_permissive_source ON storage.objects FOR SELECT TO authenticated,anon USING(true);`);

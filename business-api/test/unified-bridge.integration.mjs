@@ -16,6 +16,8 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
     await invoke('bridge_v1_apply_context',{localKind:'photo',localId:photoId,version:1,tombstone:false,payload:{contextId,path:instance+'/photos/10000000-0000-4000-8000-000000000001/'+sha+'.jpg',sha256:sha,size:123,mime:'image/jpeg'}},instance);
    }
    await contexts();await contexts('aliyun-other');
+   await invoke('bridge_v1_apply_context',{localKind:'photo',localId:'invalid',version:1,tombstone:false,payload:{contextId}});
+   await assert.rejects(invoke('bridge_v1_enqueue',{ownerId:USERS.student,requestId:randomUUID(),kind:'facade',contextId,contextVersion:1,profileVersion:1,photoId:'invalid',photoVersion:1,input:{objectCode:'B1'}}),e=>e.message==='INVALID_INPUT');
    const requestId=randomUUID(),input={ownerId:USERS.student,requestId,kind:'facade',contextId,contextVersion:1,profileVersion:1,photoId,photoVersion:1,input:{objectCode:'B1'}};
    const run=await invoke('bridge_v1_enqueue',input),replay=await invoke('bridge_v1_enqueue',input);assert.equal(run.runId,replay.runId);
    const other=await invoke('bridge_v1_enqueue',input,'aliyun-other');assert.notEqual(run.runId,other.runId);
@@ -40,6 +42,8 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    await assert.rejects(invoke('bridge_v1_apply_context',{localKind:'profile',localId:USERS.student,version:1,tombstone:false,payload:{active:true}}),e=>e.message==='REVISION_CONFLICT');
    await assert.rejects(invoke('bridge_v1_apply_context',{localKind:'profile',localId:USERS.student,version:3,tombstone:false,payload:{active:true}}),e=>e.message==='REVISION_CONFLICT');
    assert.equal((await invoke('bridge_v1_status',{ownerId:USERS.student,requestId},'aliyun-other')).run.origin_instance_id,'aliyun-other');
+   await invoke('bridge_v1_apply_context',{localKind:'photo',localId:photoId,version:2,tombstone:true,payload:{}},'aliyun-other');
+   await assert.rejects(invoke('bridge_v1_retry',{ownerId:USERS.student,requestId},'aliyun-other'),e=>e.message==='FORBIDDEN');
    assert.deepEqual((await setup.query('SELECT (SELECT count(*) FROM profiles) profiles,(SELECT count(*) FROM teaching_projects) projects,(SELECT count(*) FROM group_memberships) members,(SELECT count(*) FROM object_photos) photos')).rows[0],before);
   }finally{
    await setup.query('ROLLBACK');

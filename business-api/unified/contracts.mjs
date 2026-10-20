@@ -152,7 +152,7 @@ export function exampleInput(action) {
   const d=definitions[action];if(!d)throw fault('NOT_FOUND');
   return structuredClone(Object.fromEntries(Object.entries(d.fields).map(([key,f])=>[key,f.example])));
 }
-function jsonTree(value,depth=0,budget={nodes:0}) {
+export function jsonTree(value,depth=0,budget={nodes:0}) {
   if(depth>32||++budget.nodes>100000)invalid();
   if(Array.isArray(value)){for(const item of value)jsonTree(item,depth+1,budget);}
   else if(plain(value)){

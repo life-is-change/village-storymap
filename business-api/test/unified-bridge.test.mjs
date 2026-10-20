@@ -11,3 +11,10 @@ test('old namespace responses and remote credential-bearing errors never reach t
  const bridge=api.createTaskBridge({instanceId:'aliyun-test',remote:{async call(){return {instanceId:'supabase',runId:requestId};}}});await assert.rejects(bridge.status({ownerId:owner,requestId}),{code:'BRIDGE_UNAVAILABLE'});
  const failed=api.createTaskBridge({instanceId:'aliyun-test',remote:{async call(){throw Error('secret key and private SQL');}}});await assert.rejects(failed.status({ownerId:owner,requestId}),e=>e.code==='BRIDGE_UNAVAILABLE'&&!e.message.includes('secret'));
 });
+
+test('bridge rejects non-JSON values and preserves safe actionable HTTP errors',async()=>{
+ let calls=0;const bridge=api.createTaskBridge({instanceId:'aliyun-test',remote:{async call(){calls++;return {instanceId:'aliyun-test'};}}});
+ for(const payload of [{active:NaN},{active:Infinity},{active:undefined},{active:1n},new Date(),Object.assign(Object.create({inherited:true}),{active:true})])await assert.rejects(bridge.applyContext({localKind:'profile',localId:owner,version:1,tombstone:false,payload}),{code:'INVALID_INPUT'});
+ assert.equal(calls,0);
+ for(const [code,status] of [['NOT_FOUND',404],['TOO_MANY_ACTIVE_RUNS',429]]){const failed=api.createTaskBridge({instanceId:'aliyun-test',remote:{async call(){throw {code};}}});await assert.rejects(failed.status({ownerId:owner,requestId}),e=>e.code===code&&e.status===status);}
+});
