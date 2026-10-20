@@ -15,3 +15,10 @@ test('outbox delivery is single flight, reuses the original request ID and retri
  const bridge={instanceId:'aliyun-test',async submit(input){assert.equal(input.requestId,requestId);await new Promise(r=>release=r);throw Object.assign(Error(),{code:'BRIDGE_UNAVAILABLE'});}};
  const s=api.createTaskService({database,bridge,files:{},now:()=>now});const first=s.tick();await new Promise(r=>setImmediate(r));assert.equal(await s.tick(),false);release();assert.equal(await first,true);assert.equal(attempts,1);assert.equal(ack,0);assert.ok(calls.some(([sql,args])=>sql.includes('task_fail')&&args[2]===1000));await s.close();assert.equal(await s.tick(),false);
 });
+
+test('retry with a lost source response acknowledges its authorized current status rather than abandoning polling',async()=>{
+ let acknowledged,failed=0;const job={id:requestId,lease:requestId,sourceRunId:requestId,operation:'retry',ownerId:identity.userId,requestId,snapshots:[]};
+ const database={async withMaintenance(fn){return fn({async query(sql,args){if(sql.includes('task_next'))return {rows:[{data:job}]};if(sql.includes('task_finish')){acknowledged=JSON.parse(args[2]);return {rows:[{data:{}}]};}if(sql.includes('task_fail')){failed++;return {rows:[{data:{}}]};}throw Error(sql);}});}};
+ const bridge={instanceId:'aliyun-test',async retry(){throw {code:'BRIDGE_UNAVAILABLE'};},async status(){return {instanceId:'aliyun-test',runId:requestId,run:{status:'queued_generation'}};}};
+ const service=api.createTaskService({database,bridge,files:{}});await service.tick();await service.close();assert.equal(failed,0);assert.equal(acknowledged.run.status,'queued_generation');
+});

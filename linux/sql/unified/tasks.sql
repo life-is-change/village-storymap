@@ -136,7 +136,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
  IF o.operation='submit' THEN
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR result->>'runId' IS NULL THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   UPDATE api_private.task_requests SET source_run_id=(result->>'runId')::uuid,state='queued',error_code=NULL,updated_at=now() WHERE id=t.id;
- ELSIF o.operation='poll' THEN
+ ELSIF o.operation IN('poll','retry') THEN
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR (result->>'runId')::uuid IS DISTINCT FROM t.source_run_id THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   s:=result->'run'->>'status';IF s NOT IN('queued','claimed','running','completed','failed','canceled','cancel_requested','queued_rectification','claimed_rectification','rectifying','awaiting_crop','queued_generation','claimed_generation','generating','submitting','succeeded') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   UPDATE api_private.task_requests SET remote_status=s,state=CASE WHEN s IN('completed','succeeded') THEN 'completed' WHEN s IN('failed','canceled') THEN s ELSE 'running' END,progress=greatest(0,least(100,coalesce((result->'run'->>'progress')::integer,0))),

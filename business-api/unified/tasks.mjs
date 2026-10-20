@@ -26,7 +26,17 @@ export function createTaskService({database,bridge,files,now=Date.now}){
    if(['completed','succeeded','awaiting_crop'].includes(result.run?.status)&&files.prepareTaskArtifacts){const artifacts=await bridge.artifacts(request);await files.prepareTaskArtifacts(job,artifacts.artifacts??[],bridge);}
    return result;
   }
-  if(['cancel','retry','confirmCrop'].includes(job.operation))return bridge[job.operation]({...request,...job.input});
+  if(job.operation==='retry'){
+   try{await bridge.retry({...request,...job.input});}
+   catch(error){
+    if(error?.code!=='BRIDGE_UNAVAILABLE')throw error;
+    const current=await bridge.status(request);
+    if(!['queued_rectification','claimed_rectification','rectifying','awaiting_crop','queued_generation','claimed_generation','generating','completed'].includes(current.run?.status))throw error;
+    return current;
+   }
+   return bridge.status(request);
+  }
+  if(['cancel','confirmCrop'].includes(job.operation))return bridge[job.operation]({...request,...job.input});
   if(job.operation==='import'){
    const result=await bridge.artifacts(request);
    if(!Array.isArray(result.artifacts)||!result.artifacts.length)throw Object.assign(Error(),{code:'SOURCE_NOT_READY'});
