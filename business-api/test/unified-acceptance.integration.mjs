@@ -7,7 +7,7 @@ test('concentrated native HTTP acceptance: role identity, actual four-connection
   for(const name of ['catalog','survey','planning','files','events','scene'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
   const root=await mkdtemp(join(tmpdir(),'unified-load-'));let services,server;const logs=[],results=[];
   async function start(){
-   services=await createUnifiedServices({database:config,authOrigin:'https://rzmbmwauomzwiyenafha.supabase.co',publishableKey:'sb_publishable_synthetic',instanceId:'load-ci',filesRoot:join(root,'files'),sceneRoot:join(root,'scene'),legacy:{root:join(root,'legacy'),indexPath:join(root,'index.json')},bridge:{enabled:false}});
+   services=await createUnifiedServices({database:config,authOrigin:'https://rzmbmwauomzwiyenafha.supabase.co',publishableKey:'sb_publishable_synthetic',instanceId:'aliyun-load-ci',filesRoot:join(root,'files'),sceneRoot:join(root,'scene'),legacy:{root:join(root,'legacy'),indexPath:join(root,'index.json')},bridge:{enabled:false}});
    const verifyIdentity=async header=>{const id=header?.replace('Bearer ','');if(!Object.values(USERS).includes(id))throw Object.assign(Error('UNAUTHORIZED'),{code:'UNAUTHORIZED'});return testIdentity(id);};
    server=createServer(createUnifiedHandler({services,verifyIdentity,release:{releaseId:'native-ci',instanceId:'load-ci'},log:value=>logs.push(value)}));await new Promise(r=>server.listen(0,'127.0.0.1',r));return 'http://127.0.0.1:'+server.address().port;
   }
