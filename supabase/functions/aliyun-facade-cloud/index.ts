@@ -1,4 +1,3 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import {createCloudFacadeHandler} from './core.mjs';
 import {sourceAdapters} from '../aliyun-task-bridge/adapters.ts';
 const instanceId=Deno.env.get('ALIYUN_BRIDGE_INSTANCE_ID')??'',{database,storage}=sourceAdapters(instanceId);

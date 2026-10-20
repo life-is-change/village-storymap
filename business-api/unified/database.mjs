@@ -2,6 +2,7 @@ import pg from 'pg';
 import {UUID} from '../src/contracts.mjs';
 import {AUTH_ORIGIN} from '../src/config.mjs';
 import {fault} from './contracts.mjs';
+import {measure} from './metrics.mjs';
 
 export function poolOptions(config) {
   const allowed=['host','port','database','user','password'];
@@ -37,7 +38,8 @@ export function createUnifiedDatabase(config) {
   pool.on?.('error',()=>{});
   let closing;
   function valid(identity){return typeof identity?.userId==='string'&&UUID.test(identity.userId)&&identity.userId===identity.userId.toLowerCase()&&identity.issuer===AUTH_ORIGIN+'/auth/v1'&&Number.isSafeInteger(identity.expiry)&&identity.expiry>Math.floor(now()/1000);}
-  async function transaction(identity,fn,{readOnly=false}={}){
+  const transaction=(identity,fn,options)=>measure('sql',()=>runTransaction(identity,fn,options));
+  async function runTransaction(identity,fn,{readOnly=false}={}){
     if(identity&&!valid(identity))throw fault('UNAUTHORIZED');
     if(closing||typeof fn!=='function')throw fault('DB_UNAVAILABLE');
     let client,discard;

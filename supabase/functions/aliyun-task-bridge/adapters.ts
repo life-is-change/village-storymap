@@ -13,14 +13,14 @@ export function sourceAdapters(instanceId:string){
   if(!RPC_NAMES.includes(operation))throw fail('INVALID_INPUT');const c=await pool.connect();
   try{await c.query('BEGIN');await c.query("SET LOCAL ROLE village_aliyun_bridge;SET LOCAL statement_timeout='5s';SET LOCAL lock_timeout='3s'");
    const result=(await c.query('SELECT aliyun_bridge.'+operation+'($1,$2::jsonb) data',[instanceId,JSON.stringify(input)])).rows[0]?.data;await c.query('COMMIT');return result;
-  }catch(error){await c.query('ROLLBACK').catch(()=>{});throw fail(error.code==='P0001'?error.message:error.code==='42501'?'FORBIDDEN':['22P02','23514','22003'].includes(error.code)?'INVALID_INPUT':'BRIDGE_UNAVAILABLE');}finally{c.release();}
+  }catch(error){await c.query('ROLLBACK').catch(()=>{});const failure=error instanceof Error?error as Error&{code?:string}:null,code=failure?.code;throw fail(code==='P0001'?failure!.message:code==='42501'?'FORBIDDEN':['22P02','23514','22003'].includes(code??'')?'INVALID_INPUT':'BRIDGE_UNAVAILABLE');}finally{c.release();}
  }};
  const encoded=(path:string)=>path.split('/').map(encodeURIComponent).join('/');
  const authHeaders={authorization:'Bearer '+key,apikey:key};
  const storageFetch=(path:string,init:RequestInit={})=>fetch(origin+'/storage/v1/'+path,{...init,headers:{...authHeaders,...init.headers},redirect:'error',signal:AbortSignal.timeout(30000)});
  const storage={
   async putInput(path:string,bytes:Uint8Array,mime:string){
-   const response=await storageFetch('object/aliyun-task-inputs/'+encoded(path),{method:'POST',headers:{'content-type':mime,'x-upsert':'false'},body:bytes});
+   const response=await storageFetch('object/aliyun-task-inputs/'+encoded(path),{method:'POST',headers:{'content-type':mime,'x-upsert':'false'},body:new Uint8Array(bytes).buffer});
    if(response.ok)return;
    if(![400,409].includes(response.status))throw fail('BRIDGE_UNAVAILABLE');
    const old=await storageFetch('object/authenticated/aliyun-task-inputs/'+encoded(path));if(!old.ok)throw fail('BRIDGE_UNAVAILABLE');
@@ -45,11 +45,11 @@ export function sourceAdapters(instanceId:string){
    const target=new URL(output),allowed=(Deno.env.get('DASHSCOPE_OUTPUT_HOSTS')??'dashscope-result-bj.oss-cn-beijing.aliyuncs.com,dashscope-result-sgp.oss-ap-southeast-1.aliyuncs.com').split(',');
    if(target.protocol!=='https:'||target.port||target.username||target.password||!allowed.includes(target.hostname)||!target.hostname.endsWith('.aliyuncs.com'))throw fail('INVALID_FILE');
    const response=await fetch(target,{redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw fail('PROVIDER_UNAVAILABLE');
-   const mime=response.headers.get('content-type')?.split(';')[0];if(!['image/png','image/jpeg'].includes(mime??''))throw fail('INVALID_FILE');
+   const mime=response.headers.get('content-type')?.split(';')[0]??'';if(!['image/png','image/jpeg'].includes(mime??''))throw fail('INVALID_FILE');
    const bytes=await readBounded(response,10485760),png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71,jpg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
    if(!(mime==='image/png'?png:jpg))throw fail('INVALID_FILE');
    const digest=await sha256(bytes),path=`${job.ownerId}/cloud/${job.runId}/${digest}.${mime==='image/png'?'png':'jpg'}`;
-   const stored=await storageFetch('object/facade-generation/'+encoded(path),{method:'POST',headers:{'content-type':mime,'x-upsert':'false'},body:bytes});if(!stored.ok){const prior=await storageFetch('object/authenticated/facade-generation/'+encoded(path));if(!prior.ok||await sha256(await readBounded(prior,10485760))!==digest)throw fail('BRIDGE_UNAVAILABLE');}
+   const stored=await storageFetch('object/facade-generation/'+encoded(path),{method:'POST',headers:{'content-type':mime,'x-upsert':'false'},body:new Uint8Array(bytes).buffer});if(!stored.ok){const prior=await storageFetch('object/authenticated/facade-generation/'+encoded(path));if(!prior.ok||await sha256(await readBounded(prior,10485760))!==digest)throw fail('BRIDGE_UNAVAILABLE');}
    return {path,sha256:digest,size:bytes.length,mime};
   }
  };

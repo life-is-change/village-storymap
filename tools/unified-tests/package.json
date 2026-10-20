@@ -1,0 +1,13 @@
+{
+  "name": "village-unified-validation-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:bridge": "node run-deno.mjs check --config deno.json --lock=deno.lock ../../supabase/functions/aliyun-task-bridge/index.ts ../../supabase/functions/aliyun-facade-cloud/index.ts",
+    "test:browser": "node browser-flow.mjs"
+  },
+  "devDependencies": {
+    "deno": "2.5.4",
+    "playwright": "1.56.1"
+  }
+}

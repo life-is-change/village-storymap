@@ -26,3 +26,27 @@ jobs:
       - run: npm test
       - name: Test model processing and bundled worker
         run: npm test --prefix tools/model-processor
+      - name: Install pinned browser and bridge validation tools
+        run: npm ci --prefix tools/unified-tests --ignore-scripts
+      - name: Type check both private bridge transports
+        run: npm --prefix tools/unified-tests run check:bridge -- --frozen
+      - name: Install isolated Chromium test browser
+        run: node tools/unified-tests/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test real page assembly and source versus Aliyun network routing
+        run: npm --prefix tools/unified-tests run test:browser
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pytest==8.4.2 httpx==0.28.1
+      - name: Test deployment, probe safety and archive contracts
+        run: python -m pytest linux/tests -q
+      - name: Test existing Worker and private bridge input compatibility without real tasks
+        working-directory: server
+        run: python -m pytest tests/test_supabase_gateway.py tests/test_facade_gateway.py tests/test_worker.py tests/test_facade_worker.py -q

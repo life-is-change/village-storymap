@@ -56,7 +56,7 @@ jobs:
       - name: Unit contracts and shared pool
         run: node --test business-api/test/*.test.mjs
       - name: Native permission, geometry and connection budget integration
-        run: node --test --test-concurrency=1 business-api/test/unified-database.integration.mjs business-api/test/unified-identity.integration.mjs business-api/test/unified-catalog.integration.mjs business-api/test/unified-survey.integration.mjs business-api/test/unified-planning.integration.mjs business-api/test/unified-events.integration.mjs business-api/test/unified-files.integration.mjs business-api/test/unified-bridge.integration.mjs business-api/test/unified-tasks.integration.mjs business-api/test/unified-http.integration.mjs
+        run: node --test --test-concurrency=1 business-api/test/unified-database.integration.mjs business-api/test/unified-identity.integration.mjs business-api/test/unified-catalog.integration.mjs business-api/test/unified-survey.integration.mjs business-api/test/unified-planning.integration.mjs business-api/test/unified-events.integration.mjs business-api/test/unified-files.integration.mjs business-api/test/unified-bridge.integration.mjs business-api/test/unified-tasks.integration.mjs business-api/test/unified-http.integration.mjs business-api/test/unified-acceptance.integration.mjs
       - name: Database startup diagnostics on failure
         if: failure()
         run: docker logs --tail 70 village-unified-ci

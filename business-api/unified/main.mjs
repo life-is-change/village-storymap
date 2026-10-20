@@ -1,10 +1,11 @@
 import {createServer} from 'node:http';import {readFile,lstat} from 'node:fs/promises';import {pathToFileURL} from 'node:url';
 import {loadUnifiedConfig} from './config.mjs';import {createUnifiedServices} from './services.mjs';import {createUnifiedHandler,closeUnifiedServices} from './http.mjs';import {createSceneFilesHandler} from '../scene-files/http.mjs';
+import {measure} from './metrics.mjs';
 export async function startUnifiedServer(config=loadUnifiedConfig()){
  const st=await lstat(config.releaseFile);if(!st.isFile()||st.isSymbolicLink()||st.size>16384)throw Error('INVALID_RELEASE');const release=JSON.parse(await readFile(config.releaseFile,'utf8'));
  if(!/^[a-zA-Z0-9_-]{1,100}$/.test(release.releaseId??'')||release.schemaVersion!==1)throw Error('INVALID_RELEASE');
  const services=await createUnifiedServices(config),close=closeUnifiedServices(services);
- const sceneHandler=createSceneFilesHandler({verifyIdentity:services.verifyIdentity,database:services.scene,uploads:services.sceneUploads});
+ const sceneHandler=createSceneFilesHandler({verifyIdentity:header=>measure('auth',()=>services.verifyIdentity(header)),database:services.scene,uploads:services.sceneUploads});
  const server=createServer({maxHeaderSize:20000,requestTimeout:120000,headersTimeout:10000},createUnifiedHandler({services,verifyIdentity:services.verifyIdentity,release,sceneHandler,log:record=>console.log(JSON.stringify(record))}));server.setTimeout(130000,s=>s.destroy());
  let stopping;async function stop(){return stopping??(stopping=(async()=>{const ended=new Promise(r=>server.close(r));await close();await ended;})());}
  try{await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(config.port,'0.0.0.0',resolve);});if(config.bridge.enabled)services.tasks.start();return {server,services,stop};}catch(e){await close();throw e;}
