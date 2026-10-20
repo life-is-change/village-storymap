@@ -1,0 +1,26 @@
+{
+  "releaseId": "unified-5ada2b81a401",
+  "git_sha": "5ada2b81a401ccee09230a2a328f8bbe893ae368",
+  "schemaVersion": 1,
+  "code_sha256": "0adea5adc4c09ff46645d005619a8323455f9837daac74c76f0fdf002eead30b",
+  "schema_sha256": "2a3411f339afe97b6b2b46f2187a80c12b4373571c1325e0d22abfe6ec1b7340",
+  "static_sha256": "3d2474b5bad5c8407a1856af9ef28c5f10635b17d86cc9761c25056d7abc4cd4",
+  "instanceId": "aliyun-village",
+  "os": "linux",
+  "architecture": "amd64",
+  "image": "village-unified:5ada2b81a401",
+  "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
+  "accepted_image_ids": [
+    "sha256:caa13013152afd043cee505809929b330553b249563e37519d65e0ab1b147ebf",
+    "sha256:4a3aac120f972aece22b02655658bbc570bcf0c0852973a3a11dd43374cfa5c6",
+    "sha256:2e07cb2e177e56b4280bb3f003b517d486b848d696fb4cc1e4010e3566c1bad6",
+    "sha256:70734a507447107b837420ffff0b561098e2ae46e6e198b4d60a9ecc27c90096",
+    "sha256:bbfe0fe03f563690dfbad56814e7192ddeef7b6556066707f7b55468034b90d4",
+    "sha256:549da26e36b6a291edb426bbf55fe5e564ba2b93250e5c8c4fe7f418e9c2bc51",
+    "sha256:32abe508f5d5142bdb318aacb952cc7b5063c0fcba670da04a8190821a74fab4"
+  ],
+  "archive_filename": "village-unified-5ada2b8-amd64.tar.gz",
+  "archive_bytes": 103166049,
+  "archive_sha256": "d2543a6431556fa345a5eafc31fee55e498d796ad89094307240def608e74d9b",
+  "runtime_execution": "pending_linux_container_smoke_test"
+}

@@ -1,8 +1,8 @@
 import {executeOperation} from '../scene/database.mjs';import {parseOperation} from '../scene/contracts.mjs';
 import {fault,fields,uuid,text} from './contracts.mjs';import {queryOne} from './database.mjs';import {parseCommitInput} from './uploads.mjs';import {validateSceneDocument,validateFragment,createReferenceResolver,referenceIds} from './references.mjs';
 const simple=new Set(['find','create','load','versions','branch','version','restore','submit','save']);
-export function createSceneFilesService({database,store,legacyReader}){
- const resolver=createReferenceResolver({store,legacyReader}),one=queryOne;
+export function createSceneFilesService({database,store,legacyReader,legacyObjectReader,legacyPathReader}){
+ const resolver=createReferenceResolver({store,legacyReader,legacyObjectReader,legacyPathReader}),one=queryOne;
  async function scope(c,id){const s=await one(c,'SELECT scene_files.project_scope($1) AS data',[id]);if(!s)throw fault('FORBIDDEN');return s;}
  async function lock(c,id){await c.query('SELECT scene_files.lock_project($1)',[id]);return one(c,'SELECT public.scene_edit_load_project($1) AS data',[id]);}
  async function doc(c,d,prev=d){validateSceneDocument(d);await resolver.validateReferences(c,{document:d,previousDocument:prev,scope:await scope(c,d.projectId)});return d;}

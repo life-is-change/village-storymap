@@ -18,6 +18,7 @@ test('assembled HTTP and C2a share one native pool, preserve private uploads and
    response=await fetch(base+'/api/v1/scene-files/files/'+session.files[0].id,{headers:{Authorization:'Bearer synthetic'}});assert.equal(response.status,200);assert.equal((await response.arrayBuffer()).byteLength,glb().length);
    assert.ok(Number((await setup.query("SELECT count(*) n FROM pg_stat_activity WHERE usename='village_unified_login'")).rows[0].n)<=4);
    await setup.query('UPDATE profiles SET disabled_at=now() WHERE id=$1',[USERS.student]);response=await fetch(base+'/api/v1/me',{headers:{Authorization:'Bearer synthetic'}});assert.equal(response.status,403);
+   response=await fetch(base+'/api/v1/scene-files/files/'+session.files[0].id,{headers:{Authorization:'Bearer synthetic'}});assert.equal(response.status,403);assert.equal((await response.json()).error.code,'PROFILE_DISABLED');
    await assert.rejects(services.sceneUploads.create(identity,{...spec,requestId:randomUUID()}),{code:'PROFILE_DISABLED'});
   }finally{if(server)await new Promise(r=>server.close(r));if(services)await closeUnifiedServices(services)();await rm(root,{recursive:true,force:true});}
  });

@@ -31,7 +31,7 @@ def test_build_refuses_existing_output_before_touching_base(tmp_path):
  assert out.read_bytes()==b'keep'
 def test_image_layout_preserves_first_party_module_resolution_and_excludes_private_state(tmp_path,monkeypatch):
  import gzip,io,json,tarfile,hashlib
- m=module();root=tmp_path/'repo';files={'index.html':'root','homepage/dist/index.html':'home','deployment-config.js':'SOURCE','business-api/package.json':'{"type":"module"}','business-api/package-lock.json':'{}','business-api/unified/main.mjs':'entry','business-api/node_modules/pg/package.json':'{}','business-api/.env':'SECRET','features/mc/mc-bridge.js':'math','features/admin/village-package.js':'package','linux/sql/unified/identity.sql':'schema','linux/sql/scene-files-candidate.sql':(ROOT/'linux/sql/scene-files-candidate.sql').read_text(encoding='utf-8'),'supabase_SQL/Scene Edit Studio.sql':(ROOT/'supabase_SQL/Scene Edit Studio.sql').read_text(encoding='utf-8')}
+ m=module();root=tmp_path/'repo';files={'index.html':'root','homepage/dist/index.html':'home','deployment-config.js':'SOURCE','business-api/package.json':'{"type":"module"}','business-api/package-lock.json':'{}','business-api/unified/main.mjs':'entry','business-api/node_modules/pg/package.json':'{}','business-api/.env':'SECRET','business-api/node_modules/pg/dist/parser.test.js':'test code','features/mc/mc-bridge.js':'math','features/admin/village-package.js':'package','linux/sql/unified/identity.sql':'schema','linux/sql/scene-files-candidate.sql':(ROOT/'linux/sql/scene-files-candidate.sql').read_text(encoding='utf-8'),'supabase_SQL/Scene Edit Studio.sql':(ROOT/'supabase_SQL/Scene Edit Studio.sql').read_text(encoding='utf-8')}
  for name,text in files.items():p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text,encoding='utf-8')
  monkeypatch.setattr(m.subprocess,'check_output',lambda args,**kw:'a'*40 if args[1]=='rev-parse' else '')
  monkeypatch.setattr(m.image_builder,'validate_base',lambda _:({'os':'linux','architecture':'amd64','rootfs':{'diff_ids':[]},'config':{}},[]))
@@ -41,5 +41,5 @@ def test_image_layout_preserves_first_party_module_resolution_and_excludes_priva
  with tarfile.open(out) as t:
   manifest=json.load(t.extractfile('manifest.json'))[0];config=json.load(t.extractfile(manifest['Config']));assert config['config']['WorkingDir']=='/opt/village/business-api';assert config['config']['Cmd']==['node','unified/main.mjs']
   with tarfile.open(fileobj=io.BytesIO(gzip.decompress(t.extractfile(manifest['Layers'][-1]).read()))) as layer:
-   names=layer.getnames();assert 'opt/village/features/mc/mc-bridge.js' in names;assert 'opt/village-web/deployment-config.js' in names;assert not any('.env' in n or 'backups' in n for n in names)
+   names=layer.getnames();assert 'opt/village/features/mc/mc-bridge.js' in names;assert 'opt/village-web/deployment-config.js' in names;assert not any('.env' in n or 'backups' in n or '.test.' in n for n in names)
  assert (root/'deployment-config.js').read_text()=='SOURCE'

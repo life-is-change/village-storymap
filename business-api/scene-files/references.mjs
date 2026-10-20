@@ -11,11 +11,14 @@ export function validateFragment(f){fields(f,['id','name','coordinateSpace','obj
  for(const o of objects){if(!o?.geometry)throw fault('INVALID_INPUT');o.geometry.coordinates=localCoords(o.geometry.coordinates);layers.add(o.layerId);if(o.groupId!==null&&o.groupId!==undefined)throw fault('INVALID_INPUT');}
  validateSceneDocument({schemaVersion:1,projectId:'10000000-0000-4000-8000-000000000001',villageId:'10000000-0000-4000-8000-000000000001',groupId:null,baselineRef:{spaceId:'fragment',revision:0},revision:0,layers:[...layers.size?layers:['design']].map(id=>({id})),objects,groups:[],assetRefs:f.assetRefs,metadata:{scopeKind:'admin_sandbox'}});return f;
 }
-export function createReferenceResolver({store,legacyReader}){
+export function createReferenceResolver({store,legacyReader,legacyObjectReader=getStorageObject,legacyPathReader}){
  function usages(d,id){const found=new Set();if(d.assetRefs?.includes(id))found.add('declared');for(const o of d.objects??[])if(referenceIds({assetRefs:[],objects:[o]}).includes(id))found.add('object:'+o.id);for(const g of d.groups??[])if(referenceIds({assetRefs:[],objects:[],groups:[g]}).includes(id))found.add('group:'+g.id);if(referenceIds({assetRefs:[],objects:[],metadata:d.metadata??{}}).includes(id))found.add('metadata');return found;}
  async function verifyPath(c,path){if(!text(path,4096))throw fault('FILE_UNAVAILABLE');let file=await queryOne(c,'SELECT scene_files.resolve_path($1) AS data',[path]);
   if(file){const h=await store.open(file.id,{size:Number(file.size),sha256:file.sha256});await h.close();return {fileId:file.id,mime:file.mime,size:Number(file.size)};}
-  if(legacyReader){const row=(await c.query("SELECT id FROM storage.objects WHERE bucket_id IN ('scene-assets','scene-version-previews') AND name=$1",[path])).rows[0];if(row){const obj=await getStorageObject(c,row.id);if(obj&&['scene-assets','scene-version-previews'].includes(obj.bucket)){const h=await legacyReader.open(obj);await h.close();return {fileId:obj.id,size:h.size};}}}
+  if(legacyReader){
+   let obj;if(legacyPathReader)obj=await legacyPathReader(c,path);else{const row=(await c.query("SELECT id FROM storage.objects WHERE bucket_id IN ('scene-assets','scene-version-previews') AND name=$1",[path])).rows[0];if(row)obj=await legacyObjectReader(c,row.id);}
+   if(obj&&['scene-assets','scene-version-previews'].includes(obj.bucket)){const h=await legacyReader.open(obj);await h.close();return {fileId:obj.id,size:h.size};}
+  }
   throw fault('FILE_UNAVAILABLE');
  }
  async function validateReferences(c,{document,scope,previousDocument}){

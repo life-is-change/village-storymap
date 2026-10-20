@@ -25,8 +25,20 @@ CREATE FUNCTION api_private.scene_upload_context(p jsonb) RETURNS boolean LANGUA
 END$$;
 REVOKE ALL ON FUNCTION api_private.scene_upload_context(jsonb) FROM PUBLIC,anon,village_unified_login;
 GRANT EXECUTE ON FUNCTION api_private.scene_upload_context(jsonb) TO authenticated;
+CREATE FUNCTION api_private.scene_legacy_file(fid uuid,p_path text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,storage,api_private,auth,pg_temp AS $$DECLARE result jsonb;BEGIN
+ IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF (fid IS NULL)=(p_path IS NULL) OR length(p_path)>4096 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ SELECT jsonb_build_object('id',o.id,'bucket',o.bucket_id,'name',o.name,'snapshot_updated_at',to_char(o.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'declared_size',o.metadata->'size','snapshot_etag',o.metadata->>'eTag','snapshot_version',to_jsonb(o)->>'version') INTO result
+ FROM storage.objects o WHERE ((fid IS NOT NULL AND o.id=fid) OR (fid IS NULL AND o.name=p_path)) AND (
+ (o.bucket_id='scene-assets' AND EXISTS(SELECT 1 FROM public.scene_edit_assets a WHERE (a.storage_path=o.name OR a.metadata->>'originalStoragePath'=o.name OR a.metadata->>'lowStoragePath'=o.name OR a.metadata->>'topViewPath'=o.name OR a.metadata->>'lowOriginalStoragePath'=o.name) AND public.can_read_scene_edit_asset(a.scope_kind,a.course_id,a.group_id,a.owner_id)))
+ OR (o.bucket_id='scene-version-previews' AND EXISTS(SELECT 1 FROM public.scene_edit_versions v WHERE v.preview_path=o.name AND public.can_read_scene_edit_project(v.project_id)))) ORDER BY o.id LIMIT 1;
+ RETURN result;
+END$$;
+REVOKE ALL ON FUNCTION api_private.scene_legacy_file(uuid,text) FROM PUBLIC,anon,village_unified_login;
+GRANT EXECUTE ON FUNCTION api_private.scene_legacy_file(uuid,text) TO authenticated;
 """
- return guard+body+'\n'+grants+'\n'+helper+"\nGRANT SELECT ON public.scene_edit_projects,public.scene_edit_versions,public.scene_edit_assets,public.scene_edit_components TO authenticated;\nGRANT USAGE ON SCHEMA storage TO authenticated;\nGRANT SELECT ON storage.objects TO authenticated;\n"
+ return guard+body+'\n'+grants+'\n'+helper+"\nGRANT SELECT ON public.scene_edit_projects,public.scene_edit_versions,public.scene_edit_assets,public.scene_edit_components TO authenticated;\n"
 def stage_release(root,target,*,instance_id,release_id):
  target=Path(target)
  if target.exists():raise ValueError('Static output exists; never overwrite a release.')
@@ -51,6 +63,8 @@ def runtime_files(root):
    rel=p.relative_to(api)
    if any(x.startswith('.') or x in {'test','tests','__tests__'} for x in rel.parts):continue
    if p.is_symlink() or p.suffix.lower() in {'.node','.dll','.exe'}:raise ValueError('Native or linked runtime dependency requires a Linux build.')
+   if '.test.' in p.name or '.spec.' in p.name:continue
+   if directory=='node_modules' and p.suffix not in {'.js','.mjs','.cjs','.json','.md','.txt'} and p.name not in {'LICENSE','NOTICE'}:continue
    if p.is_file():items.append(('business-api/'+rel.as_posix(),p.read_bytes().replace(b'\r\n',b'\n') if p.suffix in {'.js','.mjs','.cjs','.json','.md','.txt'} else p.read_bytes()))
  for name in ['features/mc/mc-bridge.js','features/admin/village-package.js']:
   p=root/name
