@@ -99,7 +99,7 @@ def read_meta():
  if meta.get('os')!='linux' or meta.get('architecture')!='amd64' or meta.get('schemaVersion')!=1 or not re.fullmatch('aliyun-[a-zA-Z0-9_-]{1,92}',meta.get('instanceId','')) or not re.fullmatch('village-unified:[a-f0-9]{12}',meta.get('image','')):raise ValueError('UNKNOWN_RELEASE')
  return meta
 def read_key():
- match=re.search(r'^const SUPABASE_PUBLISHABLE_KEY\s*=\s*"(sb_publishable_[^"\r\n]+)";', (ROOT/'app.js').read_text(encoding='utf-8'),re.M)
+ match=re.search(r"const sourceKey\s*=\s*'(sb_publishable_[^'\r\n]+)';", (ROOT/'features/auth/deployment-auth-client.js').read_text(encoding='utf-8'))
  if not match:raise ValueError('PUBLIC_AUTH_CONFIGURATION_MISSING')
  return match[1]
 def image_identity(docker,meta):

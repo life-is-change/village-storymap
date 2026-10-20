@@ -16,7 +16,7 @@ def sha(raw):return hashlib.sha256(raw).hexdigest()
 def encoded(value):return json.dumps(value,separators=(',',':'),sort_keys=True).encode()
 def code_digest(root,*,include_scene=False,include_scene_files=False):
     h=hashlib.sha256()
-    files=[Path(root)/'package.json',Path(root)/'package-lock.json',*sorted((Path(root)/'src').rglob('*.mjs'))]
+    files=[Path(root)/'package.json',Path(root)/'package-lock.json',*sorted((Path(root)/'src').rglob('*.mjs')),*sorted((Path(root)/'auth').rglob('*.mjs'))]
     if include_scene:files+=sorted((Path(root)/'scene').rglob('*.mjs'))
     if include_scene_files:files+=sorted((Path(root)/'scene-files').rglob('*.mjs'))
     for p in files:
@@ -76,7 +76,7 @@ def build(base,output,api_root,*,image='village-business-api:stage-a1'):
     config,layers=validate_base(base);api_root=Path(api_root)
     if not (api_root/'node_modules/pg/package.json').is_file():raise ValueError('Run npm ci --omit=dev in business-api first.')
     # pg is pure JS here. Native modules need a Linux build instead of host copying.
-    runtime=[api_root/'package.json',api_root/'package-lock.json',*sorted((api_root/'src').rglob('*')),*sorted((api_root/'node_modules').rglob('*'))]
+    runtime=[api_root/'package.json',api_root/'package-lock.json',*sorted((api_root/'src').rglob('*')),*sorted((api_root/'auth').rglob('*')),*sorted((api_root/'node_modules').rglob('*'))]
     if scene:runtime+=sorted((api_root/'scene').rglob('*'))
     if scene_files:runtime+=sorted((api_root/'scene-files').rglob('*'))
     stream=io.BytesIO()

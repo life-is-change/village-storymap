@@ -44,7 +44,7 @@ def validate_new_state(state,backup,baseline,repo):
     return state
 
 def read_public_key():
-    match=re.search(r'^const SUPABASE_PUBLISHABLE_KEY\s*=\s*"([^"\r\n]+)";', (ROOT/'app.js').read_text(encoding='utf-8'),re.M)
+    match=re.search(r"const sourceKey\s*=\s*'(sb_publishable_[^'\r\n]+)';", (ROOT/'features/auth/deployment-auth-client.js').read_text(encoding='utf-8'))
     if not match:raise ValueError('Public Auth configuration unavailable.')
     return match[1]
 

@@ -19,6 +19,19 @@ def test_code_identity_survives_git_windows_linux_newline_conversion(tmp_path):
     expected=m.code_digest(root)
     for f in ('package.json','package-lock.json','src/main.mjs'):(root/f).write_bytes(b'line1\r\nline2\r\n')
     assert m.code_digest(root)==expected
+
+def test_auth_policy_is_part_of_image_identity(tmp_path):
+    m=module();root=tmp_path/'api';(root/'src').mkdir(parents=True);(root/'auth').mkdir()
+    for f in ('package.json','package-lock.json','src/main.mjs'):(root/f).write_text('{}')
+    policy=root/'auth/policy.mjs';policy.write_text('source only')
+    before=m.code_digest(root);policy.write_text('source and local')
+    assert m.code_digest(root)!=before
+
+def test_unified_runtime_includes_verifier_auth_dependencies():
+    spec=importlib.util.spec_from_file_location('unified_release',S.with_name('build-unified-release.py'))
+    release=importlib.util.module_from_spec(spec);spec.loader.exec_module(release)
+    paths={name for name,_ in release.runtime_files(S.parents[2])}
+    assert 'business-api/auth/policy.mjs' in paths
 def test_builder_rejects_unverified_base_and_source_links(tmp_path):
     m=module();bad=tmp_path/'base.tar';bad.write_bytes(b'not an image')
     with pytest.raises(ValueError):m.validate_base(bad,{'config':{'digest':'sha256:untrusted'},'layers':[]})
