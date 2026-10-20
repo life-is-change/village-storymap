@@ -10,3 +10,14 @@ test('task photo access is scoped by owner, request and instance and releases th
  const files=api.createTaskFiles({database,store:{},instanceId:'aliyun-test',legacyReader:{async open(){return {size:20,sha256:'a'.repeat(64),async close(){closed++;}};}}});
  await assert.rejects(files.readTaskInput({requestId:'request',ownerId:'owner'}),{code:'FILE_TYPE_UNSUPPORTED'});assert.deepEqual(args,['request','owner','aliyun-test']);assert.equal(closed,1);
 });
+test('task photo streams retain exact immutable file identity and honor a requested byte range',async()=>{
+ const id='10000000-0000-4000-8000-000000000001',bytes=Buffer.from('abcdef');let range;
+ const database={withMaintenance:fn=>fn({query:async()=>({rows:[{data:{id,legacy:true,name:'photo.png',size:bytes.length,sha256:'a'.repeat(64)}}]})})};
+ const files=api.createTaskFiles({database,instanceId:'aliyun-test',store:{},legacyReader:{open:async()=>({size:bytes.length,close:async()=>{},stream:r=>{range=r;return Readable.from([bytes.subarray(r.start,r.end+1)]);}})}});
+ const photo=await files.readTaskInput({requestId:id,ownerId:id}),parts=[];for await(const b of photo.stream({start:1,end:3}))parts.push(b);await photo.close();assert.equal(photo.fileId,id);assert.equal(Buffer.concat(parts).toString(),'bcd');assert.deepEqual(range,{start:1,end:3});
+});
+test('an artifact reservation failure closes an opened local response without consuming its body',async()=>{
+ let canceled=0,calls=0;const database={withMaintenance:fn=>fn({query:async()=>{if(++calls===1)return {rows:[{data:null}]};throw Object.assign(Error(),{code:'FORBIDDEN'});}})};
+ const files=api.createTaskFiles({database,store:{},instanceId:'aliyun-test'}),stream=new ReadableStream({cancel(){canceled++;}}),bridge={downloadArtifact:async()=>({stream,sha256:'a'.repeat(64),mime:'application/geo+json',size:100})};
+ await assert.rejects(files.prepareTaskArtifacts({id:'job',lease:'lease',sourceRunId:'run'},[{artifact_type:'buildings',sha256:'a'.repeat(64)}],bridge),{code:'FORBIDDEN'});assert.equal(canceled,1);
+});

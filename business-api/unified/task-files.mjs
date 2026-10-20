@@ -35,7 +35,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
    const f=await maintenance('SELECT api_private.task_photo_file($1,$2,$3) AS data',[job.requestId,job.ownerId,instanceId]);if(!f)throw fault('FORBIDDEN');
    const opened=f.legacy?await legacyReader.open(f):await store.open(f.id,{size:Number(f.size),sha256:f.sha256});
    const mime=f.mime??fileType(f.name);if(!['image/jpeg','image/png'].includes(mime)||opened.size>10485760){await opened.close();throw fault('FILE_TYPE_UNSUPPORTED');}
-   return {...opened,fileId:f.id,sha256:f.sha256??opened.sha256,mime,stream:()=>opened.stream({start:0,end:opened.size-1})};
+   return {...opened,fileId:f.id,sha256:f.sha256??opened.sha256,mime,stream:(range={start:0,end:opened.size-1})=>opened.stream(range)};
   },
   async prepareTaskArtifacts(job,artifacts,bridge){
    const prepared=[];
@@ -45,6 +45,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
     let descriptor=await manage(job,'lookup',{artifactType:type,sha256:a.sha256});
     if(descriptor?.state==='ready'){const h=await store.open(descriptor.file_id,{size:Number(descriptor.size),sha256:descriptor.sha256});await h.close();prepared.push(descriptor);continue;}
     const response=await bridge.downloadArtifact({ownerId:job.ownerId,requestId:job.requestId},type);
+    try{
     if(response.sha256!==a.sha256){await response.stream.cancel?.();throw fault('INVALID_FILE');}
     const extension=geo[type]?'geojson':type==='building_glb'?'glb':response.mime==='image/png'?'png':response.mime==='image/jpeg'?'jpg':null;
     const mime=geo[type]?'application/geo+json':type==='building_glb'?'model/gltf-binary':response.mime;
@@ -64,6 +65,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
     }
     if(geo[type]&&validation?.featureCount==null){const h=await store.open(fid,{size:response.size,sha256:a.sha256});let count=0;try{for await(const _f of geoJSONFeatures(h.stream({start:0,end:h.size-1})))count++;}finally{await h.close();}validation={featureCount:count};}
     descriptor=await manage(job,'ready',{...spec,featureCount:validation?.featureCount??null});prepared.push(descriptor);
+    }finally{try{await response.stream.cancel?.();}catch{/* An already consumed/errored body still releases its underlying reader. */}}
    }
    return prepared;
   },
