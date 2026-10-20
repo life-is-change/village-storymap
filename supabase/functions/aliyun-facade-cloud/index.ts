@@ -1,0 +1,12 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import {createCloudFacadeHandler} from './core.mjs';
+import {sourceAdapters} from '../aliyun-task-bridge/adapters.ts';
+const instanceId=Deno.env.get('ALIYUN_BRIDGE_INSTANCE_ID')??'',{database,storage}=sourceAdapters(instanceId);
+const key=Deno.env.get('DASHSCOPE_API_KEY')??'',workspace=Deno.env.get('DASHSCOPE_WORKSPACE_ID')??'',region=Deno.env.get('DASHSCOPE_REGION')==='ap-southeast-1'?'ap-southeast-1':'cn-beijing';
+const base=`https://${workspace}.${region}.maas.aliyuncs.com/api/v1`,model=Deno.env.get('FACADE_CLOUD_MODEL')??'qwen-image-3.0';
+const provider={available:Deno.env.get('FACADE_CLOUD_ENABLED')==='true'&&Boolean(key)&&/^[a-zA-Z0-9-]+$/.test(workspace),
+ async submit({imageUrl}:any){const response=await fetch(base+'/services/aigc/multimodal-generation/generation',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json','X-DashScope-Async':'enable'},body:JSON.stringify({model,input:{messages:[{role:'user',content:[{image:imageUrl},{text:'把建筑实拍图转换为保留原门窗、层数、色彩和材质的规整正立面投影，背景为纯浅灰。'}]}]},parameters:{n:1,prompt_extend:true,watermark:false}}),redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('PROVIDER_UNAVAILABLE');const body=await response.json();return {jobId:body?.output?.task_id??body?.task_id};},
+ async poll(jobId:string){if(!/^[a-zA-Z0-9_-]{1,200}$/.test(jobId))throw Error('INVALID_INPUT');const response=await fetch(base+'/tasks/'+encodeURIComponent(jobId),{headers:{authorization:'Bearer '+key},redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('PROVIDER_UNAVAILABLE');const body=await response.json(),status=String(body?.output?.task_status??body?.status??'').toUpperCase(),content=body?.output?.choices?.[0]?.message?.content??[];return {status:({SUCCEEDED:'succeeded',FAILED:'failed',RUNNING:'running',PENDING:'queued'})[status]??'queued',output:content.find((v:any)=>v?.image)?.image??body?.output?.results?.[0]?.url??body?.output?.task_result?.images?.[0]?.url};}
+};
+const repository={async claim(input:any){const job=await database.call('bridge_v1_cloud_claim',input);return {...job,ownerId:input.ownerId};},record:(input:any,result:any)=>database.call('bridge_v1_cloud_record',{...input,...result})};
+Deno.serve(createCloudFacadeHandler({instanceId,token:Deno.env.get('ALIYUN_BRIDGE_TOKEN')??'',repository,provider,storage}));

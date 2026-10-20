@@ -24,19 +24,20 @@ export function createCloudFacadeHandler({token,instanceId,repository,provider,s
     const imageUrl=await storage.signInput(job.photo);submitted=true;
     const result=await provider.submit({imageUrl,requestId:job.runId});
     if(typeof result?.jobId!=='string'||!result.jobId||result.jobId.length>200)throw fail('PROVIDER_UNAVAILABLE');
-    await repository.record(input,{status:'queued',jobId:result.jobId});return json({state:'queued'},202);
+    submitted=false;
+    await repository.record(input,{status:'queued',jobId:result.jobId,lease:job.lease});return json({state:'queued'},202);
    }
    if(job.operation!=='poll')throw fail('SOURCE_NOT_READY');
    const result=await provider.poll(job.jobId);
    if(result.status==='succeeded'){
     const artifact=await storage.persistOutput(job,result.output);
-    await repository.record(input,{status:'succeeded',artifact});return json({state:'completed'});
+    await repository.record(input,{status:'succeeded',artifact,lease:job.lease});return json({state:'completed'});
    }
    const status=['queued','running','failed'].includes(result.status)?result.status:'failed';
-   await repository.record(input,{status});return json({state:status});
+   await repository.record(input,{status,lease:job.lease});return json({state:status});
   }catch(e){
    // A lost provider response must not cause a second billable submission.
-   if(submitted)await repository.record(input,{status:'submission_unknown'}).catch(()=>{});
+   if(submitted)await repository.record(input,{status:'submission_unknown',lease:job.lease}).catch(()=>{});
    const code=['INVALID_INPUT','PAYLOAD_TOO_LARGE','FORBIDDEN','NOT_FOUND','SOURCE_NOT_READY'].includes(e?.code)?e.code:'PROVIDER_UNAVAILABLE';
    return json({error:{code}},({INVALID_INPUT:400,PAYLOAD_TOO_LARGE:413,FORBIDDEN:403,NOT_FOUND:404})[code]??503);
   }

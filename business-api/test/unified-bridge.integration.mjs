@@ -21,6 +21,17 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    const requestId=randomUUID(),input={ownerId:USERS.student,requestId,kind:'facade',contextId,contextVersion:1,profileVersion:1,photoId,photoVersion:1,input:{objectCode:'B1'}};
    const run=await invoke('bridge_v1_enqueue',input),replay=await invoke('bridge_v1_enqueue',input);assert.equal(run.runId,replay.runId);
    const other=await invoke('bridge_v1_enqueue',input,'aliyun-other');assert.notEqual(run.runId,other.runId);
+   const cloudRequest=randomUUID(),cloud=await invoke('bridge_v1_enqueue',{...input,requestId:cloudRequest,kind:'cloud-facade'});
+   assert.equal((await setup.query('SELECT photo_id FROM cloud_facade_runs WHERE id=$1',[cloud.runId])).rows[0].photo_id,null);
+   assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM cloud_facade_runs WHERE id=$1',[cloud.runId])).rowCount,0);
+   const cloudInput={ownerId:USERS.student,requestId:cloudRequest},claim=await invoke('bridge_v1_cloud_claim',cloudInput);
+   assert.equal(claim.operation,'submit');assert.equal(claim.photo.path.startsWith('aliyun-test/photos/'),true);
+   assert.equal((await invoke('bridge_v1_cloud_claim',cloudInput)).operation,'wait');
+   await invoke('bridge_v1_cloud_record',{...cloudInput,lease:claim.lease,status:'queued',jobId:'synthetic-provider'});
+   await setup.query("UPDATE aliyun_bridge.cloud_jobs SET claimed_at=now()-interval '10 seconds' WHERE run_id=$1",[cloud.runId]);
+   const poll=await invoke('bridge_v1_cloud_claim',cloudInput);assert.equal(poll.operation,'poll');assert.equal(poll.jobId,'synthetic-provider');
+   await invoke('bridge_v1_cloud_record',{...cloudInput,lease:poll.lease,status:'succeeded',artifact:{sha256:sha,size:123,mime:'image/png',path:USERS.student+'/cloud/'+cloud.runId+'/'+sha+'.png'}});
+   assert.equal((await invoke('bridge_v1_cloud_claim',cloudInput)).operation,'complete');
    assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM facade_generation_runs WHERE id=$1',[run.runId])).rowCount,0);
    assert.equal((await queryAs('authenticated',USERS.admin,'SELECT * FROM facade_generation_runs WHERE id=$1',[run.runId])).rowCount,0,'source admin cannot cross origin');
    for(const user of [USERS.student,USERS.admin])await assert.rejects(queryAs('authenticated',user,'SELECT public.request_facade_cancel($1)',[run.runId]),e=>e.code==='P0001'&&e.message==='FORBIDDEN');

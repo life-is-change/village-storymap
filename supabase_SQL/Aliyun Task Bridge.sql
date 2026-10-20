@@ -191,12 +191,64 @@ CREATE FUNCTION aliyun_bridge.bridge_v1_artifacts(p_instance_id text,p_request j
  r:=aliyun_bridge.authorize(p_instance_id,p_request);
  IF r.kind='geo' THEN SELECT coalesce(jsonb_agg(to_jsonb(a)),'[]') INTO data FROM public.geoprocessing_artifacts a WHERE run_id=r.run_id;
  ELSIF r.kind='facade' THEN SELECT coalesce(jsonb_agg(to_jsonb(a)),'[]') INTO data FROM public.facade_generation_artifacts a WHERE run_id=r.run_id;
- ELSE SELECT jsonb_build_array(to_jsonb(a)) INTO data FROM public.cloud_facade_runs a WHERE id=r.run_id;END IF;
+ ELSE SELECT coalesce(jsonb_agg(j.artifact||jsonb_build_object('artifact_type','standard_facade','storage_path',j.artifact->>'path')),'[]') INTO data FROM aliyun_bridge.cloud_jobs j WHERE j.run_id=r.run_id AND j.phase='succeeded';END IF;
  RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'artifacts',data);
 END$$;
 REVOKE ALL ON ALL TABLES IN SCHEMA aliyun_bridge FROM PUBLIC,anon,authenticated,service_role,village_aliyun_bridge;
+CREATE TABLE aliyun_bridge.cloud_jobs(
+ run_id uuid PRIMARY KEY REFERENCES aliyun_bridge.run_origins,phase text NOT NULL CHECK(phase IN('submitting','queued','running','succeeded','failed','submission_unknown')),
+ provider_job_id text,lease uuid NOT NULL DEFAULT gen_random_uuid(),claimed_at timestamptz NOT NULL DEFAULT now(),artifact jsonb
+);
+CREATE FUNCTION aliyun_bridge.bridge_v1_cloud_claim(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+ SET search_path=pg_catalog,public,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;j aliyun_bridge.cloud_jobs;x public.cloud_facade_runs;BEGIN
+ r:=aliyun_bridge.authorize(p_instance_id,p_request);IF r.kind<>'cloud-facade' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(r.run_id::text,13));
+ SELECT * INTO x FROM public.cloud_facade_runs WHERE id=r.run_id;
+ IF x.error_code='CANCELED' THEN RETURN jsonb_build_object('instanceId',p_instance_id,'operation','failed','errorCode','CANCELED');END IF;
+ SELECT * INTO j FROM aliyun_bridge.cloud_jobs WHERE run_id=r.run_id FOR UPDATE;
+ IF NOT FOUND THEN
+  INSERT INTO aliyun_bridge.cloud_jobs(run_id,phase) VALUES(r.run_id,'submitting') RETURNING * INTO j;
+  SELECT * INTO x FROM public.cloud_facade_runs WHERE id=r.run_id;
+  RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'lease',j.lease,'operation','submit','photo',jsonb_build_object('path',x.source_photo_path,'sha256',x.source_photo_sha256,'size',x.source_photo_size,'mime',x.source_photo_mime));
+ END IF;
+ IF j.phase='submitting' THEN
+  IF j.claimed_at<now()-interval '2 minutes' THEN UPDATE aliyun_bridge.cloud_jobs SET phase='submission_unknown' WHERE run_id=j.run_id;UPDATE public.cloud_facade_runs SET status='failed',error_code='PROVIDER_SUBMISSION_UNKNOWN' WHERE id=j.run_id;RETURN jsonb_build_object('instanceId',p_instance_id,'operation','failed','errorCode','PROVIDER_SUBMISSION_UNKNOWN');END IF;
+  RETURN jsonb_build_object('instanceId',p_instance_id,'operation','wait');
+ END IF;
+ IF j.phase='succeeded' THEN RETURN jsonb_build_object('instanceId',p_instance_id,'operation','complete');END IF;
+ IF j.phase IN('failed','submission_unknown') THEN RETURN jsonb_build_object('instanceId',p_instance_id,'operation','failed','errorCode','PROVIDER_FAILED');END IF;
+ IF j.claimed_at>now()-interval '5 seconds' THEN RETURN jsonb_build_object('instanceId',p_instance_id,'operation','wait');END IF;
+ UPDATE aliyun_bridge.cloud_jobs SET lease=gen_random_uuid(),claimed_at=now() WHERE run_id=r.run_id RETURNING * INTO j;
+ RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'lease',j.lease,'operation','poll','jobId',j.provider_job_id);
+END$$;
+CREATE FUNCTION aliyun_bridge.bridge_v1_cloud_record(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+ SET search_path=pg_catalog,public,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;j aliyun_bridge.cloud_jobs;s text:=p_request->>'status';a jsonb:=p_request->'artifact';BEGIN
+ r:=aliyun_bridge.authorize(p_instance_id,p_request);IF r.kind<>'cloud-facade' OR s NOT IN('queued','running','succeeded','failed','submission_unknown') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ IF EXISTS(SELECT 1 FROM public.cloud_facade_runs WHERE id=r.run_id AND error_code='CANCELED') THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ SELECT * INTO j FROM aliyun_bridge.cloud_jobs WHERE run_id=r.run_id AND lease=(p_request->>'lease')::uuid FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
+ IF j.phase IN('succeeded','failed','submission_unknown') THEN RETURN jsonb_build_object('instanceId',p_instance_id,'recorded',false);END IF;
+ IF s='queued' AND j.provider_job_id IS NULL AND coalesce(length(p_request->>'jobId'),0) NOT BETWEEN 1 AND 200 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ IF s='succeeded' AND NOT coalesce(a->>'sha256'~'^[a-f0-9]{64}$' AND a->>'size'~'^[0-9]{1,8}$' AND (a->>'size')::bigint BETWEEN 1 AND 10485760 AND a->>'mime' IN('image/jpeg','image/png') AND a->>'path'=r.owner_id::text||'/cloud/'||r.run_id::text||'/'||(a->>'sha256')||CASE WHEN a->>'mime'='image/png' THEN '.png' ELSE '.jpg' END,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ UPDATE aliyun_bridge.cloud_jobs SET phase=s,provider_job_id=coalesce(p_request->>'jobId',provider_job_id),artifact=coalesce(a,artifact) WHERE run_id=r.run_id;
+ UPDATE public.cloud_facade_runs SET status=CASE WHEN s='submission_unknown' THEN 'failed' ELSE s END,provider_job_id=coalesce(p_request->>'jobId',provider_job_id),progress=CASE s WHEN 'succeeded' THEN 100 WHEN 'running' THEN 55 ELSE 10 END,
+  error_code=CASE WHEN s='submission_unknown' THEN 'PROVIDER_SUBMISSION_UNKNOWN' WHEN s='failed' THEN 'PROVIDER_FAILED' END,result_storage_path=coalesce(a->>'path',result_storage_path),updated_at=now() WHERE id=r.run_id;
+ RETURN jsonb_build_object('instanceId',p_instance_id,'recorded',true);
+END$$;
+CREATE FUNCTION aliyun_bridge.bridge_v1_availability(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,pg_temp AS $$DECLARE d jsonb;BEGIN
+ IF p_request->>'kind'='geoprocessing' THEN SELECT to_jsonb(x) INTO d FROM public.get_worker_availability()x;
+ ELSIF p_request->>'kind'='facade' THEN SELECT to_jsonb(x) INTO d FROM public.get_facade_worker_availability()x;
+ ELSE RAISE EXCEPTION 'INVALID_INPUT';END IF;RETURN jsonb_build_object('instanceId',p_instance_id,'data',d);
+END$$;
+CREATE FUNCTION aliyun_bridge.bridge_v1_source_status(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+ SET search_path=pg_catalog,public,pg_temp AS $$DECLARE d jsonb;BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.geoprocessing_villages WHERE village_id=p_request->>'villageId' AND active) THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
+ SELECT to_jsonb(x) INTO d FROM public.get_geoprocessing_source_status(p_request->>'villageId')x;RETURN jsonb_build_object('instanceId',p_instance_id,'data',d);
+END$$;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA aliyun_bridge FROM PUBLIC,anon,authenticated,service_role,village_aliyun_bridge;
 GRANT EXECUTE ON FUNCTION aliyun_bridge.source_storage_allowed(text,text) TO authenticated,anon;
 GRANT EXECUTE ON FUNCTION aliyun_bridge.bridge_v1_apply_context(text,jsonb),aliyun_bridge.bridge_v1_enqueue(text,jsonb),aliyun_bridge.bridge_v1_status(text,jsonb),aliyun_bridge.bridge_v1_cancel(text,jsonb),aliyun_bridge.bridge_v1_confirm_crop(text,jsonb),aliyun_bridge.bridge_v1_retry(text,jsonb),aliyun_bridge.bridge_v1_artifacts(text,jsonb) TO village_aliyun_bridge;
+GRANT EXECUTE ON FUNCTION aliyun_bridge.bridge_v1_cloud_claim(text,jsonb),aliyun_bridge.bridge_v1_cloud_record(text,jsonb),aliyun_bridge.bridge_v1_availability(text,jsonb),aliyun_bridge.bridge_v1_source_status(text,jsonb) TO village_aliyun_bridge;
 NOTIFY pgrst,'reload schema';
 COMMIT;

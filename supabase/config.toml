@@ -1,0 +1,7 @@
+# Only these server-token authenticated entries bypass Supabase JWT middleware.
+# The existing browser-facing facade-cloud function retains its current settings.
+[functions.aliyun-task-bridge]
+verify_jwt = false
+
+[functions.aliyun-facade-cloud]
+verify_jwt = false

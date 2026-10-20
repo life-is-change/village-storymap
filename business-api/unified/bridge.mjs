@@ -17,8 +17,16 @@ export function createTaskBridge({remote,instanceId}){
    if(action==='submit'&&(!['geo','facade','cloud-facade'].includes(input.kind)||typeof input.contextId!=='string'||!input.contextId||input.contextId.length>200||![input.contextVersion,input.profileVersion].every(v=>Number.isSafeInteger(v)&&v>=1)||!input.input||typeof input.input!=='object'||Array.isArray(input.input)||input.kind!=='geo'&&(typeof input.photoId!=='string'||!Number.isSafeInteger(input.photoVersion)||input.photoVersion<1)))throw code('INVALID_INPUT');
    if(action==='confirmCrop'&&(!Number.isFinite(input.cropTop)||input.cropTop<0||input.cropTop>0.65||!['hip','gable','flat'].includes(input.roofType)||![input.buildingWidth,input.buildingDepth].every(v=>Number.isFinite(v)&&v>0&&v<=500)))throw code('INVALID_INPUT');
   }
-  let result;try{result=await remote.call(names[action],{p_instance_id:instanceId,p_request:structuredClone(input)});}catch(e){throw code(known.has(e?.code)?e.code:'BRIDGE_UNAVAILABLE');}
+  let result;try{
+   if(action==='submit'&&input.kind==='cloud-facade'&&!(await remote.cloud('capability')).available)throw {code:'SOURCE_NOT_READY'};
+   result=await remote.call(names[action],{p_instance_id:instanceId,p_request:structuredClone(input)});
+   if(action==='submit'&&input.kind==='cloud-facade')await remote.cloud('submit',{ownerId:input.ownerId,requestId:input.requestId});
+   if(action==='status'&&result?.kind==='cloud-facade'&&!['failed','succeeded'].includes(result.run?.status)){
+    await remote.cloud('poll',input);result=await remote.call(names[action],{p_instance_id:instanceId,p_request:structuredClone(input)});
+   }
+  }catch(e){throw code(known.has(e?.code)?e.code:'BRIDGE_UNAVAILABLE');}
   if(!result||result.instanceId!==instanceId)throw code('BRIDGE_UNAVAILABLE');return result;
  }
- return {instanceId,...Object.fromEntries(Object.keys(names).map(action=>[action,input=>call(action,input)]))};
+ return {instanceId,...Object.fromEntries(Object.keys(names).map(action=>[action,input=>call(action,input)])),
+  uploadPhoto:input=>remote.uploadPhoto(input),downloadArtifact:(input,type)=>remote.downloadArtifact(input,type)};
 }

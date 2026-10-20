@@ -146,13 +146,18 @@ SET search_path=pg_catalog,public,api_private,pg_temp AS $$BEGIN
  PERFORM 1 FROM public.object_photos WHERE id=pid FOR UPDATE;
  IF EXISTS(SELECT 1 FROM api_private.task_requests WHERE photo_id=pid) THEN RAISE EXCEPTION 'FILE_IN_USE';END IF;RETURN '{}'::jsonb;
 END$$;
-CREATE FUNCTION api_private.task_photo_file(rid uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+CREATE FUNCTION api_private.task_before_submit(oid uuid,token uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_requests;BEGIN
+ SELECT r.* INTO t FROM api_private.task_requests r JOIN api_private.task_outbox o ON o.task_id=r.id WHERE o.id=oid AND o.lease=token AND NOT o.done AND o.operation='submit';
+ IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;PERFORM set_config('request.jwt.claim.sub',t.owner_id::text,true);PERFORM api_private.task_guard(t);RETURN jsonb_build_object('allowed',true);
+END$$;
+CREATE FUNCTION api_private.task_photo_file(rid uuid,actor uuid,instance text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_private.task_requests;fid uuid;BEGIN
- SELECT * INTO t FROM api_private.task_requests WHERE request_id=rid;IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
+ SELECT * INTO t FROM api_private.task_requests WHERE request_id=rid AND owner_id=actor AND instance_id=instance;IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
  PERFORM set_config('request.jwt.claim.sub',t.owner_id::text,true);PERFORM api_private.task_guard(t);
  SELECT file_id INTO fid FROM public.object_photos WHERE id=t.photo_id;RETURN api_private.file_authorize(fid);
 END$$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA api_private FROM PUBLIC,anon;
 REVOKE EXECUTE ON FUNCTION api_private.task_public(api_private.task_requests),api_private.task_guard(api_private.task_requests),api_private.task_grant_key(jsonb),api_private.task_snapshot(text,text,jsonb,boolean) FROM authenticated,village_unified_login;
 GRANT EXECUTE ON FUNCTION api_private.task_execute(text,jsonb,text),api_private.task_assert_photo_mutable(bigint) TO authenticated;
-GRANT EXECUTE ON FUNCTION api_private.task_next(text),api_private.task_finish(uuid,uuid,jsonb),api_private.task_fail(uuid,text,integer,uuid),api_private.task_photo_file(uuid) TO village_unified_login;
+GRANT EXECUTE ON FUNCTION api_private.task_next(text),api_private.task_finish(uuid,uuid,jsonb),api_private.task_fail(uuid,text,integer,uuid),api_private.task_photo_file(uuid,uuid,text),api_private.task_before_submit(uuid,uuid) TO village_unified_login;
