@@ -19,5 +19,7 @@ export async function prepareBridge(setup){
  await setup.query(`UPDATE villages SET is_practice=true;
   INSERT INTO geoprocessing_villages VALUES('b0000000-0000-4000-8000-000000000001','Worker prepared','[113,23,113.001,23.001]',2,true);
   INSERT INTO worker_heartbeats(worker_id,state,version) VALUES('worker','available','synthetic-compatible');
-  INSERT INTO geoprocessing_source_status(village_id,ready,bounds,worker_id) VALUES('b0000000-0000-4000-8000-000000000001',true,'[113,23,113.001,23.001]','worker');`);
+  INSERT INTO geoprocessing_source_status(village_id,ready,bounds,worker_id) VALUES('b0000000-0000-4000-8000-000000000001',true,'[113,23,113.001,23.001]','worker');
+  INSERT INTO object_photos(id,object_code,object_type,teaching_project_id,village_id,space_id,photo_url,photo_path)
+   VALUES(100,'B1','building','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','A','https://synthetic.invalid/unused','a0000000-0000-4000-8000-000000000001/b0000000-0000-4000-8000-000000000001/A/building/B1_front.jpg');`);
 }

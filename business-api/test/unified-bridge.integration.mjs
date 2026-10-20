@@ -31,6 +31,8 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    const source=await setup.query("INSERT INTO facade_generation_runs(owner_id,course_id,space_id,object_code,photo_id) VALUES($1,'course','A','B1',NULL) RETURNING id,origin_instance_id",[USERS.student]);assert.equal(source.rows[0].origin_instance_id,'supabase');
    assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM facade_generation_runs WHERE id=$1',[source.rows[0].id])).rowCount,1);assert.equal((await queryAs('authenticated',USERS.student,'SELECT public.request_facade_cancel($1) AS ok',[source.rows[0].id])).rows[0].ok,true);
    const aoi={type:'Polygon',coordinates:[[[113,23],[113.0001,23],[113.0001,23.0001],[113,23]]]};
+   const sourceFacade=(await queryAs('authenticated',USERS.student,"SELECT public.submit_facade_run('course','A','B1',100) AS id")).rows[0].id;
+   assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM facade_generation_runs WHERE id=$1',[sourceFacade])).rows[0].origin_instance_id,'supabase');
    const geo=await invoke('bridge_v1_enqueue',{...input,requestId:randomUUID(),kind:'geo',input:{requestedSteps:['buildings'],aoi,parameters:{}}});
    const row=(await setup.query('SELECT * FROM geoprocessing_runs WHERE id=$1',[geo.runId])).rows[0];assert.equal(row.teaching_project_id,null);assert.equal(row.dataset_id,null);assert.equal(row.origin_instance_id,'aliyun-test');
    await assert.rejects(queryAs('authenticated',USERS.student,"SELECT public.import_geoprocessing_result($1,'{}')",[geo.runId]),e=>e.message==='FORBIDDEN');

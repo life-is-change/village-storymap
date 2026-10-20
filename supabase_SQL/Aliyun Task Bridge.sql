@@ -65,13 +65,19 @@ INSERT INTO storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 CREATE POLICY aliyun_inputs_service ON storage.objects FOR ALL TO service_role USING(bucket_id='aliyun-task-inputs') WITH CHECK(bucket_id='aliyun-task-inputs');
 GRANT USAGE ON SCHEMA aliyun_bridge TO authenticated,anon;
 GRANT EXECUTE ON FUNCTION aliyun_bridge.source_storage_allowed(text,text) TO authenticated,anon;
--- Import RPCs read with a definer, so guard them before any source business write.
-DO $$DECLARE def text;BEGIN
- IF to_regprocedure('public.import_geoprocessing_result(uuid,jsonb)') IS NOT NULL THEN
-  SELECT pg_get_functiondef('public.import_geoprocessing_result(uuid,jsonb)'::regprocedure) INTO def;
+-- User RPCs read with a definer. Guard before reads as well as mutations,
+-- including no-op paths which otherwise return false for another owner.
+DO $$DECLARE def text;signature text;BEGIN
+ FOREACH signature IN ARRAY ARRAY['public.import_geoprocessing_result(uuid,jsonb)',
+  'public.request_geoprocessing_cancel(uuid)','public.teacher_cancel_geoprocessing_run(uuid)',
+  'public.request_facade_cancel(uuid)','public.confirm_facade_crop(uuid,double precision,text,double precision,double precision)',
+  'public.retry_failed_facade_run(uuid)'] LOOP
+ IF to_regprocedure(signature) IS NOT NULL THEN
+  SELECT pg_get_functiondef(to_regprocedure(signature)) INTO def;
   IF def !~* '\mbegin\M' THEN RAISE EXCEPTION 'UNREVIEWED_IMPORT_RPC';END IF;
   def:=regexp_replace(def,'\mbegin\M','BEGIN PERFORM aliyun_bridge.assert_source_run(p_run_id);','i');EXECUTE def;
  END IF;
+ END LOOP;
 END$$;
 -- The old per-owner active-job quota counts source jobs only, preserving the two
 -- independently writable sites. Fixed reviewed definitions, no generic rewrite.
