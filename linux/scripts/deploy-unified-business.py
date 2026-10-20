@@ -391,7 +391,8 @@ def restart_candidate(docker,state,meta):
 
 def test_context_sql(admin,member):
  sql=(ROOT/'linux/sql/scene-files-test-context.sql').read_text(encoding='utf-8').replace('village_scene_files_validation',DATABASE).replace('c2a-test-20261019','unified-test-20261020').replace('c2a-test-group-20261019','unified-test-group-20261020').replace('c2a-test-space-20261019','unified-test-space-20261020').replace('c2a00000','c3a00000').replace('C2a TEST','Unified TEST').replace("student_id='332'","id='"+admin+"'").replace("student_id='25213040'","id='"+member+"'").replace('__BEGIN__','BEGIN;').replace('__BOUNDARY_EWKT__','SRID=4326;MULTIPOLYGON(((112.999 22.999,113.001 22.999,113.001 23.001,112.999 23.001,112.999 22.999)))')
- return sql
+ # This probe edits shared survey geometry; group_plan requires an independent frozen baseline.
+ return sql.replace("'group_plan'","'practice_shared'")
 
 def prepare_context(docker,admin,member,previous):
  if not all(re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}',value) for value in [admin,member]) or admin==member:raise ValueError('INVALID_TEST_IDENTITY')

@@ -63,7 +63,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
   IF NOT EXISTS(SELECT 1 FROM public.teaching_projects WHERE id=(p->>'teachingProjectId')::uuid AND course_id=p->>'courseId' AND stage NOT IN('completed','archived')) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
   SELECT * INTO t FROM api_private.task_requests WHERE instance_id=instance AND owner_id=auth.uid() AND request_id=(p->>'requestId')::uuid;
   IF FOUND THEN PERFORM api_private.task_guard(t);END IF;
-  cached:=api_private.begin_operation(a,p);IF cached IS NOT NULL THEN RETURN cached;END IF;
+  cached:=api_private.begin_operation(a,p);IF cached IS NOT NULL THEN RETURN cached->'result';END IF;
   IF a='tasks.submitGeo' THEN
    k:='geo';IF NOT EXISTS(SELECT 1 FROM api_private.task_worker_villages WHERE local_village_id=(p->>'villageId')::uuid) THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
   ELSE k:=p->>'kind';SELECT * INTO photo FROM public.object_photos WHERE id=(p->>'photoId')::bigint FOR UPDATE;
@@ -80,7 +80,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
  IF a='tasks.get' THEN RETURN api_private.task_public(t);END IF;
  IF a='tasks.isImported' THEN RETURN jsonb_build_object('imported',t.imported_bundle IS NOT NULL,'bundleId',t.imported_bundle);END IF;
  IF a='tasks.artifacts' THEN RETURN api_private.task_artifacts_read(t.request_id,instance);END IF;
- cached:=api_private.begin_operation(a,p);IF cached IS NOT NULL THEN RETURN cached;END IF;
+ cached:=api_private.begin_operation(a,p);IF cached IS NOT NULL THEN RETURN cached->'result';END IF;
  op:=CASE a WHEN 'tasks.cancel' THEN 'cancel' WHEN 'tasks.retry' THEN 'retry' WHEN 'tasks.confirmCrop' THEN 'confirmCrop' WHEN 'tasks.importResult' THEN 'import' END;
  IF op IS NULL THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
  IF op='import' THEN

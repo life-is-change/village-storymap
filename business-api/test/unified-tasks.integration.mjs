@@ -62,7 +62,7 @@ test('failed facade retry reconciles a lost source response, resumes polling and
   const db=createUnifiedDatabase(config),root=await mkdtemp(join(tmpdir(),'retry-native-'));let service;
   try{
    const store=await createBusinessFileStore({root,instanceId:'aliyun-test'}),files=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
-   const session=await files.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context,files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await files.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await files.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
+   const session=await files.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:context.spaceId},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await files.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await files.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
    const remote=randomUUID();let status='failed',prepared=0;
    const bridge={instanceId:'aliyun-test',async applyContext(){},async retry(){status='queued_generation';throw {code:'BRIDGE_UNAVAILABLE'};},async status(){return {instanceId:'aliyun-test',runId:remote,run:{status,progress:status==='completed'?100:0}};},async artifacts(){return {artifacts:[{artifact_type:'building_glb',sha256:'a'.repeat(64)}]};}};
    service=createTaskService({database:db,bridge,files:{async prepareTaskArtifacts(){prepared++;}}});

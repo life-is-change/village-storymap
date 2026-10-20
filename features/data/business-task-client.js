@@ -14,7 +14,7 @@
    const before=key(),scope=api.getIdentityKey?.()||before;
    const raw=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical({scope,context:context(),name,input})));
    const receiptKey='village:pending-task:'+Array.from(new Uint8Array(raw),n=>n.toString(16).padStart(2,'0')).join('');
-   if(before!==key()||disposed)throw error('CONTEXT_CHANGED');
+   if(before!==key()||scope!==(api.getIdentityKey?.()||key())||disposed)throw error('CONTEXT_CHANGED');
    let id;try{id=storage?.getItem(receiptKey)||pending.get(receiptKey)||uuid();if(storage)storage.setItem(receiptKey,id);else if(typeof window!=='undefined')throw Error();pending.set(receiptKey,id);}catch{throw error('OPERATION_RECEIPT_UNAVAILABLE');}
    const result=await run(name,{...input,requestId:id});
    try{storage?.removeItem(receiptKey);pending.delete(receiptKey);}catch{throw error('OPERATION_RECEIPT_UNAVAILABLE');}return result;
