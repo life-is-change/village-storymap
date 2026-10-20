@@ -27,10 +27,15 @@ def test_auth_policy_is_part_of_image_identity(tmp_path):
     before=m.code_digest(root);policy.write_text('source and local')
     assert m.code_digest(root)!=before
 
-def test_unified_runtime_includes_verifier_auth_dependencies():
+def test_unified_runtime_includes_verifier_auth_dependencies(tmp_path):
     spec=importlib.util.spec_from_file_location('unified_release',S.with_name('build-unified-release.py'))
     release=importlib.util.module_from_spec(spec);spec.loader.exec_module(release)
-    paths={name for name,_ in release.runtime_files(S.parents[2])}
+    # Enumeration must work in the Python-only CI job as well; dependency
+    # execution belongs to the Node/native jobs, not this archive layout test.
+    root=tmp_path/'repo'
+    for name in ['business-api/package.json','business-api/package-lock.json','business-api/node_modules/pg/package.json','business-api/auth/policy.mjs','features/mc/mc-bridge.js','features/admin/village-package.js']:
+        path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('{}')
+    paths={name for name,_ in release.runtime_files(root)}
     assert 'business-api/auth/policy.mjs' in paths
 def test_builder_rejects_unverified_base_and_source_links(tmp_path):
     m=module();bad=tmp_path/'base.tar';bad.write_bytes(b'not an image')
