@@ -42,6 +42,8 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    assert.equal((await invoke('bridge_v1_status',{ownerId:USERS.student,requestId},'aliyun-other')).run.origin_instance_id,'aliyun-other');
    assert.deepEqual((await setup.query('SELECT (SELECT count(*) FROM profiles) profiles,(SELECT count(*) FROM teaching_projects) projects,(SELECT count(*) FROM group_memberships) members,(SELECT count(*) FROM object_photos) photos')).rows[0],before);
   }finally{
+   await setup.query('ROLLBACK');
+   if(!serviceRole)serviceRole=Boolean((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='service_role'")).rowCount);
    if(!bridgeRole)bridgeRole=Boolean((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='village_aliyun_bridge'")).rowCount);
    if(bridgeRole)await setup.query('DROP OWNED BY village_aliyun_bridge;DROP ROLE village_aliyun_bridge');
    if(serviceRole)await setup.query('DROP OWNED BY service_role;DROP ROLE service_role');

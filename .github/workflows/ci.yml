@@ -21,6 +21,8 @@ jobs:
           package-manager-cache: false
       - name: Install model processing dependencies
         run: npm ci --prefix tools/model-processor
+      - name: Install API dependencies for shared upload contract tests
+        run: npm ci --prefix business-api
       - run: npm test
       - name: Test model processing and bundled worker
         run: npm test --prefix tools/model-processor

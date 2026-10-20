@@ -1,6 +1,7 @@
 import {readFile} from 'node:fs/promises';import {prepareSurvey} from './survey.mjs';import assert from 'node:assert/strict';
 export async function prepareBridge(setup){
- await prepareSurvey(setup);await setup.query(`CREATE ROLE service_role NOLOGIN BYPASSRLS;
+ await prepareSurvey(setup);await setup.query(`CREATE PUBLICATION supabase_realtime;
+  CREATE ROLE service_role NOLOGIN BYPASSRLS;
   CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$SELECT current_setting('request.jwt.claim.role',true)$$;
   CREATE SCHEMA storage;CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
   CREATE TABLE storage.objects(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),bucket_id text,name text,metadata jsonb DEFAULT '{}');
