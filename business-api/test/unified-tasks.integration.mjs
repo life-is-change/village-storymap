@@ -63,9 +63,9 @@ test('failed facade retry reconciles a lost source response, resumes polling and
   try{
    const store=await createBusinessFileStore({root,instanceId:'aliyun-test'}),files=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
    const session=await files.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:context.spaceId},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await files.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await files.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
-   const remote=randomUUID();let status='failed',prepared=0;
-   const bridge={instanceId:'aliyun-test',async applyContext(){},async retry(){status='queued_generation';throw {code:'BRIDGE_UNAVAILABLE'};},async status(){return {instanceId:'aliyun-test',runId:remote,run:{status,progress:status==='completed'?100:0}};},async artifacts(){return {artifacts:[{artifact_type:'building_glb',sha256:'a'.repeat(64)}]};}};
-   service=createTaskService({database:db,bridge,files:{async prepareTaskArtifacts(){prepared++;}}});
+   const remote=randomUUID(),taskFiles=createTaskFiles({database:db,store,instanceId:'aliyun-test'}),hash=createHash('sha256').update(png).digest('hex');let status='failed';
+   const bridge={instanceId:'aliyun-test',async applyContext(){},async retry(){status='queued_generation';throw {code:'BRIDGE_UNAVAILABLE'};},async status(){return {instanceId:'aliyun-test',runId:remote,run:{status,progress:status==='completed'?100:0}};},async artifacts(){return {artifacts:[{artifact_type:'rectified_preview',sha256:hash}]};},async downloadArtifact(){return {sha256:hash,size:png.length,mime:'image/png',stream:Readable.from([png])};}};
+   service=createTaskService({database:db,bridge,files:taskFiles});
    const task=await service.execute(testIdentity(),'tasks.submitFacade',{...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()});
    await setup.query("UPDATE api_private.task_requests SET state='failed',source_run_id=$1 WHERE request_id=$2",[remote,task.requestId]);await setup.query("UPDATE api_private.task_outbox SET done=true");
    const command={taskId:task.requestId,requestId:randomUUID()},first=await service.execute(testIdentity(),'tasks.retry',command);
@@ -73,7 +73,7 @@ test('failed facade retry reconciles a lost source response, resumes polling and
    await service.tick();assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:task.requestId})).state,'running');
    assert.deepEqual(await service.execute(testIdentity(),'tasks.retry',command),first);
    assert.equal((await setup.query("SELECT done FROM api_private.task_outbox WHERE operation='poll'")).rows[0].done,false);
-   status='completed';await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await service.tick();assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:task.requestId})).state,'completed');assert.equal(prepared,1);
+   status='completed';await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await service.tick();assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:task.requestId})).state,'completed');const artifact=await taskFiles.readTaskArtifact(testIdentity(),task.requestId,'rectified_preview');const chunks=[];try{for await(const part of artifact.stream())chunks.push(part);}finally{await artifact.close();}assert.deepEqual(Buffer.concat(chunks),png);
   }finally{await service?.close();await db.close();await rm(root,{recursive:true,force:true});}
  });
 });
