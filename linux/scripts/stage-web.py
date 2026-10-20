@@ -2,6 +2,7 @@
 from pathlib import Path
 import shutil
 import sys
+import os
 
 EXTENSIONS = {'.html', '.js', '.css', '.json', '.geojson', '.png', '.jpg', '.jpeg',
               '.webp', '.svg', '.gif', '.glb', '.gltf', '.bin', '.b3dm', '.woff',
@@ -12,6 +13,8 @@ def public(name):
     p = Path(name)
     if any(part.startswith('.') or part in {'backend', 'tests', 'node_modules', 'runtime_storage', '__pycache__'}
            for part in p.parts) or '.test.' in p.name:
+        return False
+    if p.parts[:2] == ('3D_scenes_edit', 'legacy'):
         return False
     if len(p.parts) == 1:
         return p.suffix in {'.html', '.js', '.css', '.ico'}
@@ -26,14 +29,23 @@ def stage(source, target):
     source, target = Path(source).resolve(), Path(target).resolve()
     if source == target or source in target.parents or target in source.parents:
         raise ValueError('Source and output must be separate directories')
-    for file in source.rglob('*'):
-        if file.is_symlink() or not file.is_file():
-            continue
-        name = file.relative_to(source)
-        if public(name):
-            output = target / name
-            output.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(file, output)
+    for directory, dirs, files in os.walk(source, followlinks=False):
+        base=Path(directory);relative=base.relative_to(source)
+        dirs[:]=[name for name in dirs if not name.startswith('.') and name not in {'backend','tests','node_modules','runtime_storage','__pycache__'} and not (base/name).is_symlink()]
+        if base == source:
+            dirs[:]=[name for name in dirs if name in {'assets','data','features','3D_scenes_edit','rural_house_generator','homepage'}]
+        elif relative == Path('homepage'):
+            dirs[:]=[name for name in dirs if name == 'dist']
+        elif relative == Path('3D_scenes_edit'):
+            dirs[:]=[name for name in dirs if name != 'legacy']
+        for filename in files:
+            file=base/filename
+            if file.is_symlink() or not file.is_file():continue
+            name = file.relative_to(source)
+            if public(name):
+                output = target / name
+                output.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(file, output)
     if not (target / 'index.html').is_file() or not (target / 'homepage/dist/index.html').is_file():
         raise ValueError('Root entry and built homepage/dist/index.html are required')
 

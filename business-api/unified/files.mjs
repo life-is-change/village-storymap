@@ -43,7 +43,7 @@ export function createBusinessFilesService({database,store,legacyReader,spaceAva
   async read(identity,fileId){if(!uuid(fileId))throw fault('INVALID_INPUT');if(readers>=4)throw fault('FILE_BUSY');readers++;let opened;
    try{const f=await tx(identity,c=>one(c,'SELECT api_private.file_authorize($1) AS data',[fileId]));if(!f)throw fault('FORBIDDEN');
     opened=f.legacy?await legacyReader?.open(f):await store.open(f.id,{size:Number(f.size),sha256:f.sha256});if(!opened)throw fault('FILE_UNAVAILABLE');let closed=false;
-    return {...opened,mime:f.mime??fileType(f.name),extension:f.extension??f.name.split('.').at(-1).toLowerCase(),async close(){if(!closed){closed=true;try{await opened.close();}finally{readers--;}}}};
+    return {...opened,sha256:f.sha256??opened.sha256,mime:f.mime??fileType(f.name),extension:f.extension??f.name.split('.').at(-1).toLowerCase(),async close(){if(!closed){closed=true;try{await opened.close();}finally{readers--;}}}};
    }catch(e){await opened?.close();readers--;throw e;}
   },
   async resolvePath(identity,bucket,path){if(!['house-photos','group-models','village-datasets'].includes(bucket)||typeof path!=='string'||path.length>4096)throw fault('INVALID_INPUT');return tx(identity,c=>one(c,'SELECT api_private.file_resolve_path($1,$2) AS data',[bucket,path]));},

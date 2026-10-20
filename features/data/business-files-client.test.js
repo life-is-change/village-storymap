@@ -11,3 +11,9 @@ test('photo upload sends bytes to the allocated slot and commits only fixed obje
  const result=await client.uploadPhoto({teachingProjectId:'p',villageId:'v',spaceId:'s',objectCode:'B1',objectType:'building'},new File(['png'],'input.png',{type:'image/png'}));
  assert.equal(requests[1][1].method,'PUT');assert.equal(requests[1][1].body.size,3);assert.deepEqual(JSON.parse(requests[2][1].body),{objectCode:'B1',objectType:'building'});assert.equal(result.photoUrl,'blob:photo');client.clear();
 });
+test('reusing a private model reauthorizes with HEAD and avoids downloading identical bytes again',async()=>{
+ const methods=[],revoked=[],id='10000000-0000-4000-8000-000000000001',hash='"'+'a'.repeat(64)+'"';let denied=false;
+ const client=api.createBusinessFilesClient({origin:'https://local.example',getAccessToken:async()=> 'token',getIdentityKey:()=> 'user:space',createObjectURL:()=> 'blob:one',revokeObjectURL:u=>revoked.push(u),fetchImpl:async(_url,o)=>{methods.push(o.method);return denied?Response.json({error:{code:'FORBIDDEN'}},{status:403}):new Response(o.method==='HEAD'?null:'model',{headers:{ETag:hash}});}});
+ assert.equal(await client.resolveFileUrl(id),'blob:one');assert.equal(await client.resolveFileUrl(id),'blob:one');assert.deepEqual(methods,['GET','HEAD']);assert.equal(revoked.length,0);
+ denied=true;await assert.rejects(client.resolveFileUrl(id),{code:'FORBIDDEN'});client.clear();
+});

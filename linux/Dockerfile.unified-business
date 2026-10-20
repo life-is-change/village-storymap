@@ -1,0 +1,16 @@
+FROM public.ecr.aws/docker/library/node@sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562
+# Offline release builder copies only verified runtime dependencies and staged web assets.
+WORKDIR /opt/village/business-api
+COPY business-api/package.json business-api/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY business-api/src ./src
+COPY business-api/scene ./scene
+COPY business-api/scene-files ./scene-files
+COPY business-api/unified ./unified
+COPY features/mc/mc-bridge.js /opt/village/features/mc/mc-bridge.js
+COPY features/admin/village-package.js /opt/village/features/admin/village-package.js
+COPY release/web /opt/village-web
+COPY release/schema /opt/village-schema
+COPY release/release.json ./release.json
+USER 1000:1000
+CMD ["node","unified/main.mjs"]

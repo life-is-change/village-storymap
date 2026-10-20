@@ -30,7 +30,7 @@ CREATE FUNCTION api_private.survey_gate(p jsonb) RETURNS void LANGUAGE plpgsql S
  PERFORM api_private.assert_context(p);
  SELECT space_type INTO kind FROM public.planning_spaces WHERE id=p->>'spaceId';
  IF NOT api_private.context_mutable((p->>'teachingProjectId')::uuid,(p->>'villageId')::uuid,p->>'spaceId') THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
- layer:=CASE WHEN p->>'objectType' IN ('building','road','water') THEN p->>'objectType' ELSE coalesce(p->>'surveyLayerKey',p->>'targetLayerKey') END;
+ layer:=CASE WHEN p->>'objectType' ~ '^building(_3d)?(__.*)?$' THEN 'building' WHEN p->>'objectType' ~ '^road(__.*)?$' THEN 'road' WHEN p->>'objectType' ~ '^water(__.*)?$' THEN 'water' ELSE coalesce(p->>'surveyLayerKey',p->>'targetLayerKey') END;
  IF kind='formal_shared' AND layer IN ('building','road','water') THEN
  PERFORM 1 FROM public.survey_feature_reviews WHERE teaching_project_id=(p->>'teachingProjectId')::uuid AND village_id=(p->>'villageId')::uuid AND space_id=p->>'spaceId' AND layer_key=layer AND object_code=coalesce(p->>'objectCode',p->>'targetObjectCode') AND geometry_status IN ('confirmed_unchanged','modified','added') AND NOT is_deleted FOR SHARE;
  IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;END IF;

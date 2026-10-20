@@ -9,13 +9,15 @@
    const response=await fetchImpl(base.href+path,{method,headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'Content-Type':binary?'application/octet-stream':'application/json'})},credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(binary?180000:30000),...(body===undefined?{}:{body:binary?body:JSON.stringify(body)})});
    if(owner!==identity())throw Error('UNAUTHORIZED');
    if(!response.ok){let code;try{code=(await response.json()).error?.code;}catch{}throw Object.assign(Error(code||'FILE_UNAVAILABLE'),{code:code||'FILE_UNAVAILABLE'});}
-   const result=responseFile?await response.blob():(await response.json()).data;if(owner!==identity())throw Error('UNAUTHORIZED');return result;
+   const result=method==='HEAD'?response.headers?.get('etag'):responseFile?{blob:await response.blob(),etag:response.headers?.get('etag')}:(await response.json()).data;if(owner!==identity())throw Error('UNAUTHORIZED');return result;
   }
   async function resolveFileUrl(id){
    identity();if(typeof id!=='string'||!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(id))throw Error('INVALID_FILE_ID');
    // Authorization is rechecked even if this browser already holds a blob.
-   const owner=currentKey,blob=await request('/files/'+id,{responseFile:true});if(owner!==identity())throw Error('UNAUTHORIZED');
-   const old=urls.get(id);if(old){revokeObjectURL(old.url);bytes-=old.size;urls.delete(id);}const url=createObjectURL(blob);urls.set(id,{url,size:blob.size});bytes+=blob.size;
+   const owner=currentKey,cached=urls.get(id);
+   if(cached?.etag){try{const etag=await request('/files/'+id,{method:'HEAD'});if(owner!==identity())throw Error('UNAUTHORIZED');if(etag===cached.etag)return cached.url;}catch(e){if(urls.get(id)===cached){revokeObjectURL(cached.url);bytes-=cached.size;urls.delete(id);}throw e;}}
+   const response=await request('/files/'+id,{responseFile:true}),blob=response.blob;if(owner!==identity())throw Error('UNAUTHORIZED');
+   const old=urls.get(id);if(old){revokeObjectURL(old.url);bytes-=old.size;urls.delete(id);}const url=createObjectURL(blob);urls.set(id,{url,size:blob.size,etag:/^"[a-f0-9]{64}"$/.test(response.etag??'')?response.etag:null});bytes+=blob.size;
    while(urls.size>32||bytes>100*1024**2&&urls.size>1){const first=urls.keys().next().value,entry=urls.get(first);revokeObjectURL(entry.url);bytes-=entry.size;urls.delete(first);}return url;
   }
   async function upload(purpose,context,fileMap,record){

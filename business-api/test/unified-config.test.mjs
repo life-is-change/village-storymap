@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';let api;try{api=await import('../unified/config.mjs');}catch{api={};}
+test('unified config fixes DB identity, refuses inline secrets and keeps the source bridge disabled by default',()=>{
+ assert.equal(typeof api.loadUnifiedConfig,'function');const env={SUPABASE_AUTH_ORIGIN:'https://rzmbmwauomzwiyenafha.supabase.co',SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test',PGHOST:'postgres',PGPORT:'5432',PGDATABASE:'village_unified_candidate',PGUSER:'village_unified_login',PGPASSWORD_FILE:'/run/secrets/db',UNIFIED_INSTANCE_ID:'aliyun-test',UNIFIED_FILES_ROOT:'/data/business',UNIFIED_SCENE_ROOT:'/data/scene',UNIFIED_LEGACY_ROOT:'/legacy',UNIFIED_LEGACY_INDEX:'/legacy/index.json',UNIFIED_RELEASE_FILE:'/app/release.json'};
+ const config=api.loadUnifiedConfig(env,{readSecret:()=> 'x'.repeat(40)});assert.equal(config.bridge.enabled,false);assert.equal(config.database.user,'village_unified_login');assert.equal(config.port,8080);
+ for(const patch of [{PGUSER:'postgres'},{PGPASSWORD:'bad'},{UNIFIED_SCENE_ROOT:'/data/business'},{SUPABASE_AUTH_ORIGIN:'https://evil.test'},{BRIDGE_ENABLED:'true'},{UNIFIED_INSTANCE_ID:'source'}])assert.throws(()=>api.loadUnifiedConfig({...env,...patch},{readSecret:()=> 'x'.repeat(40)}),/INVALID_CONFIGURATION/);
+});

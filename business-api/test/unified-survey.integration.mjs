@@ -10,6 +10,7 @@ test('native survey gate, UUID ownership, revisions, tombstones and cross-space 
   const write=(action,input,user=USERS.student)=>service.execute(testIdentity(user),action,{...input,requestId:'c0000000-0000-4000-8000-'+String(++seq).padStart(12,'0')});
   try{
    await assert.rejects(service.execute(testIdentity(USERS.other),'survey.getAttributes',c),{code:'FORBIDDEN'},'shared space still requires course membership');
+   await assert.rejects(write('survey.saveAttributes',{...c,objectType:'building_3d__A',data:{height:10}}),{code:'FORBIDDEN'},'3D object namespaces cannot bypass an unconfirmed survey review');
    await setup.query("INSERT INTO group_memberships(course_id,group_id,student_key,student_name,student_id) VALUES('course','group-a','b::B','B','b')");
    await assert.rejects(write('survey.saveAttributes',{...c,surveyLayerKey:'building',data:{name:'Blocked'}}),{code:'FORBIDDEN'});
 
