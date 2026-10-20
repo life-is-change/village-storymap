@@ -141,6 +141,7 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
  hash:=encode(pg_catalog.sha256(convert_to(p_request::text,'UTF8')),'hex');
  SELECT * INTO old FROM aliyun_bridge.requests WHERE instance_id=p_instance_id AND owner_id=owner AND request_id=rid;
  IF FOUND THEN IF old.digest<>hash THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;RETURN jsonb_build_object('instanceId',p_instance_id,'runId',old.run_id);END IF;
+ IF job_kind<>'cloud-facade' AND (aliyun_bridge.bridge_v1_availability(p_instance_id,jsonb_build_object('kind',CASE WHEN job_kind='geo' THEN 'geoprocessing' ELSE 'facade' END))->'data'->>'compatible')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'WORKER_OFFLINE';END IF;
  IF (SELECT count(*) FROM aliyun_bridge.requests r JOIN aliyun_bridge.run_origins o ON o.run_id=r.run_id WHERE r.instance_id=p_instance_id AND r.owner_id=owner AND r.kind=job_kind AND CASE WHEN job_kind='geo' THEN EXISTS(SELECT 1 FROM public.geoprocessing_runs g WHERE g.id=r.run_id AND status IN('queued','claimed','running','cancel_requested')) WHEN job_kind='facade' THEN EXISTS(SELECT 1 FROM public.facade_generation_runs f WHERE f.id=r.run_id AND status NOT IN('completed','failed','canceled')) ELSE EXISTS(SELECT 1 FROM public.cloud_facade_runs c WHERE c.id=r.run_id AND status IN('submitting','queued','running')) END)>=2 THEN RAISE EXCEPTION 'TOO_MANY_ACTIVE_RUNS';END IF;
  IF job_kind='geo' THEN
   IF NOT EXISTS(SELECT 1 FROM public.geoprocessing_villages WHERE village_id=ctx.payload->>'workerVillageId' AND active) THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
@@ -247,10 +248,16 @@ CREATE FUNCTION aliyun_bridge.bridge_v1_cloud_record(p_instance_id text,p_reques
  RETURN jsonb_build_object('instanceId',p_instance_id,'recorded',true);
 END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_availability(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
- SET search_path=pg_catalog,public,pg_temp AS $$DECLARE d jsonb;BEGIN
- IF p_request->>'kind'='geoprocessing' THEN SELECT to_jsonb(x) INTO d FROM public.get_worker_availability()x;
- ELSIF p_request->>'kind'='facade' THEN SELECT to_jsonb(x) INTO d FROM public.get_facade_worker_availability()x;
- ELSE RAISE EXCEPTION 'INVALID_INPUT';END IF;RETURN jsonb_build_object('instanceId',p_instance_id,'data',d);
+ SET search_path=pg_catalog,public,pg_temp AS $$DECLARE d jsonb;workers jsonb:='{}';k text;v text;seen timestamptz;bad bigint;busy boolean;compatible boolean;BEGIN
+ IF p_request->>'kind' NOT IN('geoprocessing','facade') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ FOR k,v IN SELECT * FROM (VALUES('geoprocessing','geo-aliyun-bridge-v1'),('facade','facade-aliyun-bridge-v1')) spec(kind,version) LOOP
+  SELECT max(last_seen_at) FILTER(WHERE version=v),count(*) FILTER(WHERE version IS DISTINCT FROM v),bool_or(state='busy') FILTER(WHERE version=v) INTO seen,bad,busy
+  FROM public.worker_heartbeats WHERE last_seen_at>now()-interval '2 minutes' AND CASE WHEN k='facade' THEN version LIKE 'facade-%' ELSE version NOT LIKE 'facade-%' OR version IS NULL END;
+  compatible:=seen IS NOT NULL AND bad=0;
+  workers:=workers||jsonb_build_object(k,jsonb_build_object('version',CASE WHEN compatible THEN v ELSE NULL END,'seen_at',CASE WHEN compatible THEN extract(epoch FROM seen) ELSE 0 END));
+  IF k=p_request->>'kind' THEN d:=jsonb_build_object('available',compatible,'compatible',compatible,'state',CASE WHEN NOT compatible THEN 'offline' WHEN busy THEN 'busy' ELSE 'available' END);END IF;
+ END LOOP;
+ RETURN jsonb_build_object('instanceId',p_instance_id,'bridge_protocol',1,'workers',workers,'data',d);
 END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_source_status(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,public,pg_temp AS $$DECLARE d jsonb;BEGIN

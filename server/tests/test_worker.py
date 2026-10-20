@@ -54,6 +54,15 @@ def test_worker_claims_runs_pipeline_uploads_then_completes():
     assert asyncio.run(worker.run_once()) is True
     assert gateway.events == ["claim", "running", "upload", "complete"]
 
+def test_idle_heartbeat_advertises_private_bridge_protocol_only_after_worker_code_is_loaded():
+    gateway = FakeGateway()
+    gateway.claim = lambda _: None
+    versions = []
+    gateway.heartbeat = lambda _id, _state, version: versions.append(version)
+    worker = Worker(gateway, lambda _: None, worker_id="synthetic")
+    assert asyncio.run(worker.run_cycle()) is False
+    assert versions == ["geo-aliyun-bridge-v1"]
+
 
 def test_worker_renews_lease_during_long_pipeline():
     gateway = FakeGateway()

@@ -49,7 +49,7 @@ class FacadeWorker:
         while True:
             try:
                 await asyncio.to_thread(
-                    self.gateway.heartbeat, self.worker_id, "busy", "facade-0.1.0"
+                    self.gateway.heartbeat, self.worker_id, "busy", "facade-aliyun-bridge-v1"
                 )
             except Exception:
                 LOGGER.warning("Facade busy heartbeat failed; retrying", exc_info=True)
@@ -94,7 +94,7 @@ class FacadeWorker:
                     self.gateway.heartbeat,
                     self.worker_id,
                     "available",
-                    "facade-0.1.0",
+                    "facade-aliyun-bridge-v1",
                 )
             return processed
         except Exception:

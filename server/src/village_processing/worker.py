@@ -51,7 +51,7 @@ class Worker:
         while True:
             await asyncio.sleep(self.lease_renew_seconds)
             await asyncio.to_thread(self.gateway.renew, run_id, self.worker_id)
-            await asyncio.to_thread(self.gateway.heartbeat, self.worker_id, "busy", "0.1.0")
+            await asyncio.to_thread(self.gateway.heartbeat, self.worker_id, "busy", "geo-aliyun-bridge-v1")
             await self._publish_status()
 
     async def run_once(self) -> bool:
@@ -115,7 +115,7 @@ class Worker:
 
     async def run_cycle(self) -> bool:
         try:
-            await asyncio.to_thread(self.gateway.heartbeat, self.worker_id, "available", "0.1.0")
+            await asyncio.to_thread(self.gateway.heartbeat, self.worker_id, "available", "geo-aliyun-bridge-v1")
             await self._publish_status()
             processed = await self.run_once()
             return processed

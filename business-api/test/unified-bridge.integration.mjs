@@ -7,6 +7,10 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
   const invoke=async(name,p,instance='aliyun-test')=>(await queryAs('village_aliyun_bridge',USERS.student,'SELECT aliyun_bridge.'+name+'($1,$2::jsonb) AS data',[instance,JSON.stringify(p)])).rows[0].data;
   try{
    await prepareBridge(setup);serviceRole=true;await setup.query(await readFile(new URL('../../supabase_SQL/Aliyun Task Bridge.sql',import.meta.url),'utf8'));bridgeRole=true;
+   const ready=await invoke('bridge_v1_availability',{kind:'geoprocessing'});assert.equal(ready.bridge_protocol,1);assert.equal(ready.data.compatible,true);assert.equal(ready.workers.facade.version,'facade-aliyun-bridge-v1');
+   await setup.query("INSERT INTO worker_heartbeats(worker_id,state,version) VALUES('old-unpatched','available','0.1.0')");
+   assert.equal((await invoke('bridge_v1_availability',{kind:'geoprocessing'})).data.compatible,false,'any active incompatible claimant blocks new private jobs');
+   assert.equal((await invoke('bridge_v1_availability',{kind:'facade'})).data.compatible,true);await setup.query("DELETE FROM worker_heartbeats WHERE worker_id='old-unpatched'");
    const before=(await setup.query('SELECT (SELECT count(*) FROM profiles) profiles,(SELECT count(*) FROM teaching_projects) projects,(SELECT count(*) FROM group_memberships) members,(SELECT count(*) FROM object_photos) photos')).rows[0];
    await assert.rejects(queryAs('authenticated',USERS.admin,"SELECT aliyun_bridge.bridge_v1_status('aliyun-test','{}')"),e=>e.code==='42501');
    const photoId='1',sha='a'.repeat(64),contextId='same-local-space';

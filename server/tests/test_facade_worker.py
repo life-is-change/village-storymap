@@ -158,6 +158,15 @@ def test_rectification_uploads_required_artifacts_then_waits_for_crop(tmp_path):
         "rectified_source", "rectified_preview", "building_mask"
     }
 
+def test_idle_facade_heartbeat_advertises_private_bridge_protocol(tmp_path):
+    gateway = FakeGateway()
+    gateway.claim = lambda _: None
+    versions = []
+    gateway.heartbeat = lambda _id, _state, version: versions.append(version)
+    worker = FacadeWorker(gateway, None, "synthetic")
+    assert asyncio.run(worker.run_cycle()) is False
+    assert versions == ["facade-aliyun-bridge-v1"]
+
 
 def test_rectification_logs_processing_and_publication_durations(tmp_path, caplog):
     pipeline = FacadePipeline(FakeGateway(), FakeProcessor(), tmp_path, "worker-1")
