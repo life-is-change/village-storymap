@@ -35,6 +35,15 @@
 
 ## 4. Worker切换与备份
 
+已于本聊天读取同项目“梳理平台技术路线与架构”（聊天ID `01a114e7-79f2-76c1-ac70-cb62c593c3cb`）的历史用户终端输出，并与 `docs/performance/2026-10-09-service-recovery.md`、当前Compose源码交叉核对：
+
+- 用户已确认4090为Linux；历史用户/主机 `gpu332@gpu332`，项目目录 `/media/gpu332/newapply/village-storymap`。
+- Docker项目 `village-platform`；Compose `linux/compose.gpu.yaml`，变量文件 `linux/gpu.env`；受保护服务凭据文件历史为 `/etc/village-platform/worker.env`，不打印其内容或放宽权限。
+- 两个队列容器历史为 `village-platform-geo-worker-1` 和 `village-platform-facade-worker-1`；另有 `building`、`facade-ml`、`facade-lama`、`web` 四项服务。模型/影像/工作目录为宿主机挂载，不重装、不覆盖。
+- 2026-10-09明确排查过立面Worker丢失 `village-platform_egress`，仅内部网络导致存储检查失败；保留 `facade-internal` 与 `egress` 两个网络后恢复存储检查、取任务及下载。图底需保留 `backend` 与 `egress`。宿主机curl成功不等于Worker容器有出网能力。
+- 当时镜像标签为 `6f4bbcb07f83c2554de1097adc31398c8292b2e8`，这是历史证据，不能当成当前运行版本；只读核对现有镜像/容器网络后再选兼容构建路径，不依据历史状态擅自重建服务。
+- 沿用此前承诺：保留师姐8081、宿主机端口转发、原web与open-webui、三个计算服务和模型环境；后续仅受控更新两个任务Worker的网关与配置。
+
 - 保留原处理管线和模型/Blender/影像数据位置，只适配任务/存储网关与启动配置；图底本地影像目录/村庄ID必须用4090真实目录核对，不凭显示名称猜测。
 - 先识别当前两个Worker的系统、代码目录、启动方式、环境文件与现有GPU锁；不猜服务名，不打印完整环境变量/密钥，不覆盖模型环境。
 - 新增backend显式配置，缺少必填项或TLS校验失败就退出，不自动回落Supabase。
@@ -92,16 +101,14 @@ sudo ss -lntp '( sport = :80 or sport = :443 )'
 curl -I --connect-timeout 5 --max-time 10 http://127.0.0.1/
 ```
 
-4090 Windows PowerShell（如果该机器确认为Windows）：
-
-```powershell
-curl.exe -I --connect-timeout 5 --max-time 10 http://8.148.248.237/
-curl.exe -I --connect-timeout 5 --max-time 10 https://8.148.248.237/
-```
-
-4090 Linux终端（如果确认为Linux）：
+4090 Linux终端（使用历史已知目录，若目录不存在先报该错误，不猜新目录）：
 
 ```bash
+cd /media/gpu332/newapply/village-storymap
+git rev-parse --short HEAD
+git status --short --branch
+sudo docker --context default ps -a --filter name=village-platform --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+sudo docker --context default inspect village-platform-geo-worker-1 village-platform-facade-worker-1 --format '{{.Name}} {{range $name, $network := .NetworkSettings.Networks}}{{$name}} {{end}}'
 curl -I --connect-timeout 5 --max-time 10 http://8.148.248.237/
 curl -I --connect-timeout 5 --max-time 10 https://8.148.248.237/
 ```
