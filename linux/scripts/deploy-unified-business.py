@@ -106,9 +106,26 @@ def image_identity(docker,meta):
  value=json.loads(docker.run(['image','inspect',meta['image']]))[0]
  if value.get('Id') not in meta['accepted_image_ids'] or (value.get('Os'),value.get('Architecture'))!=('linux','amd64') or value['Config'].get('Cmd')!=['node','unified/main.mjs'] or value['Config'].get('Labels',{}).get('village.api.code-sha256')!=meta['code_sha256']:raise ValueError('IMAGE_IDENTITY_DIFFERS')
  return value['Id']
+class HistoricalDocker:
+ # Historical validators default to the already accepted A database, never the new target.
+ def __init__(self,docker):self.docker=docker
+ def __getattr__(self,name):return getattr(self.docker,name)
+ def sql(self,sql,database=rd.DATABASE):return self.docker.sql(sql,database)
+
+def historical_baseline_module():
+ old=load('unified_c2a_baseline','deploy-scene-files-validation.py')
+ # Frozen release metadata identifies the historical image. New unified source is deliberately different.
+ for stage,filename in [(old,'scene-files-image.json'),(old.c1,'scene-write-image.json'),(old.b2,'storage-read-image.json')]:
+  def metadata(stage=stage,filename=filename):
+   value=json.loads((ROOT/'linux'/filename).read_text(encoding='utf-8'))
+   if value['image']!=stage.IMAGE or (value['os'],value['architecture'])!=('linux','amd64') or not re.fullmatch('[a-f0-9]{64}',value['code_sha256']) or not value['accepted_image_ids']:raise ValueError('HISTORICAL_IMAGE_METADATA_DIFFERS')
+   return value
+  stage.image_metadata=metadata
+ return old
+
 def baseline(docker):
  # Reuse the last exact C2a container/HBA/mount/role validation, not a guessed server layout.
- old=load('unified_c2a_baseline','deploy-scene-files-validation.py');old.validate_runtime(docker)
+ old=historical_baseline_module();old.validate_runtime(HistoricalDocker(docker))
  info=json.loads(docker.run(['inspect',PG]))[0];network=json.loads(docker.run(['network','inspect','village-api-validation_dbnet']))[0]
  if not network.get('Internal') or len(network['IPAM']['Config'])!=1:raise ValueError('UNKNOWN_DB_NETWORK')
  subnet=network['IPAM']['Config'][0]['Subnet'];before=docker.exec('cat','/var/lib/postgresql/data/pg_hba.conf');add_hba(before,subnet)
@@ -372,9 +389,13 @@ def restart_candidate(docker,state,meta):
  runtime_receipt(docker,state,meta);before=json.loads(docker.run(['inspect',API]))[0];docker.run(['compose','-f',str(state/'compose.json'),'restart','api']);wait_ready(docker,state,meta);runtime_receipt(docker,state,meta);after=json.loads(docker.run(['inspect',API]))[0]
  return {'same_container':before['Id']==after['Id'],'started_at_changed':before['State']['StartedAt']!=after['State']['StartedAt']}
 
+def test_context_sql(admin,member):
+ sql=(ROOT/'linux/sql/scene-files-test-context.sql').read_text(encoding='utf-8').replace('village_scene_files_validation',DATABASE).replace('c2a-test-20261019','unified-test-20261020').replace('c2a-test-group-20261019','unified-test-group-20261020').replace('c2a-test-space-20261019','unified-test-space-20261020').replace('c2a00000','c3a00000').replace('C2a TEST','Unified TEST').replace("student_id='332'","id='"+admin+"'").replace("student_id='25213040'","id='"+member+"'").replace('__BEGIN__','BEGIN;').replace('__BOUNDARY_EWKT__','SRID=4326;MULTIPOLYGON(((112.999 22.999,113.001 22.999,113.001 23.001,112.999 23.001,112.999 22.999)))')
+ return sql
+
 def prepare_context(docker,admin,member,previous):
  if not all(re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}',value) for value in [admin,member]) or admin==member:raise ValueError('INVALID_TEST_IDENTITY')
- sql=(ROOT/'linux/sql/scene-files-test-context.sql').read_text(encoding='utf-8').replace('village_scene_files_validation',DATABASE).replace('c2a-test-20261019','unified-test-20261020').replace('c2a-test-group-20261019','unified-test-group-20261020').replace('c2a-test-space-20261019','unified-test-space-20261020').replace('c2a00000','c3a00000').replace('C2a TEST','Unified TEST').replace("student_id='332'","id='"+admin+"'").replace("student_id='25213040'","id='"+member+"'").replace('__BEGIN__','BEGIN;').replace('__BOUNDARY_EWKT__','SRID=4326;MULTIPOLYGON(((112.999 22.999,113.001 22.999,113.001 23.001,112.999 23.001,112.999 22.999)))')
+ sql=test_context_sql(admin,member)
  context={'teachingProjectId':'c3a00000-0000-4000-8000-000000000002','villageId':'c3a00000-0000-4000-8000-000000000001','courseId':'unified-test-20261020','groupId':'unified-test-group-20261020','spaceId':'unified-test-space-20261020'}
  if previous is not None and previous!=context:raise ValueError('TEST_CONTEXT_CHANGED')
  raw=docker.sql(sql);report=json.loads(raw)

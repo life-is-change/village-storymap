@@ -1,3 +1,4 @@
+import {spawnSync} from 'node:child_process';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile,mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {createServer} from 'node:http';
 import {withUnifiedFixture,testIdentity,USERS} from './fixtures/unified.mjs';import {prepareFiles} from './fixtures/files.mjs';import {createUnifiedServices} from '../unified/services.mjs';import {createUnifiedHandler,closeUnifiedServices} from '../unified/http.mjs';
 const percentile=(values,p)=>[...values].sort((a,b)=>a-b)[Math.max(0,Math.ceil(values.length*p)-1)];
@@ -29,5 +30,23 @@ test('concentrated native HTTP acceptance: role identity, actual four-connection
    assert.ok(logs.some(value=>value.sqlMs>0));assert.ok(logs.every(value=>!('token' in value)&&!('userId' in value)));assert.ok(process.memoryUsage().rss<256*1024**2);
    console.log('UNIFIED_NATIVE_LOAD '+JSON.stringify({results,process_rss_bytes:process.memoryUsage().rss,auth:'synthetic identity; no real gateway latency',restart:'HTTP service and shared pool, not a Docker restart',source_baseline:'pending real cloud comparison'}));
   }finally{if(server)await stop();await rm(root,{recursive:true,force:true});}
+ });
+});
+
+
+test('actual deployment TEST context is reusable and supports the first real planning read and geometry save',async()=>{
+ await withUnifiedFixture(async({setup,install,config})=>{
+  await prepareFiles(setup);await setup.query('ALTER TABLE teaching_projects ADD created_by uuid');await install();for(const name of ['catalog','survey','planning','files'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
+  const generated=spawnSync('python3',['-c',"import importlib.util; s=importlib.util.spec_from_file_location('d','linux/scripts/deploy-unified-business.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.test_context_sql('"+USERS.admin+"','"+USERS.student+"'))"],{encoding:'utf8'});assert.equal(generated.status,0,generated.stderr);
+  for(let i=0;i<2;i++)await setup.query(generated.stdout);
+  const db=(await import('../unified/database.mjs')).createUnifiedDatabase(config),planning=(await import('../unified/planning.mjs')).createPlanningService({database:db});
+  const target={teachingProjectId:'c3a00000-0000-4000-8000-000000000002',villageId:'c3a00000-0000-4000-8000-000000000001',spaceId:'unified-test-space-20261020'};
+  try{
+   assert.deepEqual(await planning.execute(testIdentity(USERS.admin),'planning.listFeatures',{...target,layerKey:'building'}),[]);
+   const lease=await planning.execute(testIdentity(USERS.admin),'planning.acquireLock',{...target,layerKey:'building',objectCode:'TEST-1'});assert.equal(lease.success,true);
+   await planning.execute(testIdentity(USERS.admin),'planning.saveBatch',{...target,requestId:crypto.randomUUID(),summary:'Unified TEST',changes:[{action:'add',layerKey:'building',objectCode:'TEST-1',afterGeom:{type:'Polygon',coordinates:[[[113,23],[113.00001,23],[113.00001,23.00001],[113,23]]]},afterProps:{probeRunId:'native'},expectedGeometryRevision:0,lockToken:lease.lockToken}]});
+   assert.equal((await planning.execute(testIdentity(USERS.student),'planning.listFeatures',{...target,layerKey:'building'})).length,1);
+   assert.equal((await setup.query("SELECT count(*) FROM planning_spaces WHERE id=$1",[target.spaceId])).rows[0].count,'1');
+  }finally{await db.close();}
  });
 });

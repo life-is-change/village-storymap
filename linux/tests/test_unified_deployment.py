@@ -43,3 +43,15 @@ def test_container_drift_in_command_network_privileges_or_mount_types_is_rejecte
   with pytest.raises(ValueError):m.inspect_container(fake,m.API,spec,'sha256:verified')
  fake.info=copy.deepcopy(info);fake.info['Mounts'][0]['Type']='volume'
  with pytest.raises(ValueError):m.inspect_container(fake,m.API,spec,'sha256:verified')
+
+def test_historical_baseline_routes_default_sql_to_the_existing_database_and_checks_frozen_images(monkeypatch):
+ m=module();old=m.historical_baseline_module()
+ class Fake:
+  def sql(self,sql,database=m.DATABASE):return database
+  def run(self,args):
+   for name in ['scene-files-image','scene-write-image','storage-read-image']:
+    meta=json.loads((ROOT/('linux/'+name+'.json')).read_text())
+    if args==['image','inspect',meta['image']]:return json.dumps([{'Id':meta['accepted_image_ids'][0],'Os':'linux','Architecture':'amd64','Config':{'Labels':{'village.api.code-sha256':meta['code_sha256']},'Cmd':['node',{'scene-files-image':'scene-files/main.mjs','scene-write-image':'scene/main.mjs','storage-read-image':'src/main.mjs'}[name]]}}])
+   raise AssertionError(args)
+ adapter=m.HistoricalDocker(Fake());assert adapter.sql('SELECT 1')=='village_copy';assert adapter.sql('SELECT 1','postgres')=='postgres'
+ for stage in [old,old.c1,old.b2]:stage.verify_image(adapter)

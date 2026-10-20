@@ -14,3 +14,12 @@ test('local task facade uses local request IDs, waits for imports and resolves o
  await assert.rejects(tasks.facade.createArtifactUrl('https://foreign.invalid/private'));
  assert.equal(await tasks.geoprocessing.importRun(id),'bundle');assert.equal(calls.find(([a])=>a==='tasks.importResult')[1].taskId,id);assert.deepEqual(blobs,[[id,'buildings']]);tasks.dispose();
 });
+
+test('lost task submit response reuses its durable request across clients but completed new actions get a fresh ID',async()=>{
+ const {createBusinessTaskClient}=require('../data/business-task-client.js'),values=new Map(),ids=[];let sequence=0,lose=true;
+ const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+ const options={storage,contextProvider:()=>({userId:'owner',spaceId:'A'}),uuid:()=> 'request-'+ ++sequence,api:{getIdentityKey:()=> 'instance:owner',async execute(_action,p){ids.push(p.requestId);if(lose){lose=false;throw Error('response lost');}return {requestId:p.requestId};}}};
+ await assert.rejects(createBusinessTaskClient(options).geoprocessing.submit({requestedSteps:['buildings']}));
+ await createBusinessTaskClient(options).geoprocessing.submit({requestedSteps:['buildings']});await createBusinessTaskClient(options).geoprocessing.submit({requestedSteps:['buildings']});
+ assert.deepEqual(ids,['request-1','request-1','request-2']);
+});

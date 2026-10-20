@@ -13,7 +13,7 @@ test('native task outbox rolls back, replays a lost response and rejects stale l
    service=createTaskService({database:db,bridge,files:{}});const input={...context,requestId:randomUUID(),requestedSteps:['buildings'],aoi:{type:'Polygon',coordinates:[[[113,23],[113.0001,23],[113.0001,23.0001],[113,23]]]},parameters:{}};
    await assert.rejects(db.withIdentity(testIdentity(),async c=>{await c.query('SELECT api_private.task_execute($1,$2::jsonb,$3)',['tasks.submitGeo',JSON.stringify(input),'aliyun-test']);throw {code:'INVALID_INPUT'};}),{code:'INVALID_INPUT'});
    assert.equal((await setup.query('SELECT count(*) n FROM api_private.task_outbox')).rows[0].n,'0');
-   const first=await service.execute(testIdentity(),'tasks.submitGeo',input);assert.equal(first.state,'pending');await service.execute(testIdentity(),'tasks.submitGeo',input);
+   const first=await service.execute(testIdentity(),'tasks.submitGeo',input);assert.equal(first.state,'pending');assert.deepEqual(await service.execute(testIdentity(),'tasks.submitGeo',input),first);
    assert.equal((await setup.query('SELECT count(*) n FROM api_private.task_outbox')).rows[0].n,'1');assert.equal(requests,0);
    await service.tick();assert.equal(receipt.size,1);await setup.query("UPDATE api_private.task_outbox SET next_at=now()");await service.close();service=createTaskService({database:db,bridge,files:{}});await service.tick();
    assert.equal(receipt.size,1);assert.equal(requests,2);assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:input.requestId})).sourceRunId,remoteId);
@@ -51,6 +51,29 @@ test('native private photo references and streamed results survive retries and i
    assert.equal((await setup.query('SELECT geom FROM personal_layer_features WHERE layer_version_id=$1',[imported[0].id])).rows[0].geom.type,'Polygon');
    await assert.rejects(taskFiles.readTaskArtifact(testIdentity(USERS.other),input.requestId,'buildings'),{code:'NOT_FOUND'});
    const h=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'buildings');assert.equal(h.size,bytes.length);await h.close();
+  }finally{await service?.close();await db.close();await rm(root,{recursive:true,force:true});}
+ });
+});
+
+
+test('failed facade retry reconciles a lost source response, resumes polling and exposes completed artifacts',async()=>{
+ await withUnifiedFixture(async({setup,install,config})=>{
+  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','tasks'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
+  const db=createUnifiedDatabase(config),root=await mkdtemp(join(tmpdir(),'retry-native-'));let service;
+  try{
+   const store=await createBusinessFileStore({root,instanceId:'aliyun-test'}),files=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
+   const session=await files.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context,files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await files.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await files.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
+   const remote=randomUUID();let status='failed',prepared=0;
+   const bridge={instanceId:'aliyun-test',async applyContext(){},async retry(){status='queued_generation';throw {code:'BRIDGE_UNAVAILABLE'};},async status(){return {instanceId:'aliyun-test',runId:remote,run:{status,progress:status==='completed'?100:0}};},async artifacts(){return {artifacts:[{artifact_type:'building_glb',sha256:'a'.repeat(64)}]};}};
+   service=createTaskService({database:db,bridge,files:{async prepareTaskArtifacts(){prepared++;}}});
+   const task=await service.execute(testIdentity(),'tasks.submitFacade',{...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()});
+   await setup.query("UPDATE api_private.task_requests SET state='failed',source_run_id=$1 WHERE request_id=$2",[remote,task.requestId]);await setup.query("UPDATE api_private.task_outbox SET done=true");
+   const command={taskId:task.requestId,requestId:randomUUID()},first=await service.execute(testIdentity(),'tasks.retry',command);
+   // The source can commit its retry while its response is lost.
+   await service.tick();assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:task.requestId})).state,'running');
+   assert.deepEqual(await service.execute(testIdentity(),'tasks.retry',command),first);
+   assert.equal((await setup.query("SELECT done FROM api_private.task_outbox WHERE operation='poll'")).rows[0].done,false);
+   status='completed';await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await service.tick();assert.equal((await service.execute(testIdentity(),'tasks.get',{requestId:task.requestId})).state,'completed');assert.equal(prepared,1);
   }finally{await service?.close();await db.close();await rm(root,{recursive:true,force:true});}
  });
 });

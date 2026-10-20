@@ -8,8 +8,8 @@
   const scenes=new Set(),events=new Set();let disposed=false,files;
   const api=modules.api.createUnifiedApiClient({deployment:config,authClient,origin,fetchImpl,contextProvider,onIdentityChange(){files?.clear();for(const scene of scenes)scene.dispose();scenes.clear();for(const event of events)void event.stop();}});
   const domain=name=>Object.freeze({async execute(action,input){if(disposed)throw Error('CLIENT_DISPOSED');if(!action.startsWith(name+'.')&&!(name==='catalog'&&action.startsWith('admin.')))throw Error('UNKNOWN_OPERATION');return api.execute(action,input);}});
-  files=modules.files.createBusinessFilesClient({origin,fetchImpl,getAccessToken:api.getAccessToken,getIdentityKey:api.getIdentityKey});
-  const tasks=modules.tasks.createBusinessTaskClient({api,contextProvider});
+  files=modules.files.createBusinessFilesClient({origin,fetchImpl,storage,getAccessToken:api.getAccessToken,getIdentityKey:api.getIdentityKey});
+  const tasks=modules.tasks.createBusinessTaskClient({api,contextProvider,storage});
   return Object.freeze({mode:'aliyun',deployment:config,businessClient:guardBusinessClient(authClient),api,
    identity:Object.freeze({...domain('identity'),me:()=>api.execute('identity.me',{}),bootstrap:()=>api.execute('identity.bootstrap',{}),ensureProfile:()=>api.execute('identity.ensureProfile',{})}),catalog:domain('catalog'),survey:domain('survey'),planning:Object.freeze({execute(action,input){if(!/^(planning|personal)\./.test(action))throw Error('UNKNOWN_OPERATION');return api.execute(action,input);}}),models:domain('models'),admin:domain('admin'),community:domain('community'),mc:domain('mc'),files,tasks,
    scene:Object.freeze({createServices({context,storage:sceneStorage=storage}){
@@ -18,7 +18,7 @@
     const sceneApi=modules.sceneApi.createSceneFilesClient({baseUrl:new URL('/api/v1/scene-files',origin).href,getAccessToken:api.getAccessToken,getIdentityKey:api.getIdentityKey,fetchImpl});
     const scene=modules.scene.createSceneServices({api:sceneApi,getAccessToken:api.getAccessToken,contextProvider:sceneContext,instanceId:config.instanceId,storage:sceneStorage});scenes.add(scene);return scene;
    }}),
-   events:Object.freeze({createClient(options){if(disposed)throw Error('CLIENT_DISPOSED');const client=modules.events.createBusinessEventClient({...options,origin,fetchImpl,getAccessToken:api.getAccessToken});events.add(client);return client;}}),
+   events:Object.freeze({createClient(options){if(disposed)throw Error('CLIENT_DISPOSED');const client=modules.events.createBusinessEventClient({...options,origin,fetchImpl,storage,getAccessToken:api.getAccessToken});events.add(client);return client;}}),
    dispose(){if(disposed)return;disposed=true;api.dispose();files.clear();tasks.dispose();for(const scene of scenes)scene.dispose();for(const event of events)void event.stop();scenes.clear();events.clear();}
   });
  }
