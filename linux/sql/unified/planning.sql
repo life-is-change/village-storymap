@@ -55,7 +55,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE result j
  ELSE RAISE EXCEPTION 'NOT_FOUND';END CASE;RETURN result;
 END$$;
 CREATE FUNCTION api_private.planning_write(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
-SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE photo bigint;result jsonb;prior jsonb;space public.planning_spaces;lease public.feature_edit_locks;sid uuid;version public.personal_layer_versions;changes jsonb;actor text;target jsonb;BEGIN
+SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE photo bigint;generated_code text;result jsonb;prior jsonb;space public.planning_spaces;lease public.feature_edit_locks;sid uuid;version public.personal_layer_versions;changes jsonb;actor text;target jsonb;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  IF a NOT IN ('planning.acquireLock','planning.heartbeatLock','planning.releaseLock') THEN prior:=api_private.begin_operation(a,p);IF prior IS NOT NULL THEN RETURN prior->'result';END IF;END IF;
  SELECT display_name INTO actor FROM public.profiles WHERE id=auth.uid();
@@ -96,6 +96,15 @@ SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLA
   changes:=api_private.planning_changes(p||jsonb_build_object('changes',changes));
   IF space.space_type='group_plan' THEN result:=public.save_group_plan_edit_batch(space.teaching_project_id,space.village_id,space.id,actor,'修改建筑编码',changes);
   ELSE result:=to_jsonb(public.save_feature_edit_batch(space.id,space.teaching_project_id,space.village_id,actor,'修改建筑编码','',changes));END IF;
+  IF space.space_type IN ('practice_shared','formal_shared') THEN
+    SELECT object_code INTO generated_code FROM public.feature_versions WHERE batch_id=(result#>>'{}')::uuid AND action='add' AND layer_key='building';
+    IF generated_code IS NULL THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
+    -- The audited survey RPC generates a fresh ID for adds. Bind its new row to the leased target name before this transaction commits.
+    UPDATE public.planning_features SET object_code=p->>'newCode' WHERE space_id=space.id AND layer_key='building' AND object_code=generated_code;
+    UPDATE public.survey_feature_reviews SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND layer_key='building' AND object_code=generated_code;
+    UPDATE public.feature_versions SET object_code=p->>'newCode' WHERE batch_id=(result#>>'{}')::uuid AND action='add' AND layer_key='building' AND object_code=generated_code;
+    UPDATE public.activity_events SET target_id=p->>'newCode' WHERE metadata->>'batchId'=result#>>'{}' AND target_type='building' AND target_id=generated_code;
+  END IF;
   UPDATE public.object_attribute_edits SET object_code=p->>'newCode',data=data||jsonb_build_object('房屋编码',p->>'newCode') WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
   UPDATE public.object_photos SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
   UPDATE public.object_comments SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
