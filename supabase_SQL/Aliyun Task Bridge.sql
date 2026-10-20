@@ -23,6 +23,7 @@ CREATE TABLE aliyun_bridge.requests(
  created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(instance_id,owner_id,request_id)
 );
 CREATE TABLE aliyun_bridge.run_origins(run_id uuid PRIMARY KEY,instance_id text NOT NULL,kind text NOT NULL,owner_id uuid NOT NULL,request_id uuid NOT NULL);
+CREATE TABLE aliyun_bridge.cancellations(instance_id text NOT NULL,owner_id uuid NOT NULL,request_id uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(instance_id,owner_id,request_id));
 ALTER TABLE public.geoprocessing_runs ADD COLUMN origin_instance_id text NOT NULL DEFAULT 'supabase';
 ALTER TABLE public.facade_generation_runs ADD COLUMN origin_instance_id text NOT NULL DEFAULT 'supabase',ADD COLUMN source_photo_bucket text NOT NULL DEFAULT 'house-photos',
  ADD COLUMN source_photo_sha256 text,ADD COLUMN source_photo_size bigint,ADD COLUMN source_photo_mime text;
@@ -132,6 +133,7 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
  IF p_instance_id!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' OR job_kind NOT IN('geo','facade','cloud-facade') OR jsonb_typeof(input)<>'object' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_instance_id||':'||owner::text,11));
  IF NOT EXISTS(SELECT 1 FROM auth.users WHERE id=owner) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF EXISTS(SELECT 1 FROM aliyun_bridge.cancellations WHERE instance_id=p_instance_id AND owner_id=owner AND request_id=rid) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  SELECT * INTO ctx FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='space' AND local_id=p_request->>'contextId' FOR SHARE;
  SELECT * INTO profile FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='profile' AND local_id=owner::text FOR SHARE;
  IF ctx.version IS DISTINCT FROM (p_request->>'contextVersion')::bigint OR profile.version IS DISTINCT FROM (p_request->>'profileVersion')::bigint THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
@@ -174,7 +176,13 @@ CREATE FUNCTION aliyun_bridge.bridge_v1_status(p_instance_id text,p_request json
  RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'kind',r.kind,'run',data);
 END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_cancel(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
- SET search_path=pg_catalog,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;BEGIN r:=aliyun_bridge.authorize(p_instance_id,p_request);RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'canceled',aliyun_bridge.cancel_run(r.kind,r.run_id));END$$;
+ SET search_path=pg_catalog,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'requestId')::uuid;BEGIN
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_instance_id||':'||owner::text,11));
+ IF NOT EXISTS(SELECT 1 FROM auth.users WHERE id=owner) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF EXISTS(SELECT 1 FROM aliyun_bridge.requests WHERE instance_id=p_instance_id AND owner_id=owner AND request_id=rid) THEN r:=aliyun_bridge.authorize(p_instance_id,p_request);PERFORM aliyun_bridge.cancel_run(r.kind,r.run_id);END IF;
+ INSERT INTO aliyun_bridge.cancellations(instance_id,owner_id,request_id) VALUES(p_instance_id,owner,rid) ON CONFLICT DO NOTHING;
+ RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'canceled',true);
+END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_confirm_crop(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;ok boolean;BEGIN
  r:=aliyun_bridge.authorize(p_instance_id,p_request);IF r.kind<>'facade' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
@@ -185,6 +193,7 @@ END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_retry(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,aliyun_bridge,pg_temp AS $$DECLARE r aliyun_bridge.requests;ok boolean;BEGIN
  r:=aliyun_bridge.authorize(p_instance_id,p_request);IF r.kind<>'facade' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ IF EXISTS(SELECT 1 FROM aliyun_bridge.cancellations WHERE instance_id=p_instance_id AND owner_id=r.owner_id AND request_id=r.request_id) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  PERFORM set_config('request.jwt.claim.sub',r.owner_id::text,true);SELECT public.retry_failed_facade_run(r.run_id) INTO ok;
  RETURN jsonb_build_object('instanceId',p_instance_id,'runId',r.run_id,'retried',ok);
 END$$;

@@ -21,5 +21,5 @@ export async function prepareBridge(setup){
   INSERT INTO worker_heartbeats(worker_id,state,version) VALUES('worker','available','synthetic-compatible');
   INSERT INTO geoprocessing_source_status(village_id,ready,bounds,worker_id) VALUES('b0000000-0000-4000-8000-000000000001',true,'[113,23,113.001,23.001]','worker');
   INSERT INTO object_photos(id,object_code,object_type,teaching_project_id,village_id,space_id,photo_url,photo_path)
-   VALUES(100,'B1','building','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','A','https://synthetic.invalid/unused','a0000000-0000-4000-8000-000000000001/b0000000-0000-4000-8000-000000000001/A/building/B1_front.jpg');`);
+   VALUES(1,'B1','building','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','A','https://synthetic.invalid/unused','a0000000-0000-4000-8000-000000000001/b0000000-0000-4000-8000-000000000001/A/building/B1_front.jpg');`);
 }

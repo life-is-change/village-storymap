@@ -142,7 +142,10 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
   UPDATE api_private.task_requests SET remote_status=s,state=CASE WHEN s IN('completed','succeeded') THEN 'completed' WHEN s IN('failed','canceled') THEN s ELSE 'running' END,progress=greatest(0,least(100,coalesce((result->'run'->>'progress')::integer,0))),
    remote_info=coalesce((SELECT jsonb_object_agg(e.key,e.value) FROM jsonb_each(result->'run') e WHERE e.key IN('generation_revision','crop_top','roof_type','building_width','building_depth','attempt_count','rectification_attempt_count','generation_attempt_count')),'{}'),
    error_code=CASE WHEN result->'run'->>'error_code'~'^[A-Z0-9_]{1,80}$' THEN result->'run'->>'error_code' END,updated_at=now() WHERE id=t.id;
- ELSIF o.operation='cancel' THEN UPDATE api_private.task_requests SET remote_status='cancel_requested',updated_at=now() WHERE id=t.id;
+ ELSIF o.operation='cancel' THEN
+  IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR result->>'canceled' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  UPDATE api_private.task_requests SET state=CASE WHEN source_run_id IS NULL THEN 'canceled' ELSE state END,remote_status=CASE WHEN source_run_id IS NULL THEN 'canceled' ELSE 'cancel_requested' END,updated_at=now() WHERE id=t.id;
+  UPDATE api_private.task_outbox SET done=true,lease=NULL,lease_until=NULL WHERE task_id=t.id AND operation='submit';
  ELSIF o.operation='import' THEN
   IF t.imported_bundle IS NULL OR (result->>'bundleId')::uuid IS DISTINCT FROM t.imported_bundle THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
  END IF;

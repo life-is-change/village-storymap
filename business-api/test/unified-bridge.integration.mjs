@@ -16,6 +16,15 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
     await invoke('bridge_v1_apply_context',{localKind:'photo',localId:photoId,version:1,tombstone:false,payload:{contextId,path:instance+'/photos/10000000-0000-4000-8000-000000000001/'+sha+'.jpg',sha256:sha,size:123,mime:'image/jpeg'}},instance);
    }
    await contexts();await contexts('aliyun-other');
+   const deletedOwner=randomUUID(),deletedRequest=randomUUID();await setup.query('INSERT INTO auth.users(id) VALUES($1)',[deletedOwner]);
+   await invoke('bridge_v1_apply_context',{localKind:'profile',localId:deletedOwner,version:1,tombstone:false,payload:{active:true}});
+   await invoke('bridge_v1_apply_context',{localKind:'space',localId:'deleted-owner',version:1,tombstone:false,payload:{members:[deletedOwner],courseId:'local-course'}});
+   await invoke('bridge_v1_apply_context',{localKind:'photo',localId:'deleted-photo',version:1,tombstone:false,payload:{contextId:'deleted-owner',path:'aliyun-test/photos/10000000-0000-4000-8000-000000000001/'+sha+'.jpg',sha256:sha,size:123,mime:'image/jpeg'}});
+   await invoke('bridge_v1_enqueue',{ownerId:deletedOwner,requestId:deletedRequest,kind:'facade',contextId:'deleted-owner',contextVersion:1,profileVersion:1,photoId:'deleted-photo',photoVersion:1,input:{objectCode:'B1'}});
+   await setup.query('DELETE FROM auth.users WHERE id=$1',[deletedOwner]);
+   await assert.rejects(invoke('bridge_v1_status',{ownerId:deletedOwner,requestId:deletedRequest}),e=>e.message==='FORBIDDEN');
+   const canceledRequest=randomUUID();assert.equal((await invoke('bridge_v1_cancel',{ownerId:USERS.student,requestId:canceledRequest})).canceled,true);
+   await assert.rejects(invoke('bridge_v1_enqueue',{ownerId:USERS.student,requestId:canceledRequest,kind:'geo',contextId,contextVersion:1,profileVersion:1,input:{requestedSteps:['buildings'],aoi:{},parameters:{}}}),e=>e.message==='FORBIDDEN');
    await invoke('bridge_v1_apply_context',{localKind:'photo',localId:'invalid',version:1,tombstone:false,payload:{contextId}});
    await assert.rejects(invoke('bridge_v1_enqueue',{ownerId:USERS.student,requestId:randomUUID(),kind:'facade',contextId,contextVersion:1,profileVersion:1,photoId:'invalid',photoVersion:1,input:{objectCode:'B1'}}),e=>e.message==='INVALID_INPUT');
    const requestId=randomUUID(),input={ownerId:USERS.student,requestId,kind:'facade',contextId,contextVersion:1,profileVersion:1,photoId,photoVersion:1,input:{objectCode:'B1'}};
@@ -42,7 +51,7 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    const source=await setup.query("INSERT INTO facade_generation_runs(owner_id,course_id,space_id,object_code,photo_id) VALUES($1,'course','A','B1',NULL) RETURNING id,origin_instance_id",[USERS.student]);assert.equal(source.rows[0].origin_instance_id,'supabase');
    assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM facade_generation_runs WHERE id=$1',[source.rows[0].id])).rowCount,1);assert.equal((await queryAs('authenticated',USERS.student,'SELECT public.request_facade_cancel($1) AS ok',[source.rows[0].id])).rows[0].ok,true);
    const aoi={type:'Polygon',coordinates:[[[113,23],[113.0001,23],[113.0001,23.0001],[113,23]]]};
-   const sourceFacade=(await queryAs('authenticated',USERS.student,"SELECT public.submit_facade_run('course','A','B1',100) AS id")).rows[0].id;
+   const sourceFacade=(await queryAs('authenticated',USERS.student,"SELECT public.submit_facade_run('course','A','B1',1) AS id")).rows[0].id;
    assert.equal((await queryAs('authenticated',USERS.student,'SELECT * FROM facade_generation_runs WHERE id=$1',[sourceFacade])).rows[0].origin_instance_id,'supabase');
    const geo=await invoke('bridge_v1_enqueue',{...input,requestId:randomUUID(),kind:'geo',input:{requestedSteps:['buildings'],aoi,parameters:{}}});
    const row=(await setup.query('SELECT * FROM geoprocessing_runs WHERE id=$1',[geo.runId])).rows[0];assert.equal(row.teaching_project_id,null);assert.equal(row.dataset_id,null);assert.equal(row.origin_instance_id,'aliyun-test');

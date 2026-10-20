@@ -38,6 +38,7 @@ test('native private photo references and streamed results survive retries and i
    const bridge={instanceId:'aliyun-test',async applyContext(){},async submit(){return {instanceId:'aliyun-test',runId:sourceId};},async status(){return {instanceId:'aliyun-test',runId:sourceId,kind:'geo',run:{status:'completed',progress:100}};},async artifacts(){return {artifacts:[{artifact_type:'buildings',sha256}]};},async downloadArtifact(){downloads++;return {sha256,size:bytes.length,mime:'application/geo+json',stream:Readable.from([bytes])};}};
    service=createTaskService({database:db,bridge,files:taskFiles});
    const photoTask=await service.execute(testIdentity(),'tasks.submitFacade',{...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()});
+   const inputPhoto=await taskFiles.readTaskInput({requestId:photoTask.requestId,ownerId:USERS.student});assert.equal(inputPhoto.sha256,createHash('sha256').update(png).digest('hex'));assert.equal(inputPhoto.size,png.length);await inputPhoto.close();
    await assert.rejects(db.withIdentity(testIdentity(),c=>service.assertPhotoMutable(c,testIdentity(),photo.id)),{code:'FILE_IN_USE'});
    const input={...context,requestId:randomUUID(),requestedSteps:['buildings'],aoi:feature.geometry,parameters:{}};await service.execute(testIdentity(),'tasks.submitGeo',input);
    // The photo outbox is intentionally held: no fake GPU/private input submit.
