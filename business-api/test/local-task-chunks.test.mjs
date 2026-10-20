@@ -14,6 +14,13 @@ test('private chunks survive restart, replay without overwrite and stream a veri
   await restarted.remove(id);assert.ok(!(await readdir(root)).includes(id));
  }finally{await rm(root,{recursive:true,force:true});}
 });
+test('new chunks stop before exhausting disk and cannot reuse another installation root',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'local-task-space-')),id=randomUUID(),bytes=Buffer.from('x');
+ try{const store=await api.createTaskChunkStore({root,instanceId:'aliyun-test',spaceAvailable:async()=>1024});
+  await assert.rejects(store.put(id,0,1,hash(bytes),Readable.from([bytes])),{code:'QUOTA_EXCEEDED'});
+  await assert.rejects(api.createTaskChunkStore({root,instanceId:'aliyun-other'}),{code:'FILE_UNAVAILABLE'});
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 test('interrupted and wrong-digest chunks never publish and can be retried without touching a completed chunk',async()=>{
  assert.equal(typeof api.createTaskChunkStore,'function');const root=await mkdtemp(join(tmpdir(),'local-task-chunks-')),id=randomUUID(),bytes=Buffer.from('complete');
  try{

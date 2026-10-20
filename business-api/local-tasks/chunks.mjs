@@ -1,5 +1,5 @@
 import {constants} from 'node:fs';
-import {open,lstat,mkdir,link,unlink,readdir,rmdir} from 'node:fs/promises';
+import {open,lstat,mkdir,link,unlink,readdir,rmdir,statfs} from 'node:fs/promises';
 import {resolve,join,dirname} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {uuid,fault} from '../scene-files/contracts.mjs';
@@ -14,7 +14,7 @@ async function digest(h){const hash=createHash('sha256'),buf=Buffer.alloc(65536)
 
 // Only immutable, fsynced chunks are acknowledged. A crashed request's unique
 // temporary file cannot block a retry or overwrite previously accepted bytes.
-export async function createTaskChunkStore({root,instanceId}){
+export async function createTaskChunkStore({root,instanceId,spaceAvailable=async path=>{const s=await statfs(path);return s.bavail*s.bsize;}}){
  if(typeof instanceId!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/.test(instanceId))throw fault('INVALID_INPUT');
  root=resolve(root);await noLinks(root);privateStat(await lstat(root),true);
  const marker=join(root,'instance');let mh;
@@ -25,6 +25,7 @@ export async function createTaskChunkStore({root,instanceId}){
   async put(id,index,size,sha256,stream){
    descriptor(id,index,size,sha256);const dir=await directory(id,true),dest=join(dir,`${index}.chunk`),temp=join(dir,`${index}.${randomUUID()}.pending`);
    try{await match(dest,size,sha256);return {replayed:true};}catch(e){if(e.code!=='ENOENT')throw e;}
+   const available=await spaceAvailable(root);if(!Number.isFinite(available)||available<size+2*1024**3)throw fault('QUOTA_EXCEEDED');
    let h,created=false;
    try{
     h=await open(temp,constants.O_RDWR|constants.O_CREAT|constants.O_EXCL|(constants.O_NOFOLLOW??0),0o600);created=true;const hash=createHash('sha256');let count=0;

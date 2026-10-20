@@ -23,8 +23,12 @@ test('native resumable Geo result above 50MiB is immutable, lease-gated and impo
   await tasks.execute(testIdentity(),'tasks.submitGeo',input);await tasks.tick();const job=await claim(actor);
   const head=Buffer.from(JSON.stringify({type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:input.aoi}]})),size=51*1024**2+head.length,pad=Buffer.alloc(65536,32),digest=createHash('sha256').update(head);for(let i=0;i<51*16;i++)digest.update(pad);const sha256=digest.digest('hex'),spec={requestId:randomUUID(),artifactType:'buildings',size,sha256,mime:'application/geo+json',extension:'geojson'};
   const u=await files.begin(actor,job.run.id,job.leaseToken,spec);assert.equal((await files.begin(actor,job.run.id,job.leaseToken,spec)).uploadId,u.uploadId);
+  const otherWorker=await worker();await assert.rejects(files.status(otherWorker,job.run.id,job.leaseToken,{uploadId:u.uploadId}),{code:'LEASE_LOST'});
   await assert.rejects(files.begin(actor,job.run.id,job.leaseToken,{...spec,sha256:'b'.repeat(64)}),{code:'UPLOAD_CONFLICT'});
   await assert.rejects(files.commit(actor,job.run.id,job.leaseToken,{uploadId:u.uploadId}),{code:'FILES_NOT_READY'});
+  const wrong=await files.begin(actor,job.run.id,job.leaseToken,{...spec,requestId:randomUUID(),size:head.length,sha256:'c'.repeat(64)});
+  await files.put(actor,job.run.id,job.leaseToken,{uploadId:wrong.uploadId,index:0,size:head.length,sha256:hash(head)},Readable.from([head]));
+  await assert.rejects(files.commit(actor,job.run.id,job.leaseToken,{uploadId:wrong.uploadId}),{code:'INVALID_FILE'});await files.abort(actor,job.run.id,job.leaseToken,{uploadId:wrong.uploadId});
   const part=Buffer.alloc(8*1024**2,32);head.copy(part);const first={uploadId:u.uploadId,index:0,size:part.length,sha256:hash(part)};
   await assert.rejects(files.put(actor,job.run.id,job.leaseToken,{...first,sha256:'a'.repeat(64)},Readable.from([part])),{code:'INVALID_FILE'});
   await assert.rejects(files.put(actor,job.run.id,job.leaseToken,first,(async function*(){yield part.subarray(0,17);throw Error('disconnected');})()));
