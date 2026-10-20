@@ -263,6 +263,40 @@ def test_bridge_photo_rejects_unsupported_scope_before_network(monkeypatch, tmp_
         FacadeGateway(FakeSupabase(), http_client=FakeHttp([])).download_photo(run, tmp_path / "source.jpg")
 
 
+@pytest.mark.parametrize("bad", ["hash", "host", "path", "query", "mime", "redirect"])
+def test_bridge_signed_photo_rejects_corrupt_or_redirected_bytes(monkeypatch, tmp_path, bad):
+    import hashlib
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    content = b"\xff\xd8\xffprivate-photo"
+    digest = hashlib.sha256(content).hexdigest()
+    path = f"aliyun-test/photos/10000000-0000-4000-8000-000000000001/{digest}.jpg"
+    url = f"https://project.supabase.co/storage/v1/object/sign/aliyun-task-inputs/{path}?token=opaque"
+    if bad == "host":
+        url = url.replace("project.supabase.co", "foreign.invalid")
+    elif bad == "path":
+        url = url.replace("aliyun-test/photos/", "aliyun-other/photos/")
+    elif bad == "query":
+        url += "&redirect=https://foreign.invalid"
+    client = FakeSupabase()
+    class Bucket:
+        def create_signed_url(self, *_args):
+            return {"signedUrl": url}
+    client.storage.from_ = lambda _bucket: Bucket()
+    response = FakeStreamResponse([b"\xff\xd8\xfftampered" if bad == "hash" else content])
+    if bad == "mime":
+        response.headers = {"content-type": "image/png"}
+    if bad == "redirect":
+        response.status_code = 302
+    http = FakeHttp([])
+    http.stream = lambda *_args, **_kwargs: response
+    run = FacadeRun.from_row(run_row(photo_id=None, origin_instance_id="aliyun-test", source_photo_bucket="aliyun-task-inputs",
+        source_photo_path=path, source_photo_sha256=digest, source_photo_size=len(content), source_photo_mime="image/jpeg"))
+    output = tmp_path / "rejected.jpg"
+    with pytest.raises(ValueError):
+        FacadeGateway(client, http_client=http).download_photo(run, output)
+    assert not output.exists()
+
+
 def test_renew_rejects_lost_lease():
     client = FakeSupabase()
     client.rpc_results["renew_facade_run_lease"] = False

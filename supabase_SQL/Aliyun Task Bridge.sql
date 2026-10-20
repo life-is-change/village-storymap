@@ -120,9 +120,9 @@ CREATE FUNCTION aliyun_bridge.bridge_v1_apply_context(p_instance_id text,p_reque
 END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_enqueue(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path=pg_catalog,public,aliyun_bridge,auth,extensions,pg_temp AS $$
-DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'requestId')::uuid;kind text:=p_request->>'kind';input jsonb:=p_request->'input';
+DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'requestId')::uuid;job_kind text:=p_request->>'kind';input jsonb:=p_request->'input';
  ctx aliyun_bridge.contexts;profile aliyun_bridge.contexts;photo aliyun_bridge.contexts;old aliyun_bridge.requests;run_id uuid:=gen_random_uuid();hash text;source record;geom extensions.geometry;bounds jsonb;steps text[];BEGIN
- IF p_instance_id!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' OR kind NOT IN('geo','facade','cloud-facade') OR jsonb_typeof(input)<>'object' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ IF p_instance_id!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' OR job_kind NOT IN('geo','facade','cloud-facade') OR jsonb_typeof(input)<>'object' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_instance_id||':'||owner::text,11));
  SELECT * INTO ctx FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='space' AND local_id=p_request->>'contextId' FOR SHARE;
  SELECT * INTO profile FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='profile' AND local_id=owner::text FOR SHARE;
@@ -131,8 +131,8 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
  hash:=encode(pg_catalog.sha256(convert_to(p_request::text,'UTF8')),'hex');
  SELECT * INTO old FROM aliyun_bridge.requests WHERE instance_id=p_instance_id AND owner_id=owner AND request_id=rid;
  IF FOUND THEN IF old.digest<>hash THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;RETURN jsonb_build_object('instanceId',p_instance_id,'runId',old.run_id);END IF;
- IF (SELECT count(*) FROM aliyun_bridge.requests r JOIN aliyun_bridge.run_origins o ON o.run_id=r.run_id WHERE r.instance_id=p_instance_id AND r.owner_id=owner AND r.kind=kind AND CASE WHEN kind='geo' THEN EXISTS(SELECT 1 FROM public.geoprocessing_runs g WHERE g.id=r.run_id AND status IN('queued','claimed','running','cancel_requested')) WHEN kind='facade' THEN EXISTS(SELECT 1 FROM public.facade_generation_runs f WHERE f.id=r.run_id AND status NOT IN('completed','failed','canceled')) ELSE EXISTS(SELECT 1 FROM public.cloud_facade_runs c WHERE c.id=r.run_id AND status IN('submitting','queued','running')) END)>=2 THEN RAISE EXCEPTION 'TOO_MANY_ACTIVE_RUNS';END IF;
- IF kind='geo' THEN
+ IF (SELECT count(*) FROM aliyun_bridge.requests r JOIN aliyun_bridge.run_origins o ON o.run_id=r.run_id WHERE r.instance_id=p_instance_id AND r.owner_id=owner AND r.kind=job_kind AND CASE WHEN job_kind='geo' THEN EXISTS(SELECT 1 FROM public.geoprocessing_runs g WHERE g.id=r.run_id AND status IN('queued','claimed','running','cancel_requested')) WHEN job_kind='facade' THEN EXISTS(SELECT 1 FROM public.facade_generation_runs f WHERE f.id=r.run_id AND status NOT IN('completed','failed','canceled')) ELSE EXISTS(SELECT 1 FROM public.cloud_facade_runs c WHERE c.id=r.run_id AND status IN('submitting','queued','running')) END)>=2 THEN RAISE EXCEPTION 'TOO_MANY_ACTIVE_RUNS';END IF;
+ IF job_kind='geo' THEN
   IF NOT EXISTS(SELECT 1 FROM public.geoprocessing_villages WHERE village_id=ctx.payload->>'workerVillageId' AND active) THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
   SELECT * INTO source FROM public.get_geoprocessing_source_status(ctx.payload->>'workerVillageId');
   IF source.state IS DISTINCT FROM 'ready' THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;bounds:=source.bounds;
@@ -148,13 +148,13 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
   IF photo.version IS DISTINCT FROM (p_request->>'photoVersion')::bigint OR photo.tombstone IS DISTINCT FROM false OR photo.payload->>'contextId' IS DISTINCT FROM ctx.local_id THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
   IF NOT coalesce(photo.payload->>'sha256'~'^[a-f0-9]{64}$' AND photo.payload->>'mime' IN('image/jpeg','image/png') AND photo.payload->>'size'~'^[0-9]{1,8}$' AND photo.payload->>'path'~('^'||p_instance_id||'/photos/[a-f0-9-]{36}/'||(photo.payload->>'sha256')||CASE WHEN photo.payload->>'mime'='image/png' THEN '\.png$' ELSE '\.jpg$' END) AND input-'objectCode'='{}' AND length(input->>'objectCode') BETWEEN 1 AND 200,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF (photo.payload->>'size')::bigint NOT BETWEEN 1 AND 10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
-  IF kind='facade' THEN INSERT INTO public.facade_generation_runs(id,owner_id,course_id,space_id,object_code,photo_id,source_photo_bucket,source_photo_path,source_photo_url,source_photo_sha256,source_photo_size,source_photo_mime,origin_instance_id)
+  IF job_kind='facade' THEN INSERT INTO public.facade_generation_runs(id,owner_id,course_id,space_id,object_code,photo_id,source_photo_bucket,source_photo_path,source_photo_url,source_photo_sha256,source_photo_size,source_photo_mime,origin_instance_id)
    VALUES(run_id,owner,p_instance_id||':'||(ctx.payload->>'courseId'),p_instance_id||':'||ctx.local_id,input->>'objectCode',NULL,'aliyun-task-inputs',photo.payload->>'path',NULL,photo.payload->>'sha256',(photo.payload->>'size')::bigint,photo.payload->>'mime',p_instance_id);
   ELSE INSERT INTO public.cloud_facade_runs(id,owner_id,course_id,space_id,object_code,photo_id,model,origin_instance_id,source_photo_bucket,source_photo_path,source_photo_sha256,source_photo_size,source_photo_mime)
    VALUES(run_id,owner,p_instance_id||':'||(ctx.payload->>'courseId'),p_instance_id||':'||ctx.local_id,input->>'objectCode',NULL,'pending-bridge-provider',p_instance_id,'aliyun-task-inputs',photo.payload->>'path',photo.payload->>'sha256',(photo.payload->>'size')::bigint,photo.payload->>'mime');END IF;
  END IF;
- INSERT INTO aliyun_bridge.requests VALUES(p_instance_id,owner,rid,ctx.local_id,kind,run_id,hash,p_request,now());
- INSERT INTO aliyun_bridge.run_origins VALUES(run_id,p_instance_id,kind,owner,rid);
+ INSERT INTO aliyun_bridge.requests VALUES(p_instance_id,owner,rid,ctx.local_id,job_kind,run_id,hash,p_request,now());
+ INSERT INTO aliyun_bridge.run_origins VALUES(run_id,p_instance_id,job_kind,owner,rid);
  RETURN jsonb_build_object('instanceId',p_instance_id,'runId',run_id);
 END$$;
 CREATE FUNCTION aliyun_bridge.bridge_v1_status(p_instance_id text,p_request jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
