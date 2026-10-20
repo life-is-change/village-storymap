@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Private, resumable unified candidate. Never changes the public/source website."""
-import argparse,contextlib,datetime as dt,hashlib,importlib.util,ipaddress,json,os,re,secrets,shutil,socket,subprocess,sys,time,urllib.request
+import argparse,contextlib,datetime as dt,hashlib,importlib.util,ipaddress,itertools,json,os,re,secrets,shutil,socket,subprocess,sys,tarfile,time,urllib.request,warnings
 from pathlib import Path
 S=Path(__file__).resolve().parent;ROOT=S.parents[1]
 DATABASE='village_unified_candidate';ROLE='village_unified_login';API='village-unified-api';PREVIEW='village-unified-preview';STATE=Path.home()/'village-unified-deploy'
@@ -53,7 +53,7 @@ class ResumeEngine:
    steps[name]={'status':'pending'};self.persist(self.state);receipt=apply()
    if not check(receipt):raise ValueError('STEP_CHECK_FAILED')
   steps[name]={'status':'done','receipt':receipt};self.persist(self.state);return receipt
-def compose_document(state,meta,*,uid,gid,key):
+def compose_document(state,meta,*,uid,gid,key,bridge_enabled=False):
  state=Path(state)
  if uid<=0 or gid<0 or not re.fullmatch(r'unified-[a-zA-Z0-9_-]{1,92}',meta['releaseId']):raise ValueError('INVALID_DEPLOYMENT_IDENTITY')
  def bind(source,target,ro=True):return {'type':'bind','source':str(source),'target':target,'read_only':ro,'bind':{'create_host_path':False}}
@@ -64,6 +64,9 @@ def compose_document(state,meta,*,uid,gid,key):
  'healthcheck':{'test':['CMD','node','-e',"fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"],'interval':'5s','timeout':'3s','retries':20}}
  preview={**common,'image':NGINX,'container_name':PREVIEW,'mem_limit':'64m','memswap_limit':'64m','cpus':0.25,'tmpfs':['/tmp:size=16m,mode=1777'],'networks':['dbnet'],'ports':['127.0.0.1:18085:8080'],
  'volumes':[bind(state/'releases'/meta['releaseId']/'web','/srv/village-web'),bind(state/'nginx.conf','/etc/nginx/nginx.conf')],'depends_on':{'api':{'condition':'service_healthy'}}}
+ if type(bridge_enabled) is not bool:raise ValueError('INVALID_BRIDGE_FLAG')
+ if bridge_enabled:
+  api['environment'].update(BRIDGE_ENABLED='true',BRIDGE_TOKEN_FILE='/run/secrets/bridge-token');api['volumes'].append(bind(state/'bridge-token','/run/secrets/bridge-token'))
  return {'name':PROJECT,'services':{'api':api,'preview':preview},'networks':{name:{'external':True,'name':'village-api-validation_'+name} for name in ['dbnet','authegress']}}
 
 class Docker(rd.LocalDocker):
@@ -138,7 +141,7 @@ def resource_snapshot(docker):
  return {'available_bytes':available,'disk_free_bytes':shutil.disk_usage(Path.home()).free,'containers':docker.run(['stats','--no-stream','--format','{{json .}}',API,PG]).splitlines()}
 
 def deploy_candidate(archive,backup,state,*,resume=False,check=False,docker=None):
- state=storage.no_links(state);archive=storage.no_links(archive);backup=storage.no_links(backup);meta=read_meta();verify_archive(archive,meta);manifest=rd.verify_backup(backup)
+ state=storage.no_links(state);archive=storage.no_links(archive);backup=storage.no_links(backup);meta=read_meta();verify_archive(archive,meta);synthetic_task_proof(meta);manifest=rd.verify_backup(backup)
  for protected in [backup,ROOT,Path.home()/'village-deploy',Path.home()/'village-api-validation',Path.home()/'village-scene-files-validation']:
   if state==protected or state in protected.parents or protected in state.parents:raise ValueError('STATE_PATH_OVERLAP')
  docker=docker or Docker(state)
@@ -183,7 +186,10 @@ def deploy_candidate(archive,backup,state,*,resume=False,check=False,docker=None
   with secret.open('x',encoding='ascii') as f:f.write(password+'\n')
   secret.chmod(0o600)
   sql='BEGIN;\n'+''.join((release/'schema'/f'{name}.sql').read_text(encoding='utf-8')+'\n' for name in SCHEMAS)+"\nSET LOCAL password_encryption='scram-sha-256';ALTER ROLE "+ROLE+" PASSWORD '"+password+"';COMMIT;"
-  docker.sql(sql);return schema_receipt(docker,meta)
+  docker.sql(sql)
+  # Only exact source UUID identity can be automated; legacy aliases need explicit verified mapping.
+  docker.sql("INSERT INTO api_private.task_worker_villages(local_village_id,worker_village_id) SELECT v.id,g.village_id FROM public.villages v JOIN public.geoprocessing_villages g ON g.village_id=v.id::text WHERE g.active;")
+  return schema_receipt(docker,meta)
  engine.step('schema',schema,lambda receipt:receipt==schema_receipt(docker,meta),recover=lambda:schema_receipt(docker,meta))
  engine.step('storage',lambda:copy_storage(docker,state,binding),lambda receipt:verify_storage(state,binding)==receipt,recover=lambda:verify_storage(state,binding))
  def hba():
@@ -274,7 +280,7 @@ def verify_storage(state,binding):
  else:storage.write_private_json(path,index)
  return {'index_sha256':digest(index),'objects':len(rows),'bytes':sum(row['size'] for row in rows)}
 def runtime_receipt(docker,state,meta):
- spec=storage.read_private_json(state/'compose.json');expected=compose_document(state,meta,uid=os.geteuid(),gid=os.getegid(),key=read_key())
+ spec=storage.read_private_json(state/'compose.json');expected=compose_document(state,meta,uid=os.geteuid(),gid=os.getegid(),key=read_key(),bridge_enabled=bridge_flag(state,meta))
  if spec!=expected or (state/'nginx.conf').read_bytes()!=(ROOT/'linux/nginx.unified.conf').read_bytes():raise ValueError('RUNTIME_CONFIGURATION_CHANGED')
  ids={API:image_identity(docker,meta),PREVIEW:json.loads(docker.run(['image','inspect',NGINX]))[0]['Id']};result={}
  for name,service in [(API,'api'),(PREVIEW,'preview')]:
@@ -282,6 +288,66 @@ def runtime_receipt(docker,state,meta):
   if not info['State']['Running']:raise ValueError('CANDIDATE_NOT_RUNNING')
   result[name]={'id':info['Id'],'image':info['Image']}
  return result
+def bridge_flag(state,meta):
+ path=state/'bridge-state.json'
+ if not path.exists():return False
+ value=storage.read_private_json(path)
+ if value.get('releaseId')!=meta['releaseId'] or type(value.get('enabled')) is not bool:raise ValueError('BRIDGE_STATE_CHANGED')
+ return value['enabled']
+def set_bridge(state,docker,meta,enabled):
+ runtime_receipt(docker,state,meta)
+ if enabled:
+  token=storage.private_path(state/'bridge-token').read_text().strip()
+  if not re.fullmatch(r'[A-Za-z0-9_-]{48}',token):raise ValueError('PRIVATE_BRIDGE_TOKEN_REQUIRED')
+ else:
+  active=int(docker.sql("SELECT count(*) FROM api_private.task_requests WHERE state IN('pending','queued','running');").strip())
+  if active:raise ValueError('ACTIVE_BRIDGE_TASKS_REQUIRE_DRAIN')
+ storage.write_private_json(state/'bridge-state.json',{'releaseId':meta['releaseId'],'enabled':enabled,'changed_at':time.time()})
+ spec=compose_document(state,meta,uid=os.geteuid(),gid=os.getegid(),key=read_key(),bridge_enabled=enabled);storage.write_private_json(state/'compose.json',spec)
+ docker.run(['compose','-f',str(state/'compose.json'),'up','-d','--pull','never','--no-build','--no-deps','api']);wait_ready(docker,state,meta)
+ proof=restart_candidate(docker,state,meta)
+ if not proof['same_container'] or not proof['started_at_changed']:raise ValueError('BRIDGE_RESTART_NOT_PROVEN')
+ binding=storage.read_private_json(state/'deployment.json');binding['steps']['runtime']['receipt']=runtime_receipt(docker,state,meta);storage.write_private_json(state/'deployment.json',binding)
+ return proof
+def enable_bridge(state,docker,meta):return set_bridge(state,docker,meta,True)
+def disable_bridge(state,docker,meta):return set_bridge(state,docker,meta,False)
+def unpack_handoff(bundle,meta,*,inputs_root=None):
+ bundle=storage.no_links(bundle)
+ if not bundle.is_file() or bundle.stat().st_nlink!=1 or bundle.stat().st_size>1024**3:raise ValueError('INVALID_HANDOFF_ARCHIVE')
+ sha=rd.checksum(bundle);inputs_root=storage.no_links(inputs_root or Path.home()/'village-unified-inputs')
+ for protected in [ROOT,STATE,Path.home()/'village-deploy']:
+  if inputs_root==protected or inputs_root in protected.parents or protected in inputs_root.parents:raise ValueError('HANDOFF_PATH_OVERLAP')
+ inputs_root.mkdir(mode=0o700,parents=True,exist_ok=True);storage.private_path(inputs_root,directory=True);target=inputs_root/sha[:24]
+ allowed={meta['archive_filename'],'bridge-token','handoff.json',*('backup/'+name for name in ['database.dump','roles.sql','inventory.json','contents.txt','manifest.json'])}
+ if Path(meta['archive_filename']).name!=meta['archive_filename'] or any('\\' in name or name.startswith('/') or '..' in name.split('/') for name in allowed):raise ValueError('INVALID_HANDOFF_NAME')
+ if target.exists():
+  receipt=storage.read_private_json(target/'unpacked.json')
+  if receipt.get('bundle_sha256')!=sha:raise ValueError('HANDOFF_BINDING_DIFFERS')
+ else:
+  with tarfile.open(bundle,'r:gz') as archive:
+   members=list(itertools.islice(archive,9))
+   if len(members)!=8 or {item.name for item in members}!=allowed or any(not item.isfile() or item.size<0 or item.size>512*1024**2 for item in members) or sum(item.size for item in members)>1024**3:raise ValueError('HANDOFF_CONTENTS_REFUSED')
+   info=next(item for item in members if item.name=='handoff.json')
+   if info.size>32768:raise ValueError('INVALID_HANDOFF_MANIFEST')
+   manifest=json.loads(archive.extractfile(info).read())
+   if manifest.get('version')!=1 or manifest.get('releaseId')!=meta['releaseId'] or set(manifest.get('files',{}))!=allowed-{'handoff.json'}:raise ValueError('HANDOFF_RELEASE_DIFFERS')
+   if shutil.disk_usage(inputs_root).free<4*1024**3+sum(item.size for item in members):raise ValueError('HANDOFF_DISK_RESERVE_REQUIRED')
+   target.mkdir(mode=0o700);(target/'backup').mkdir(mode=0o700)
+   for item in members:
+    path=target/item.name;hasher=hashlib.sha256();count=0
+    with archive.extractfile(item) as source,os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as out:
+     while block:=source.read(1024**2):out.write(block);hasher.update(block);count+=len(block)
+     out.flush();os.fsync(out.fileno())
+    if item.name!='handoff.json' and manifest['files'][item.name]!={'bytes':count,'sha256':hasher.hexdigest()}:raise ValueError('HANDOFF_FILE_CHECKSUM_DIFFERS')
+  storage.write_private_json(target/'unpacked.json',{'bundle_sha256':sha,'releaseId':meta['releaseId']})
+ manifest=storage.read_private_json(target/'handoff.json')
+ if manifest.get('version')!=1 or manifest.get('releaseId')!=meta['releaseId'] or set(manifest.get('files',{}))!=allowed-{'handoff.json'}:raise ValueError('HANDOFF_RELEASE_DIFFERS')
+ for name,value in manifest['files'].items():
+  path=storage.private_path(target/name)
+  if path.stat().st_size!=value['bytes'] or rd.checksum(path)!=value['sha256']:raise ValueError('HANDOFF_FILE_CHANGED')
+ verify_archive(target/meta['archive_filename'],meta);rd.verify_backup(target/'backup')
+ if not re.fullmatch('[A-Za-z0-9_-]{48}',storage.private_path(target/'bridge-token').read_text().strip()):raise ValueError('INVALID_BRIDGE_TOKEN')
+ return target/meta['archive_filename'],target/'backup',target/'bridge-token'
 def wait_ready(docker,state,meta):
  for _ in range(50):
   info=json.loads(docker.run(['inspect',API]))[0]
@@ -346,15 +412,27 @@ def deployment_lock():
 def main():
  parser=argparse.ArgumentParser(description=__doc__);mode=parser.add_mutually_exclusive_group(required=True)
  for name in ['check','deploy','verify','resume','rollback-code']:mode.add_argument('--'+name,action='store_true')
- parser.add_argument('--archive',type=Path);parser.add_argument('--backup-dir',type=Path);parser.add_argument('--state-dir',type=Path,default=STATE);args=parser.parse_args();os.umask(0o077)
+ parser.add_argument('--archive',type=Path);parser.add_argument('--backup-dir',type=Path);parser.add_argument('--handoff',type=Path);parser.add_argument('--state-dir',type=Path,default=STATE);args=parser.parse_args();os.umask(0o077)
+ import getpass
+ warnings.simplefilter('error',getpass.GetPassWarning)
  if sys.platform!='linux' or os.geteuid()==0:raise ValueError('NORMAL_LINUX_ADMIN_REQUIRED')
  with deployment_lock():
+  token_file=None
+  if args.handoff:
+   if not (args.deploy or args.resume) or args.archive or args.backup_dir:raise ValueError('HANDOFF_DEPLOY_OR_RESUME_REQUIRED')
+   args.archive,args.backup_dir,token_file=unpack_handoff(args.handoff,read_meta())
   if args.verify:report=verify_candidate(args.state_dir)
   elif args.rollback_code:report=rollback_code(args.state_dir)
   else:
    if not args.archive or not args.backup_dir:raise ValueError('ARCHIVE_AND_BACKUP_REQUIRED')
    report=deploy_candidate(args.archive,args.backup_dir,args.state_dir,resume=args.resume,check=args.check)
    if not args.check:
+    if token_file:
+     target=args.state_dir/'bridge-token'
+     if target.exists():
+      if storage.private_path(target).read_bytes()!=token_file.read_bytes():raise ValueError('BRIDGE_TOKEN_CHANGED')
+     else:
+      with os.fdopen(os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as f:f.write(token_file.read_bytes())
     import getpass
     api,state=probe_environment(args.state_dir);probe=load('unified_probe_entry','probe-unified-business.py')
     admin=(input('Website ADMIN student ID [332]: ').strip() or '332',getpass.getpass('Website ADMIN LOGIN password (hidden): '));member=(input('Website MEMBER student ID [25213040]: ').strip() or '25213040',getpass.getpass('Website MEMBER LOGIN password (hidden): '))

@@ -4,6 +4,24 @@ This replaces the repeated per-module candidate process with one release image, 
 
 **Current status:** candidate deployment tooling, not a production migration completion. Do not upload the intermediate `689de9d` image. A final archive with matching native/Platform CI proof will be recorded after deployment/activation tooling and whole-change review. The old 2026-10-15 database snapshot is suitable for development validation only; it cannot authorize activation.
 
+Preferred final handoff uses **one private upload bundle**. After the final image is recorded, run on Windows (use the concrete final image path provided at delivery):
+
+```powershell
+& 'E:\anaconda3\python.exe' linux/scripts/prepare-unified-cutover.py --package-handoff `
+  --archive 'C:\Users\MR\village-image-transfer\FINAL_UNIFIED_IMAGE.tar.gz' `
+  --source-output 'C:\Users\MR\village-unified-handoff-FINAL_RELEASE'
+```
+
+The command prompts for the Supabase database password, creates a fresh verified snapshot and generates `village-handoff-<release>.tar.gz`. Upload **that single private bundle** to `/home/admin/`, without unpacking it. On Aliyun:
+
+```bash
+cd ~/village-deploy/source && git pull --ff-only origin main &&
+python3 linux/scripts/deploy-unified-business.py --deploy \
+  --handoff "$HOME/village-handoff-FINAL_RELEASE.tar.gz"
+```
+
+The exact `FINAL_RELEASE`/archive name comes from the generated output. Resume uses the same command with `--resume` instead of `--deploy`. It does not fetch Docker Hub images. Source SQL/Edge setup and TLS activation are one-time external prerequisites described in [the cutover checklist](../docs/migration/unified-cutover-checklist.md); their secrets stay in the Windows `source-private` directory. Prepare the HTTPS domain/certificate before the final24hour snapshot handoff if public activation is imminent. If those prerequisites are absent, keep using the current site; the candidate remains private and no complete-migration claim is made.
+
 After that final archive and a new verified snapshot are available, upload the image without unpacking, alongside the snapshot's four verified files and manifest in a private directory outside the website/repository. From `~/village-deploy/source`, the candidate command is:
 
 ```bash
@@ -26,3 +44,13 @@ Private state is `~/village-unified-deploy`. Its deployment receipts bind archiv
 The API bridge starts disabled. A readiness heartbeat must come from running compatible Worker code (`geo-aliyun-bridge-v1` / `facade-aliyun-bridge-v1`) within2minutes; any active old claimant of that kind blocks new private submissions. Source ordinary task endpoints retain their existing behavior. Update the campus4090 checkout to the **same reviewed Git commit** and restart its existing Worker service using its existing environment. Do not replace its service name or credentials based on guesses. If rollback is necessary, first disable new Aliyun bridge submissions and drain/cancel in-flight work before restarting old Worker code; retain task/file receipts. Aliyun cannot directly administer a campus GPU through a database copy.
 
 Public activation is a separate guarded action: new snapshot/file consistency, HTTPS domain/certificate, installed private source bridge and compatible live Workers are required. A plain public IP/HTTP site cannot pass the public-token gate. GitHub Pages remains writable on Supabase; new writes at the two sites are independent and are not merged automatically. See [acceptance matrix](../docs/migration/unified-acceptance-matrix.md).
+
+After those prerequisites exist, the explicit server activation command is:
+
+```bash
+python3 linux/scripts/prepare-unified-cutover.py --apply \
+  --origin 'https://YOUR_DOMAIN' --cert "$HOME/private-tls/fullchain.pem" \
+  --key "$HOME/private-tls/private.key"
+```
+
+Use `--check` first for the live readiness report. A private `--worker-map <file>` may supply explicit local-village UUID → existing Worker-village ID pairs; the tool verifies source readiness and refuses changes to an existing different mapping. HTTPS staging is checked before the old Aliyun HTTP container is stopped. Public routing is still labeled pending real browser/GPU acceptance; no real job or billable provider submission is automated.

@@ -21,6 +21,7 @@ def test_pending_completed_action_can_be_recovered_only_with_exact_external_proo
 def test_complete_candidate_command_is_idempotent_and_never_restarts_existing_services(tmp_path,monkeypatch):
  import json,hashlib,sys
  m=module();archive=tmp_path/'release.tar.gz';archive.write_bytes(b'verified');backup=tmp_path/'backup';backup.mkdir();(backup/'database.dump').write_bytes(b'archive');state=tmp_path/'candidate';meta={'releaseId':'unified-test','instanceId':'aliyun-test','image':'village-unified:123456789abc','code_sha256':'c'*64,'schema_sha256':'s'*64,'static_sha256':'w'*64,'archive_filename':archive.name,'archive_bytes':8,'archive_sha256':hashlib.sha256(b'verified').hexdigest()}
+ meta['validation']={'native_status':'success','platform_status':'success','native_run_id':1,'platform_run_id':2,'code_sha256':meta['code_sha256'],'schema_sha256':meta['schema_sha256']}
  hba='local all all trust\nhost village_copy village_api_login 172.22.0.0/16 scram-sha-256\nhost all all 0.0.0.0/0 reject\nhost all all ::/0 reject\n'
  class Fake:
   def __init__(self):self.commands=[];self.sqls=[];self.hba=hba;self.exists=False;self.restores=0

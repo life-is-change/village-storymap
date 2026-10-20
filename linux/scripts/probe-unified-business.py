@@ -2,7 +2,7 @@
 """One hidden-input, resumable TEST-only acceptance pass. Never submits GPU/provider tasks."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-import argparse,base64,copy,getpass,hashlib,importlib.util,json,re,ssl,struct,time,urllib.error,urllib.parse,urllib.request,uuid
+import argparse,base64,copy,getpass,hashlib,importlib.util,json,re,ssl,struct,time,urllib.error,urllib.parse,urllib.request,uuid,warnings
 
 ROOT=Path(__file__).resolve().parents[2]
 ORIGIN='https://rzmbmwauomzwiyenafha.supabase.co'
@@ -180,6 +180,7 @@ class HttpApi:
    results.append(row)
   return results
 def main():
+ warnings.simplefilter('error',getpass.GetPassWarning)
  parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--state-dir',type=Path,default=Path.home()/'village-unified-deploy');args=parser.parse_args()
  # The deployment module provides exact container identities, private state IO and TEST-only context preparation.
  path=Path(__file__).with_name('deploy-unified-business.py');spec=importlib.util.spec_from_file_location('unified_deploy',path);deploy=importlib.util.module_from_spec(spec);spec.loader.exec_module(deploy)

@@ -1,12 +1,17 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import pg from 'pg';import {randomUUID} from 'node:crypto';
 import {withUnifiedFixture,USERS} from './fixtures/unified.mjs';import {prepareBridge} from './fixtures/bridge.mjs';
+import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';
 test('native source keeps its contracts while isolating all Aliyun jobs, files, tombstones and Worker claims',async()=>{
  await withUnifiedFixture(async({setup,url})=>{
-  const target=new URL(url);target.pathname='/village_unified_candidate';let bridgeRole=false,serviceRole=false;
+  const target=new URL(url);target.pathname='/village_unified_candidate';let bridgeRole=false,serviceRole=false;const packageRoot=await mkdtemp(join(tmpdir(),'village-source-package-'));
   async function queryAs(role,user,sql,args=[]){assert.ok(['authenticated','anon','village_aliyun_bridge','service_role'].includes(role));const c=new pg.Client({connectionString:target.href});await c.connect();try{await c.query('BEGIN');await c.query("SELECT set_config('request.jwt.claim.sub',$1,true),set_config('request.jwt.claim.role',$2,true)",[user,role]);await c.query('SET LOCAL ROLE '+role);const r=await c.query(sql,args);await c.query('COMMIT');return r;}catch(e){await c.query('ROLLBACK');throw e;}finally{await c.end();}}
   const invoke=async(name,p,instance='aliyun-test')=>(await queryAs('village_aliyun_bridge',USERS.student,'SELECT aliyun_bridge.'+name+'($1,$2::jsonb) AS data',[instance,JSON.stringify(p)])).rows[0].data;
   try{
-   await prepareBridge(setup);serviceRole=true;await setup.query(await readFile(new URL('../../supabase_SQL/Aliyun Task Bridge.sql',import.meta.url),'utf8'));bridgeRole=true;
+   await prepareBridge(setup);serviceRole=true;
+   execFileSync('python3',['linux/scripts/prepare-unified-cutover.py','--plan','--source-output',join(packageRoot,'private')],{stdio:'pipe'});
+   await setup.query(await readFile(join(packageRoot,'private','source-install.sql'),'utf8'));bridgeRole=true;
+   const transport=(await setup.query("SELECT rolcanlogin,rolsuper,rolbypassrls,rolinherit FROM pg_roles WHERE rolname='village_aliyun_transport'")).rows[0];assert.deepEqual(transport,{rolcanlogin:true,rolsuper:false,rolbypassrls:false,rolinherit:false});
+   assert.ok(Number((await setup.query('SELECT count(*) n FROM aliyun_bridge.preinstall_functions')).rows[0].n)>0);
    const ready=await invoke('bridge_v1_availability',{kind:'geoprocessing'});assert.equal(ready.bridge_protocol,1);assert.equal(ready.data.compatible,true);assert.equal(ready.workers.facade.version,'facade-aliyun-bridge-v1');
    await setup.query("INSERT INTO worker_heartbeats(worker_id,state,version) VALUES('old-unpatched','available','0.1.0')");
    assert.equal((await invoke('bridge_v1_availability',{kind:'geoprocessing'})).data.compatible,false,'any active incompatible claimant blocks new private jobs');
@@ -73,10 +78,12 @@ test('native source keeps its contracts while isolating all Aliyun jobs, files, 
    assert.deepEqual((await setup.query('SELECT (SELECT count(*) FROM profiles) profiles,(SELECT count(*) FROM teaching_projects) projects,(SELECT count(*) FROM group_memberships) members,(SELECT count(*) FROM object_photos) photos')).rows[0],before);
   }finally{
    await setup.query('ROLLBACK');
+   if((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='village_aliyun_transport'")).rowCount)await setup.query('DROP OWNED BY village_aliyun_transport;DROP ROLE village_aliyun_transport');
    if(!serviceRole)serviceRole=Boolean((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='service_role'")).rowCount);
    if(!bridgeRole)bridgeRole=Boolean((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='village_aliyun_bridge'")).rowCount);
    if(bridgeRole)await setup.query('DROP OWNED BY village_aliyun_bridge;DROP ROLE village_aliyun_bridge');
    if(serviceRole)await setup.query('DROP OWNED BY service_role;DROP ROLE service_role');
+   await rm(packageRoot,{recursive:true,force:true});
   }
  });
 });

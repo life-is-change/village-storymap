@@ -29,6 +29,15 @@ def test_build_refuses_existing_output_before_touching_base(tmp_path):
  m=module();out=tmp_path/'image.tar.gz';out.write_bytes(b'keep')
  with pytest.raises(ValueError):m.build_release(ROOT,tmp_path/'absent.tar',out)
  assert out.read_bytes()==b'keep'
+
+def test_ci_attestation_requires_matching_successful_native_and_platform_commit():
+ m=module();commit='a'*40
+ runs={1:{'head_sha':commit,'conclusion':'success','status':'completed','name':'Unified native database tests','repository':{'full_name':'life-is-change/village-storymap'}},2:{'head_sha':commit,'conclusion':'success','status':'completed','name':'Platform regression','repository':{'full_name':'life-is-change/village-storymap'}}}
+ assert m.verified_ci(commit,1,2,fetch_run=runs.__getitem__)['native_run_id']==1
+ runs[1]['head_sha']='b'*40
+ with pytest.raises(ValueError):m.verified_ci(commit,1,2,fetch_run=runs.__getitem__)
+ runs[1]['head_sha']=commit;runs[2]['conclusion']='failure'
+ with pytest.raises(ValueError):m.verified_ci(commit,1,2,fetch_run=runs.__getitem__)
 def test_image_layout_preserves_first_party_module_resolution_and_excludes_private_state(tmp_path,monkeypatch):
  import gzip,io,json,tarfile,hashlib
  m=module();root=tmp_path/'repo';files={'index.html':'root','homepage/dist/index.html':'home','deployment-config.js':'SOURCE','business-api/package.json':'{"type":"module"}','business-api/package-lock.json':'{}','business-api/unified/main.mjs':'entry','business-api/node_modules/pg/package.json':'{}','business-api/.env':'SECRET','business-api/node_modules/pg/dist/parser.test.js':'test code','features/mc/mc-bridge.js':'math','features/admin/village-package.js':'package','linux/sql/unified/identity.sql':'schema','linux/sql/scene-files-candidate.sql':(ROOT/'linux/sql/scene-files-candidate.sql').read_text(encoding='utf-8'),'supabase_SQL/Scene Edit Studio.sql':(ROOT/'supabase_SQL/Scene Edit Studio.sql').read_text(encoding='utf-8')}

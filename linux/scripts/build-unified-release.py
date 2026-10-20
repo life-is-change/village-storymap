@@ -1,6 +1,6 @@
 """Assemble one verified offline image; no engine execution or production activation."""
 from pathlib import Path
-import argparse,copy,gzip,hashlib,importlib.util,io,json,re,subprocess,tarfile,tempfile
+import argparse,copy,gzip,hashlib,importlib.util,io,json,re,subprocess,tarfile,tempfile,ssl,urllib.request
 
 ROOT=Path(__file__).resolve().parents[2]
 def load(name):
@@ -71,7 +71,20 @@ def runtime_files(root):
   if p.is_symlink():raise ValueError('Linked first-party module.')
   items.append((name,p.read_bytes().replace(b'\r\n',b'\n')))
  return items
-def build_release(root,baseArchive,output,*,instance_id='aliyun-village',release_id=None):
+def verified_ci(commit,native_run,platform_run,*,fetch_run=None):
+ if not re.fullmatch('[a-f0-9]{40}',commit) or not all(type(value) is int and value>0 for value in [native_run,platform_run]):raise ValueError('MATCHING_CI_PROOF_REQUIRED')
+ if fetch_run is None:
+  def fetch_run(run):
+   with urllib.request.urlopen(urllib.request.Request('https://api.github.com/repos/life-is-change/village-storymap/actions/runs/'+str(run),headers={'User-Agent':'village-unified-release'}),context=ssl.create_default_context(),timeout=20) as response:
+    return json.loads(response.read(2*1024**2))
+ result={}
+ for key,run,name in [('native',native_run,'Unified native database tests'),('platform',platform_run,'Platform regression')]:
+  value=fetch_run(run)
+  if value.get('head_sha')!=commit or value.get('name')!=name or value.get('status')!='completed' or value.get('conclusion')!='success' or value.get('repository',{}).get('full_name')!='life-is-change/village-storymap':raise ValueError('MATCHING_CI_PROOF_REQUIRED')
+  result[key+'_run_id']=run;result[key+'_status']='success'
+ return result
+
+def build_release(root,baseArchive,output,*,instance_id='aliyun-village',release_id=None,ci_runs=None):
  root=Path(root).resolve();output=Path(output)
  if output.exists():raise ValueError('Output already exists; choose a new archive name.')
  git=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
@@ -84,6 +97,8 @@ def build_release(root,baseArchive,output,*,instance_id='aliyun-village',release
   staged=Path(temp)/'web';stage_release(root,staged,instance_id=instance_id,release_id=release_id)
   static=[(p.relative_to(staged).as_posix(),p.read_bytes()) for p in sorted(staged.rglob('*')) if p.is_file()]
   release={'releaseId':release_id,'git_sha':git,'schemaVersion':1,'code_sha256':digest_files(runtime),'schema_sha256':digest_files(schemas),'static_sha256':digest_files(static),'instanceId':instance_id,'os':'linux','architecture':'amd64'}
+  if ci_runs:
+   release['validation']={**verified_ci(git,*ci_runs),'code_sha256':release['code_sha256'],'schema_sha256':release['schema_sha256']}
   stream=io.BytesIO()
   with tarfile.open(fileobj=stream,mode='w') as t:
    for name,data in runtime:image_builder.add(t,'opt/village/'+name,data)
@@ -103,8 +118,8 @@ def build_release(root,baseArchive,output,*,instance_id='aliyun-village',release
  with output.open('rb') as f:archive_hash=hashlib.file_digest(f,'sha256').hexdigest()
  return {**release,'image':image,'base_manifest':image_builder.BASE,'accepted_image_ids':image_builder.manifest_image_ids(config,layers),'archive_filename':output.name,'archive_bytes':output.stat().st_size,'archive_sha256':archive_hash,'runtime_execution':'pending_linux_container_smoke_test'}
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base-archive',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--instance-id',default='aliyun-village');args=p.parse_args()
- meta=build_release(ROOT,args.base_archive,args.output,instance_id=args.instance_id)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base-archive',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--instance-id',default='aliyun-village');p.add_argument('--native-run',type=int,required=True);p.add_argument('--platform-run',type=int,required=True);args=p.parse_args()
+ meta=build_release(ROOT,args.base_archive,args.output,instance_id=args.instance_id,ci_runs=(args.native_run,args.platform_run))
  (ROOT/'linux/unified-release.json').write_text(json.dumps(meta,indent=2)+'\n',encoding='utf-8')
  print('UNIFIED_ARCHIVE_ASSEMBLED_NOT_RUNTIME_VERIFIED');print('archive_sha256='+meta['archive_sha256'])
 if __name__=='__main__':main()

@@ -25,6 +25,9 @@ def test_compose_shares_existing_pg_without_restarting_it_and_keeps_preview_priv
  assert set(spec['services'])=={'api','preview'};api=spec['services']['api'];preview=spec['services']['preview']
  assert api['ports']==['127.0.0.1:18084:8080'];assert preview['ports']==['127.0.0.1:18085:8080'];assert api['mem_limit']=='256m';assert api['environment']['BRIDGE_ENABLED']=='false';assert api['environment']['PGDATABASE']=='village_unified_candidate'
  assert not any('PGPASSWORD=' in str(x) for x in api['environment']);assert spec['networks']['dbnet']['external'] is True
+def test_private_bridge_is_opt_in_and_mounts_only_its_dedicated_token(tmp_path):
+ m=module();meta=json.loads((ROOT/'linux/unified-release.json').read_text());spec=m.compose_document(tmp_path,meta,uid=1000,gid=1000,key='sb_publishable_synthetic',bridge_enabled=True)['services']['api']
+ assert spec['environment']['BRIDGE_ENABLED']=='true';assert spec['environment']['BRIDGE_TOKEN_FILE']=='/run/secrets/bridge-token';assert spec['volumes'][-1]['source']==str(tmp_path/'bridge-token');assert spec['volumes'][-1]['read_only'] is True
 def test_schema_order_installs_every_and_only_packaged_schema():
  m=module();assert set(m.SCHEMAS)=={path.stem for path in (ROOT/'linux/sql/unified').glob('*.sql')};assert m.SCHEMAS.index('identity')==0;assert m.SCHEMAS.index('catalog')<m.SCHEMAS.index('files')
 def test_container_drift_in_command_network_privileges_or_mount_types_is_rejected():

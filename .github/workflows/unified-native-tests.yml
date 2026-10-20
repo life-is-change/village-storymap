@@ -2,7 +2,7 @@ name: Unified native database tests
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['business-api/**', 'linux/sql/unified/**', 'supabase_SQL/Aliyun Task Bridge.sql', '.github/workflows/unified-native-tests.yml']
+    paths: ['business-api/**', 'linux/sql/unified/**', 'linux/scripts/**', 'linux/tests/**', 'supabase_SQL/Aliyun Task Bridge.sql', 'supabase/functions/**', 'server/src/**', 'server/tests/**', '.github/workflows/unified-native-tests.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
