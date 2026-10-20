@@ -1,6 +1,4 @@
 (function () {
-  const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
 // 默认开启 Supabase；如需临时切回纯本地模式，可将 village_enable_supabase 设为 "false"。
 const ENABLE_SUPABASE_SYNC = (() => {
   try {
@@ -24,8 +22,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const COMMUNITY_TASK_PHOTO_OBJECT_TYPE = "community_task";
 
   const sharedAuthClient = window.VillageSupabaseClient || (
-    ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined"
+      ? window.DeploymentAuthClientModule.createDeploymentAuthClient({sdk:supabase,config:window.VILLAGE_DEPLOYMENT,origin:window.location?.origin})
       : null
   );
 

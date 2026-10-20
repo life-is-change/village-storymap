@@ -1,5 +1,3 @@
-const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
 // 默认开启 Supabase；如需临时切回纯本地模式，可将 village_enable_supabase 设为 "false"。
 const ENABLE_SUPABASE_SYNC = (() => {
   try {
@@ -171,12 +169,8 @@ let sceneStudioCesiumHome = null;
 
 const sharedAuthClient = window.VillageSupabaseClient || (
   ENABLE_SUPABASE_SYNC &&
-  typeof supabase !== "undefined" &&
-  SUPABASE_URL &&
-  SUPABASE_PUBLISHABLE_KEY &&
-  !SUPABASE_URL.includes("你的项目ref") &&
-  !SUPABASE_PUBLISHABLE_KEY.includes("publishable key")
-    ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  typeof supabase !== "undefined"
+    ? window.DeploymentAuthClientModule.createDeploymentAuthClient({sdk:supabase,config:window.VILLAGE_DEPLOYMENT,origin:window.location?.origin})
     : null
 );
 const platformServices = window.PlatformServicesModule.createPlatformServices({

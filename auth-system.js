@@ -1,6 +1,4 @@
 (function () {
-  const SUPABASE_URL = "https://rzmbmwauomzwiyenafha.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1W6jMCgrYY1tzw9nRctBvQ_Vz9GtYUb";
   const USER_CACHE_KEY = "village_supabase_auth_user_v1";
   const MIGRATION_KEY = "village_supabase_auth_migrated_v1";
   const LEGACY_KEYS = [
@@ -16,14 +14,7 @@
   const supabaseClient =
     window.VillageSupabaseClient ||
     (typeof supabase !== "undefined"
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-          auth: {
-            storageKey: "village-storymap-supabase-auth-v1",
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: true
-          }
-        })
+      ? window.DeploymentAuthClientModule.createDeploymentAuthClient({sdk:supabase,config:window.VILLAGE_DEPLOYMENT,origin:window.location?.origin})
       : null);
 
   if (supabaseClient) window.VillageSupabaseClient = supabaseClient;
