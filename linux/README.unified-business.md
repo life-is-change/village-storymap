@@ -2,7 +2,7 @@
 
 This replaces the repeated per-module candidate process with one release image, one private state directory and one consolidated acceptance pass. Development still follows local `main` → tests → GitHub → Aliyun `git pull --ff-only`. Source `deployment-config.js` remains Supabase; only the Aliyun image's static copy uses the local API.
 
-**Current status:** candidate deployment tooling, not a production migration completion. Do not upload the intermediate `689de9d` image. A final archive with matching native/Platform CI proof will be recorded after deployment/activation tooling and whole-change review. The old 2026-10-15 database snapshot is suitable for development validation only; it cannot authorize activation.
+**Current status:** final reviewed image `village-unified-2f98c0f-amd64.tar.gz` has been assembled with matching successful native/Platform CI proof and an offline archive audit. Real Linux/cloud execution and public activation remain pending. See [the concrete final handoff](../docs/migration/2026-10-20-unified-final-handoff.md) for exact Windows and Aliyun commands. Do not upload intermediate `689de9d`. The old 2026-10-15 snapshot cannot authorize activation.
 
 Preferred final handoff uses **one private upload bundle**. After the final image is recorded, run on Windows (use the concrete final image path provided at delivery):
 
