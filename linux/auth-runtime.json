@@ -92,5 +92,13 @@
     "20180125194653"
   ],
   "runtime_pool_max": 2,
-  "runtime_status": "pending_disposable_native_auth_verification"
+  "runtime_status": "disposable_native_auth_verified_real_migration_pending",
+  "native_auth_proof": {
+    "commit": "6d2f444",
+    "run_id": 39465480356,
+    "imported_password_login": true,
+    "signup_profile_role_boundary": true,
+    "refresh_logout_restart": true,
+    "actual_source_password_login": false
+  }
 }

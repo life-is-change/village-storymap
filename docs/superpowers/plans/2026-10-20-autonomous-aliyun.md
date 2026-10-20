@@ -1,6 +1,6 @@
 # Autonomous Aliyun Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deliver one independently authenticated Aliyun platform, including local files and GPU task control, while preserving the original Pages/Supabase environment.
 
@@ -53,11 +53,11 @@
 
 **Interfaces:** `resolveAuthPolicy(config) -> {mode,issuer,userEndpoint,profileMode}`; source compatibility defaults unchanged. Local public origin fixed to approved IP, internal GoTrue endpoint fixed to `http://auth:9999`, public issuer `/auth/v1`. `createUnifiedDatabase(config, {authPolicy})` and `createIdentityService({... ,authPolicy})` enforce the same policy. Verified identity contains only user ID, issuer, audience, expiry and an opaque session ID where applicable.
 
-- [ ] Write `local_auth_rejects_source_issuer_before_fetch`, `local_auth_only_calls_internal_user_endpoint`, `local_config_forbids_source_bridge_and_inline_secrets`, `database_rejects_cross_site_identity`; assert no source fetch, redirects or bearer leakage.
-- [ ] Run `node --test business-api/test/local-auth.test.mjs`; observe missing-policy/unsupported-local-mode failures.
-- [ ] Implement explicit policy; preserve old source mode. Enforce online local Auth proof plus local session/user status rather than decode-only trust.
-- [ ] Run API unit suite and local-auth tests; all pass, including original source tests.
-- [ ] Commit `feat: isolate autonomous Aliyun authentication trust`.
+- [x] Write `local_auth_rejects_source_issuer_before_fetch`, `local_auth_only_calls_internal_user_endpoint`, `local_config_forbids_source_bridge_and_inline_secrets`, `database_rejects_cross_site_identity`; assert no source fetch, redirects or bearer leakage.
+- [x] Run `node --test business-api/test/local-auth.test.mjs`; observe missing-policy/unsupported-local-mode failures.
+- [x] Implement explicit policy; preserve old source mode. Enforce online local Auth proof plus local session/user status rather than decode-only trust.
+- [x] Run API unit suite and local-auth tests; all pass, including original source tests.
+- [x] Commit `feat: isolate autonomous Aliyun authentication trust`.
 
 ### Task 2: Deployment-scoped frontend Auth clients
 
@@ -65,11 +65,11 @@
 
 **Interfaces:** `resolveAuthClientOptions(deployment,origin) -> {url,key,options}`; `createDeploymentAuthClient({sdk,config,origin}) -> SDK client`. Local config includes versioned Auth mode, public anon key, `/auth/v1` and session namespace bound to instance. Synthetic student email stays identical to preserve login mapping; domain is an identifier, not a network destination.
 
-- [ ] Test source SDK URL/options unchanged, local same-origin requests/storage isolation, local malformed/missing settings fail closed, and homepage/iframe/app/admin share one local namespace.
-- [ ] Run frontend tests to observe failure before wiring new module.
-- [ ] Implement centralized factory and immutable config validation; no URL/localStorage origin override or source fallback.
-- [ ] Run frontend suite plus actual staged index/admin browser smoke; block original Supabase in local-mode smoke.
-- [ ] Commit `feat: bind frontend sessions to the deployed Auth service`.
+- [x] Test source SDK URL/options unchanged, local same-origin requests/storage isolation, local malformed/missing settings fail closed, and homepage/iframe/app/admin share one local namespace.
+- [x] Run frontend tests to observe failure before wiring new module.
+- [x] Implement centralized factory and immutable config validation; no URL/localStorage origin override or source fallback.
+- [x] Run frontend suite plus actual staged index/admin browser smoke; block original Supabase in local-mode smoke.
+- [x] Commit `feat: bind frontend sessions to the deployed Auth service`.
 
 ### Task 3: Pinned GoTrue compatibility and real local account provisioning
 
@@ -77,11 +77,11 @@
 
 **Interfaces:** `inspect_auth_snapshot(backup_dir) -> compatibility_report` contains only schema versions/counts/feature flags, never hashes or user rows. Fixed GoTrue digest has migrations checked against snapshot. `readLocalProfile(identity)` uses authenticated local Auth proof metadata only after verifying real user/email and synthetic student mapping. `api_private.ensure_local_profile(uuid,jsonb)` requires a real Auth row and forces `student`; never inserts Auth anchors.
 
-- [ ] Test real GoTrue fixture: bcrypt password from imported user works; signup creates real identity/user/profile, duplicate/parallel initialization stays one account; untrusted metadata role ignored; logout/session deletion and source token fail. Unsupported schema/MFA/OAuth aborts with safe diagnostics.
-- [ ] Run unit checks locally and native test in disposable CI; capture initial failure without starting local Postgres.
-- [ ] Pin verified image/version, separate migration owner from runtime role, bound Auth pool; strip copied sessions/tokens only in the new isolated candidate. Preserve UUID/hashes and source snapshot.
-- [ ] Verify real GoTrue against generated/imported schema in CI; user-password compatibility remains a cloud acceptance gate until actual hidden-input login.
-- [ ] Commit `feat: provision independent local accounts with pinned Auth`.
+- [x] Test real GoTrue fixture: bcrypt password from imported user works; signup creates real identity/user/profile, duplicate/parallel initialization stays one account; untrusted metadata role ignored; logout/session deletion and source token fail. Unsupported schema/MFA/OAuth aborts with safe diagnostics.
+- [x] Run unit checks locally and native test in disposable CI; capture initial failure without starting local Postgres.
+- [x] Pin verified image/version, separate migration owner from runtime role, bound Auth pool; strip copied sessions/tokens only in the new isolated candidate. Preserve UUID/hashes and source snapshot.
+- [x] Verify real GoTrue against generated/imported schema in CI; user-password compatibility remains a cloud acceptance gate until actual hidden-input login.
+- [x] Commit `feat: provision independent local accounts with pinned Auth`.
 
 ### Task 4: Controlled password recovery and account disable
 
