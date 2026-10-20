@@ -301,7 +301,7 @@
 
   function shouldRestoreFacadeRun(run) {
     return [
-      'queued_rectification', 'claimed_rectification', 'rectifying', 'awaiting_crop',
+      'pending', 'queued_rectification', 'claimed_rectification', 'rectifying', 'awaiting_crop',
       'queued_generation', 'claimed_generation', 'generating', 'completed', 'cancel_requested'
     ].includes(String(run?.status || ''));
   }
@@ -309,6 +309,7 @@
   function facadeStatusPresentation(run, workerAvailability = 'online') {
     const normalized = normalizeFacadeRun(run);
     const messages = {
+      pending: '任务已保存，等待计算服务接收。',
       queued_rectification: '正立面预处理已排队，等待 4090 工作站。',
       claimed_rectification: '4090 工作站已领取任务，正在准备模型。',
       rectifying: '正在识别、清理并生成规范正立面。',

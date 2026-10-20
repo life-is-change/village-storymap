@@ -15,7 +15,8 @@
     return result?.data;
   }
 
-  function createFacadeQueueClient(supabaseClient) {
+  function createFacadeQueueClient(supabaseClient, { services } = {}) {
+    if (services?.tasks) return services.tasks.facade;
     if (!supabaseClient) throw new TypeError('An authenticated Supabase client is required');
 
     async function findRun({ spaceId, objectCode }, activeOnly) {

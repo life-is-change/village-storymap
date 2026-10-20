@@ -442,7 +442,7 @@ async function performFacadePhotoSubmission(photo) {
   try { run = await queue.getRun(runId); }
   catch (error) {
     console.warn('任务已提交，读取初始进度失败：', error);
-    await attachFacadeRun({ id: runId, photo_id: Number(photo.id), status: 'queued_rectification' });
+    await attachFacadeRun(state.facadeQueue.deploymentMode === 'aliyun' ? await state.facadeQueue.getRun(runId) : { id: runId, photo_id: Number(photo.id), status: 'queued_rectification' });
     setStatus('任务已进入 4090 队列，暂时无法读取进度，正在自动重试；请勿重复提交。');
     return;
   }
@@ -521,7 +521,7 @@ async function applyFacadeRun(run) {
 }
 
 function renderFacadeStep(status) {
-  if (['queued_rectification', 'claimed_rectification'].includes(status)) setPhotoStep('identify');
+  if (['pending', 'queued_rectification', 'claimed_rectification'].includes(status)) setPhotoStep('identify');
   else if (status === 'rectifying') setPhotoStep('rectify');
   else if (status === 'awaiting_crop') setPhotoStep('crop');
   else if (['queued_generation', 'claimed_generation', 'generating', 'completed'].includes(status)) setPhotoStep('generate');

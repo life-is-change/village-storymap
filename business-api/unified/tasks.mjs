@@ -40,7 +40,10 @@ export function createTaskService({database,bridge,files,now=Date.now}){
  return {
   async execute(identity,action,input){
    if(closed)throw fault('DB_UNAVAILABLE');if(!action.startsWith('tasks.'))throw fault('NOT_FOUND');const parsed=parseOperation(action,input);
-   return database.withIdentity(identity,c=>one(c,'SELECT api_private.task_execute($1,$2::jsonb,$3) AS data',[action,JSON.stringify(parsed.input),bridge.instanceId]));
+   const result=await database.withIdentity(identity,c=>one(c,'SELECT api_private.task_execute($1,$2::jsonb,$3) AS data',[action,JSON.stringify(parsed.input),bridge.instanceId]));
+   if(action==='tasks.availability')return (await bridge.availability({kind:input.kind})).data;
+   if(action==='tasks.sourceStatus')return (await bridge.sourceStatus({villageId:result.workerVillageId})).data;
+   return result;
   },
   async assertPhotoMutable(client,_identity,photoId){return one(client,'SELECT api_private.task_assert_photo_mutable($1) AS data',[photoId]);},
   async tick(){

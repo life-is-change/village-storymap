@@ -16,7 +16,8 @@
     };
   }
 
-  function createGeoprocessingClient({ supabaseClient, fetchImpl = globalThis.fetch }) {
+  function createGeoprocessingClient({ supabaseClient, fetchImpl = globalThis.fetch, services }) {
+    if (services?.tasks) return services.tasks.geoprocessing;
     if (!supabaseClient) throw new Error("SUPABASE_REQUIRED");
     const artifactLayerMap = Object.freeze({
       buildings: "building",

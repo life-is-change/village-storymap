@@ -18,7 +18,7 @@ CREATE TABLE aliyun_bridge.contexts(
  payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object'),updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(instance_id,local_kind,local_id)
 );
 CREATE TABLE aliyun_bridge.requests(
- instance_id text NOT NULL,owner_id uuid NOT NULL REFERENCES auth.users,request_id uuid NOT NULL,context_id text NOT NULL,
+ instance_id text NOT NULL,owner_id uuid NOT NULL,request_id uuid NOT NULL,context_id text NOT NULL,
  kind text NOT NULL CHECK(kind IN('geo','facade','cloud-facade')),run_id uuid NOT NULL UNIQUE,digest text NOT NULL,request jsonb NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(instance_id,owner_id,request_id)
 );
@@ -93,6 +93,7 @@ CREATE FUNCTION aliyun_bridge.authorize(i text,r jsonb) RETURNS aliyun_bridge.re
  SET search_path=pg_catalog,aliyun_bridge,pg_temp AS $$DECLARE request aliyun_bridge.requests;c aliyun_bridge.contexts;p aliyun_bridge.contexts;photo aliyun_bridge.contexts;BEGIN
  SELECT * INTO request FROM aliyun_bridge.requests WHERE instance_id=i AND owner_id=(r->>'ownerId')::uuid AND request_id=(r->>'requestId')::uuid;
  IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
+ IF NOT EXISTS(SELECT 1 FROM auth.users WHERE id=request.owner_id) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  SELECT * INTO c FROM aliyun_bridge.contexts WHERE instance_id=i AND local_kind='space' AND local_id=request.context_id;
  SELECT * INTO p FROM aliyun_bridge.contexts WHERE instance_id=i AND local_kind='profile' AND local_id=request.owner_id::text;
  IF c.tombstone IS DISTINCT FROM false OR p.tombstone IS DISTINCT FROM false OR NOT coalesce((p.payload->>'active')::boolean,false) OR NOT coalesce(c.payload->'members' ? request.owner_id::text,false) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
@@ -130,6 +131,7 @@ DECLARE owner uuid:=(p_request->>'ownerId')::uuid;rid uuid:=(p_request->>'reques
  ctx aliyun_bridge.contexts;profile aliyun_bridge.contexts;photo aliyun_bridge.contexts;old aliyun_bridge.requests;run_id uuid:=gen_random_uuid();hash text;source record;geom extensions.geometry;bounds jsonb;steps text[];BEGIN
  IF p_instance_id!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' OR job_kind NOT IN('geo','facade','cloud-facade') OR jsonb_typeof(input)<>'object' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended(p_instance_id||':'||owner::text,11));
+ IF NOT EXISTS(SELECT 1 FROM auth.users WHERE id=owner) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  SELECT * INTO ctx FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='space' AND local_id=p_request->>'contextId' FOR SHARE;
  SELECT * INTO profile FROM aliyun_bridge.contexts WHERE instance_id=p_instance_id AND local_kind='profile' AND local_id=owner::text FOR SHARE;
  IF ctx.version IS DISTINCT FROM (p_request->>'contextVersion')::bigint OR profile.version IS DISTINCT FROM (p_request->>'profileVersion')::bigint THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;

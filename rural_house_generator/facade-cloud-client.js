@@ -8,7 +8,8 @@
     return result?.data || {};
   }
 
-  function createFacadeCloudClient(supabaseClient) {
+  function createFacadeCloudClient(supabaseClient, { services } = {}) {
+    if (services?.tasks) return services.tasks.cloud;
     if (!supabaseClient?.functions?.invoke) throw new TypeError('Authenticated Supabase functions client required');
     const invoke = async (action, payload = {}) => unwrap(await supabaseClient.functions.invoke('facade-cloud', {
       body: { action, ...payload }

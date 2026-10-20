@@ -78,8 +78,8 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
    });
   },
   async listTaskArtifacts(identity,requestId){return database.withIdentity(identity,c=>one(c,'SELECT api_private.task_artifacts_read($1,$2) AS data',[requestId,instanceId]));},
-  async readTaskArtifact(identity,requestId,artifactType){
-   const rows=await this.listTaskArtifacts(identity,requestId),f=rows.find(x=>x.artifact_type===artifactType);if(!f)throw fault('NOT_FOUND');
+  async readTaskArtifact(identity,requestId,artifactType,{sha256}={}){
+   const rows=await this.listTaskArtifacts(identity,requestId),f=rows.find(x=>x.artifact_type===artifactType&&(!sha256||x.sha256===sha256));if(!f)throw fault('NOT_FOUND');
    const opened=await store.open(f.file_id,{size:Number(f.size),sha256:f.sha256});return {...opened,mime:f.mime,sha256:f.sha256};
   }
  };

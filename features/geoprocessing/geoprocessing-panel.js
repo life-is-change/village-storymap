@@ -93,7 +93,7 @@
       <span class="geoprocessing-run-stage">${escapeHtml(stage)} · ${progress}%</span>
       <progress max="100" value="${progress}"></progress>
       ${failed ? `<div class="geoprocessing-run-error" role="alert">${escapeHtml(run?.error_code || "PROCESSING_FAILED")}${run?.error_message ? `：${escapeHtml(run.error_message)}` : "。请联系管理员查看 Worker 日志。"}<small>任务编号：${escapeHtml(run?.id)}</small></div>` : ""}
-      ${["queued", "claimed", "running", "cancel_requested"].includes(run?.status)
+      ${["pending", "queued", "claimed", "running", "cancel_requested"].includes(run?.status)
         ? '<button type="button" data-cancel-run>取消任务</button>' : ""}
       ${run?.status === "completed" ? `<div class="geoprocessing-result-card" data-artifact-list>正在生成安全下载链接…</div>
         <div class="geoprocessing-result-actions">
@@ -112,7 +112,7 @@
   }
 
   function isActiveRun(run) {
-    return ["queued", "claimed", "running", "cancel_requested"].includes(run?.status);
+    return ["pending", "queued", "claimed", "running", "cancel_requested"].includes(run?.status);
   }
 
   function createSubmissionGuard() {
@@ -290,9 +290,10 @@
         }));
         if (!submission.accepted) return;
         const runId = submission.value;
-        updateRun({ id: runId, status: "queued", progress: 0 });
+        const submitted = client.deploymentMode === 'aliyun' ? await client.getRun(runId) : { id: runId, status: "queued", progress: 0 };
+        updateRun(submitted);
         watchRun(runId);
-        showMessage("任务已进入队列");
+        showMessage(submitted.status === 'pending' ? '任务已保存，等待计算服务接收' : "任务已进入队列");
       } catch (error) {
         showMessage(formatSubmissionError(error));
       } finally {

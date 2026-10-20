@@ -52,7 +52,11 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
   SELECT coalesce(jsonb_agg(api_private.task_public(r) ORDER BY r.created_at DESC),'[]') INTO result FROM (SELECT * FROM api_private.task_requests WHERE instance_id=instance AND owner_id=auth.uid() AND context->>'villageId'=p->>'villageId' AND state<>'revoked' ORDER BY created_at DESC LIMIT 100)r
   WHERE api_private.context_accessible((r.context->>'teachingProjectId')::uuid,(r.context->>'villageId')::uuid,r.context->>'spaceId') AND api_private.task_grant_key(r.context)=r.grant_key;RETURN result;
  END IF;
- IF a IN('tasks.availability','tasks.sourceStatus') THEN RAISE EXCEPTION 'NOT_IMPLEMENTED';END IF;
+ IF a='tasks.availability' THEN RETURN jsonb_build_object('authorized',true);END IF;
+ IF a='tasks.sourceStatus' THEN
+  SELECT jsonb_build_object('workerVillageId',w.worker_village_id) INTO result FROM api_private.task_worker_villages w JOIN public.villages v ON v.id=w.local_village_id WHERE v.id=(p->>'villageId')::uuid AND v.status='published';
+  IF result IS NULL THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;RETURN result;
+ END IF;
  IF a IN('tasks.submitGeo','tasks.submitFacade') THEN
   ctx:=jsonb_build_object('teachingProjectId',p->>'teachingProjectId','villageId',p->>'villageId','spaceId',p->>'spaceId','courseId',p->>'courseId');
   PERFORM api_private.assert_context(ctx);
@@ -83,6 +87,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
   IF t.state<>'completed' OR t.kind<>'geo' THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
   IF NOT EXISTS(SELECT 1 FROM public.course_personal_spaces WHERE id::text=p->>'spaceId' AND owner_id=auth.uid() AND teaching_project_id=(t.context->>'teachingProjectId')::uuid AND village_id::text=t.context->>'villageId') THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  ELSIF op IN('retry','confirmCrop') AND (t.kind<>'facade' OR t.source_run_id IS NULL) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ IF EXISTS(SELECT 1 FROM api_private.task_outbox WHERE task_id=t.id AND operation=op AND NOT done AND input<>p-'taskId'-'requestId') THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
  INSERT INTO api_private.task_outbox(task_id,operation,input) VALUES(t.id,op,p-'taskId'-'requestId')
  ON CONFLICT(task_id,operation) DO UPDATE SET input=excluded.input,done=false,next_at=now(),attempts=0 WHERE api_private.task_outbox.done;
  RETURN api_private.finish_operation(a,p,jsonb_build_object('requestId',t.request_id,'state','pending','operation',op));
@@ -183,7 +188,7 @@ SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_r
   IF NOT coalesce(p->>'sha256'~'^[a-f0-9]{64}$' AND p->>'size'~'^[0-9]{1,8}$' AND (p->>'size')::bigint BETWEEN 1 AND 52428800,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF t.kind='geo' THEN IF layer IS NULL OR p->>'mime'<>'application/geo+json' OR p->>'extension'<>'geojson' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   ELSIF k='building_glb' THEN IF p->>'mime'<>'model/gltf-binary' OR p->>'extension'<>'glb' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
-  ELSIF k NOT IN('rectified_preview','rectified_source','building_mask','standard_facade') OR p->>'mime' NOT IN('image/png','image/jpeg') OR p->>'extension' IS DISTINCT FROM CASE WHEN p->>'mime'='image/png' THEN 'png' ELSE 'jpg' END OR (p->>'size')::bigint>10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  ELSIF k NOT IN('rectified_preview','rectified_source','building_mask','standard_facade') OR p->>'mime' NOT IN('image/png','image/jpeg') OR p->>'extension' IS DISTINCT FROM (CASE WHEN p->>'mime'='image/png' THEN 'png' ELSE 'jpg' END) OR (p->>'size')::bigint>10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   INSERT INTO api_private.task_artifacts(task_id,artifact_type,file_id,sha256,size,mime,extension,layer_key)
    VALUES(t.id,k,(p->>'fileId')::uuid,p->>'sha256',(p->>'size')::bigint,p->>'mime',p->>'extension',layer) ON CONFLICT(task_id,artifact_type,sha256) DO NOTHING;
   SELECT * INTO a FROM api_private.task_artifacts WHERE task_id=t.id AND artifact_type=k AND sha256=p->>'sha256';
