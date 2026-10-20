@@ -7,14 +7,17 @@ export function createTaskService({database,bridge,files,now=Date.now}){
  let active=null,closed=false,timer=null;
  const maintenance=(sql,args)=>database.withMaintenance(c=>one(c,sql,args));
  async function deliver(job){
-  for(const snapshot of job.snapshots??[])await bridge.applyContext(snapshot);
+  if(!bridge.local)for(const snapshot of job.snapshots??[])await bridge.applyContext(snapshot);
   if(job.revoked)return {revoked:true};
   if(job.operation==='submit'){
    const input={...job.bridgeInput};
    if(job.photo){
     const opened=await files.readTaskInput(job);try{
-     const photo=await bridge.uploadPhoto({...job.photo,size:opened.size,sha256:opened.sha256,mime:opened.mime,stream:opened.stream});
-     await bridge.applyContext({...job.photo.snapshot,payload:{...job.photo.snapshot.payload,...photo}});
+     if(bridge.local)input.photo={fileId:job.photo.fileId,size:opened.size,sha256:opened.sha256,mime:opened.mime};
+     else{
+      const photo=await bridge.uploadPhoto({...job.photo,size:opened.size,sha256:opened.sha256,mime:opened.mime,stream:opened.stream});
+      await bridge.applyContext({...job.photo.snapshot,payload:{...job.photo.snapshot.payload,...photo}});
+     }
     }finally{await opened.close();}
    }
    await maintenance('SELECT api_private.task_before_submit($1,$2) AS data',[job.id,job.lease]);

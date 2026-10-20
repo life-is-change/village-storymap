@@ -20,4 +20,6 @@ GitHub 原生测试 [39465480356](https://github.com/life-is-change/village-stor
 
 接受恢复操作后，目标账号的业务会话立即暂停；完成时撤销该账号全部 refresh token 和 session，保留 UUID、照片和记录归属。提供商响应丢失时保留 unknown 状态，禁止盲目重提；操作者用同一操作编号及相同新密码显式核对后才完成收据。账号停用同步禁止本地 Auth 登录并撤销会话，不删除 Auth 用户。
 
+上述恢复链路已在真实 GoTrue/原生数据库 CI [39467532233](https://github.com/life-is-change/village-storymap/actions/runs/39467532233)、提交 `37a6c59` 通过，包括一次实际修改密码后模拟响应丢失、保持 unknown、显式核对新密码、完成收据重放、原密码/会话拒绝、限流和停用后不能再次登录。仍未对真实阿里云账号执行密码恢复。
+
 运维包装脚本、受信任 HTTPS IP、全量新快照/文件、本地任务队列及真实 4090 验收仍属于后续统一交付任务。原 Pages/Supabase 配置不改，新增本地数据不会自动写回原站。

@@ -89,9 +89,9 @@
 
 **Interfaces:** Hidden-input private CLI authenticates admin against local GoTrue, then requests a one-use recovery reservation for a non-admin target UUID/student ID. There is no public recovery HTTP endpoint; the ephemeral command rechecks active admin/password, fixed internal Auth endpoint, three new actions/hour, 30-second spacing and audit. Provider admin credentials remain server-only and are not mounted into the ordinary API. Reset updates password through mature Auth admin API, keeps UUID and revokes target sessions; no synthetic-email delivery claim. Pending/unknown reset blocks target business sessions; reconciliation uses the new password with GoTrue without granting business access. Administrator break-glass recovery is outside this command.
 
-- [ ] Test non-admin/disabled/stale reauthentication, target substitution, concurrent/replayed actions, rate cap, partial failure recovery and old-session rejection without logging secrets.
-- [ ] Run tests RED, implement bounded state machine and admin adapter, run GREEN and existing identity suite.
-- [ ] Commit `feat: add audited local account recovery and revocation`.
+- [x] Test non-admin/disabled/stale reauthentication, target substitution, concurrent/replayed actions, rate cap, partial failure recovery and old-session rejection without logging secrets.
+- [x] Run tests RED, implement bounded state machine and admin adapter, run GREEN and existing identity suite.
+- [x] Commit `feat: add audited local account recovery and revocation`.
 
 ### Task 5: Local task queues and Worker identities
 

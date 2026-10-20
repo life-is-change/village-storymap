@@ -58,7 +58,7 @@ def runtime_files(root):
   p=api/name
   if p.is_symlink():raise ValueError('Linked runtime file.')
   items.append(('business-api/'+name,p.read_bytes().replace(b'\r\n',b'\n')))
- for directory in ['src','auth','scene','scene-files','unified','node_modules']:
+ for directory in ['src','auth','local-tasks','scene','scene-files','unified','node_modules']:
   for p in sorted((api/directory).rglob('*')):
    rel=p.relative_to(api)
    if any(x.startswith('.') or x in {'test','tests','__tests__'} for x in rel.parts):continue

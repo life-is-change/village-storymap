@@ -33,10 +33,11 @@ def test_unified_runtime_includes_verifier_auth_dependencies(tmp_path):
     # Enumeration must work in the Python-only CI job as well; dependency
     # execution belongs to the Node/native jobs, not this archive layout test.
     root=tmp_path/'repo'
-    for name in ['business-api/package.json','business-api/package-lock.json','business-api/node_modules/pg/package.json','business-api/auth/policy.mjs','features/mc/mc-bridge.js','features/admin/village-package.js']:
+    for name in ['business-api/package.json','business-api/package-lock.json','business-api/node_modules/pg/package.json','business-api/auth/policy.mjs','business-api/local-tasks/service.mjs','features/mc/mc-bridge.js','features/admin/village-package.js']:
         path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('{}')
     paths={name for name,_ in release.runtime_files(root)}
     assert 'business-api/auth/policy.mjs' in paths
+    assert 'business-api/local-tasks/service.mjs' in paths
 def test_builder_rejects_unverified_base_and_source_links(tmp_path):
     m=module();bad=tmp_path/'base.tar';bad.write_bytes(b'not an image')
     with pytest.raises(ValueError):m.validate_base(bad,{'config':{'digest':'sha256:untrusted'},'layers':[]})

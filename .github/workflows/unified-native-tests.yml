@@ -2,7 +2,7 @@ name: Unified native database tests
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['business-api/**', 'linux/sql/unified/**', 'linux/scripts/**', 'linux/tests/**', 'supabase_SQL/Aliyun Task Bridge.sql', 'supabase/functions/**', 'server/src/**', 'server/tests/**', '.github/workflows/unified-native-tests.yml']
+    paths: ['business-api/**', 'linux/sql/unified/**', 'linux/sql/local-*.sql', 'linux/auth-runtime.json', 'linux/scripts/**', 'linux/tests/**', 'supabase_SQL/Aliyun Task Bridge.sql', 'supabase/functions/**', 'server/src/**', 'server/tests/**', '.github/workflows/unified-native-tests.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -66,6 +66,8 @@ jobs:
         env:
           VILLAGE_TEST_AUTH_RUNTIME: '1'
         run: node --test business-api/test/local-auth.integration.mjs
+      - name: Autonomous local queue leases and isolation
+        run: node --test business-api/test/local-queue.integration.mjs
       - name: Stop only this job's disposable container
         if: always()
         run: docker rm --force village-unified-ci
