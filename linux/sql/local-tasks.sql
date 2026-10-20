@@ -76,7 +76,7 @@ AS $$ SELECT jsonb_build_object('leaseToken',r.lease_token,'leaseUntil',r.lease_
 CREATE FUNCTION api_private.local_gpu_outputs_ready(r api_private.local_gpu_runs) RETURNS boolean
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,api_private,pg_temp
 AS $$ DECLARE needed text[];step text;BEGIN
- IF r.phase='rectification' THEN needed:=ARRAY['rectified_preview','rectified_source'];
+ IF r.phase='rectification' THEN needed:=ARRAY['rectified_preview','rectified_source','building_mask'];
  ELSIF r.phase='generation' THEN needed:=ARRAY['building_glb'];
  ELSIF r.phase='geo' THEN
   needed:=ARRAY[]::text[];

@@ -7,6 +7,7 @@ test('trusted task results have per-kind limits while public upload contracts st
  const sha256='a'.repeat(64),base={artifactType:'buildings',size:51*1024**2,sha256,mime:'application/geo+json',extension:'geojson'};
  assert.equal(api.taskFileSpec('geo','geo',base).role,'task:buildings.geojson');
  assert.equal(businessFileLimit(api.taskFileSpec('geo','geo',base)),512*1024**2);
+ assert.equal(api.taskFileSpec('facade','rectification',{artifactType:'diagnostics',size:32,sha256,mime:'application/json',extension:'json'}).role,'task:diagnostics.json');
  for(const spec of [{...base,size:512*1024**2+1},{...base,artifactType:'boundary'},{...base,mime:'text/html'},{...base,url:'https://arbitrary.test'}])assert.throws(()=>api.taskFileSpec('geo','geo',spec));
  assert.throws(()=>api.taskFileSpec('facade','generation',{...base,artifactType:'building_glb',mime:'model/gltf-binary',extension:'glb'}),{code:'FILE_TOO_LARGE'});
  assert.throws(()=>api.taskFileSpec('facade','rectification',{...base,artifactType:'rectified_source',mime:'image/png',extension:'png'}),{code:'FILE_TOO_LARGE'});

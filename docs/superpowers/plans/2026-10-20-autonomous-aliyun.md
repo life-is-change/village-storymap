@@ -109,9 +109,9 @@
 
 **Interfaces:** Task input snapshots use local file ID/hash/size/type and never arbitrary URL. `openInput(worker,runId,leaseToken,fileId)` and bounded result upload session/commit are lease-authorized; `importResult(identity,runId,artifactHash,targetSpace,requestId)` is idempotent. Reference protection retains inputs during active/history use.
 
-- [ ] Test photo replacement/deletion, interrupted/ranged reads, >50MiB real-supported result handling with explicit per-kind limits and streaming, wrong digest, expired lease commit, duplicated import and cross-space access.
-- [ ] Run RED; reuse bounded file store and atomic commit, then GREEN with file/scene/task regressions and native permission tests.
-- [ ] Commit `feat: keep task input and result files in the local ownership domain`.
+- [x] Test photo replacement/deletion, interrupted/ranged reads, >50MiB real-supported result handling with explicit per-kind limits and streaming, wrong digest, expired lease commit, duplicated import and cross-space access.
+- [x] Run RED; reuse bounded file store and atomic commit, then GREEN with file/scene/task regressions and native permission tests.
+- [x] Commit `feat: keep task input and result files in the local ownership domain`.
 
 ### Task 7: Explicit outbound Linux Worker gateways
 

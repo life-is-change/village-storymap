@@ -57,12 +57,12 @@ test('native facade retains original photo identity and approved rectification a
   const input={...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()},actor=await worker('facade');await tasks.execute(testIdentity(),'tasks.submitFacade',input);await tasks.tick();const job=await claim(actor);
   assert.equal(job.run.photo.fileId,session.files[0].id);const opened=await files.openInput(actor,job.run.id,job.leaseToken);try{assert.equal(opened.sha256,hash(png));const b=[];for await(const x of opened.stream())b.push(x);assert.deepEqual(Buffer.concat(b),png);}finally{await opened.close();}
   await assert.rejects(db.withIdentity(testIdentity(),c=>tasks.assertPhotoMutable(c,testIdentity(),photo.id)),{code:'FILE_IN_USE'});
-  await upload(actor,job,'rectified_preview',png);await upload(actor,job,'rectified_source',png);await upload(actor,job,'building_mask',png);await queue.workerCall(actor,'publish-rectification',job.run.id,job.leaseToken,{});
+  await upload(actor,job,'rectified_preview',png);await upload(actor,job,'rectified_source',png);await assert.rejects(queue.workerCall(actor,'publish-rectification',job.run.id,job.leaseToken,{}),{code:'FILES_NOT_READY'});await upload(actor,job,'building_mask',png);await upload(actor,job,'diagnostics',Buffer.from('{"valid":true}'),'application/json','json');await queue.workerCall(actor,'publish-rectification',job.run.id,job.leaseToken,{});
   await tasks.execute(testIdentity(),'tasks.confirmCrop',{taskId:input.requestId,requestId:randomUUID(),cropTop:0.1,roofType:'flat',buildingWidth:10,buildingDepth:10});await tasks.tick();const gen=await claim(actor);assert.equal(gen.phase,'generation');
   const rect=await files.openArtifact(actor,gen.run.id,gen.leaseToken,{artifactType:'rectified_source'});await rect.close();
   await assert.rejects(files.begin(actor,job.run.id,job.leaseToken,{requestId:randomUUID(),artifactType:'building_glb',size:glb().length,sha256:hash(glb()),mime:'model/gltf-binary',extension:'glb'}),{code:'LEASE_LOST'});
   await upload(actor,gen,'building_glb',glb(),'model/gltf-binary','glb');await queue.workerCall(actor,'complete',gen.run.id,gen.leaseToken,{});
   await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await tasks.tick();const h=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'building_glb');assert.equal(h.size,glb().length);await h.close();
-  assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_outputs WHERE state=\'ready\'')).rows[0].n,'4');
+  assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_outputs WHERE state=\'ready\'')).rows[0].n,'5');
  });
 });

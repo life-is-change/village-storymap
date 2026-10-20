@@ -4,6 +4,7 @@ export const DATASET_NAMES=['manifest.json','validation.json','boundary.geojson'
 export function businessFileLimit({role,mime,extension}){
  const pair={glb:'model/gltf-binary',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',json:'application/json',geojson:'application/geo+json'};
  if(pair[extension]!==mime)throw fault('FILE_TYPE_UNSUPPORTED');
+ if(role==='task:diagnostics.json'&&extension==='json')return 2*MiB;
  if(['task:buildings.geojson','task:roads.geojson','task:waterways.geojson','task:water_areas.geojson','task:contours.geojson'].includes(role)&&extension==='geojson')return 512*MiB;
  if(['original','display','low','low-original'].includes(role)&&extension==='glb')return 50*MiB;
  if(['photo','display','top','preview'].includes(role)&&['png','jpg','jpeg','webp'].includes(extension))return 10*MiB;

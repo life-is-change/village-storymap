@@ -2,6 +2,17 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from .task_backend import backend, build_gateway
+
+
+def _local_gateway_health(kind, remote):
+    gateway = build_gateway(kind)
+    try:
+        if remote:
+            gateway.heartbeat(gateway.worker_id, 'starting', '')
+        return True
+    finally:
+        gateway.http.close()
 
 
 def _print_results(results: dict[str, bool]) -> int:
@@ -27,8 +38,10 @@ def run_facade_health_checks(
     results: dict[str, bool] = {}
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    results["SUPABASE_URL"] = url.startswith("https://")
-    results["SUPABASE_KEY"] = bool(key)
+    local = backend() == 'aliyun'
+    if not local:
+        results["SUPABASE_URL"] = url.startswith("https://")
+        results["SUPABASE_KEY"] = bool(key)
 
     blender = Path(os.environ.get("BLENDER_EXECUTABLE", "/usr/bin/blender"))
     try:
@@ -84,15 +97,18 @@ def run_facade_health_checks(
             results[code] = False
 
     try:
-        if client is None:
+        if local:
+            results['ALIYUN_GATEWAY'] = _local_gateway_health('facade', True)
+        elif client is None:
             from supabase import create_client
 
             client = create_client(url, key)
-        for bucket in ("facade-generation", "house-photos"):
-            client.storage.get_bucket(bucket)
-        results["FACADE_STORAGE"] = True
+        if not local:
+            for bucket in ("facade-generation", "house-photos"):
+                client.storage.get_bucket(bucket)
+            results["FACADE_STORAGE"] = True
     except Exception:
-        results["FACADE_STORAGE"] = False
+        results['ALIYUN_GATEWAY' if local else 'FACADE_STORAGE'] = False
 
     return _print_results(results)
 
@@ -104,8 +120,15 @@ def run_health_checks(check_remote: bool = False) -> int:
     data_root_value = os.environ.get("PLATFORM_DATA_ROOT", "")
     work_root_value = os.environ.get("PLATFORM_WORK_ROOT", "server/runtime")
     catalog_value = os.environ.get("PLATFORM_CATALOG", "server/config/villages.yaml")
-    results["SUPABASE_URL"] = url.startswith("https://")
-    results["SUPABASE_KEY"] = bool(key)
+    local = backend() == 'aliyun'
+    if local:
+        try:
+            results['ALIYUN_GATEWAY'] = _local_gateway_health('geo', check_remote)
+        except Exception:
+            results['ALIYUN_GATEWAY'] = False
+    else:
+        results["SUPABASE_URL"] = url.startswith("https://")
+        results["SUPABASE_KEY"] = bool(key)
     data_root = Path(data_root_value) if data_root_value else None
     results["DATA_ROOT"] = bool(data_root and data_root.is_dir())
     work_root = Path(work_root_value)
@@ -138,12 +161,12 @@ def run_health_checks(check_remote: bool = False) -> int:
             results["BUILDING_SERVICE"] = httpx.get(f"{building_url}/health", timeout=5).status_code == 200
         except Exception:
             results["BUILDING_SERVICE"] = False
-        try:
-            from supabase import create_client
-
-            client = create_client(url, key)
-            client.storage.get_bucket("geoprocessing-results")
-            results["SUPABASE_STORAGE"] = True
-        except Exception:
-            results["SUPABASE_STORAGE"] = False
+        if not local:
+            try:
+                from supabase import create_client
+                client = create_client(url, key)
+                client.storage.get_bucket("geoprocessing-results")
+                results["SUPABASE_STORAGE"] = True
+            except Exception:
+                results["SUPABASE_STORAGE"] = False
     return _print_results(results)

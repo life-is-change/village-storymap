@@ -7,6 +7,12 @@ from village_processing import __main__ as cli
 from village_processing.health import run_facade_health_checks
 
 
+@pytest.fixture(autouse=True)
+def isolated_cli_environment(monkeypatch):
+    # Tests must not load a developer's ignored .env or contact its project.
+    monkeypatch.setattr(cli, 'load_dotenv', lambda *_args, **_kwargs: None)
+
+
 def test_parser_registers_facade_worker_command():
     args = cli.build_parser().parse_args(["facade-worker"])
 

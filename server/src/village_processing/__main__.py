@@ -8,6 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .health import run_facade_health_checks, run_health_checks
+from .task_backend import backend, build_gateway
 
 
 def _geometry_from_file(path: Path) -> dict:
@@ -58,8 +59,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_facade_worker() -> None:
-    from supabase import create_client
-
     from rural_house_generator.backend.app.blender_service import BlenderService
     from rural_house_generator.backend.app.facade.full_pipeline import (
         FullLocalFacadeRectifier,
@@ -68,18 +67,15 @@ def run_facade_worker() -> None:
         FacadeJobProcessor,
     )
 
-    from .facade.gateway import FacadeGateway
     from .facade.pipeline import FacadePipeline
     from .facade.worker import FacadeWorker
 
     work_root = Path(os.environ.get("FACADE_WORK_ROOT", "/work")).resolve()
     from uuid import uuid4
     worker_id = f'{os.environ.get("WORKER_ID", "linux-facade-worker")}-{uuid4().hex[:8]}'
-    gateway = FacadeGateway(
-        create_client(
-            os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        )
-    )
+    gateway = build_gateway('facade')
+    if backend() == 'aliyun':
+        worker_id = gateway.worker_id
     processor = FacadeJobProcessor(
         rectifier=FullLocalFacadeRectifier(),
         blender=BlenderService(
@@ -92,14 +88,15 @@ def run_facade_worker() -> None:
 
 def main(argv=None) -> int:
     server_root = Path(__file__).resolve().parents[2]
-    load_dotenv(server_root / ".env")
+    if backend() != 'aliyun':
+        load_dotenv(server_root / ".env")
     args = build_parser().parse_args(argv)
     if args.command == "health":
         return run_health_checks(check_remote=not args.local)
     if args.command == "facade-worker":
-        if not os.environ.get("SUPABASE_URL"):
+        if backend() == 'supabase' and not os.environ.get("SUPABASE_URL"):
             raise SystemExit("SUPABASE_URL is required")
-        if not os.environ.get("SUPABASE_SERVICE_ROLE_KEY"):
+        if backend() == 'supabase' and not os.environ.get("SUPABASE_SERVICE_ROLE_KEY"):
             raise SystemExit("SUPABASE_SERVICE_ROLE_KEY is required")
         if run_facade_health_checks() != 0:
             raise SystemExit("Facade worker health checks failed")
@@ -121,8 +118,6 @@ def main(argv=None) -> int:
     if not data_root:
         raise SystemExit("PLATFORM_DATA_ROOT is required")
     if args.command == "worker":
-        from supabase import create_client
-        from .queue.gateway import SupabaseGateway
         from .source_status import publish_source_statuses
         from .worker import Worker
 
@@ -130,9 +125,7 @@ def main(argv=None) -> int:
         catalog_path = Path(os.environ.get("PLATFORM_CATALOG", "server/config/villages.yaml"))
         catalog = load_catalog(catalog_path, Path(data_root))
         processors = NativeProcessors(work_root, _building_service_url())
-        gateway = SupabaseGateway(create_client(
-            os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        ))
+        gateway = build_gateway('geo')
         pipeline_runner = lambda queued: run_pipeline(
             queued.processing_request(work_root), catalog, processors
         )
@@ -141,6 +134,8 @@ def main(argv=None) -> int:
             format="%(asctime)s %(levelname)s %(name)s %(message)s",
         )
         worker_id = os.environ.get("WORKER_ID", "win11-pilot")
+        if backend() == 'aliyun':
+            worker_id = gateway.worker_id
         worker = Worker(
             gateway, pipeline_runner, worker_id,
             source_status_publisher=lambda: publish_source_statuses(catalog, gateway, worker_id),

@@ -6,6 +6,7 @@ export function taskFileSpec(kind,phase,input){
  if(!Number.isSafeInteger(input.size)||input.size<=0||typeof input.sha256!=='string'||!/^[a-f0-9]{64}$/.test(input.sha256))throw fault('INVALID_INPUT');
  let role,limit;
  if(kind==='geo'&&phase==='geo'&&geo.has(input.artifactType)&&input.mime==='application/geo+json'&&input.extension==='geojson'){role=`task:${input.artifactType}.geojson`;limit=512*MiB;}
+ else if(kind==='facade'&&phase==='rectification'&&input.artifactType==='diagnostics'&&input.mime==='application/json'&&input.extension==='json'){role='task:diagnostics.json';limit=2*MiB;}
  else if(kind==='facade'&&phase==='rectification'&&rect.has(input.artifactType)&&['png','jpg','jpeg'].includes(input.extension)&&input.mime===(input.extension==='png'?'image/png':'image/jpeg')){role='photo';limit=10*MiB;}
  else if(kind==='facade'&&phase==='generation'&&input.artifactType==='building_glb'&&input.extension==='glb'&&input.mime==='model/gltf-binary'){role='display';limit=50*MiB;}
  else throw fault('FILE_TYPE_UNSUPPORTED');

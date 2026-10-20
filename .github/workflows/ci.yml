@@ -44,9 +44,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: python -m pip install pytest==8.4.2 httpx==0.28.1 PyYAML==6.0.2
+      - run: python -m pip install pytest==8.4.2 httpx==0.28.1 PyYAML==6.0.2 python-dotenv==1.1.0
       - name: Test deployment, probe safety and archive contracts
         run: python -m pytest linux/tests -q
       - name: Test existing Worker and private bridge input compatibility without real tasks
         working-directory: server
-        run: python -m pytest tests/test_supabase_gateway.py tests/test_facade_gateway.py tests/test_worker.py tests/test_facade_worker.py -q
+        run: python -m pytest tests/test_supabase_gateway.py tests/test_facade_gateway.py tests/test_worker.py tests/test_facade_worker.py tests/test_local_task_http.py tests/test_local_gateways.py tests/test_task_backend.py tests/test_facade_cli.py tests/test_health.py tests/test_source_status.py -q

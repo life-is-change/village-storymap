@@ -1,0 +1,6 @@
+# BASE_IMAGE is a locally tagged, preflight-verified existing Worker image.
+# Build with --pull=false --network=none. No model/dependency installation.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY server/src/village_processing /opt/village-autonomous/village_processing
+ENV PYTHONPATH=/opt/village-autonomous:${PYTHONPATH}

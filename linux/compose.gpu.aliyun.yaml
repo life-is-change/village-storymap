@@ -1,0 +1,43 @@
+# Overlay only. The coordinated installer supplies verified local base tags and
+# updates these two services with --no-deps, retaining models, locks and networks.
+services:
+  geo-worker:
+    image: village-geo-aliyun:${ALIYUN_WORKER_RELEASE:?verified release required}
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.worker-local-overlay
+      args:
+        BASE_IMAGE: ${ALIYUN_GEO_BASE:?verified local base required}
+    environment:
+      VILLAGE_TASK_BACKEND: aliyun
+      VILLAGE_LOCAL_ORIGIN: https://8.148.248.237
+      VILLAGE_WORKER_KEY_FILE: /run/secrets/aliyun-worker-key
+      SUPABASE_URL: ''
+      SUPABASE_SERVICE_ROLE_KEY: ''
+    volumes:
+      - type: bind
+        source: ${ALIYUN_GEO_KEY_FILE:?private geo credential required}
+        target: /run/secrets/aliyun-worker-key
+        read_only: true
+        bind:
+          create_host_path: false
+  facade-worker:
+    image: village-facade-aliyun:${ALIYUN_WORKER_RELEASE:?verified release required}
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.worker-local-overlay
+      args:
+        BASE_IMAGE: ${ALIYUN_FACADE_BASE:?verified local base required}
+    environment:
+      VILLAGE_TASK_BACKEND: aliyun
+      VILLAGE_LOCAL_ORIGIN: https://8.148.248.237
+      VILLAGE_WORKER_KEY_FILE: /run/secrets/aliyun-worker-key
+      SUPABASE_URL: ''
+      SUPABASE_SERVICE_ROLE_KEY: ''
+    volumes:
+      - type: bind
+        source: ${ALIYUN_FACADE_KEY_FILE:?private facade credential required}
+        target: /run/secrets/aliyun-worker-key
+        read_only: true
+        bind:
+          create_host_path: false
