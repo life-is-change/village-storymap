@@ -1,6 +1,7 @@
 import pg from 'pg';
 import {UUID} from '../src/contracts.mjs';
 import {AUTH_ORIGIN} from '../src/config.mjs';
+import {resolveAuthPolicy} from '../auth/policy.mjs';
 import {fault} from './contracts.mjs';
 import {measure} from './metrics.mjs';
 
@@ -30,14 +31,16 @@ function safeError(error){
   }
   return fault('DB_UNAVAILABLE');
 }
-export function createUnifiedDatabase(config) {
+export function createUnifiedDatabase(config,{authPolicy={authOrigin:AUTH_ORIGIN}}={}) {
+  const policy=resolveAuthPolicy(authPolicy);
   const supplied=config?.pool;
   if(supplied?.options?.max!==undefined&&supplied.options.max>4)throw Error('INVALID_CONFIGURATION');
   const pool=supplied??new pg.Pool(poolOptions(config));
   const now=config?.now??Date.now;
   pool.on?.('error',()=>{});
   let closing;
-  function valid(identity){return typeof identity?.userId==='string'&&UUID.test(identity.userId)&&identity.userId===identity.userId.toLowerCase()&&identity.issuer===AUTH_ORIGIN+'/auth/v1'&&Number.isSafeInteger(identity.expiry)&&identity.expiry>Math.floor(now()/1000);}
+  function valid(identity){return typeof identity?.userId==='string'&&UUID.test(identity.userId)&&identity.userId===identity.userId.toLowerCase()&&identity.issuer===policy.issuer&&Number.isSafeInteger(identity.expiry)&&identity.expiry>Math.floor(now()/1000)&&(policy.mode!=='local'||UUID.test(identity.sessionId??''));}
+  async function localSession(client,identity){return (await client.query('SELECT api_private.local_auth_session_active($1,$2) AS active',[identity.userId,identity.sessionId])).rows[0]?.active===true;}
   const transaction=(identity,fn,options)=>measure('sql',()=>runTransaction(identity,fn,options));
   async function runTransaction(identity,fn,{readOnly=false}={}){
     if(identity&&!valid(identity))throw fault('UNAUTHORIZED');
@@ -48,6 +51,7 @@ export function createUnifiedDatabase(config) {
       await client.query(readOnly?'BEGIN READ ONLY':'BEGIN');
       await client.query("SET LOCAL statement_timeout='5s'; SET LOCAL lock_timeout='3s'; SET LOCAL idle_in_transaction_session_timeout='10s'; SET LOCAL search_path=public,extensions");
       if(identity){
+        if(policy.mode==='local'&&!await localSession(client,identity))throw fault('UNAUTHORIZED');
         await client.query("SELECT set_config('request.jwt.claims',$1,true),set_config('request.jwt.claim.sub',$2,true),set_config('request.jwt.claim.role','authenticated',true)",[
           JSON.stringify({sub:identity.userId,role:'authenticated',aud:'authenticated',iss:identity.issuer}),identity.userId]);
         await client.query('SET LOCAL ROLE authenticated');
@@ -63,6 +67,7 @@ export function createUnifiedDatabase(config) {
     }finally{client?.release(discard);}
   }
   return {
+    async checkLocalSession(identity){if(policy.mode!=='local'||!valid(identity))return false;return transaction(null,client=>localSession(client,identity),{readOnly:true});},
     withIdentity:async(identity,fn,options)=>{if(!valid(identity))throw fault('UNAUTHORIZED');return transaction(identity,fn,options);},
     withMaintenance:fn=>transaction(null,fn),
     verifyInstallation:()=>transaction(null,async client=>{

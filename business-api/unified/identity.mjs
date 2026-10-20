@@ -2,13 +2,18 @@ import {createIdentityVerifier} from '../src/auth.mjs';
 import {AUTH_ORIGIN} from '../src/config.mjs';
 import {UUID} from '../src/contracts.mjs';
 import {fault,parseOperation} from './contracts.mjs';
+import {resolveAuthPolicy} from '../auth/policy.mjs';
 
 export function createIdentityGateway(config){
-  if(config?.authOrigin!==AUTH_ORIGIN||typeof config.publishableKey!=='string'||!config.publishableKey.startsWith('sb_publishable_'))throw Error('INVALID_CONFIGURATION');
+  const policy=resolveAuthPolicy(config);
+  if(policy.mode==='source'&&(typeof config.publishableKey!=='string'||!config.publishableKey.startsWith('sb_publishable_')))throw Error('INVALID_CONFIGURATION');
   const verify=createIdentityVerifier(config),headers=new WeakMap(),fetchImpl=config.fetchImpl??fetch,now=config.now??Date.now;
   return {
     async verifyIdentity(authorization){const identity=await verify(authorization);headers.set(identity,authorization);return identity;},
     async sourceProfileReader(identity){
+      // Local registration needs a real GoTrue user and the local-only provisioner.
+      // Until that provisioner is installed there is deliberately no source fallback.
+      if(policy.mode==='local')throw fault('PROFILE_NOT_SYNCED');
       const authorization=headers.get(identity);if(!authorization||identity.expiry<=Math.floor(now()/1000))throw fault('UNAUTHORIZED');
       const url=new URL(AUTH_ORIGIN+'/rest/v1/profiles');url.searchParams.set('id','eq.'+identity.userId);url.searchParams.set('select','id,student_id,display_name,gender,class_name,grade');url.searchParams.set('limit','1');
       let response,rows;try{
@@ -21,8 +26,9 @@ export function createIdentityGateway(config){
     }
   };
 }
-export function createIdentityService({database,sourceProfileReader,verifyIdentity}){
-  function assertIdentity(identity){if(!UUID.test(identity?.userId??'')||identity.issuer!==AUTH_ORIGIN+'/auth/v1'||!Number.isSafeInteger(identity.expiry)||identity.expiry<=Math.floor(Date.now()/1000))throw fault('UNAUTHORIZED');}
+export function createIdentityService({database,sourceProfileReader,verifyIdentity,authPolicy={authOrigin:AUTH_ORIGIN}}){
+  const policy=resolveAuthPolicy(authPolicy);
+  function assertIdentity(identity){if(!UUID.test(identity?.userId??'')||identity.issuer!==policy.issuer||!Number.isSafeInteger(identity.expiry)||identity.expiry<=Math.floor(Date.now()/1000)||(policy.mode==='local'&&!UUID.test(identity.sessionId??'')))throw fault('UNAUTHORIZED');}
   const data=result=>result.rows[0]?.data;
   return {
     verifyIdentity,
