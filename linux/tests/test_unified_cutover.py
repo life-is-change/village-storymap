@@ -61,3 +61,25 @@ def test_one_private_handoff_bundle_contains_only_image_snapshot_and_bridge_toke
  with tarfile.open(output) as archive:
   names=set(archive.getnames());assert names=={'handoff.json','image.tar.gz','bridge-token',*('backup/'+name for name in ['database.dump','roles.sql','inventory.json','contents.txt','manifest.json'])};assert not any('.env' in name or 'source-install.sql' in name for name in names)
  with pytest.raises(ValueError):m.build_handoff(image,backup,token,output,meta)
+def test_handoff_extraction_rechecks_receipts_and_refuses_links_unknown_paths_and_tampering(tmp_path):
+ import json,hashlib,tarfile,io
+ m=module();image=tmp_path/'image.tar.gz';image.write_bytes(b'image');backup=tmp_path/'backup';backup.mkdir();token=tmp_path/'token';token.write_text('a'*48+'\n');meta={'archive_filename':image.name,'archive_bytes':5,'archive_sha256':hashlib.sha256(b'image').hexdigest(),'releaseId':'unified-test'}
+ files={}
+ for name in ['database.dump','roles.sql','inventory.json','contents.txt']:
+  (backup/name).write_bytes(b'synthetic');files[name]={'bytes':9,'sha256':hashlib.sha256(b'synthetic').hexdigest()}
+ (backup/'manifest.json').write_text(json.dumps({'status':'archive_verified_not_restored','files':files}))
+ bundle=m.build_handoff(image,backup,token,tmp_path/'bundle.tar.gz',meta);inputs=tmp_path/'inputs'
+ unpacked=m.deploy.unpack_handoff(bundle,meta,inputs_root=inputs);assert m.deploy.unpack_handoff(bundle,meta,inputs_root=inputs)==unpacked
+ (unpacked[1]/'roles.sql').write_text('changed')
+ with pytest.raises(ValueError,match='HANDOFF_FILE_CHANGED'):m.deploy.unpack_handoff(bundle,meta,inputs_root=inputs)
+ for name,link in [('../outside',False),('bridge-token',True)]:
+  bad=tmp_path/('bad-link.tar.gz' if link else 'bad-path.tar.gz')
+  with tarfile.open(bundle) as source,tarfile.open(bad,'w:gz') as target:
+   for item in source:
+    raw=source.extractfile(item).read()
+    if item.name=='bridge-token':
+     item.name=name
+     if link:item.type=tarfile.SYMTYPE;item.linkname='../outside';item.size=0
+    target.addfile(item,None if item.issym() else io.BytesIO(raw))
+  with pytest.raises(ValueError,match='HANDOFF_CONTENTS_REFUSED'):m.deploy.unpack_handoff(bad,meta,inputs_root=inputs)
+ assert not (tmp_path/'outside').exists()

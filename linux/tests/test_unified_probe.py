@@ -38,7 +38,7 @@ class FakeApi:
   return {'id':'scene-asset'}
  def synthetic_task_proof(self):return {'verified':True,'releaseId':'release-test'}
  def restart(self):self.restarts+=1;return {'same_container':True,'started_at_changed':True}
- def load_probe(self,actor):return [{'concurrency':n,'samples':n,'failures':0,'p50_ms':1,'p95_ms':2,'auth_ms':1,'sql_ms':1,'file_ms':0} for n in [1,5,10,20]]
+ def load_probe(self,actor,**_):return [{'concurrency':n,'samples':n,'failures':0,'p50_ms':1,'p95_ms':2,'auth_ms':1,'sql_ms':1,'file_ms':0} for n in [1,5,10,20]]
  def resource_snapshot(self):return {'available_bytes':1024**3,'api_peak_bytes':40*1024**2}
 def test_one_credentials_entry_covers_reads_writes_files_versions_restart_and_never_real_tasks():
  m=module();api=FakeApi();state={};report=m.run_probe(api,('admin','password'),('member','password'),state)

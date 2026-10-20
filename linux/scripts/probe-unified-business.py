@@ -84,7 +84,7 @@ def run_probe(api,adminCredentials,memberCredentials,state):
    except Exception as e:
     if getattr(e,'code',None) not in {'SOURCE_NOT_READY','WORKER_OFFLINE','BRIDGE_UNAVAILABLE'}:raise
     readiness[kind]={'available':False,'code':e.code}
-  phase='load';load=api.load_probe(member)
+  phase='load';load=api.load_probe(member,context=target,file_id=state['photoFileId'])
   if [row.get('concurrency') for row in load]!=[1,5,10,20] or any(row.get('failures')!=0 for row in load):raise ProbeFailure(phase,'LOAD_FAILED')
   resources=api.resource_snapshot();state['load']=load;checkpoint()
   phase='restart';restart=api.restart()
@@ -165,12 +165,22 @@ class HttpApi:
   prefix=self.base+'/api/v1/scene-files/sessions';session=self.request(prefix,actor,method='POST',data={'purpose':purpose,'context':context,'requestId':request_id,'files':[{'role':role,'size':len(raw),'mime':mime,'extension':extension}]})['data']
   if session['state']!='committed':self.request(prefix+'/'+session['id']+'/files/'+role,actor,method='PUT',data=raw,mime=mime)
   return self.request(prefix+'/'+session['id']+'/commit',actor,method='POST',data=record)['data']
- def load_probe(self,actor):
+ def load_probe(self,actor,*,context=None,file_id=None):
   results=[]
   for concurrency in [1,5,10,20]:
    def sample(_):
     start=time.monotonic();timings={}
-    try:self.request(self.base+self.routes['identity.me']['path'],actor,timings=timings);return (time.monotonic()-start)*1000,False,timings
+    try:
+     self.request(self.base+self.routes['identity.me']['path'],actor,timings=timings)
+     actions=[]
+     if context:actions.append((self.routes['planning.listFeatures']['path'],{'method':'POST','data':{**context,'layerKey':'building'}}))
+     if file_id:
+      if not re.fullmatch('[a-f0-9-]{36}',file_id):raise TransportFailure('INVALID_INPUT')
+      actions.append(('/api/v1/files/'+file_id,{'binary':True}))
+     for path,options in actions:
+      stage={};self.request(self.base+path,actor,timings=stage,**options)
+      for key,value in stage.items():timings[key]=timings.get(key,0)+value
+     return (time.monotonic()-start)*1000,False,timings
     except Exception:return (time.monotonic()-start)*1000,True,{}
    with ThreadPoolExecutor(max_workers=concurrency) as executor:samples=list(executor.map(sample,range(3*concurrency)))
    def percentile(values,p):
