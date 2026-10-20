@@ -55,7 +55,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE result j
  ELSE RAISE EXCEPTION 'NOT_FOUND';END CASE;RETURN result;
 END$$;
 CREATE FUNCTION api_private.planning_write(a text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
-SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE result jsonb;prior jsonb;space public.planning_spaces;lease public.feature_edit_locks;sid uuid;version public.personal_layer_versions;changes jsonb;actor text;target jsonb;BEGIN
+SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLARE photo bigint;result jsonb;prior jsonb;space public.planning_spaces;lease public.feature_edit_locks;sid uuid;version public.personal_layer_versions;changes jsonb;actor text;target jsonb;BEGIN
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  IF a NOT IN ('planning.acquireLock','planning.heartbeatLock','planning.releaseLock') THEN prior:=api_private.begin_operation(a,p);IF prior IS NOT NULL THEN RETURN prior->'result';END IF;END IF;
  SELECT display_name INTO actor FROM public.profiles WHERE id=auth.uid();
@@ -82,6 +82,26 @@ SET search_path=pg_catalog,public,api_private,auth,extensions,pg_temp AS $$DECLA
   IF NOT FOUND OR lease.editor_user_id<>auth.uid() OR lease.lock_token<>(p->>'lockToken')::uuid OR lease.expires_at<=now() THEN RETURN jsonb_build_object('success',false);END IF;
   result:=public.heartbeat_feature_edit_lock(space.id,space.teaching_project_id,space.village_id,p->>'layerKey',p->>'objectCode',actor,(p->>'lockToken')::uuid,90);
  WHEN 'planning.releaseLock' THEN result:=public.release_feature_edit_lock(space.id,space.teaching_project_id,space.village_id,p->>'layerKey',p->>'objectCode',actor,(p->>'lockToken')::uuid);
+ WHEN 'planning.renameBuilding' THEN
+  -- Both names are leased, geometry changes and related current records share this transaction.
+  SELECT value INTO target FROM jsonb_array_elements(api_private.planning_read('planning.listFeatures',p||jsonb_build_object('layerKey','building'))) WHERE value->>'object_code'=p->>'objectCode';
+  IF target IS NULL THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(api_private.planning_read('planning.listFeatures',p||jsonb_build_object('layerKey','building'))) x WHERE x->>'object_code'=p->>'newCode') THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
+  IF to_regclass('api_private.task_requests') IS NOT NULL THEN
+    FOR photo IN SELECT id FROM public.object_photos WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND deleted_at IS NULL FOR UPDATE LOOP
+      PERFORM api_private.task_assert_photo_mutable(photo);
+    END LOOP;
+  END IF;
+  changes:=jsonb_build_array(jsonb_build_object('action','delete','layerKey','building','objectCode',p->>'objectCode','expectedRevision',(p->>'expectedRevision')::bigint,'expectedGeometryRevision',(p->>'expectedRevision')::bigint,'lockToken',p->>'lockToken'),jsonb_build_object('action','add','layerKey','building','objectCode',p->>'newCode','objectName',p->>'newCode','afterGeom',target->'geom','afterProps',coalesce(target->'props','{}')||jsonb_build_object('房屋编码',p->>'newCode'),'expectedRevision',0,'expectedGeometryRevision',0,'lockToken',p->>'newLockToken'));
+  changes:=api_private.planning_changes(p||jsonb_build_object('changes',changes));
+  IF space.space_type='group_plan' THEN result:=public.save_group_plan_edit_batch(space.teaching_project_id,space.village_id,space.id,actor,'修改建筑编码',changes);
+  ELSE result:=to_jsonb(public.save_feature_edit_batch(space.id,space.teaching_project_id,space.village_id,actor,'修改建筑编码','',changes));END IF;
+  UPDATE public.object_attribute_edits SET object_code=p->>'newCode',data=data||jsonb_build_object('房屋编码',p->>'newCode') WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
+  UPDATE public.object_photos SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
+  UPDATE public.object_comments SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND object_code=p->>'objectCode' AND object_type IN ('building','building__'||space.id,'building_3d__'||space.id);
+  UPDATE public.survey_feature_reviews SET object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND layer_key='building' AND object_code=p->>'objectCode';
+  UPDATE public.community_tasks SET target_object_code=p->>'newCode' WHERE teaching_project_id=space.teaching_project_id AND village_id=space.village_id AND space_id=space.id AND target_layer_key='building' AND target_object_code=p->>'objectCode';
+  IF to_regclass('public.building_model_bindings') IS NOT NULL THEN EXECUTE 'UPDATE public.building_model_bindings SET object_code=$1 WHERE space_id=$2 AND object_code=$3' USING p->>'newCode',space.id,p->>'objectCode';END IF;
  WHEN 'planning.saveBatch' THEN
   changes:=api_private.planning_changes(p);
   IF space.space_type='group_plan' THEN result:=public.save_group_plan_edit_batch(space.teaching_project_id,space.village_id,space.id,actor,coalesce(p->>'summary',''),changes);

@@ -28,3 +28,7 @@ test("homepage ignores malformed or empty cached contexts", () => {
   writeHomeContext(empty, { villages: [], selectedVillageId: "" });
   assert.equal(readHomeContext(empty), null);
 });
+test('Aliyun homepage waits for current parent authorization instead of restoring a previous user catalog',()=>{
+ const previous=globalThis.window;globalThis.window={parent:{VILLAGE_DEPLOYMENT:{mode:'aliyun'}}};
+ try{const store=storage();assert.equal(writeHomeContext(store,{villages:[{id:'private-draft'}]}),false);assert.equal(readHomeContext({getItem:()=>JSON.stringify({villages:[{id:'private-draft'}]})}),null);}finally{globalThis.window=previous;}
+});

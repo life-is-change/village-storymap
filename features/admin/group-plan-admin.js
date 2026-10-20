@@ -71,7 +71,7 @@
     let bound = false;
 
     async function rpc(name, args) {
-      if (services) {
+      if (services?.catalog) {
         if (name==='get_group_plan_admin_dashboard') return services.catalog.execute('admin.groupDashboard',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id});
         if (name==='ensure_group_plan_space') return services.catalog.execute('admin.ensureGroupSpace',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id,groupId:args.p_group_id,...(args.p_snapshot_id?{snapshotId:args.p_snapshot_id}:{}),requestId:uuid()});
         if (name==='apply_group_baseline_update') return services.planning.execute('planning.applyBaseline',{teachingProjectId:args.p_teaching_project_id,villageId:args.p_village_id,spaceId:args.p_space_id,targetSnapshotId:args.p_target_snapshot_id,expectedBaseSnapshotId:args.p_expected_base_snapshot_id,requestId:uuid()});

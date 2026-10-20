@@ -304,6 +304,7 @@ function App() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
       if (event.data?.type === 'village-auth-state') {
         setAuthState({
           isLoggedIn: event.data.payload?.isLoggedIn || false,
@@ -331,17 +332,17 @@ function App() {
     };
     window.addEventListener('message', handleMessage);
     // 请求父页面发送当前登录状态
-    window.parent.postMessage({ type: 'village-auth-request' }, '*');
-    window.parent.postMessage({ type: 'village-home-context-request' }, '*');
+    window.parent.postMessage({ type: 'village-auth-request' }, window.location.origin);
+    window.parent.postMessage({ type: 'village-home-context-request' }, window.location.origin);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const requestAuth = useCallback((mode: 'login' | 'register' = 'login') => {
-    window.parent.postMessage({ type: 'village-auth-request', mode }, '*');
+    window.parent.postMessage({ type: 'village-auth-request', mode }, window.location.origin);
   }, []);
 
   const requestLogout = useCallback(() => {
-    window.parent.postMessage({ type: 'village-auth-logout' }, '*');
+    window.parent.postMessage({ type: 'village-auth-logout' }, window.location.origin);
     setAuthState({
       isLoggedIn: false,
       displayName: '',
@@ -351,14 +352,14 @@ function App() {
   }, []);
 
   const requestAdmin = useCallback(() => {
-    window.parent.postMessage({ type: 'village-open-admin' }, '*');
+    window.parent.postMessage({ type: 'village-open-admin' }, window.location.origin);
   }, []);
 
   const requestEnterPlatform = useCallback(() => {
     window.parent.postMessage({
       type: 'village-home-enter',
       payload: { villageId: selectedVillageId }
-    }, '*');
+    }, window.location.origin);
   }, [selectedVillageId]);
 
   useEffect(() => {

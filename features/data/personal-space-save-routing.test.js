@@ -15,6 +15,7 @@ function loadSave(space, client = null) {
   const calls = [];
   const supabaseClient = { rpc: async (name, args) => { calls.push({ name, args }); return { data: 'batch' }; } };
   const sandbox = {
+    window: {},
     spaces: [space], coursePersonalSpace: null, personalSpaceClient: client,
     supabaseClient, currentSpaceId: space.id,
     activeVillageContext: { villageId: 'village', teachingProjectId: 'project' },

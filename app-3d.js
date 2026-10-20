@@ -67,7 +67,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
   const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
 
-  const supabaseClient = window.VillageSupabaseClient || null;
+  const supabaseClient = window.VillageBusinessServices?.businessClient || window.VillageSupabaseClient || null;
 
   let viewer = null;
   let initialized = false;
@@ -311,6 +311,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!window.GroupModelLibraryModule) throw new Error("小组模型库模块未加载。");
     groupModelLibrary = window.GroupModelLibraryModule.createGroupModelLibrary({
       client: supabaseClient,
+      services: window.VillageBusinessServices,
+      getContext: () => ({...getActiveVillage3DContext(),spaceId:getActualLinkedSpaceIdFor3D()}),
       bucket: "group-models"
     });
     return groupModelLibrary;
@@ -413,6 +415,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function list3DBuildingsFromDb() {
+    if(window.VillageBusinessServices?.planning) {
+      const c=getActiveVillage3DContext();
+      return window.VillageBusinessServices.planning.execute('planning.listFeatures',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:getActualLinkedSpaceIdFor3D(),layerKey:'building'});
+    }
     if (!supabaseClient) return [];
 
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
@@ -443,6 +449,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function list3DPersonalBuildings(spaceId) {
+    if(window.VillageBusinessServices?.planning){
+      const service=window.VillageBusinessServices.planning;
+      const selections=await service.execute('personal.listSelections',{spaceId});
+      const versionId=selections.find(row=>row.layer_key==='building')?.current_version_id;
+      return versionId?service.execute('personal.listFeatures',{versionId}):[];
+    }
     if (!supabaseClient) return [];
     const { data: selections, error: selectionError } = await supabaseClient
       .from("personal_layer_selections")
@@ -466,6 +478,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function list3DRoadsFromDb() {
+    if(window.VillageBusinessServices?.planning) {
+      const c=getActiveVillage3DContext();
+      return window.VillageBusinessServices.planning.execute('planning.listFeatures',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:getActualLinkedSpaceIdFor3D(),layerKey:'road'});
+    }
     if (!supabaseClient) return [];
 
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
@@ -497,6 +513,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function hasAny3DBuildingRowsForSpace(spaceId) {
+    if(window.VillageBusinessServices?.planning)return (await list3DBuildingsFromDb()).length>0;
     if (!supabaseClient) return false;
     const context = getActiveVillage3DContext();
     if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
@@ -526,6 +543,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function hasAny3DRoadRowsForSpace(spaceId) {
+    if(window.VillageBusinessServices?.planning)return (await list3DRoadsFromDb()).length>0;
     if (!supabaseClient) return false;
     const context = getActiveVillage3DContext();
     if (getLinked2DSpaceFor3D()?.spaceType === "group_plan" && window.__loadResolvedGroupPlan) {
@@ -2264,6 +2282,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchCurrentSpaceAllEdits() {
+    if(window.VillageBusinessServices?.survey){
+      const c=getActiveVillage3DContext(),spaceId=getActualLinkedSpaceIdFor3D();
+      return window.VillageBusinessServices.survey.execute('survey.listAttributes',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId,objectType:MODEL_BASE_OBJECT_TYPE+'__'+spaceId});
+    }
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType || !supabaseClient) return [];
@@ -2282,6 +2304,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchSingle3DEdit(sourceCode) {
+    if(window.VillageBusinessServices?.survey){
+      const c=getActiveVillage3DContext(),spaceId=getActualLinkedSpaceIdFor3D();
+      return window.VillageBusinessServices.survey.execute('survey.getAttributes',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId,objectCode:sourceCode,objectType:MODEL_BASE_OBJECT_TYPE+'__'+spaceId});
+    }
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType || !supabaseClient || !sourceCode) return null;
@@ -2302,6 +2328,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function saveSingle3DEdit(sourceCode, payload) {
+    if(window.VillageBusinessServices?.survey){
+      const c=getActiveVillage3DContext(),spaceId=getActualLinkedSpaceIdFor3D();
+      return window.VillageBusinessServices.survey.execute('survey.saveAttributes',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId,objectCode:sourceCode,objectType:MODEL_BASE_OBJECT_TYPE+'__'+spaceId,data:payload,requestId:crypto.randomUUID()});
+    }
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
     const objectType = linkedSpaceId ? `${MODEL_BASE_OBJECT_TYPE}__${linkedSpaceId}` : null;
     if (!objectType) {
@@ -3491,6 +3521,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (spaceId && spaceId !== "current") objectTypes.push(`building__${spaceId}`);
 
     const context = getActiveVillage3DContext();
+    if(window.VillageBusinessServices?.survey){
+      const services=window.VillageBusinessServices,rows=(await Promise.all(objectTypes.map(objectType=>services.survey.execute('survey.listPhotos',{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId,objectCode:sourceCode,objectType})))).flat();
+      return Promise.all(rows.map(async row=>({id:String(row.id),url:await services.files.resolveFileUrl(row.fileId),hasPhotoPath:true,uploadedAt:row.uploaded_at||'',uploadedBy:row.uploaded_by||''})));
+    }
     let query = supabaseClient
       .from(OBJECT_PHOTOS_TABLE)
       .select("*")
@@ -3583,6 +3617,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function uploadHouseGeneratorPhoto(file, sourceCode, spaceId) {
+    if(window.VillageBusinessServices?.files){
+      const c=getActiveVillage3DContext();
+      const result=await window.VillageBusinessServices.files.uploadPhoto({teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId,objectCode:sourceCode,objectType:'building',surveyLayerKey:'building'},file);
+      return {...result,id:String(result.id),url:result.photoUrl};
+    }
     if (!supabaseClient) throw new Error("当前未配置 Supabase。");
     if (!(file instanceof Blob) || !sourceCode) throw new Error("照片或建筑编码无效。");
     const context = getActiveVillage3DContext();

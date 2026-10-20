@@ -72,7 +72,7 @@ test('duplicate context replies share initialization and late restoration cannot
   let release, lookups = 0, subscriptions = 0;
   const gate = new Promise(resolve => release = resolve);
   const sandbox = { state: { targetCode: 'H', targetSpace: 'S' },
-    window: { opener: { VillageSupabaseClient: {} } },
+    window: { location: {origin:'https://platform.test'}, opener: { location:{origin:'https://platform.test'}, VillageSupabaseClient: {} } },
     FacadeQueueClient: { createFacadeQueueClient: () => ({ getWorkerAvailability: async () => ({ available: true }),
       findActiveRun: async () => null, findLatestRun: async () => { lookups++; await gate; return { id: 'old', status: 'completed' }; } }) },
     FacadeCloudClient: { createFacadeCloudClient: () => ({}) },

@@ -78,7 +78,7 @@
     };
   }
 
-  function createGroupPlanLoader({ client } = {}) {
+  function createGroupPlanLoader({ client, services } = {}) {
     if (!client) throw new Error("SUPABASE_CLIENT_REQUIRED");
     const cache = new Map();
     const pending = new Map();
@@ -106,6 +106,10 @@
 
     async function load(context, options = {}) {
       const normalized = normalizeContext(context);
+      if (services?.planning) {
+        const rows = await Promise.all(['building','road','water'].map(layerKey => services.planning.execute('planning.listFeatures', {...normalized,layerKey})));
+        return rows.flat();
+      }
       const key = keyFor(normalized);
       if (!options.force && cache.has(key)) return cache.get(key);
       if (!options.force && pending.has(key)) return pending.get(key);

@@ -299,7 +299,16 @@ async function initializeFacadeQueue(context) {
     setStatus('登录会话已失效，请重新登录平台后再打开生成器。', true);
     return;
   }
-  const openerClient = window.opener?.VillageSupabaseClient;
+  let openerClient, openerServices;
+  try {
+    if (window.opener?.location.origin !== window.location.origin) throw Error('FOREIGN_OPENER');
+    openerClient = window.opener?.VillageSupabaseClient;
+    openerServices = window.opener?.VillageBusinessServices;
+    if (window.opener?.VILLAGE_DEPLOYMENT?.mode === 'aliyun' && !openerServices?.tasks) throw Error('LOCAL_TASK_SERVICE_REQUIRED');
+  } catch {
+    setStatus('无法使用其他站点的登录会话，请从同一平台重新打开生成器。', true);
+    return;
+  }
   if (!openerClient) {
     state.photoServiceStatus = 'offline';
     renderPhotoServiceState();
@@ -313,7 +322,7 @@ async function initializeFacadeQueue(context) {
       && state.facadeInitializationClient === openerClient) return pollFacadeRun();
   state.facadeInitializationKey = key;
   state.facadeInitializationClient = openerClient;
-  const pending = initializeFacadeQueueConnection(context, openerClient);
+  const pending = initializeFacadeQueueConnection(context, openerClient, openerServices);
   state.facadeInitializationPromise = pending;
   try { await pending; }
   finally {
@@ -321,7 +330,7 @@ async function initializeFacadeQueue(context) {
   }
 }
 
-async function initializeFacadeQueueConnection(context, openerClient) {
+async function initializeFacadeQueueConnection(context, openerClient, services) {
   state.facadeContext = {
     courseId: String(context.courseId || ''),
     spaceId: String(context.spaceId || state.targetSpace),
@@ -331,10 +340,10 @@ async function initializeFacadeQueueConnection(context, openerClient) {
     setStatus('当前课程上下文不完整，暂时不能提交生成任务。', true);
     return;
   }
-  state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient);
+  state.facadeQueue = FacadeQueueClient.createFacadeQueueClient(openerClient, {services});
   const queue = state.facadeQueue;
   const facadeContext = state.facadeContext;
-  state.cloudClient = FacadeCloudClient.createFacadeCloudClient(openerClient);
+  state.cloudClient = FacadeCloudClient.createFacadeCloudClient(openerClient, {services});
   state.photoServiceStatus = 'checking';
   renderPhotoServiceState();
   void refreshCloudCapability();

@@ -19,17 +19,23 @@
     return String(value || "*").trim() || "*";
   }
 
+  function partition() {
+    const services=window.VillageBusinessServices;
+    return services?.mode==='aliyun'?JSON.stringify([services.deployment.instanceId,window.VillageAuth?.getCurrentUser?.()?.id||'anonymous']):'source';
+  }
   function buildWriteKey(table, spaceId, objectCode) {
-    return [normalizeKeyPart(table), normalizeKeyPart(spaceId), normalizeKeyPart(objectCode)].join("|");
+    return [partition(),normalizeKeyPart(table), normalizeKeyPart(spaceId), normalizeKeyPart(objectCode)].join("|");
   }
 
   function schedule(key, fn, delayMs = DEFAULT_DELAY_MS) {
-    const scheduleKey = normalizeKeyPart(key);
+    const owner=partition();
+    const scheduleKey = owner+normalizeKeyPart(key);
     if (timers.has(scheduleKey)) {
       clearTimeout(timers.get(scheduleKey));
     }
     timers.set(scheduleKey, setTimeout(async () => {
       timers.delete(scheduleKey);
+      if(owner!==partition())return;
       try {
         await fn();
       } catch (error) {

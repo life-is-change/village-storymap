@@ -237,10 +237,12 @@
 
   const api = {
     __listLocalRows(spaceId, layerKey, includeDeleted = false) {
+      if(window.VillageBusinessServices?.mode==='aliyun')throw Error('LOCAL_CACHE_DISABLED');
       return listLayerFeaturesFromLocal(spaceId, layerKey, includeDeleted);
     },
 
     __upsertLocalRows(_deps, rows) {
+      if(window.VillageBusinessServices?.mode==='aliyun')throw Error('LOCAL_CACHE_DISABLED');
       upsertLocalRows(rows);
     },
 

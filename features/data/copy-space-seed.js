@@ -8,9 +8,26 @@
     return Array.from(dedupedMap.values());
   }
 
-  async function upsertInChunks(supabaseClient, tableName, payload, chunkSize = 200) {
+  async function upsertInChunks(supabaseClient, tableName, payload, chunkSize = 200, deps = {}) {
     const rows = Array.isArray(payload) ? payload : [];
     if (!rows.length) return;
+    if(deps.services?.planning){
+      const service=deps.services.planning,c=deps.getContext();
+      for(let start=0;start<rows.length;start+=chunkSize){
+        const changes=[],leases=[];
+        try{
+          for(const row of rows.slice(start,start+chunkSize)){
+            const target={teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:row.space_id,layerKey:row.layer_key,objectCode:row.object_code};
+            const lease=await service.execute('planning.acquireLock',target);
+            if(!lease?.success||!lease.lockToken)throw Error('LOCK_UNAVAILABLE');
+            leases.push({...target,lockToken:lease.lockToken});
+            changes.push({action:'add',layerKey:row.layer_key,objectCode:row.object_code,objectName:row.object_name||row.object_code,afterGeom:row.geom,afterProps:row.props||{},expectedGeometryRevision:0,lockToken:lease.lockToken});
+          }
+          await service.execute('planning.saveBatch',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:rows[start].space_id,changes,summary:'初始化规划副本',requestId:crypto.randomUUID()});
+        }finally{await Promise.allSettled(leases.map(lease=>service.execute('planning.releaseLock',lease)));}
+      }
+      return;
+    }
 
     // Live Server/本地教学模式下不依赖 Supabase，直接写入 localStorage。
     if (!supabaseClient) {
@@ -32,6 +49,7 @@
   }
 
   async function fetchBaseSpaceDbRows(deps, spaceId, layerKey) {
+    if(deps.services?.planning){const c=deps.getContext();return deps.services.planning.execute('planning.listFeatures',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId,layerKey});}
     const supabaseClient = deps.getSupabaseClient();
     if (!supabaseClient) {
       if (window.FeatureDbModule && typeof window.FeatureDbModule.__listLocalRows === "function") {
@@ -159,7 +177,7 @@
             props: deps.cloneJson(row.props),
             is_deleted: false
           }));
-          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
           console.log(`空间 ${spaceId} 建筑已从现状空间数据库复制，共 ${payload.length} 条。`);
           return;
         }
@@ -193,7 +211,7 @@
         console.warn(`building 初始化检测到重复编码，已自动去重：${payloadRaw.length - payload.length} 条`);
       }
 
-      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
 
       console.log(`空间 ${spaceId} 建筑初始化完成，共 ${payload.length} 条。`);
     },
@@ -219,7 +237,7 @@
             props: deps.cloneJson(row.props),
             is_deleted: false
           }));
-          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
           deps.invalidateRoadDbCache(spaceId);
           console.log(`空间 ${spaceId} 道路已从现状空间数据库复制，共 ${payload.length} 条。`);
           return;
@@ -254,7 +272,7 @@
         console.warn(`road 初始化检测到重复编码，已自动去重：${payloadRaw.length - payload.length} 条`);
       }
 
-      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
 
       deps.invalidateRoadDbCache(spaceId);
       console.log(`空间 ${spaceId} 道路初始化完成，共 ${payload.length} 条。`);
@@ -308,7 +326,7 @@
             props: deps.cloneJson(row.props),
             is_deleted: false
           }));
-          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+          await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
           if (invalidateFn) invalidateFn(spaceId);
           console.log(`空间 ${spaceId} ${label}已从现状空间数据库复制，共 ${payload.length} 条。`);
           return;
@@ -347,7 +365,7 @@
         console.warn(`${layerKey} 初始化检测到重复编码，已自动去重：${payloadRaw.length - payload.length} 条`);
       }
 
-      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload);
+      await upsertInChunks(supabaseClient, deps.PLANNING_FEATURES_TABLE, payload, 25, deps);
 
       if (invalidateFn) invalidateFn(spaceId);
       console.log(`空间 ${spaceId} ${label}初始化完成，共 ${payload.length} 条。`);

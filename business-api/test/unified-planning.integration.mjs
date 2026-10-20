@@ -47,6 +47,20 @@ test('native planning preserves legacy privacy, competing lease ownership and re
    const restored=await service.execute(testIdentity(),'planning.baselineState',groupContext);assert.equal(restored.current.id,first.snapshotId);
    const rows=await service.execute(testIdentity(),'planning.listFeatures',{...groupContext,layerKey:'building'});assert.deepEqual(rows[0].geom,polygon(0.003));assert.ok((await setup.query('SELECT count(*) n FROM feature_versions')).rows[0].n>=3);
 
+   const {createMcService}=await import('../unified/mc.mjs');const mc=createMcService({database:db});
+   await setup.query("INSERT INTO mc_sync_config(village_id,min_lon,min_lat,max_lon,max_lat,mc_origin_x,mc_origin_y,mc_origin_z,mc_width,mc_depth) VALUES('b0000000-0000-4000-8000-000000000001',113,23,114,24,0,64,0,100,100)");
+   const mcInput={...context,requestId:'e1000000-0000-4000-8000-000000000001'};
+   const exported=await mc.exportBuildings(testIdentity(),mcInput);assert.equal(exported.count,1);
+   assert.deepEqual(await mc.exportBuildings(testIdentity(),mcInput),exported);
+   assert.equal((await setup.query('SELECT count(*) n FROM mc_building_state')).rows[0].n,'1');
+   await assert.rejects(mc.getConfig(testIdentity(),{...context,spaceId:'L'}),{code:'FORBIDDEN'});
+   const beforeRename=(await service.execute(testIdentity(),'planning.listFeatures',{...context,layerKey:'building'}))[0];
+   const oldLease=await service.execute(testIdentity(),'planning.acquireLock',{...c,objectCode:'B1'}),newLease=await service.execute(testIdentity(),'planning.acquireLock',{...c,objectCode:'B9'});
+   const renamed={...context,objectCode:'B1',newCode:'B9',expectedRevision:Number(beforeRename.geometry_revision||0),lockToken:oldLease.lockToken,newLockToken:newLease.lockToken,requestId:'e1000000-0000-4000-8000-000000000002'};
+   await service.execute(testIdentity(),'planning.renameBuilding',renamed);
+   assert.equal((await service.execute(testIdentity(),'planning.listFeatures',{...context,layerKey:'building'})).some(row=>row.object_code==='B9'),true);
+   await service.execute(testIdentity(),'planning.renameBuilding',renamed);
+
   }finally{await db.close();}
  });
 });

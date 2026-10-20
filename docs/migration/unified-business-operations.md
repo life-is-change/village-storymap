@@ -10,6 +10,8 @@
 | `identity.bootstrap` | `GET /api/v1/bootstrap` | 读 |  | app.js:startup; auth-system.js:loadProfile | DTO: unified-contracts.test.mjs |
 | `identity.ensureProfile` | `POST /api/v1/identity/ensure-profile` | 写 |  | auth-system.js:register | DTO: unified-contracts.test.mjs |
 | `identity.updateProfile` | `POST /api/v1/identity/update-profile` | 写 | displayName, gender, className, grade | auth-system.js:updateProfile | DTO: unified-contracts.test.mjs |
+| `admin.listPhotos` | `POST /api/v1/admin/list-photos` | 读 |  | admin.js;object_photos | DTO: unified-contracts.test.mjs |
+| `admin.listMessages` | `POST /api/v1/admin/list-messages` | 读 |  | admin.js;community_tasks | DTO: unified-contracts.test.mjs |
 | `admin.listUsers` | `POST /api/v1/admin/list-users` | 读 |  | supabase/functions/admin-delete-user; auth-system.js | DTO: unified-contracts.test.mjs |
 | `admin.disableUser` | `POST /api/v1/admin/disable-user` | 写 | userId, requestId | supabase/functions/admin-delete-user (local business disable only) | DTO: unified-contracts.test.mjs |
 | `catalog.listCourses` | `POST /api/v1/courses/list-courses` | 读 |  | features/course/course-service.js;features/villages/village-client.js -> courses | DTO: unified-contracts.test.mjs |
@@ -42,6 +44,8 @@
 | `admin.groupDashboard` | `POST /api/v1/admin/group-dashboard` | 读 | teachingProjectId, villageId | features/admin;features/villages/village-client.js -> get_group_plan_admin_dashboard | DTO: unified-contracts.test.mjs |
 | `admin.groupContext` | `POST /api/v1/admin/group-context` | 读 | teachingProjectId, villageId, spaceId | features/admin;features/villages/village-client.js -> get_group_plan_admin_context | DTO: unified-contracts.test.mjs |
 | `admin.ensureGroupSpace` | `POST /api/v1/admin/ensure-group-space` | 写 | teachingProjectId, villageId, groupId, snapshotId, requestId | features/admin;features/villages/village-client.js -> ensure_group_plan_space | DTO: unified-contracts.test.mjs |
+| `survey.activity` | `POST /api/v1/survey/activity` | 读 | teachingProjectId, villageId, spaceId | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> survey activity overlays | DTO: unified-contracts.test.mjs |
+| `survey.listAttributes` | `POST /api/v1/survey/list-attributes` | 读 | teachingProjectId, villageId, spaceId, objectType | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> object_attribute_edits | DTO: unified-contracts.test.mjs |
 | `survey.getAttributes` | `POST /api/v1/survey/get-attributes` | 读 | teachingProjectId, villageId, spaceId, objectCode, objectType | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> object_attribute_edits | DTO: unified-contracts.test.mjs |
 | `survey.saveAttributes` | `POST /api/v1/survey/save-attributes` | 写 | teachingProjectId, villageId, spaceId, objectCode, objectType, data, surveyLayerKey, requestId | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> object_attribute_edits | DTO: unified-contracts.test.mjs |
 | `survey.listComments` | `POST /api/v1/survey/list-comments` | 读 | teachingProjectId, villageId, spaceId, objectCode, objectType | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> object_comments | DTO: unified-contracts.test.mjs |
@@ -63,6 +67,7 @@
 | `survey.restoreVersion` | `POST /api/v1/survey/restore-version` | 写 | teachingProjectId, villageId, spaceId, layerKey, objectCode, versionId, revision, requestId | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> restore_survey_feature_version | DTO: unified-contracts.test.mjs |
 | `survey.freezeSnapshot` | `POST /api/v1/survey/freeze-snapshot` | 写 | teachingProjectId, villageId, spaceId, label, description, recommendedForGroups, requestId | features/data/data-service.js;features/survey;features/object-collaboration;features/admin/survey-admin.js -> freeze_shared_survey_snapshot | DTO: unified-contracts.test.mjs |
 | `planning.listFeatures` | `POST /api/v1/planning/list-features` | 读 | teachingProjectId, villageId, spaceId, layerKey, includeDeleted | features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> planning_features;resolve_group_plan_features | DTO: unified-contracts.test.mjs |
+| `planning.renameBuilding` | `POST /api/v1/planning/rename-building` | 写 | teachingProjectId, villageId, spaceId, objectCode, newCode, expectedRevision, lockToken, newLockToken, requestId | features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> app.js:renameBuildingCodeInDb | DTO: unified-contracts.test.mjs |
 | `planning.acquireLock` | `POST /api/v1/planning/acquire-lock` | 写 | teachingProjectId, villageId, spaceId, layerKey, objectCode | features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> acquire_feature_edit_lock | DTO: unified-contracts.test.mjs |
 | `planning.heartbeatLock` | `POST /api/v1/planning/heartbeat-lock` | 写 | teachingProjectId, villageId, spaceId, layerKey, objectCode, lockToken | features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> heartbeat_feature_edit_lock | DTO: unified-contracts.test.mjs |
 | `planning.releaseLock` | `POST /api/v1/planning/release-lock` | 写 | teachingProjectId, villageId, spaceId, layerKey, objectCode, lockToken | features/data/feature-db.js;feature-edit-session.js;group-baseline-client.js -> release_feature_edit_lock | DTO: unified-contracts.test.mjs |
@@ -88,7 +93,7 @@
 | `personal.deleteVersion` | `POST /api/v1/personal/delete-version` | 写 | versionId, requestId | features/data/personal-space-client.js -> delete_personal_layer_version | DTO: unified-contracts.test.mjs |
 | `models.list` | `POST /api/v1/models/list` | 读 | teachingProjectId, villageId, spaceId | features/models/group-model-library.js -> group_model_assets | DTO: unified-contracts.test.mjs |
 | `models.bindings` | `POST /api/v1/models/bindings` | 读 | teachingProjectId, villageId, spaceId | features/models/group-model-library.js -> building_model_bindings | DTO: unified-contracts.test.mjs |
-| `models.place` | `POST /api/v1/models/place` | 写 | teachingProjectId, villageId, spaceId, assetId, objectCode, requestId | features/models/group-model-library.js -> place_group_model | DTO: unified-contracts.test.mjs |
+| `models.place` | `POST /api/v1/models/place` | 写 | teachingProjectId, villageId, spaceId, assetId, objectCode, transform, requestId | features/models/group-model-library.js -> place_group_model | DTO: unified-contracts.test.mjs |
 | `models.restoreWhiteModel` | `POST /api/v1/models/restore-white-model` | 写 | teachingProjectId, villageId, spaceId, objectCode, requestId | features/models/group-model-library.js -> restore_building_white_model | DTO: unified-contracts.test.mjs |
 | `models.delete` | `POST /api/v1/models/delete` | 写 | assetId, requestId | features/models/group-model-library.js -> delete_group_model | DTO: unified-contracts.test.mjs |
 | `community.listTasks` | `POST /api/v1/community/list-tasks` | 读 | teachingProjectId, villageId, spaceId | app.js;community_tasks;message-edits | DTO: unified-contracts.test.mjs |
@@ -108,7 +113,7 @@
 | `community.transition` | `POST /api/v1/community/transition` | 写 | teachingProjectId, villageId, spaceId, id, status, requestId | community-tasks.js | DTO: unified-contracts.test.mjs |
 | `community.stats` | `POST /api/v1/community/stats` | 读 | teachingProjectId, villageId, spaceId | community-tasks.js | DTO: unified-contracts.test.mjs |
 | `mc.getConfig` | `POST /api/v1/mc/get-config` | 读 | teachingProjectId, villageId, spaceId | features/mc/mc-bridge.js;mc_sync_config | DTO: unified-contracts.test.mjs |
-| `mc.exportBuildings` | `POST /api/v1/mc/export-buildings` | 读 | teachingProjectId, villageId, spaceId | features/mc/mc-bridge.js;mc_sync_config | DTO: unified-contracts.test.mjs |
+| `mc.exportBuildings` | `POST /api/v1/mc/export-buildings` | 写 | teachingProjectId, villageId, spaceId, requestId | features/mc/mc-bridge.js;mc_building_state | DTO: unified-contracts.test.mjs |
 | `tasks.availability` | `POST /api/v1/tasks/availability` | 读 | kind | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> get_worker_availability;get_facade_worker_availability;facade-cloud:capability | DTO: unified-contracts.test.mjs |
 | `tasks.sourceStatus` | `POST /api/v1/tasks/source-status` | 读 | villageId | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> get_geoprocessing_source_status | DTO: unified-contracts.test.mjs |
 | `tasks.submitGeo` | `POST /api/v1/tasks/submit-geo` | 写 | teachingProjectId, villageId, spaceId, courseId, requestedSteps, aoi, parameters, requestId | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> submit_geoprocessing_run | DTO: unified-contracts.test.mjs |
@@ -121,24 +126,3 @@
 | `tasks.confirmCrop` | `POST /api/v1/tasks/confirm-crop` | 写 | taskId, cropTop, roofType, buildingWidth, buildingDepth, requestId | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> confirm_facade_crop | DTO: unified-contracts.test.mjs |
 | `tasks.importResult` | `POST /api/v1/tasks/import-result` | 写 | taskId, spaceId, requestId | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> import_geoprocessing_result | DTO: unified-contracts.test.mjs |
 | `tasks.isImported` | `POST /api/v1/tasks/is-imported` | 读 | taskId, spaceId | features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> personal_result_bundles | DTO: unified-contracts.test.mjs |
-
-## 复用的流式与三维协议
-
-`/api/v1/scene-files` 下的固定session/file/scene路由继续使用C2a的独立严格验证器和原测试，不通过上表任意代理：上传会话、逐角色PUT、commit/status、私有文件GET及scene固定动作。普通照片/模型/村庄文件流式接口在files模块明确分型后追加清单；目前不暴露通用文件路径接口。
-
-`scene-edit-client.js`的场景项目/草稿/版本/资产/组件动作以及`scene-asset-library.js`的GLB原模/低模/俯视图、预览已审计，候选页面必须注入C2a客户端，不能保留Supabase Storage回调。当前真实页面尚未切换。
-
-## 动态调用与通知审计
-
-- `data-service.js`的OBJECT_EDITS_TABLE、PHOTO_BUCKET、对象类型及上下文必须由固定survey/files服务映射，不接收浏览器表名。
-- `feature-db.js`按图层的读写/删除包装器归一到planning.listFeatures/saveBatch；个人直接upsert/delete也归一到带版本校验的personal.saveBatch。
-- `course-service.js`的remoteStore和mirrorUpsert在aliyun模式必须用服务替代；不能只在后台镜像时报告本地成功。
-- `object-comments.js`的like/reply都要迁移，其actor来自UUID而不是显示名称；community消息互动另外保留上下文与版本。
-- `app.js`的group-plan、planning-features/spaces、community-tasks、message-edits、survey-activity和survey审核/锁通知迁入events；GPU状态保留受控任务通道。
-- 管理员村庄删除、数据集文件删除、用户资料删除、组码访问和实景发布分别有权限/引用规则，不能合并为任意admin RPC。
-- `facade-cloud`的capability/submit/poll也在迁移范围；新站不能将本地photoId直接传给旧源函数。
-- MC读取本地空间/几何/配置并导出固定协议；不开放任意服务器目的URL。
-
-## 站点边界
-
-source与aliyun分别缓存普通业务；共享Auth密码和全局停用，业务资料/成员独立。任务使用instance_id映射与专用私有输入；源普通业务和原任务入口保持可用。所有缺失handler在aliyun模式必须明确未实现，不能回落source或悄悄返回空列表。

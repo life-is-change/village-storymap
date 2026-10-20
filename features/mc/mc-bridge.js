@@ -111,6 +111,7 @@
     },
 
     async loadMcSyncConfig(deps, villageId = deps.MC_VILLAGE_ID) {
+      if(deps.services?.mc)return deps.services.mc.execute('mc.getConfig',deps.getContext());
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) throw new Error("未配置 Supabase，无法读取 MC 配置。");
 
@@ -125,6 +126,7 @@
     },
 
     async exportCurrentSpaceBuildingsToMc(deps) {
+      if(deps.services?.mc)return (await deps.services.mc.execute('mc.exportBuildings',{...deps.getContext(),requestId:crypto.randomUUID()})).count;
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient) {
         throw new Error("未配置 Supabase，无法导出到 MC。");
@@ -213,5 +215,6 @@
     }
   };
 
-  window.McBridgeModule = api;
+  if(typeof module==='object'&&module.exports)module.exports=api;
+  if(typeof window!=='undefined')window.McBridgeModule = api;
 })();

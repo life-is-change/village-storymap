@@ -169,7 +169,7 @@ let sceneStudioFocusMode = null;
 let sceneStudioMapHome = null;
 let sceneStudioCesiumHome = null;
 
-const supabaseClient = window.VillageSupabaseClient || (
+const sharedAuthClient = window.VillageSupabaseClient || (
   ENABLE_SUPABASE_SYNC &&
   typeof supabase !== "undefined" &&
   SUPABASE_URL &&
@@ -179,8 +179,24 @@ const supabaseClient = window.VillageSupabaseClient || (
     ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
     : null
 );
+const platformServices = window.PlatformServicesModule.createPlatformServices({
+  deployment: window.VILLAGE_DEPLOYMENT,
+  authClient: sharedAuthClient,
+  storage: localStorage,
+  contextProvider: () => ({
+    userId: window.VillageAuth?.getCurrentUser?.()?.id || null,
+    teachingProjectId: activeVillageContext?.teachingProjectId,
+    villageId: activeVillageContext?.villageId,
+    courseId: window.CourseModelModule?.DEFAULT_COURSE?.id,
+    spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+    personalSpaceId: coursePersonalSpace?.id
+  })
+});
+window.VillageBusinessServices = platformServices;
+const supabaseClient = platformServices.businessClient || sharedAuthClient;
+window.addEventListener('pagehide', () => platformServices.dispose(), {once:true});
 const groupPlanLoader = supabaseClient && window.GroupPlanResolverModule
-  ? window.GroupPlanResolverModule.createGroupPlanLoader({ client: supabaseClient })
+  ? window.GroupPlanResolverModule.createGroupPlanLoader({ client: supabaseClient, services: window.VillageBusinessServices })
   : null;
 
 let planMap = null;
@@ -673,10 +689,9 @@ function saveSpacesToStorage({ syncRemote = true } = {}) {
 async function loadSpacesFromSupabase() {
   if (!supabaseClient) return null;
   try {
-    const { data, error } = await supabaseClient
-      .from(PLANNING_SPACES_TABLE)
-      .select("*")
-      .order("created_at", { ascending: true });
+    const { data, error } = window.VillageBusinessServices?.catalog
+      ? {data:(await window.VillageBusinessServices.identity.bootstrap()).spaces}
+      : await supabaseClient.from(PLANNING_SPACES_TABLE).select('*').order('created_at',{ascending:true});
 
     if (error) {
       console.warn("从 Supabase 加载空间列表失败：", error);
@@ -710,6 +725,7 @@ async function loadSpacesFromSupabase() {
 }
 
 async function saveSpacesToSupabase() {
+  if(window.VillageBusinessServices?.catalog)return; // Display preferences stay in this site's localStorage; managed context rows are provisioned by API.
   if (!supabaseClient) return;
 
   // 只保存规划空间（排除现状空间）
@@ -759,6 +775,7 @@ async function saveSpacesToSupabase() {
 }
 
 async function deleteSpaceFromSupabase(spaceId) {
+  if(window.VillageBusinessServices?.catalog)throw Error('MANAGED_SPACE_DELETE_UNAVAILABLE');
   if (!supabaseClient || !spaceId || spaceId === BASE_SPACE_ID) return;
   try {
     const { error } = await supabaseClient
@@ -1825,6 +1842,7 @@ function getCourseUser() {
 }
 
 function getAccountStorageKey(baseKey) {
+  if(window.VillageBusinessServices?.mode==='aliyun')baseKey+=':'+window.VillageBusinessServices.deployment.instanceId;
   const authUser = window.VillageAuth?.getCurrentUser?.() || {};
   return window.CourseWorkspaceAdapterModule.buildAccountStorageKey(baseKey, authUser);
 }
@@ -1878,7 +1896,7 @@ async function prepareVillageContext(entry) {
   const village = activeVillageContext?.villages?.find((item) => item.id === context.villageId)
     || { id: context.villageId, name: entry.villageName || "村庄" };
   const datasetPromise = village.publishedDataset && window.VillageDatasetResolverModule
-    ? window.VillageDatasetResolverModule.createSignedUrlMap(supabaseClient, village.publishedDataset)
+    ? window.VillageDatasetResolverModule.createSignedUrlMap(supabaseClient, village.publishedDataset, {services: window.VillageBusinessServices})
     : Promise.resolve(null);
   let allSpaces = await villageClient.listSpaces(context);
   const personalType = context.villageRole === "practice" ? "practice_personal" : "formal_personal";
@@ -2023,7 +2041,7 @@ async function commitVillageContext(prepared) {
 
 function startVillageProjectContextLoad() {
   if (!supabaseClient || !window.VillageClientModule) return Promise.resolve(null);
-  villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
+  villageClient = window.VillageClientModule.createVillageClient({ supabaseClient, services: window.VillageBusinessServices });
   return villageClient.getActiveContext({
     includeSpaces: false,
     onCatalog: (catalog) => broadcastHomepageContext(catalog)
@@ -2036,7 +2054,7 @@ function startVillageProjectContextLoad() {
 async function initializeVillageProjectSwitcher(serverContextPromise = null) {
   if (!supabaseClient || !projectHeaderSelect || !window.VillageClientModule
     || !window.VillageModelModule || !window.ProjectSwitcherModule) return null;
-  if (!villageClient) villageClient = window.VillageClientModule.createVillageClient({ supabaseClient });
+  if (!villageClient) villageClient = window.VillageClientModule.createVillageClient({ supabaseClient, services: window.VillageBusinessServices });
   const serverContext = await (serverContextPromise || villageClient.getActiveContext());
   if (!serverContext?.project) return null;
   activeVillageContext = serverContext;
@@ -2074,7 +2092,9 @@ async function applyAdminGroupPlanContextFromUrl() {
     p_space_id: String(params.get("space") || "").trim()
   };
   if (Object.values(request).some((value) => !value)) throw new Error("GROUP_PLAN_ADMIN_CONTEXT_REQUIRED");
-  const { data, error } = await supabaseClient.rpc("get_group_plan_admin_context", request);
+  const { data, error } = window.VillageBusinessServices?.admin
+    ? {data:await window.VillageBusinessServices.admin.execute('admin.groupContext',{teachingProjectId:request.p_teaching_project_id,villageId:request.p_village_id,spaceId:request.p_space_id})}
+    : await supabaseClient.rpc("get_group_plan_admin_context", request);
   if (error) throw error;
   if (!data?.space?.id || data.admin_management !== true) throw new Error("GROUP_PLAN_ADMIN_CONTEXT_INVALID");
 
@@ -2193,7 +2213,7 @@ async function initializeCoursePersonalSpace() {
   const token = ++coursePersonalSpaceInitToken;
   personalSpaceClient = null;
   coursePersonalSpace = null;
-  const client = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient });
+  const client = window.PersonalSpaceClientModule.createPersonalSpaceClient({ supabaseClient, services: window.VillageBusinessServices });
   const user = getCourseUser();
   const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
   const personalSpace = await client.ensure({
@@ -2245,12 +2265,14 @@ async function ensureCourseWorkbenchInitialized() {
   courseService = window.CourseServiceModule.createCourseService({
     storage: localStorage,
     supabaseClient,
+    services: window.VillageBusinessServices,
     actorName: getCourseUser().name,
     teachingProjectId: activeVillageContext?.teachingProjectId
   });
   activityLogger = window.ActivityLoggerModule.createActivityLogger({
     storage: localStorage,
     supabaseClient,
+    services: window.VillageBusinessServices,
     getContext: () => {
       const user = getCourseUser();
       const context = courseWorkbench?.getContext?.() || {};
@@ -2301,7 +2323,7 @@ async function ensureCourseWorkbenchInitialized() {
       if (!window.GeoprocessingClientModule || !window.GeoprocessingAoiModule
           || !window.VillagePreviewModule
           || !window.GeoprocessingResultLayersModule || !window.GeoprocessingPanelModule) return;
-      const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient });
+      const client = window.GeoprocessingClientModule.createGeoprocessingClient({ supabaseClient, services: window.VillageBusinessServices });
       const processingContext = window.GeoprocessingContextModule.resolveGeoprocessingContext(activeVillageContext || {});
       let availability = "offline";
       try { availability = (await client.getAvailability())?.state || "offline"; } catch (_) { /* queue remains usable */ }
@@ -2763,6 +2785,7 @@ function buildCommunityTaskDeps() {
     OBJECT_EDITS_TABLE,
     COMMUNITY_TASK_PHOTO_OBJECT_TYPE,
     COMMUNITY_DAILY_POINTS_CAP,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
@@ -3014,9 +3037,9 @@ async function ensureVillage3DLoaded() {
       await loadScriptOnce("assets/vendor/cesium-1.118.0/Cesium.js", "cesium-runtime-script");
     }
 
-    await loadScriptOnce("features/3d/reality-inset.js?v=20261013-auto-lod", "reality-inset-script");
-    await loadScriptOnce("features/models/group-model-library.js?v=20261013-auto-lod", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261013-auto-lod", "village-3d-script");
+    await loadScriptOnce("features/3d/reality-inset.js?v=20261020-unified-routing", "reality-inset-script");
+    await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
+    await loadScriptOnce("app-3d.js?v=20261020-unified-routing", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3474,6 +3497,7 @@ function buildDataServiceDeps() {
     OBJECT_EDITS_TABLE,
     OBJECT_PHOTOS_TABLE,
     PHOTO_BUCKET,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
@@ -3496,6 +3520,7 @@ function getSurveyReviewClient() {
   if (!surveyReviewClient) {
     surveyReviewClient = window.SurveyReviewClientModule.createSurveyReviewClient({
       supabaseClient,
+    services: window.VillageBusinessServices,
       getContext: () => ({
         teachingProjectId: activeVillageContext?.teachingProjectId,
         villageId: activeVillageContext?.villageId,
@@ -3668,7 +3693,9 @@ async function refreshSurveyReviewState() {
       .eq("teaching_project_id", context.teachingProjectId)
       .eq("village_id", context.villageId)
       .eq("space_id", context.spaceId);
-    const activityQueries = supabaseClient && window.SurveyActivityModelModule
+    const activityQueries = window.VillageBusinessServices?.survey
+      ? window.VillageBusinessServices.survey.execute('survey.activity',context).then(rows=>rows.map(value=>({status:'fulfilled',value:{data:value}})))
+      : supabaseClient && window.SurveyActivityModelModule
       ? Promise.allSettled([
           scoped(OBJECT_EDITS_TABLE, "survey_layer_key,object_type,object_code"),
           scoped(OBJECT_PHOTOS_TABLE, "survey_layer_key,object_type,object_code"),
@@ -3782,6 +3809,7 @@ function getFeatureDbModule() {
 function buildFeatureDbDeps() {
   return {
     PLANNING_FEATURES_TABLE,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,
@@ -3820,9 +3848,11 @@ function getCopySpaceSeedModule() {
 
 function buildCopySpaceSeedDeps() {
   return {
+    getContext: () => ({teachingProjectId:activeVillageContext?.teachingProjectId,villageId:activeVillageContext?.villageId,spaceId:getCurrentSpace()?.actualSpaceId||currentSpaceId}),
     PLANNING_FEATURES_TABLE,
     ROAD_DEFAULT_WIDTH,
     BASE_SPACE_ID,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     normalizeCode,
     cloneJson,
@@ -3860,6 +3890,7 @@ function getFeatureEditSessionModule() {
 
 function buildFeatureEditSessionDeps() {
   return {
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => (
       isPersonalLayerVersionSpace(getCurrentSpace()) ? null : supabaseClient
     ),
@@ -4378,9 +4409,11 @@ function getMcBridgeModule() {
 
 function buildMcBridgeDeps() {
   return {
+    getContext: () => ({teachingProjectId:activeVillageContext?.teachingProjectId,villageId:activeVillageContext?.villageId,spaceId:getCurrentSpace()?.actualSpaceId||currentSpaceId}),
     MC_SYNC_CONFIG_TABLE,
     MC_BUILDING_STATE_TABLE,
     MC_VILLAGE_ID,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     getCurrentSpaceId: () => currentSpaceId || BASE_SPACE_ID,
     listBuildingFeaturesFromDb,
@@ -4413,6 +4446,7 @@ function buildMapClickHandlerDeps() {
   return {
     COMMUNITY_TASKS_TABLE,
     COMMUNITY_TASK_PHOTO_OBJECT_TYPE,
+    services: window.VillageBusinessServices,
     getSupabaseClient: () => supabaseClient,
     getIsPlanningMode: () => isPlanningMode,
     getOlReady: () => (olReady || window.__olReady),
@@ -4605,6 +4639,7 @@ async function refreshGroupBaselinePanel() {
   if (!groupBaselinePanel || groupBaselinePanelSpaceId !== remoteSpaceId) {
     const client = window.GroupBaselineClientModule.createGroupBaselineClient({
       supabaseClient,
+    services: window.VillageBusinessServices,
       getContext: () => ({
         teachingProjectId: activeVillageContext?.teachingProjectId || space.teachingProjectId,
         villageId: activeVillageContext?.villageId || space.villageId,
@@ -4960,7 +4995,8 @@ function getCurrent2DBuildingSpaceId() {
 
 function getBuildingSpaceCacheKey(spaceId) {
   const context = activeVillageContext || {};
-  return [context.teachingProjectId || "legacy", context.villageId || "legacy", spaceId || BASE_SPACE_ID].join("::");
+  const prefix=window.VillageBusinessServices?.mode==='aliyun'?[window.VillageBusinessServices.deployment.instanceId,window.VillageAuth?.getCurrentUser?.()?.id||'anonymous']:[];
+  return [...prefix,context.teachingProjectId || "legacy", context.villageId || "legacy", spaceId || BASE_SPACE_ID].join("::");
 }
 
 function getLayerLabel(layerKey) {
@@ -5447,6 +5483,7 @@ async function submitCommunityMessage({ category, description, photoFile, lng, l
           currentUserName
         );
       } catch (photoError) {
+        if(window.VillageBusinessServices?.community){await window.VillageBusinessServices.community.execute('community.deleteTask',{teachingProjectId:activeVillageContext.teachingProjectId,villageId:activeVillageContext.villageId,spaceId:getCurrentSpace()?.actualSpaceId||currentSpaceId,id:Number(createdTask.id),requestId:crypto.randomUUID()});throw new Error('照片上传失败，请重新发布');}
         const client = getSupabaseClient();
         await client.from(COMMUNITY_TASKS_TABLE)
           .delete()
@@ -7282,6 +7319,19 @@ async function refreshCommunityScoreBadge() {
 }
 
 async function renameBuildingCodeInDb(spaceId, oldCode, newCode) {
+  if(window.VillageBusinessServices?.planning){
+    if(!oldCode||!String(newCode||'').trim()||oldCode===newCode)return;
+    const service=window.VillageBusinessServices.planning,c={teachingProjectId:activeVillageContext?.teachingProjectId,villageId:activeVillageContext?.villageId,spaceId},leases=[];
+    try{
+      const rows=await service.execute('planning.listFeatures',{...c,layerKey:'building'}),row=rows.find(row=>row.object_code===oldCode);
+      if(!row)throw Error('NOT_FOUND');
+      for(const objectCode of [oldCode,newCode.trim()].sort()){
+        const target={...c,layerKey:'building',objectCode},lease=await service.execute('planning.acquireLock',target);
+        if(!lease?.success||!lease.lockToken)throw Error('LOCK_UNAVAILABLE');leases.push({...target,lockToken:lease.lockToken});
+      }
+      return await service.execute('planning.renameBuilding',{...c,objectCode:oldCode,newCode:newCode.trim(),expectedRevision:Number(row.feature_revision??row.geometry_revision??0),lockToken:leases.find(l=>l.objectCode===oldCode).lockToken,newLockToken:leases.find(l=>l.objectCode===newCode.trim()).lockToken,requestId:crypto.randomUUID()});
+    }finally{await Promise.allSettled(leases.map(lease=>service.execute('planning.releaseLock',lease)));}
+  }
   if (!supabaseClient) throw new Error("当前未配置 Supabase。");
   if (!oldCode || !newCode || oldCode === newCode) return;
 

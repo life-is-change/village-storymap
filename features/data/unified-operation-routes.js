@@ -1,0 +1,483 @@
+// Generated from business-api/unified/contracts.mjs; parity is tested.
+(function(root){const ROUTES={
+  "identity.me": {
+    "method": "GET",
+    "path": "/api/v1/me"
+  },
+  "identity.bootstrap": {
+    "method": "GET",
+    "path": "/api/v1/bootstrap"
+  },
+  "identity.ensureProfile": {
+    "method": "POST",
+    "path": "/api/v1/identity/ensure-profile"
+  },
+  "identity.updateProfile": {
+    "method": "POST",
+    "path": "/api/v1/identity/update-profile"
+  },
+  "admin.listPhotos": {
+    "method": "POST",
+    "path": "/api/v1/admin/list-photos"
+  },
+  "admin.listMessages": {
+    "method": "POST",
+    "path": "/api/v1/admin/list-messages"
+  },
+  "admin.listUsers": {
+    "method": "POST",
+    "path": "/api/v1/admin/list-users"
+  },
+  "admin.disableUser": {
+    "method": "POST",
+    "path": "/api/v1/admin/disable-user"
+  },
+  "catalog.listCourses": {
+    "method": "POST",
+    "path": "/api/v1/courses/list-courses"
+  },
+  "catalog.getCourseContext": {
+    "method": "POST",
+    "path": "/api/v1/spaces/get-course-context"
+  },
+  "catalog.listGroups": {
+    "method": "POST",
+    "path": "/api/v1/courses/list-groups"
+  },
+  "catalog.createGroup": {
+    "method": "POST",
+    "path": "/api/v1/courses/create-group"
+  },
+  "catalog.joinGroup": {
+    "method": "POST",
+    "path": "/api/v1/courses/join-group"
+  },
+  "catalog.lockGroup": {
+    "method": "POST",
+    "path": "/api/v1/courses/lock-group"
+  },
+  "catalog.getProgress": {
+    "method": "POST",
+    "path": "/api/v1/courses/get-progress"
+  },
+  "catalog.setProgress": {
+    "method": "POST",
+    "path": "/api/v1/courses/set-progress"
+  },
+  "catalog.listActivity": {
+    "method": "POST",
+    "path": "/api/v1/courses/list-activity"
+  },
+  "catalog.recordActivity": {
+    "method": "POST",
+    "path": "/api/v1/courses/record-activity"
+  },
+  "catalog.getActiveContext": {
+    "method": "POST",
+    "path": "/api/v1/spaces/get-active-context"
+  },
+  "catalog.listVillages": {
+    "method": "POST",
+    "path": "/api/v1/spaces/list-villages"
+  },
+  "catalog.listSpaces": {
+    "method": "POST",
+    "path": "/api/v1/spaces/list-spaces"
+  },
+  "catalog.getSpace": {
+    "method": "POST",
+    "path": "/api/v1/spaces/get-space"
+  },
+  "catalog.ensureSpace": {
+    "method": "POST",
+    "path": "/api/v1/spaces/ensure-space"
+  },
+  "admin.createVillage": {
+    "method": "POST",
+    "path": "/api/v1/admin/create-village"
+  },
+  "admin.createTeachingProject": {
+    "method": "POST",
+    "path": "/api/v1/admin/create-teaching-project"
+  },
+  "admin.archiveTeachingProject": {
+    "method": "POST",
+    "path": "/api/v1/admin/archive-teaching-project"
+  },
+  "admin.previewVillageRemoval": {
+    "method": "POST",
+    "path": "/api/v1/admin/preview-village-removal"
+  },
+  "admin.archiveVillage": {
+    "method": "POST",
+    "path": "/api/v1/admin/archive-village"
+  },
+  "admin.restoreVillage": {
+    "method": "POST",
+    "path": "/api/v1/admin/restore-village"
+  },
+  "admin.deleteVillage": {
+    "method": "POST",
+    "path": "/api/v1/admin/delete-village"
+  },
+  "admin.saveDataset": {
+    "method": "POST",
+    "path": "/api/v1/admin/save-dataset"
+  },
+  "admin.publishDataset": {
+    "method": "POST",
+    "path": "/api/v1/admin/publish-dataset"
+  },
+  "admin.bindFormalVillage": {
+    "method": "POST",
+    "path": "/api/v1/admin/bind-formal-village"
+  },
+  "admin.saveRealityModel": {
+    "method": "POST",
+    "path": "/api/v1/admin/save-reality-model"
+  },
+  "admin.publishRealityModel": {
+    "method": "POST",
+    "path": "/api/v1/admin/publish-reality-model"
+  },
+  "admin.groupDashboard": {
+    "method": "POST",
+    "path": "/api/v1/admin/group-dashboard"
+  },
+  "admin.groupContext": {
+    "method": "POST",
+    "path": "/api/v1/admin/group-context"
+  },
+  "admin.ensureGroupSpace": {
+    "method": "POST",
+    "path": "/api/v1/admin/ensure-group-space"
+  },
+  "survey.activity": {
+    "method": "POST",
+    "path": "/api/v1/survey/activity"
+  },
+  "survey.listAttributes": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-attributes"
+  },
+  "survey.getAttributes": {
+    "method": "POST",
+    "path": "/api/v1/survey/get-attributes"
+  },
+  "survey.saveAttributes": {
+    "method": "POST",
+    "path": "/api/v1/survey/save-attributes"
+  },
+  "survey.listComments": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-comments"
+  },
+  "survey.addComment": {
+    "method": "POST",
+    "path": "/api/v1/survey/add-comment"
+  },
+  "survey.editComment": {
+    "method": "POST",
+    "path": "/api/v1/survey/edit-comment"
+  },
+  "survey.deleteComment": {
+    "method": "POST",
+    "path": "/api/v1/survey/delete-comment"
+  },
+  "survey.likeComment": {
+    "method": "POST",
+    "path": "/api/v1/survey/like-comment"
+  },
+  "survey.replyComment": {
+    "method": "POST",
+    "path": "/api/v1/survey/reply-comment"
+  },
+  "survey.react": {
+    "method": "POST",
+    "path": "/api/v1/survey/react"
+  },
+  "survey.listPhotos": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-photos"
+  },
+  "survey.deletePhoto": {
+    "method": "POST",
+    "path": "/api/v1/survey/delete-photo"
+  },
+  "survey.listReviews": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-reviews"
+  },
+  "survey.getReview": {
+    "method": "POST",
+    "path": "/api/v1/survey/get-review"
+  },
+  "survey.initializeReviews": {
+    "method": "POST",
+    "path": "/api/v1/survey/initialize-reviews"
+  },
+  "survey.confirmGeometry": {
+    "method": "POST",
+    "path": "/api/v1/survey/confirm-geometry"
+  },
+  "survey.dashboard": {
+    "method": "POST",
+    "path": "/api/v1/survey/dashboard"
+  },
+  "survey.listFeatures": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-features"
+  },
+  "survey.history": {
+    "method": "POST",
+    "path": "/api/v1/survey/history"
+  },
+  "survey.restoreVersion": {
+    "method": "POST",
+    "path": "/api/v1/survey/restore-version"
+  },
+  "survey.freezeSnapshot": {
+    "method": "POST",
+    "path": "/api/v1/survey/freeze-snapshot"
+  },
+  "planning.listFeatures": {
+    "method": "POST",
+    "path": "/api/v1/planning/list-features"
+  },
+  "planning.renameBuilding": {
+    "method": "POST",
+    "path": "/api/v1/planning/rename-building"
+  },
+  "planning.acquireLock": {
+    "method": "POST",
+    "path": "/api/v1/planning/acquire-lock"
+  },
+  "planning.heartbeatLock": {
+    "method": "POST",
+    "path": "/api/v1/planning/heartbeat-lock"
+  },
+  "planning.releaseLock": {
+    "method": "POST",
+    "path": "/api/v1/planning/release-lock"
+  },
+  "planning.saveBatch": {
+    "method": "POST",
+    "path": "/api/v1/planning/save-batch"
+  },
+  "planning.versions": {
+    "method": "POST",
+    "path": "/api/v1/planning/versions"
+  },
+  "planning.snapshots": {
+    "method": "POST",
+    "path": "/api/v1/planning/snapshots"
+  },
+  "planning.snapshotItems": {
+    "method": "POST",
+    "path": "/api/v1/planning/snapshot-items"
+  },
+  "planning.freezeSnapshot": {
+    "method": "POST",
+    "path": "/api/v1/planning/freeze-snapshot"
+  },
+  "planning.baselineState": {
+    "method": "POST",
+    "path": "/api/v1/planning/baseline-state"
+  },
+  "planning.previewBaseline": {
+    "method": "POST",
+    "path": "/api/v1/planning/preview-baseline"
+  },
+  "planning.applyBaseline": {
+    "method": "POST",
+    "path": "/api/v1/planning/apply-baseline"
+  },
+  "planning.conflicts": {
+    "method": "POST",
+    "path": "/api/v1/planning/conflicts"
+  },
+  "planning.resolveConflict": {
+    "method": "POST",
+    "path": "/api/v1/planning/resolve-conflict"
+  },
+  "planning.restorePoints": {
+    "method": "POST",
+    "path": "/api/v1/planning/restore-points"
+  },
+  "planning.restorePoint": {
+    "method": "POST",
+    "path": "/api/v1/planning/restore-point"
+  },
+  "personal.ensure": {
+    "method": "POST",
+    "path": "/api/v1/personal/ensure"
+  },
+  "personal.listVersions": {
+    "method": "POST",
+    "path": "/api/v1/personal/list-versions"
+  },
+  "personal.listSelections": {
+    "method": "POST",
+    "path": "/api/v1/personal/list-selections"
+  },
+  "personal.listFeatures": {
+    "method": "POST",
+    "path": "/api/v1/personal/list-features"
+  },
+  "personal.deleteFeature": {
+    "method": "POST",
+    "path": "/api/v1/personal/delete-feature"
+  },
+  "personal.saveBatch": {
+    "method": "POST",
+    "path": "/api/v1/personal/save-batch"
+  },
+  "personal.setVersion": {
+    "method": "POST",
+    "path": "/api/v1/personal/set-version"
+  },
+  "personal.deleteVersion": {
+    "method": "POST",
+    "path": "/api/v1/personal/delete-version"
+  },
+  "models.list": {
+    "method": "POST",
+    "path": "/api/v1/models/list"
+  },
+  "models.bindings": {
+    "method": "POST",
+    "path": "/api/v1/models/bindings"
+  },
+  "models.place": {
+    "method": "POST",
+    "path": "/api/v1/models/place"
+  },
+  "models.restoreWhiteModel": {
+    "method": "POST",
+    "path": "/api/v1/models/restore-white-model"
+  },
+  "models.delete": {
+    "method": "POST",
+    "path": "/api/v1/models/delete"
+  },
+  "community.listTasks": {
+    "method": "POST",
+    "path": "/api/v1/community/list-tasks"
+  },
+  "community.createTask": {
+    "method": "POST",
+    "path": "/api/v1/community/create-task"
+  },
+  "community.updateTask": {
+    "method": "POST",
+    "path": "/api/v1/community/update-task"
+  },
+  "community.deleteTask": {
+    "method": "POST",
+    "path": "/api/v1/community/delete-task"
+  },
+  "community.listMessages": {
+    "method": "POST",
+    "path": "/api/v1/community/list-messages"
+  },
+  "community.createMessage": {
+    "method": "POST",
+    "path": "/api/v1/community/create-message"
+  },
+  "community.updateMessage": {
+    "method": "POST",
+    "path": "/api/v1/community/update-message"
+  },
+  "community.deleteMessage": {
+    "method": "POST",
+    "path": "/api/v1/community/delete-message"
+  },
+  "community.react": {
+    "method": "POST",
+    "path": "/api/v1/community/react"
+  },
+  "community.listReplies": {
+    "method": "POST",
+    "path": "/api/v1/community/list-replies"
+  },
+  "community.addReply": {
+    "method": "POST",
+    "path": "/api/v1/community/add-reply"
+  },
+  "community.deleteReply": {
+    "method": "POST",
+    "path": "/api/v1/community/delete-reply"
+  },
+  "community.likeReply": {
+    "method": "POST",
+    "path": "/api/v1/community/like-reply"
+  },
+  "community.listLikes": {
+    "method": "POST",
+    "path": "/api/v1/community/list-likes"
+  },
+  "community.transition": {
+    "method": "POST",
+    "path": "/api/v1/community/transition"
+  },
+  "community.stats": {
+    "method": "POST",
+    "path": "/api/v1/community/stats"
+  },
+  "mc.getConfig": {
+    "method": "POST",
+    "path": "/api/v1/mc/get-config"
+  },
+  "mc.exportBuildings": {
+    "method": "POST",
+    "path": "/api/v1/mc/export-buildings"
+  },
+  "tasks.availability": {
+    "method": "POST",
+    "path": "/api/v1/tasks/availability"
+  },
+  "tasks.sourceStatus": {
+    "method": "POST",
+    "path": "/api/v1/tasks/source-status"
+  },
+  "tasks.submitGeo": {
+    "method": "POST",
+    "path": "/api/v1/tasks/submit-geo"
+  },
+  "tasks.submitFacade": {
+    "method": "POST",
+    "path": "/api/v1/tasks/submit-facade"
+  },
+  "tasks.get": {
+    "method": "POST",
+    "path": "/api/v1/tasks/get"
+  },
+  "tasks.list": {
+    "method": "POST",
+    "path": "/api/v1/tasks/list"
+  },
+  "tasks.artifacts": {
+    "method": "POST",
+    "path": "/api/v1/tasks/artifacts"
+  },
+  "tasks.cancel": {
+    "method": "POST",
+    "path": "/api/v1/tasks/cancel"
+  },
+  "tasks.retry": {
+    "method": "POST",
+    "path": "/api/v1/tasks/retry"
+  },
+  "tasks.confirmCrop": {
+    "method": "POST",
+    "path": "/api/v1/tasks/confirm-crop"
+  },
+  "tasks.importResult": {
+    "method": "POST",
+    "path": "/api/v1/tasks/import-result"
+  },
+  "tasks.isImported": {
+    "method": "POST",
+    "path": "/api/v1/tasks/is-imported"
+  }
+};for(const route of Object.values(ROUTES))Object.freeze(route);const api=Object.freeze({ROUTES:Object.freeze(ROUTES)});if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.UnifiedOperationRoutesModule=api;})(typeof globalThis!=='undefined'?globalThis:this);

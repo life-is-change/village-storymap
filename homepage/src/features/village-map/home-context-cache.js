@@ -1,4 +1,8 @@
 const CACHE_KEY = 'village_home_context_v1';
+function cacheAllowed() {
+  try { return globalThis.window?.VILLAGE_DEPLOYMENT?.mode !== 'aliyun' && globalThis.window?.parent?.VILLAGE_DEPLOYMENT?.mode !== 'aliyun'; }
+  catch { return false; }
+}
 
 function normalizeContext(value) {
   if (!value || !Array.isArray(value.villages) || value.villages.length === 0) return null;
@@ -14,6 +18,7 @@ function normalizeContext(value) {
 }
 
 export function readHomeContext(storage = globalThis.localStorage) {
+  if(!cacheAllowed())return null;
   try {
     return normalizeContext(JSON.parse(storage?.getItem?.(CACHE_KEY) || 'null'));
   } catch (_) {
@@ -22,6 +27,7 @@ export function readHomeContext(storage = globalThis.localStorage) {
 }
 
 export function writeHomeContext(storage = globalThis.localStorage, value) {
+  if(!cacheAllowed())return false;
   const context = normalizeContext(value);
   if (!context) return false;
   try {

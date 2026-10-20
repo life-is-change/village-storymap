@@ -33,6 +33,8 @@ add('identity.me',{},true,'auth-system.js:loadProfile','/me');
 add('identity.bootstrap',{},true,'app.js:startup; auth-system.js:loadProfile','/bootstrap');
 add('identity.ensureProfile',{},false,'auth-system.js:register');
 add('identity.updateProfile',{displayName:optional(str(20)),gender:optional(displayField(12)),className:optional(displayField(30)),grade:optional(displayField(20))},false,'auth-system.js:updateProfile');
+add('admin.listPhotos',{},true,'admin.js;object_photos');
+add('admin.listMessages',{},true,'admin.js;community_tasks');
 add('admin.listUsers',{},true,'supabase/functions/admin-delete-user; auth-system.js');
 add('admin.disableUser',{userId:uuid,...replay},false,'supabase/functions/admin-delete-user (local business disable only)');
 
@@ -68,7 +70,8 @@ for(const [name,fields,readOnly,source] of [
 const objectTarget={...context,objectCode:str(200),objectType:str(100)};
 const featureTarget={...context,layerKey:choice('building','road','water','cropland','openSpace'),objectCode:str(200)};
 for(const [name,fields,readOnly,source] of [
- ['getAttributes',objectTarget,true,'object_attribute_edits'],['saveAttributes',{...objectTarget,data:json,surveyLayerKey:optional(nullable(choice('building','road','water'))),...replay},false,'object_attribute_edits'],
+ ['activity',context,true,'survey activity overlays'],
+ ['listAttributes',{...context,objectType:str(100)},true,'object_attribute_edits'], ['getAttributes',objectTarget,true,'object_attribute_edits'],['saveAttributes',{...objectTarget,data:json,surveyLayerKey:optional(nullable(choice('building','road','water'))),...replay},false,'object_attribute_edits'],
  ['listComments',objectTarget,true,'object_comments'],['addComment',{...objectTarget,surveyLayerKey:optional(nullable(choice('building','road','water'))),body:multiline(200),...replay},false,'object_comments'],
  ['editComment',{commentId:integer(1),body:multiline(200),...replay},false,'object_comments'],['deleteComment',{commentId:integer(1),...replay},false,'object_comments'],
  ['likeComment',{...context,commentId:integer(1),...replay},false,'object_comment_interactions'],
@@ -94,6 +97,7 @@ const change=field(value=>plain(value)&&Object.keys(value).every(k=>['action','l
 const lockTarget={...context,layerKey:editableLayer,objectCode:str(200)};
 for(const [name,fields,readOnly,source] of [
  ['listFeatures',{...context,layerKey:id,includeDeleted:optional(bool)},true,'planning_features;resolve_group_plan_features'],
+ ['renameBuilding',{...context,objectCode:str(200),newCode:str(200),expectedRevision:integer(),lockToken:uuid,newLockToken:uuid,...replay},false,'app.js:renameBuildingCodeInDb'],
  ['acquireLock',{...lockTarget},false,'acquire_feature_edit_lock'],['heartbeatLock',{...lockTarget,lockToken:uuid},false,'heartbeat_feature_edit_lock'],['releaseLock',{...lockTarget,lockToken:uuid},false,'release_feature_edit_lock'],
  ['saveBatch',{...context,changes:list(change,500,1),summary:optional(displayField(200)),note:optional(displayField(2000)),...replay},false,'save_feature_edit_batch;save_group_plan_edit_batch'],
  ['versions',{...context,limit:optional(integer(1,200))},true,'feature_versions;feature_snapshots'],
@@ -131,7 +135,8 @@ for(const [name,fields,readOnly] of [
  ['likeReply',{id:integer(1),replyId:id,...replay},false],['listLikes',{id:integer(1)},true],
  ['transition',{id:integer(1),status:choice('resolved','archived'),...replay},false],['stats',{},true]
 ])add('community.'+name,{...context,...fields},readOnly,'community-tasks.js');
-for(const name of ['getConfig','exportBuildings'])add('mc.'+name,context,true,'features/mc/mc-bridge.js;mc_sync_config');
+add('mc.getConfig',context,true,'features/mc/mc-bridge.js;mc_sync_config');
+add('mc.exportBuildings',{...context,...replay},false,'features/mc/mc-bridge.js;mc_building_state');
 for(const [name,fields,readOnly,source] of [
  ['availability',{kind:choice('geoprocessing','facade','cloud-facade')},true,'get_worker_availability;get_facade_worker_availability;facade-cloud:capability'],
  ['sourceStatus',{villageId:uuid},true,'get_geoprocessing_source_status'],

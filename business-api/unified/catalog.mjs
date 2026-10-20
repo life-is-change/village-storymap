@@ -1,5 +1,5 @@
 import {parseOperation,fault} from './contracts.mjs';
-const admin=new Set(['listUsers','disableUser','createVillage','createTeachingProject','archiveTeachingProject','previewVillageRemoval','archiveVillage','restoreVillage','deleteVillage','saveDataset','publishDataset','bindFormalVillage','saveRealityModel','publishRealityModel','groupDashboard','groupContext','ensureGroupSpace']);
+const admin=new Set(['listPhotos','listMessages','listUsers','disableUser','createVillage','createTeachingProject','archiveTeachingProject','previewVillageRemoval','archiveVillage','restoreVillage','deleteVillage','saveDataset','publishDataset','bindFormalVillage','saveRealityModel','publishRealityModel','groupDashboard','groupContext','ensureGroupSpace']);
 export function createCatalogService({database}){
  return {
   async execute(identity,action,input){

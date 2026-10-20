@@ -36,6 +36,12 @@ test('native survey gate, UUID ownership, revisions, tombstones and cross-space 
    assert.equal((await setup.query('SELECT count(*) n FROM api_private.community_history')).rows[0].n,'2');
    await social.execute(testIdentity(),'community.transition',{...context,id:message.id,status:'resolved',requestId:'d0000000-0000-4000-8000-000000000005'});
    assert.equal((await social.execute(testIdentity(),'community.stats',context)).total_points,20);
+   const activity=await service.execute(testIdentity(),'survey.activity',context);assert.equal(activity.length,4);
+   const {createCatalogService}=await import('../unified/catalog.mjs');const catalog=createCatalogService({database:db});
+   await assert.rejects(catalog.execute(testIdentity(),'admin.listPhotos',{}),{code:'FORBIDDEN'});
+   assert.ok(Array.isArray(await catalog.execute(testIdentity(USERS.admin),'admin.listPhotos',{})));
+   assert.ok(Array.isArray(await catalog.execute(testIdentity(USERS.admin),'admin.listMessages',{})));
+
   }finally{await db.close();}
  });
 });

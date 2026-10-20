@@ -355,7 +355,7 @@
               });
 
               // 本地教学模式常常只保存新增/修改过的要素；这里把未修改的原始建筑继续叠加显示，避免保存一个新建筑后原有建筑“消失”。
-              if (window.FeatureDbModule && typeof window.FeatureDbModule.__listLocalRows === "function") {
+              if (window.VillageBusinessServices?.mode !== 'aliyun' && window.FeatureDbModule && typeof window.FeatureDbModule.__listLocalRows === "function") {
                 const allLocalRows = window.FeatureDbModule.__listLocalRows(currentSpaceId, "building", true) || [];
                 allLocalRows.forEach((row) => {
                   if (row?.is_deleted === true) dbCodeSet.add(deps.normalizeCode(row.object_code));

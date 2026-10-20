@@ -23,12 +23,24 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const USER_STATS_TABLE = "user_stats";
   const COMMUNITY_TASK_PHOTO_OBJECT_TYPE = "community_task";
 
-  const supabaseClient = window.VillageSupabaseClient || (
+  const sharedAuthClient = window.VillageSupabaseClient || (
     ENABLE_SUPABASE_SYNC && typeof supabase !== "undefined" && SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
       ? supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
       : null
   );
 
+  const services=window.PlatformServicesModule.createPlatformServices({deployment:window.VILLAGE_DEPLOYMENT,authClient:sharedAuthClient,storage:localStorage});
+  window.VillageBusinessServices=services;
+  const supabaseClient=services.businessClient||sharedAuthClient;
+  window.addEventListener('pagehide',()=>services.dispose(),{once:true});
+  const messageContext = row => ({teachingProjectId:row.teaching_project_id,villageId:row.village_id,spaceId:row.space_id});
+  async function localMessage(id) {
+    const row=(await services.admin.execute('admin.listMessages',{})).find(row=>String(row.id)===String(id));
+    if(!row)throw Error('NOT_FOUND');return row;
+  }
+  async function localPhotos(rows) {
+    return Promise.all(rows.map(async row=>({...row,photo_url:await services.files.resolveFileUrl(row.fileId)})));
+  }
   let isDeletingUser = false;
   let remoteCleanupWarnings = [];
   let messageBoardSortOrder = "time_desc";
@@ -54,6 +66,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function getAllUsers() {
+    if(services.admin)return (await services.admin.execute('admin.listUsers',{})).map(row=>({...row,name:row.display_name,studentId:row.student_id,gender:row.gender,className:row.class_name,grade:row.grade}));
     let remoteUsers = [];
     if (supabaseClient) {
       try {
@@ -340,6 +353,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function getPhotoDisplayUrl(photo = {}) {
+    if(services.files)return photo.photo_url||'';
     const photoPath = String(photo.photo_path || "").trim();
     if (photoPath) {
       const result = supabaseClient.storage.from(PHOTO_BUCKET).getPublicUrl(photoPath);
@@ -483,6 +497,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!target) throw new Error("未找到该账号，可能已被删除。");
     if (window.AccessControlModule?.isAdminUser(target)) throw new Error("管理员账号不能删除。");
 
+    if(services.admin){await services.admin.execute('admin.disableUser',{userId:target.id,requestId:crypto.randomUUID()});return {disabled:true,removedSpaceCount:0,remoteSkipped:false,remoteWarningCount:0};}
     const spaces = readJsonArray(SPACE_STORAGE_KEY);
     const removedSpaces = spaces.filter((space) => getSpaceCreator(space) === targetName);
     const removedSpaceIds = removedSpaces.map((space) => space.id).filter(Boolean);
@@ -545,6 +560,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         : result.remoteWarningCount > 0
           ? `；有 ${result.remoteWarningCount} 项远端清理未完成，请检查控制台`
           : "";
+      if(result.disabled){showAdminNotice(`已停用本平台账号“${userName}”；共享登录账号及其他站点数据保留。`,'success');return;}
       showAdminNotice(`已删除账号“${userName}”及其名下数据，移除规划空间 ${result.removedSpaceCount} 个${remoteTip}。`, result.remoteWarningCount > 0 ? "warning" : "success");
     } catch (error) {
       console.error("删除账号失败：", error);
@@ -565,7 +581,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     let photos = [];
     let queryError = null;
     try {
-      const result = await supabaseClient
+      const result = services.admin ? {data:await localPhotos(await services.admin.execute('admin.listPhotos',{}))} : await supabaseClient
         .from(OBJECT_PHOTOS_TABLE)
         .select("*")
         .limit(500);
@@ -642,6 +658,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!confirmed) return;
 
     try {
+      if(services.survey){await services.survey.execute('survey.deletePhoto',{photoId:Number(photoId),requestId:crypto.randomUUID()});item.remove();showAdminNotice('照片已删除','success');return;}
       const { data: deletedPhoto, error: deleteError } = await supabaseClient.rpc("delete_object_photo_safely", {
         p_photo_id: Number(photoId)
       });
@@ -720,6 +737,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchAllMessages() {
+    if(services.admin)return services.admin.execute('admin.listMessages',{});
     if (!supabaseClient) return [];
     const { data, error } = await supabaseClient
       .from(COMMUNITY_TASKS_TABLE)
@@ -734,6 +752,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchMessageLikes(messageId) {
+    if(services.community)return services.community.execute('community.listLikes',{...messageContext(await localMessage(messageId)),id:Number(messageId)});
     if (!supabaseClient || !messageId) return [];
     const { data, error } = await supabaseClient
       .from(OBJECT_EDITS_TABLE)
@@ -749,6 +768,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function fetchMessageReplies(messageId) {
+    if(services.community)return services.community.execute('community.listReplies',{...messageContext(await localMessage(messageId)),id:Number(messageId)});
     if (!supabaseClient || !messageId) return [];
     const { data, error } = await supabaseClient
       .from(OBJECT_EDITS_TABLE)
@@ -857,6 +877,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!confirmed) return;
 
     try {
+      if(services.community){await services.community.execute('community.deleteMessage',{...messageContext(await localMessage(messageId)),id:Number(messageId),requestId:crypto.randomUUID()});button.closest('tr')?.remove();showAdminNotice('留言已删除','success');return;}
       // 删除关联的点赞和评论记录
       await runDeleteQuery("留言点赞", () =>
         supabaseClient.from(OBJECT_EDITS_TABLE).delete().eq("object_code", `MSG_${messageId}`)
@@ -905,11 +926,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     // 获取照片
     let photos = [];
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = services.admin ? {data:await localPhotos((await services.admin.execute('admin.listPhotos',{})).filter(row=>row.object_type===COMMUNITY_TASK_PHOTO_OBJECT_TYPE&&row.object_code==='TASK_'+messageId))} : await (supabaseClient
         .from(OBJECT_PHOTOS_TABLE)
         .select("id, photo_url, photo_path, uploaded_by, created_at")
         .eq("object_type", COMMUNITY_TASK_PHOTO_OBJECT_TYPE)
-        .eq("object_code", `TASK_${messageId}`);
+        .eq("object_code", `TASK_${messageId}`));
       if (!error) photos = data || [];
     } catch (e) {
       console.warn("读取留言照片失败：", e);
@@ -1320,11 +1341,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (!window.CourseServiceModule || !window.CourseAdminModule) return;
     courseAdminService = window.CourseServiceModule.createCourseService({
       supabaseClient,
+    services,
       actorName: getCurrentUser()?.name || "管理员"
     });
     courseAdminLogger = window.ActivityLoggerModule?.createActivityLogger({
       storage: localStorage,
       supabaseClient,
+    services,
       getContext: () => ({
         actor: { studentKey: "admin::管理员", name: getCurrentUser()?.name || "管理员" },
         courseId: "mibu-village-planning",
@@ -1343,16 +1366,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
       || !window.VillageClientModule || !window.VillageBoundaryModule) return;
     const root = $("adminVillageRoot");
     if (!root) return;
-    const client = window.VillageClientModule.createVillageClient({ supabaseClient });
+    const client = window.VillageClientModule.createVillageClient({ supabaseClient, services });
     villageAdminClient = client;
     const boundary = window.VillageBoundaryModule.createBoundaryController();
-    const geoprocessing = window.GeoprocessingClientModule?.createGeoprocessingClient({ supabaseClient }) || null;
+    const geoprocessing = window.GeoprocessingClientModule?.createGeoprocessingClient({ supabaseClient, services }) || null;
     villageAdminController = window.VillageAdminModule.createVillageAdminController({
       root,
       client,
       boundary,
       geoprocessing,
       supabaseClient,
+    services,
       notify: showAdminNotice,
       confirm: (message) => adminConfirm(message, { title: "操作确认", okText: "确认", isDanger: false })
     });
@@ -1406,6 +1430,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     groupPlanAdminController = window.GroupPlanAdminModule.createGroupPlanAdminController({
       root,
       supabaseClient,
+    services,
       notify: showAdminNotice,
       confirm: (message) => adminConfirm(message, {
         title: "小组方案管理",
@@ -1430,6 +1455,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     surveyAdminController = window.SurveyAdminModule.createSurveyAdminController({
       root,
       supabaseClient,
+    services,
       notify: showAdminNotice
     });
     await surveyAdminController.mount(context);

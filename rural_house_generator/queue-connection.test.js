@@ -9,7 +9,7 @@ test('optional cloud capability cannot block the local 4090 availability check',
   const cloud = new Promise(resolve => release = resolve);
   const s = {
     state: { targetCode: 'H1', targetSpace: 'S1' },
-    window: { opener: { VillageSupabaseClient: {} } },
+    window: { location: {origin:'https://platform.test'}, opener: { location:{origin:'https://platform.test'}, VillageSupabaseClient: {} } },
     FacadeQueueClient: { createFacadeQueueClient: () => ({
       getWorkerAvailability: async () => { checked++; return { available: true }; },
       findActiveRun: async () => null,
