@@ -20,6 +20,7 @@ function safeError(error){
   }
   if(error?.code==='P0001'&&['GEOMETRY_REVISION_CONFLICT','FEATURE_REVISION_CONFLICT','BASELINE_VERSION_CONFLICT','PERSONAL_LAYER_VERSION_STALE','CONFLICT_ALREADY_RESOLVED','GROUP_SPACE_BUSY','ACTIVE_FEATURE_LOCKS'].includes(error.message))return fault('REVISION_CONFLICT');
   const known=['UNAUTHORIZED','FORBIDDEN','PROFILE_NOT_SYNCED','PROFILE_DISABLED','REVISION_CONFLICT','INVALID_INPUT','NOT_FOUND','PAYLOAD_TOO_LARGE','NOT_IMPLEMENTED','FILE_IN_USE','UPLOAD_CONFLICT','UPLOAD_EXPIRED','FILES_NOT_READY','FILE_TOO_LARGE','FILE_TYPE_UNSUPPORTED','INVALID_FILE','FILE_BUSY','FILE_UNAVAILABLE','QUOTA_EXCEEDED'];
+  if(error?.code==='P0001'&&['SOURCE_NOT_READY','WORKER_OFFLINE','TOO_MANY_ACTIVE_RUNS','BRIDGE_UNAVAILABLE'].includes(error.message))return Object.assign(Error(error.message),{code:error.message,status:error.message==='SOURCE_NOT_READY'?409:error.message==='TOO_MANY_ACTIVE_RUNS'?429:503});
   if(error?.code==='P0001'&&known.includes(error.message))return fault(error.message);
   if(known.includes(error?.code)){
     const result=fault(error.code);

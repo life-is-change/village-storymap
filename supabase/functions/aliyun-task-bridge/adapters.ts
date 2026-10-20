@@ -37,7 +37,7 @@ export function sourceAdapters(instanceId:string){
    const path=String(artifact.storage_path??''),bucket=kind==='geo'?'geoprocessing-results':'facade-generation',prefix=kind==='cloud-facade'?`${ownerId}/cloud/${runId}/`:`${ownerId}/${runId}/`;
    if(!path.startsWith(prefix)||path.includes('..')||/[^a-zA-Z0-9_./-]/.test(path)||!/^[a-f0-9]{64}$/.test(artifact.sha256??''))throw fail('FORBIDDEN');
    const response=await storageFetch('object/authenticated/'+bucket+'/'+encoded(path));if(!response.ok)throw fail('NOT_FOUND');
-   const size=Number(response.headers.get('content-length')),mime=response.headers.get('content-type')?.split(';')[0]??'',limit=kind==='geo'?52428800:artifact.artifact_type==='model_glb'?52428800:10485760;
+   const size=Number(response.headers.get('content-length')),mime=response.headers.get('content-type')?.split(';')[0]??'',limit=kind==='geo'?52428800:artifact.artifact_type==='building_glb'?52428800:10485760;
    if(!Number.isSafeInteger(size)||size<=0||size>limit||!['application/json','application/geo+json','image/png','image/jpeg','model/gltf-binary','application/octet-stream'].includes(mime)){await response.body?.cancel();throw fail('INVALID_FILE');}
    return new Response(response.body,{headers:{'content-type':mime,'content-length':String(size),'x-bridge-sha256':artifact.sha256,'cache-control':'no-store'}});
   },

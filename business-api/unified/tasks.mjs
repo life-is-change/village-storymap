@@ -21,14 +21,19 @@ export function createTaskService({database,bridge,files,now=Date.now}){
    return bridge.submit(input);
   }
   const request={ownerId:job.ownerId,requestId:job.requestId};
-  if(job.operation==='poll')return bridge.status(request);
+  if(job.operation==='poll'){
+   const result=await bridge.status(request);
+   if(['completed','succeeded','awaiting_crop'].includes(result.run?.status)&&files.prepareTaskArtifacts){const artifacts=await bridge.artifacts(request);await files.prepareTaskArtifacts(job,artifacts.artifacts??[],bridge);}
+   return result;
+  }
   if(['cancel','retry','confirmCrop'].includes(job.operation))return bridge[job.operation]({...request,...job.input});
   if(job.operation==='import'){
    const result=await bridge.artifacts(request);
    if(!Array.isArray(result.artifacts)||!result.artifacts.length)throw Object.assign(Error(),{code:'SOURCE_NOT_READY'});
    // Download and validation are outside the database transaction. The fixed
    // import function rechecks current local authorization before committing.
-   return files.prepareTaskArtifacts(job,result.artifacts,bridge);
+   const descriptors=await files.prepareTaskArtifacts(job,result.artifacts,bridge);
+   return files.importTaskArtifacts(job,descriptors);
   }
   throw Object.assign(Error(),{code:'INVALID_INPUT'});
  }

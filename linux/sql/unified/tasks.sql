@@ -6,7 +6,7 @@ CREATE TABLE api_private.task_requests(
  request_id uuid NOT NULL,kind text NOT NULL CHECK(kind IN('geo','facade','cloud-facade')),context jsonb NOT NULL,grant_key text NOT NULL,
  input jsonb NOT NULL,photo_id bigint REFERENCES public.object_photos ON DELETE RESTRICT,source_run_id uuid,
  state text NOT NULL DEFAULT 'pending' CHECK(state IN('pending','queued','running','completed','failed','canceled','revoked')),
- remote_status text,progress integer NOT NULL DEFAULT 0,error_code text,imported_bundle uuid,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
+ remote_status text,remote_info jsonb NOT NULL DEFAULT '{}',progress integer NOT NULL DEFAULT 0,error_code text,imported_bundle uuid,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(instance_id,owner_id,request_id),UNIQUE(instance_id,source_run_id)
 );
 CREATE TABLE api_private.task_outbox(
@@ -16,11 +16,18 @@ CREATE TABLE api_private.task_outbox(
  UNIQUE(task_id,operation)
 );
 CREATE TABLE api_private.task_snapshots(kind text NOT NULL,local_id text NOT NULL,version bigint NOT NULL,payload jsonb NOT NULL,tombstone boolean NOT NULL,PRIMARY KEY(kind,local_id));
+CREATE TABLE api_private.task_artifacts(
+ task_id uuid NOT NULL REFERENCES api_private.task_requests,artifact_type text NOT NULL,file_id uuid NOT NULL UNIQUE,
+ sha256 text NOT NULL CHECK(sha256~'^[a-f0-9]{64}$'),size bigint NOT NULL CHECK(size BETWEEN 1 AND 52428800),mime text NOT NULL,
+ extension text NOT NULL,layer_key text,feature_count integer,state text NOT NULL DEFAULT 'pending' CHECK(state IN('pending','ready')),created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(task_id,artifact_type,sha256)
+);
 ALTER TABLE public.personal_result_bundles ALTER COLUMN source_run_id DROP NOT NULL;
 ALTER TABLE public.personal_layer_versions ALTER COLUMN source_run_id DROP NOT NULL;
 ALTER TABLE public.personal_result_bundles ADD COLUMN local_task_id uuid REFERENCES api_private.task_requests;
 ALTER TABLE public.personal_layer_versions ADD COLUMN local_task_id uuid REFERENCES api_private.task_requests;
 CREATE UNIQUE INDEX personal_result_local_task ON public.personal_result_bundles(space_id,local_task_id) WHERE local_task_id IS NOT NULL;
+CREATE TABLE api_private.task_import_receipts(instance_id text NOT NULL,source_run_id uuid NOT NULL,artifact_digest text NOT NULL,space_id uuid NOT NULL,bundle_id uuid NOT NULL REFERENCES public.personal_result_bundles,PRIMARY KEY(instance_id,source_run_id,artifact_digest,space_id));
 
 CREATE FUNCTION api_private.task_grant_key(c jsonb) RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE v text;BEGIN
@@ -36,7 +43,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$BEGIN
  IF t.photo_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.object_photos p WHERE p.id=t.photo_id AND p.teaching_project_id=(t.context->>'teachingProjectId')::uuid AND p.village_id=(t.context->>'villageId')::uuid AND p.space_id=t.context->>'spaceId' AND p.object_code=t.input->>'objectCode' AND p.file_id IS NOT NULL) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
 END$$;
 CREATE FUNCTION api_private.task_public(t api_private.task_requests) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
- SELECT jsonb_build_object('requestId',t.request_id,'state',t.state,'sourceRunId',t.source_run_id,'kind',t.kind,'status',coalesce(t.remote_status,t.state),'progress',t.progress,'errorCode',t.error_code,'importedBundle',t.imported_bundle,'context',t.context,'createdAt',t.created_at,'updatedAt',t.updated_at)
+ SELECT t.remote_info||jsonb_build_object('requestId',t.request_id,'state',t.state,'sourceRunId',t.source_run_id,'kind',t.kind,'status',coalesce(t.remote_status,t.state),'progress',t.progress,'errorCode',t.error_code,'importedBundle',t.imported_bundle,'context',t.context,'photoId',t.photo_id,'objectCode',t.input->>'objectCode','createdAt',t.created_at,'updatedAt',t.updated_at)
 $$;
 CREATE FUNCTION api_private.task_execute(a text,p jsonb,instance text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_private.task_requests;ctx jsonb;result jsonb;cached jsonb;k text;op text;rid uuid;photo public.object_photos;BEGIN
@@ -68,7 +75,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
  IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;PERFORM api_private.task_guard(t);
  IF a='tasks.get' THEN RETURN api_private.task_public(t);END IF;
  IF a='tasks.isImported' THEN RETURN jsonb_build_object('imported',t.imported_bundle IS NOT NULL,'bundleId',t.imported_bundle);END IF;
- IF a='tasks.artifacts' THEN RETURN jsonb_build_object('requestId',t.request_id,'available',t.state='completed');END IF;
+ IF a='tasks.artifacts' THEN RETURN api_private.task_artifacts_read(t.request_id,instance);END IF;
  cached:=api_private.begin_operation(a,p);IF cached IS NOT NULL THEN RETURN cached;END IF;
  op:=CASE a WHEN 'tasks.cancel' THEN 'cancel' WHEN 'tasks.retry' THEN 'retry' WHEN 'tasks.confirmCrop' THEN 'confirmCrop' WHEN 'tasks.importResult' THEN 'import' END;
  IF op IS NULL THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
@@ -106,6 +113,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
  capsule:=api_private.task_snapshot('space',key,jsonb_build_object('members',CASE WHEN allowed THEN jsonb_build_array(t.owner_id) ELSE '[]'::jsonb END,'courseId',t.context->>'courseId','workerVillageId',village),NOT allowed);
  UPDATE api_private.task_outbox SET lease=gen_random_uuid(),lease_until=now()+interval '2 minutes' WHERE id=o.id RETURNING * INTO o;
  result:=jsonb_build_object('id',o.id,'lease',o.lease,'operation',o.operation,'input',o.input,'attempts',o.attempts,'ownerId',t.owner_id,'requestId',t.request_id,'revoked',NOT allowed,'snapshots',jsonb_build_array(profile,capsule),
+  'instanceId',t.instance_id,'sourceRunId',t.source_run_id,'kind',t.kind,
   'bridgeInput',jsonb_build_object('ownerId',t.owner_id,'requestId',t.request_id,'contextId',key,'contextVersion',capsule->'version','profileVersion',profile->'version','kind',t.kind,'input',CASE WHEN t.kind='geo' THEN t.input-'requestId'-'teachingProjectId'-'villageId'-'spaceId'-'courseId' ELSE jsonb_build_object('objectCode',t.input->>'objectCode') END));
  IF t.photo_id IS NOT NULL AND allowed AND o.operation='submit' THEN
   SELECT file_id INTO fid FROM public.object_photos WHERE id=t.photo_id;
@@ -126,9 +134,12 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
  ELSIF o.operation='poll' THEN
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR (result->>'runId')::uuid IS DISTINCT FROM t.source_run_id THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   s:=result->'run'->>'status';IF s NOT IN('queued','claimed','running','completed','failed','canceled','cancel_requested','queued_rectification','claimed_rectification','rectifying','awaiting_crop','queued_generation','claimed_generation','generating','submitting','succeeded') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
-  UPDATE api_private.task_requests SET remote_status=s,state=CASE WHEN s IN('completed','succeeded') THEN 'completed' WHEN s IN('failed','canceled') THEN s ELSE 'running' END,progress=greatest(0,least(100,coalesce((result->'run'->>'progress')::integer,0))),error_code=NULL,updated_at=now() WHERE id=t.id;
+  UPDATE api_private.task_requests SET remote_status=s,state=CASE WHEN s IN('completed','succeeded') THEN 'completed' WHEN s IN('failed','canceled') THEN s ELSE 'running' END,progress=greatest(0,least(100,coalesce((result->'run'->>'progress')::integer,0))),
+   remote_info=coalesce((SELECT jsonb_object_agg(e.key,e.value) FROM jsonb_each(result->'run') e WHERE e.key IN('generation_revision','crop_top','roof_type','building_width','building_depth','attempt_count','rectification_attempt_count','generation_attempt_count')),'{}'),
+   error_code=CASE WHEN result->'run'->>'error_code'~'^[A-Z0-9_]{1,80}$' THEN result->'run'->>'error_code' END,updated_at=now() WHERE id=t.id;
  ELSIF o.operation='cancel' THEN UPDATE api_private.task_requests SET remote_status='cancel_requested',updated_at=now() WHERE id=t.id;
- ELSIF o.operation='import' THEN RAISE EXCEPTION 'NOT_IMPLEMENTED';
+ ELSIF o.operation='import' THEN
+  IF t.imported_bundle IS NULL OR (result->>'bundleId')::uuid IS DISTINCT FROM t.imported_bundle THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
  END IF;
  UPDATE api_private.task_outbox SET done=true,lease=NULL,lease_until=NULL WHERE id=o.id;
  IF o.operation IN('submit','poll','cancel','retry','confirmCrop') AND EXISTS(SELECT 1 FROM api_private.task_requests WHERE id=t.id AND state NOT IN('completed','failed','canceled','revoked')) THEN
@@ -157,7 +168,90 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
  PERFORM set_config('request.jwt.claim.sub',t.owner_id::text,true);PERFORM api_private.task_guard(t);
  SELECT file_id INTO fid FROM public.object_photos WHERE id=t.photo_id;RETURN api_private.file_authorize(fid);
 END$$;
+CREATE FUNCTION api_private.task_outbox_guard(oid uuid,token uuid) RETURNS api_private.task_requests LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_requests;BEGIN
+ SELECT r.* INTO t FROM api_private.task_requests r JOIN api_private.task_outbox o ON o.task_id=r.id WHERE o.id=oid AND o.lease=token AND NOT o.done;
+ IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;PERFORM set_config('request.jwt.claim.sub',t.owner_id::text,true);PERFORM api_private.task_guard(t);RETURN t;
+END$$;
+CREATE FUNCTION api_private.task_artifact_manage(oid uuid,token uuid,action text,p jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_requests;a api_private.task_artifacts;k text:=p->>'artifactType';layer text;BEGIN
+ t:=api_private.task_outbox_guard(oid,token);
+ SELECT * INTO a FROM api_private.task_artifacts WHERE task_id=t.id AND artifact_type=k AND sha256=p->>'sha256';
+ IF action='lookup' THEN RETURN to_jsonb(a);END IF;
+ layer:=CASE k WHEN 'buildings' THEN 'building' WHEN 'roads' THEN 'road' WHEN 'waterways' THEN 'water' WHEN 'water_areas' THEN 'water' WHEN 'contours' THEN 'contours' END;
+ IF action='reserve' THEN
+  IF NOT coalesce(p->>'sha256'~'^[a-f0-9]{64}$' AND p->>'size'~'^[0-9]{1,8}$' AND (p->>'size')::bigint BETWEEN 1 AND 52428800,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  IF t.kind='geo' THEN IF layer IS NULL OR p->>'mime'<>'application/geo+json' OR p->>'extension'<>'geojson' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  ELSIF k='building_glb' THEN IF p->>'mime'<>'model/gltf-binary' OR p->>'extension'<>'glb' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  ELSIF k NOT IN('rectified_preview','rectified_source','building_mask','standard_facade') OR p->>'mime' NOT IN('image/png','image/jpeg') OR p->>'extension' IS DISTINCT FROM CASE WHEN p->>'mime'='image/png' THEN 'png' ELSE 'jpg' END OR (p->>'size')::bigint>10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  INSERT INTO api_private.task_artifacts(task_id,artifact_type,file_id,sha256,size,mime,extension,layer_key)
+   VALUES(t.id,k,(p->>'fileId')::uuid,p->>'sha256',(p->>'size')::bigint,p->>'mime',p->>'extension',layer) ON CONFLICT(task_id,artifact_type,sha256) DO NOTHING;
+  SELECT * INTO a FROM api_private.task_artifacts WHERE task_id=t.id AND artifact_type=k AND sha256=p->>'sha256';
+  IF a.file_id IS DISTINCT FROM (p->>'fileId')::uuid OR a.size IS DISTINCT FROM (p->>'size')::bigint OR a.mime IS DISTINCT FROM p->>'mime' THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
+ ELSIF action='ready' THEN
+  IF a.file_id IS NULL THEN RAISE EXCEPTION 'NOT_FOUND';END IF;
+  UPDATE api_private.task_artifacts SET state='ready',feature_count=(p->>'featureCount')::integer WHERE file_id=a.file_id RETURNING * INTO a;
+ ELSE RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ RETURN to_jsonb(a);
+END$$;
+CREATE FUNCTION api_private.task_artifacts_read(rid uuid,instance text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,api_private,auth,pg_temp AS $$DECLARE t api_private.task_requests;result jsonb;BEGIN
+ SELECT * INTO t FROM api_private.task_requests WHERE request_id=rid AND owner_id=auth.uid() AND instance_id=instance;
+ IF NOT FOUND THEN RAISE EXCEPTION 'NOT_FOUND';END IF;PERFORM api_private.task_guard(t);
+ SELECT coalesce(jsonb_agg(to_jsonb(a)-'task_id'),'[]') INTO result FROM (SELECT DISTINCT ON(artifact_type) * FROM api_private.task_artifacts WHERE task_id=t.id AND state='ready' ORDER BY artifact_type,created_at DESC)a;RETURN result;
+END$$;
+CREATE FUNCTION api_private.task_import_begin(oid uuid,token uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_private.task_requests;o api_private.task_outbox;s public.course_personal_spaces;b uuid;v uuid;l record;n integer;versions jsonb:='{}';digest text;BEGIN
+ t:=api_private.task_outbox_guard(oid,token);SELECT * INTO o FROM api_private.task_outbox WHERE id=oid;
+ IF o.operation<>'import' OR t.kind<>'geo' OR t.state<>'completed' THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ SELECT * INTO s FROM public.course_personal_spaces WHERE id::text=o.input->>'spaceId' AND owner_id=t.owner_id AND teaching_project_id=(t.context->>'teachingProjectId')::uuid AND village_id::text=t.context->>'villageId' FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ IF NOT EXISTS(SELECT 1 FROM api_private.task_artifacts WHERE task_id=t.id AND state='ready' AND layer_key IS NOT NULL) THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;
+ SELECT encode(sha256(convert_to(string_agg(artifact_type||':'||sha256,',' ORDER BY artifact_type,sha256),'UTF8')),'hex') INTO digest FROM api_private.task_artifacts WHERE task_id=t.id AND state='ready' AND layer_key IS NOT NULL;
+ IF t.imported_bundle IS NOT NULL THEN
+  IF NOT EXISTS(SELECT 1 FROM api_private.task_import_receipts WHERE instance_id=t.instance_id AND source_run_id=t.source_run_id AND artifact_digest=digest AND space_id=s.id AND bundle_id=t.imported_bundle) THEN RAISE EXCEPTION 'REVISION_CONFLICT';END IF;
+  RETURN jsonb_build_object('bundleId',t.imported_bundle,'existing',true);
+ END IF;
+ INSERT INTO public.personal_result_bundles(space_id,source_run_id,local_task_id) VALUES(s.id,NULL,t.id) RETURNING id INTO b;
+ INSERT INTO api_private.task_import_receipts VALUES(t.instance_id,t.source_run_id,digest,s.id,b);
+ FOR l IN SELECT layer_key,array_agg(artifact_type ORDER BY artifact_type) types FROM api_private.task_artifacts WHERE task_id=t.id AND state='ready' AND layer_key IS NOT NULL GROUP BY layer_key LOOP
+  SELECT coalesce(max(version_number),0)+1 INTO n FROM public.personal_layer_versions WHERE space_id=s.id AND layer_key=l.layer_key;
+  INSERT INTO public.personal_layer_versions(space_id,bundle_id,layer_key,version_number,source_run_id,local_task_id,artifact_types,feature_count,editable)
+   VALUES(s.id,b,l.layer_key,n,NULL,t.id,l.types,0,l.layer_key<>'contours') RETURNING id INTO v;versions:=versions||jsonb_build_object(l.layer_key,v);
+ END LOOP;RETURN jsonb_build_object('bundleId',b,'versions',versions,'existing',false);
+END$$;
+CREATE FUNCTION api_private.task_import_append(oid uuid,token uuid,bundle uuid,layer text,features jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,public,api_private,extensions,pg_temp AS $$DECLARE t api_private.task_requests;v public.personal_layer_versions;f jsonb;g extensions.geometry;code text;counter integer;BEGIN
+ t:=api_private.task_outbox_guard(oid,token);
+ IF jsonb_typeof(features)<>'array' OR jsonb_array_length(features)>500 OR octet_length(features::text)>2097152 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+ SELECT * INTO v FROM public.personal_layer_versions WHERE bundle_id=bundle AND local_task_id=t.id AND layer_key=layer FOR UPDATE;IF NOT FOUND THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ SELECT count(*) INTO counter FROM public.personal_layer_features WHERE layer_version_id=v.id;
+ FOR f IN SELECT value FROM jsonb_array_elements(features) LOOP
+  IF f->>'type' IS DISTINCT FROM 'Feature' OR jsonb_typeof(f->'geometry') IS DISTINCT FROM 'object' OR jsonb_typeof(coalesce(f->'properties','{}'))<>'object' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  g:=extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON((f->'geometry')::text),4326);
+  IF g IS NULL OR NOT extensions.ST_IsValid(g) OR extensions.ST_IsEmpty(g) OR NOT extensions.ST_CoveredBy(g,extensions.ST_MakeEnvelope(-180,-90,180,90,4326))
+   OR extensions.GeometryType(g) NOT IN('POLYGON','MULTIPOLYGON','LINESTRING','MULTILINESTRING') OR layer='building' AND extensions.GeometryType(g) NOT IN('POLYGON','MULTIPOLYGON') OR layer IN('road','contours') AND extensions.GeometryType(g) NOT IN('LINESTRING','MULTILINESTRING') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  counter:=counter+1;code:=coalesce(nullif(f->>'id',''),nullif(f->'properties'->>'object_code',''),nullif(f->'properties'->>'code',''),layer||'-'||v.version_number||'-'||counter);
+  IF length(code)>200 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  INSERT INTO public.personal_layer_features(space_id,layer_version_id,layer_key,object_code,object_name,geom,props) VALUES(v.space_id,v.id,layer,code,coalesce(nullif(f->'properties'->>'name',''),code),f->'geometry',coalesce(f->'properties','{}'));
+ END LOOP;UPDATE public.personal_layer_versions SET feature_count=counter WHERE id=v.id;RETURN jsonb_build_object('featureCount',counter);
+END$$;
+CREATE FUNCTION api_private.task_import_finish(oid uuid,token uuid,bundle uuid) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,public,api_private,pg_temp AS $$DECLARE t api_private.task_requests;v public.personal_layer_versions;expected integer;BEGIN
+ t:=api_private.task_outbox_guard(oid,token);
+ FOR v IN SELECT * FROM public.personal_layer_versions WHERE bundle_id=bundle AND local_task_id=t.id LOOP
+  SELECT sum(feature_count) INTO expected FROM api_private.task_artifacts WHERE task_id=t.id AND state='ready' AND layer_key=v.layer_key;
+  IF v.feature_count IS DISTINCT FROM expected THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  INSERT INTO public.personal_layer_selections(space_id,layer_key,current_version_id,comparison_version_id) VALUES(v.space_id,v.layer_key,v.id,NULL)
+   ON CONFLICT(space_id,layer_key) DO UPDATE SET current_version_id=excluded.current_version_id,comparison_version_id=NULL,updated_at=now();
+ END LOOP;
+ IF NOT EXISTS(SELECT 1 FROM public.personal_result_bundles WHERE id=bundle AND local_task_id=t.id) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
+ UPDATE api_private.task_requests SET imported_bundle=bundle,updated_at=now() WHERE id=t.id;RETURN jsonb_build_object('bundleId',bundle);
+END$$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA api_private FROM PUBLIC,anon;
 REVOKE EXECUTE ON FUNCTION api_private.task_public(api_private.task_requests),api_private.task_guard(api_private.task_requests),api_private.task_grant_key(jsonb),api_private.task_snapshot(text,text,jsonb,boolean) FROM authenticated,village_unified_login;
+REVOKE EXECUTE ON FUNCTION api_private.task_outbox_guard(uuid,uuid) FROM authenticated,village_unified_login;
 GRANT EXECUTE ON FUNCTION api_private.task_execute(text,jsonb,text),api_private.task_assert_photo_mutable(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION api_private.task_artifacts_read(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION api_private.task_next(text),api_private.task_finish(uuid,uuid,jsonb),api_private.task_fail(uuid,text,integer,uuid),api_private.task_photo_file(uuid,uuid,text),api_private.task_before_submit(uuid,uuid) TO village_unified_login;
+GRANT EXECUTE ON FUNCTION api_private.task_artifact_manage(uuid,uuid,text,jsonb),api_private.task_import_begin(uuid,uuid),api_private.task_import_append(uuid,uuid,uuid,text,jsonb),api_private.task_import_finish(uuid,uuid,uuid) TO village_unified_login;
