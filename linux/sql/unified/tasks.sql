@@ -144,7 +144,8 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
    error_code=CASE WHEN result->'run'->>'error_code'~'^[A-Z0-9_]{1,80}$' THEN result->'run'->>'error_code' END,updated_at=now() WHERE id=t.id;
  ELSIF o.operation='cancel' THEN
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR result->>'canceled' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
-  UPDATE api_private.task_requests SET state=CASE WHEN source_run_id IS NULL THEN 'canceled' ELSE state END,remote_status=CASE WHEN source_run_id IS NULL THEN 'canceled' ELSE 'cancel_requested' END,updated_at=now() WHERE id=t.id;
+  UPDATE api_private.task_requests SET state=CASE WHEN state IN('completed','failed','canceled') THEN state WHEN source_run_id IS NULL THEN 'canceled' ELSE state END,
+   remote_status=CASE WHEN state IN('completed','failed','canceled') THEN remote_status WHEN source_run_id IS NULL THEN 'canceled' ELSE 'cancel_requested' END,updated_at=now() WHERE id=t.id;
   UPDATE api_private.task_outbox SET done=true,lease=NULL,lease_until=NULL WHERE task_id=t.id AND operation='submit';
  ELSIF o.operation='import' THEN
   IF t.imported_bundle IS NULL OR (result->>'bundleId')::uuid IS DISTINCT FROM t.imported_bundle THEN RAISE EXCEPTION 'SOURCE_NOT_READY';END IF;

@@ -29,6 +29,9 @@ test('local queues start empty and atomically claim once per Worker request with
   await setup.query("ALTER TABLE public.geoprocessing_runs ADD COLUMN status text;INSERT INTO public.geoprocessing_runs(id,status) VALUES(gen_random_uuid(),'queued')");
   assert.equal((await claim(a)).run,null);assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_runs')).rows[0].n,'0');
   const first=await submit(),second=await submit();await assert.rejects(tasks.execute(testIdentity(),'tasks.submitGeo',input()),{code:'TOO_MANY_ACTIVE_RUNS'});
+  const facade=await worker('facade');assert.equal((await claim(facade)).run,null,'facade credential cannot claim geo work');
+  await assert.rejects(queue.workerCall(facade,'sources',null,null,{}),{code:'FORBIDDEN'});
+  await assert.rejects(queue.authenticate('Bearer village_worker_'+a.workerId+'.'+'B'.repeat(43)),{code:'UNAUTHORIZED'});
   const [x,replay,y]=await Promise.all([claim(a,nonce),claim(a,nonce),claim(b)]);
   assert.equal(x.run.id,replay.run.id);assert.equal(x.leaseToken,replay.leaseToken);assert.notEqual(x.run.id,y.run.id);
   assert.equal((await claim(a)).run,null,'one active lease per Worker');
