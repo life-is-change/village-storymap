@@ -19,3 +19,16 @@ test('Worker HTTP authenticates its own key namespace and bounds method, lease a
   assert.equal((await fetch(base+'/rpc',{method:'POST',headers,body:'{}'})).status,404);
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
+test('Worker file routes require lease, bound binary chunks and serve byte ranges with closed handles',async()=>{
+ const lease='30000000-0000-4000-8000-000000000003',uploadId='40000000-0000-4000-8000-000000000004';let closed=0,puts=0;
+ const queue={authenticate:async()=>({})},files={async openInput(){return {size:6,mime:'image/png',sha256:'a'.repeat(64),stream:({start,end})=>(async function*(){yield Buffer.from('abcdef').subarray(start,end+1);})(),async close(){closed++;}};},async put(a,r,l,input,stream){assert.equal(l,lease);assert.equal(input.uploadId,uploadId);let count=0;for await(const part of stream)count+=part.length;assert.equal(count,3);puts++;return {offset:count};}};
+ const server=createServer(mod.createLocalWorkerHandler({queue,files}));await listenLoopback(server);const base='http://127.0.0.1:'+server.address().port+'/api/worker/v1/runs/'+runId,headers={Authorization:authorization,'X-Village-Lease':lease};
+ try{
+  const read=await fetch(base+'/input',{headers:{...headers,Range:'bytes=1-3'}});assert.equal(read.status,206);assert.equal(await read.text(),'bcd');assert.equal(closed,1);
+  const invalid=await fetch(base+'/input',{headers:{...headers,Range:'bytes=100-200'}});assert.equal(invalid.status,416);assert.equal(closed,2);
+  const url=base+'/uploads/'+uploadId+'/chunks/0',binary={...headers,'Content-Type':'application/octet-stream','X-Village-Sha256':'a'.repeat(64)};
+  assert.equal((await fetch(url,{method:'PUT',headers:binary,body:'abc'})).status,200);assert.equal(puts,1);
+  assert.equal((await fetch(url,{method:'PUT',headers:{...binary,'Content-Encoding':'gzip'},body:'abc'})).status,415);
+  assert.equal((await fetch(base+'/input',{headers:{Authorization:authorization}})).status,400);
+ }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
+});

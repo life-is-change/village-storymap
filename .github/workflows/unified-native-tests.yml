@@ -68,6 +68,8 @@ jobs:
         run: node --test business-api/test/local-auth.integration.mjs
       - name: Autonomous local queue leases and isolation
         run: node --test business-api/test/local-queue.integration.mjs
+      - name: Autonomous private task bytes, resumable results and import
+        run: node --test business-api/test/local-task-files.integration.mjs
       - name: Stop only this job's disposable container
         if: always()
         run: docker rm --force village-unified-ci

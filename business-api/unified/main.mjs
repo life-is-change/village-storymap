@@ -8,7 +8,7 @@ export async function startUnifiedServer(config=loadUnifiedConfig()){
  const services=await createUnifiedServices(config),close=closeUnifiedServices(services);
  const sceneHandler=createSceneFilesHandler({verifyIdentity:header=>measure('auth',()=>services.verifyIdentity(header)),database:services.scene,uploads:services.sceneUploads});
  const handler=createUnifiedHandler({services,verifyIdentity:services.verifyIdentity,release,sceneHandler,log:record=>console.log(JSON.stringify(record))});
- const workerHandler=services.workerQueue?createLocalWorkerHandler({queue:services.workerQueue,log:record=>console.log(JSON.stringify(record))}):null;
+ const workerHandler=services.workerQueue?createLocalWorkerHandler({queue:services.workerQueue,files:services.workerFiles,log:record=>console.log(JSON.stringify(record))}):null;
  const server=createServer({maxHeaderSize:20000,requestTimeout:120000,headersTimeout:10000},(req,res)=>workerHandler&&req.url?.startsWith('/api/worker/v1/')?workerHandler(req,res):handler(req,res));server.setTimeout(130000,s=>s.destroy());
  let stopping;async function stop(){return stopping??(stopping=(async()=>{const ended=new Promise(r=>server.close(r));await close();await ended;})());}
  try{await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(config.port,'0.0.0.0',resolve);});if(config.bridge.enabled||services.workerQueue)services.tasks.start();return {server,services,stop};}catch(e){await close();throw e;}

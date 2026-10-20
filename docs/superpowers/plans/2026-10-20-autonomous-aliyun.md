@@ -99,9 +99,9 @@
 
 **Interfaces:** `submit(identity,kind,input,requestId)`, `claim(worker,kind,requestId)`, `renew(worker,runId,leaseToken)`, `update(worker,runId,leaseToken,patch)`, `complete(...)`, `cancel(identity,...)`, `retry(identity,...)`. Queue rows are separate from copied source tables, credentials hashed and kind-scoped, claim uses SKIP LOCKED. HTTP is fixed `/api/worker/v1/...`; browser API keeps existing fixed operations and return contracts.
 
-- [ ] Native tests for empty restored queue, concurrent claim uniqueness, identity/context/input receipt conflicts, lost acknowledgement, stale leases, capped retry/backoff, cancelled completion and credential revocation; browser token never gains Worker permission.
-- [ ] Run RED; implement queue/lease transitions and outbox events; run GREEN in CI plus fixed-operation tests.
-- [ ] Commit `feat: run GPU task control in the local database`.
+- [x] Native tests for empty restored queue, concurrent claim uniqueness, identity/context/input receipt conflicts, lost acknowledgement, stale leases, capped retry/backoff, cancelled completion and credential revocation; browser token never gains Worker permission.
+- [x] Run RED; implement queue/lease transitions and outbox events; run GREEN in CI plus fixed-operation tests.
+- [x] Commit `feat: run GPU task control in the local database`.
 
 ### Task 6: Local task files, results and import consistency
 

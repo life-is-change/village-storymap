@@ -24,3 +24,10 @@ test('Worker command contracts reject caller-selected kind, arbitrary URLs and s
  await assert.rejects(queue.workerCall(actor,'renew',runId,lease,{}),e=>e.code==='LEASE_LOST'&&e.status===409&&!e.message.includes('private'));
  await assert.rejects(queue.workerCall({...actor},'renew',runId,lease,{}),{code:'UNAUTHORIZED'});
 });
+test('file RPCs retain the opaque Worker proof and use only fixed file functions',async()=>{
+ let last;const database={withMaintenance:async fn=>fn({query:async(sql,args)=>{last={sql,args};return {rows:[{data:sql.includes('local_worker_auth')?{workerId,kind:'geo'}:{state:'pending'}}]};}})};
+ const queue=serviceAPI.createLocalQueueService({database,instanceId:'aliyun-test'}),actor=await queue.authenticate(header);
+ assert.equal(typeof queue.fileCall,'function');await assert.rejects(queue.fileCall({...actor},'context',runId,lease,{}),{code:'UNAUTHORIZED'});
+ await assert.rejects(queue.fileCall(actor,'DROP TABLE',runId,lease,{}),{code:'INVALID_INPUT'});
+ await queue.fileCall(actor,'context',runId,lease,{});assert.match(last.sql,/SELECT api_private.local_worker_file\(/);assert.equal(last.args[1],createHash('sha256').update(secret).digest('hex'));assert.equal(last.args[5],lease);
+});

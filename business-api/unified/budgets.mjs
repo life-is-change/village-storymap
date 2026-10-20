@@ -8,5 +8,5 @@ export function createFileBudget({reads=4,writes=1}={}){
   ...(store.stage?{async stage(input){const release=take('write');try{return await measure('file',()=>store.stage(input));}finally{release();}}}:{}),
   async open(...args){const release=take('read');try{const opened=await measure('file',()=>store.open(...args));return {...opened,async close(){try{await measure('file',()=>opened.close());}finally{release();}}};}catch(e){release();throw e;}}
  });}
- return {wrap,diagnostics:()=>({...active})};
+ return {wrap,async withWrite(fn){const release=take('write');try{return await measure('file',fn);}finally{release();}},diagnostics:()=>({...active})};
 }

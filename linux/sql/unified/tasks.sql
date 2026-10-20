@@ -189,7 +189,7 @@ SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_r
  IF action='lookup' THEN RETURN to_jsonb(a);END IF;
  layer:=CASE k WHEN 'buildings' THEN 'building' WHEN 'roads' THEN 'road' WHEN 'waterways' THEN 'water' WHEN 'water_areas' THEN 'water' WHEN 'contours' THEN 'contours' END;
  IF action='reserve' THEN
-  IF NOT coalesce(p->>'sha256'~'^[a-f0-9]{64}$' AND p->>'size'~'^[0-9]{1,8}$' AND (p->>'size')::bigint BETWEEN 1 AND 52428800,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  IF NOT coalesce(p->>'sha256'~'^[a-f0-9]{64}$' AND p->>'size'~'^[0-9]{1,9}$' AND (p->>'size')::bigint BETWEEN 1 AND CASE WHEN t.kind='geo' AND to_regclass('api_private.local_gpu_uploads') IS NOT NULL THEN 536870912 ELSE 52428800 END,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF t.kind='geo' THEN IF layer IS NULL OR p->>'mime'<>'application/geo+json' OR p->>'extension'<>'geojson' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   ELSIF k='building_glb' THEN IF p->>'mime'<>'model/gltf-binary' OR p->>'extension'<>'glb' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   ELSIF k NOT IN('rectified_preview','rectified_source','building_mask','standard_facade') OR p->>'mime' NOT IN('image/png','image/jpeg') OR p->>'extension' IS DISTINCT FROM (CASE WHEN p->>'mime'='image/png' THEN 'png' ELSE 'jpg' END) OR (p->>'size')::bigint>10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;

@@ -4,7 +4,7 @@ import {fileType} from '../src/storage.mjs';
 const geo={buildings:['buildings.geojson','building'],roads:['roads.geojson','road'],waterways:['waterways.geojson','water'],water_areas:['water_areas.geojson','water'],contours:['contours.geojson','contours']};
 const images=new Set(['rectified_preview','rectified_source','building_mask','standard_facade']);
 const one=async(c,sql,args=[])=>(await c.query(sql,args)).rows[0]?.data;
-const fileId=text=>{const h=createHash('sha256').update(text).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-8${h.slice(17,20)}-${h.slice(20,32)}`;};
+export const taskFileId=text=>{const h=createHash('sha256').update(text).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-8${h.slice(17,20)}-${h.slice(20,32)}`;};
 
 // Input has already passed the store's streaming GeoJSON validator and immutable
 // hash check. This second pass materializes only one feature, at most 2 MiB.
@@ -35,7 +35,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
    const f=await maintenance('SELECT api_private.task_photo_file($1,$2,$3) AS data',[job.requestId,job.ownerId,instanceId]);if(!f)throw fault('FORBIDDEN');
    const opened=f.legacy?await legacyReader.open(f):await store.open(f.id,{size:Number(f.size),sha256:f.sha256});
    const mime=f.mime??fileType(f.name);if(!['image/jpeg','image/png'].includes(mime)||opened.size>10485760){await opened.close();throw fault('FILE_TYPE_UNSUPPORTED');}
-   return {...opened,sha256:f.sha256??opened.sha256,mime,stream:()=>opened.stream({start:0,end:opened.size-1})};
+   return {...opened,fileId:f.id,sha256:f.sha256??opened.sha256,mime,stream:()=>opened.stream({start:0,end:opened.size-1})};
   },
   async prepareTaskArtifacts(job,artifacts,bridge){
    const prepared=[];
@@ -49,7 +49,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
     const extension=geo[type]?'geojson':type==='building_glb'?'glb':response.mime==='image/png'?'png':response.mime==='image/jpeg'?'jpg':null;
     const mime=geo[type]?'application/geo+json':type==='building_glb'?'model/gltf-binary':response.mime;
     if(!extension||geo[type]&&!['application/json','application/geo+json'].includes(response.mime)||type==='building_glb'&&!['model/gltf-binary','application/octet-stream'].includes(response.mime)){await response.stream.cancel?.();throw fault('INVALID_FILE');}
-    const fid=fileId(`${instanceId}/${job.sourceRunId}/${type}/${a.sha256}`),spec={artifactType:type,fileId:fid,sha256:a.sha256,size:response.size,mime,extension};
+    const fid=taskFileId(`${instanceId}/${job.sourceRunId}/${type}/${a.sha256}`),spec={artifactType:type,fileId:fid,sha256:a.sha256,size:response.size,mime,extension};
     descriptor=await manage(job,'reserve',spec);let validation;
     try{
      const existing=await store.open(fid,{size:response.size,sha256:a.sha256});await existing.close();await response.stream.cancel?.();validation={featureCount:descriptor.feature_count};

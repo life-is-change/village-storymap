@@ -20,7 +20,7 @@ export async function createBusinessFileStore({root,instanceId,maxUploads=2}){
     await noLinks(temp);h=await open(p,constants.O_RDWR|constants.O_CREAT|constants.O_EXCL|(constants.O_NOFOLLOW??0),0o600);created=true;const hash=createHash('sha256');let count=0;
     for await(const chunk of stream){if(!Buffer.isBuffer(chunk)&&!(chunk instanceof Uint8Array))throw fault('INVALID_FILE');count+=chunk.length;if(count>size)throw fault('FILE_TOO_LARGE');hash.update(chunk);let off=0;while(off<chunk.length){const r=await h.write(chunk,off,chunk.length-off);if(!r.bytesWritten)throw fault('FILE_UNAVAILABLE');off+=r.bytesWritten;}}
     if(count!==size)throw fault('INVALID_FILE');
-    let validation={};if(extension==='geojson')validation=await validateGeoJSON(h,size,role);
+    let validation={};if(extension==='geojson')validation=await validateGeoJSON(h,size,role.startsWith('task:')?role.slice(5):role);
     else if(extension==='json'){const bytes=Buffer.alloc(size);let p=0;while(p<size){const {bytesRead}=await h.read(bytes,p,size-p,p);if(!bytesRead)throw fault('INVALID_FILE');p+=bytesRead;}try{const v=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));if(!v||typeof v!=='object'||Array.isArray(v))throw Error();}catch{throw fault('INVALID_FILE');}}
     else await validateFile({handle:h,size,mime,extension});await h.sync();return {fileId,size,sha256:hash.digest('hex'),mime,extension,validation};
    }catch(e){if(h){await h.close();h=null;}if(created)await unlink(p).catch(()=>{});throw e?.status?e:fault(e?.code==='EEXIST'?'UPLOAD_CONFLICT':'FILE_UNAVAILABLE');}
