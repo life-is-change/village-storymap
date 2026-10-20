@@ -85,9 +85,9 @@
 
 ### Task 4: Controlled password recovery and account disable
 
-**Files:** Create recovery service, SQL audit/limits, private operator reset script and tests; extend admin disable path to revoke local sessions.
+**Files:** Create `business-api/auth/recovery.mjs`, `recovery-cli.mjs`, `linux/sql/local-auth-recovery.sql` and tests; extend admin disable path to revoke local sessions. The host wrapper `linux/scripts/reset-local-password.py` consumes Task 9's verified deployment metadata and is delivered with that task.
 
-**Interfaces:** Hidden-input CLI authenticates admin against local GoTrue, then requests a one-use recovery action for a target UUID/student ID; fixed local endpoint rechecks active admin, recent reauthentication, limits and audit. Provider admin credentials remain server-only. Reset updates password through mature Auth admin API, keeps UUID and revokes target sessions; no synthetic-email delivery claim.
+**Interfaces:** Hidden-input private CLI authenticates admin against local GoTrue, then requests a one-use recovery reservation for a non-admin target UUID/student ID. There is no public recovery HTTP endpoint; the ephemeral command rechecks active admin/password, fixed internal Auth endpoint, three new actions/hour, 30-second spacing and audit. Provider admin credentials remain server-only and are not mounted into the ordinary API. Reset updates password through mature Auth admin API, keeps UUID and revokes target sessions; no synthetic-email delivery claim. Pending/unknown reset blocks target business sessions; reconciliation uses the new password with GoTrue without granting business access. Administrator break-glass recovery is outside this command.
 
 - [ ] Test non-admin/disabled/stale reauthentication, target substitution, concurrent/replayed actions, rate cap, partial failure recovery and old-session rejection without logging secrets.
 - [ ] Run tests RED, implement bounded state machine and admin adapter, run GREEN and existing identity suite.

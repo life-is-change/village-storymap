@@ -48,3 +48,8 @@ test('known restored RPC and constraint failures are sanitized into business err
   const h=fake(),db=api.createUnifiedDatabase({pool:h.pool});await assert.rejects(db.withIdentity(identity(),()=>{throw error;}),e=>e.code===code&&!e.message.includes('private'));await db.close();
  }
 });
+
+test('server-enforced recovery limits retain their public safe rate-limit code',async()=>{
+ const h=fake(),db=api.createUnifiedDatabase({pool:h.pool});
+ await assert.rejects(db.withIdentity(identity(),()=>{throw {code:'P0001',message:'RATE_LIMITED'};}),{code:'RATE_LIMITED',status:429});await db.close();
+});

@@ -13,6 +13,7 @@
     "start": "node src/main.mjs"
   },
   "dependencies": {
+    "jose": "6.2.13",
     "pg": "8.23.1"
   }
 }

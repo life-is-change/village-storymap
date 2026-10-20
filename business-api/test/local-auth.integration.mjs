@@ -4,6 +4,7 @@ import pg from 'pg';import {readFile} from 'node:fs/promises';import {execFileSy
 import {disposableURL,USERS,TEST_PASSWORD} from './fixtures/unified.mjs';
 import {createUnifiedDatabase} from '../unified/database.mjs';
 import {createIdentityGateway,createIdentityService} from '../unified/identity.mjs';
+import {createRecoveryAuth,createRecoveryService} from '../auth/recovery.mjs';
 const origin='https://8.148.248.237',internal='http://127.0.0.1:9999';
 const authConfig={authMode:'local',authOrigin:origin,authInternalOrigin:'http://auth:9999'};
 const password='synthetic-ci-password-0001',jwtSecret='synthetic-ci-only-local-auth-signing-secret-0000000000000000';
@@ -34,7 +35,7 @@ test('pinned GoTrue preserves imported password identity and local session, prof
   assert.equal((await setup.query('SELECT max(version) AS version FROM auth.schema_migrations')).rows[0].version,manifest.maximum_migration);
   // Import preexisting user UUIDs/hashes directly; do not create them through signup.
   for(const [kind,id] of Object.entries(USERS)){
-   const student=kind==='student'?'a':kind==='other'?'b':kind==='teacher'?'t':'m';
+   const student=kind==='admin'?'332':kind;
    await setup.query(`INSERT INTO auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at,confirmation_token,recovery_token,email_change_token_new,email_change_token_current,reauthentication_token)
      VALUES('00000000-0000-0000-0000-000000000000',$1,'authenticated','authenticated',$2,extensions.crypt($3,extensions.gen_salt('bf',10)),now(),'{"provider":"email","providers":["email"]}',$4::jsonb,now(),now(),'','','','','')`,[id,'sid-'+student+'@rzmbmwauomzwiyenafha.supabase.co',password,JSON.stringify({student_id:student,display_name:kind})]);
    await setup.query("INSERT INTO auth.identities(id,user_id,provider_id,identity_data,provider,created_at,updated_at) VALUES(extensions.gen_random_uuid(),$1::uuid,$1::uuid::text,$2::jsonb,'email',now(),now())",[id,JSON.stringify({sub:id,email:'sid-'+student+'@rzmbmwauomzwiyenafha.supabase.co'})]);
@@ -42,9 +43,11 @@ test('pinned GoTrue preserves imported password identity and local session, prof
   const existingHash=(await setup.query('SELECT encrypted_password FROM auth.users WHERE id=$1',[USERS.student])).rows[0].encrypted_password;
   const identityFixture=await readFile(new URL('./fixtures/identity.sql',import.meta.url),'utf8');
   await setup.query(identityFixture.replace('CREATE SCHEMA auth;','').replace('CREATE FUNCTION auth.uid()','CREATE OR REPLACE FUNCTION auth.uid()'));
+  for(const [kind,id] of Object.entries(USERS))await setup.query('UPDATE profiles SET student_id=$1 WHERE id=$2',[kind==='admin'?'332':kind,id]);
   await setup.query('ALTER TABLE profiles ADD CONSTRAINT profile_user_fk FOREIGN KEY(id) REFERENCES auth.users(id)');
   await setup.query(await readFile(new URL('../../linux/sql/unified/identity.sql',import.meta.url),'utf8'));
   await setup.query(await readFile(new URL('../../linux/sql/local-auth.sql',import.meta.url),'utf8'));
+  await setup.query(await readFile(new URL('../../linux/sql/local-auth-recovery.sql',import.meta.url),'utf8'));
   await setup.query("ALTER ROLE village_unified_login PASSWORD '"+TEST_PASSWORD+"'");
   const start=()=>{docker(['run','--detach','--name','village-auth-ci','--network','host',...flags,'--env','GOTRUE_DB_DATABASE_URL='+databaseURL('village_auth_runtime'),manifest.image]);running=true;};
   start();await waitAuth();
@@ -52,7 +55,7 @@ test('pinned GoTrue preserves imported password identity and local session, prof
   db=createUnifiedDatabase({host:base.hostname,port:Number(base.port),database:'village_unified_candidate',user:'village_unified_login',password:TEST_PASSWORD},{authPolicy:authConfig});
   const gateway=createIdentityGateway({...authConfig,checkLocalSession:db.checkLocalSession,fetchImpl:proofFetch});
   const service=createIdentityService({database:db,authPolicy:authConfig,verifyIdentity:gateway.verifyIdentity,sourceProfileReader:gateway.sourceProfileReader});
-  const login=()=>request('/token?grant_type=password',{email:'sid-a@rzmbmwauomzwiyenafha.supabase.co',password});
+  const login=()=>request('/token?grant_type=password',{email:'sid-student@rzmbmwauomzwiyenafha.supabase.co',password});
   const session=await login();assert.equal(session.user.id,USERS.student);
   const actor=await gateway.verifyIdentity('Bearer '+session.access_token);assert.equal((await service.me(actor)).id,USERS.student);
   assert.equal((await setup.query('SELECT encrypted_password FROM auth.users WHERE id=$1',[USERS.student])).rows[0].encrypted_password,existingHash);
@@ -74,6 +77,33 @@ test('pinned GoTrue preserves imported password identity and local session, prof
   await assert.rejects(gateway.verifyIdentity('Bearer '+foreignToken),{code:'UNAUTHORIZED'});
   const runtime=new pg.Client({connectionString:databaseURL('village_auth_runtime')});await runtime.connect();
   try{await assert.rejects(runtime.query('CREATE TABLE auth.must_not_create(id int)'),e=>e.code==='42501');await assert.rejects(runtime.query('SELECT * FROM public.profiles'),e=>e.code==='42501');}finally{await runtime.end();}
+  const recoveryFetch=async(url,options)=>{assert.ok(url.startsWith('http://auth:9999/'));const response=await fetch(internal+url.slice('http://auth:9999'.length),options);if(!response.ok)console.log(JSON.stringify({phase:'native_recovery_auth',route:url.includes('/admin/users/')?'admin-user':url.includes('/token?')?'token':'user-or-logout',status:response.status}));return response;};
+  const recoveryAuth=createRecoveryAuth({jwtSecret,checkLocalSession:db.checkLocalSession,fetchImpl:recoveryFetch});
+  const recovery=createRecoveryService({database:db,auth:recoveryAuth});
+  const reset={adminStudentId:'332',adminPassword:password,targetStudentId:'fresh',newPassword:'synthetic-ci-changed-password-0002',requestId:'90000000-0000-4000-8000-000000000009'};
+  await assert.rejects(recovery.reset({...reset,adminStudentId:'student'}),{code:'FORBIDDEN'});
+  await assert.rejects(recovery.reset({...reset,targetStudentId:'332'}),{code:'FORBIDDEN'});
+  const beforeReset=await request('/token?grant_type=password',{email:'sid-fresh@rzmbmwauomzwiyenafha.supabase.co',password});
+  const lostAck=createRecoveryService({database:db,auth:{...recoveryAuth,async changePassword(...args){await recoveryAuth.changePassword(...args);throw Error('synthetic lost acknowledgement');}}});
+  await assert.rejects(lostAck.reset(reset),{code:'RECOVERY_UNKNOWN'});
+  assert.equal((await setup.query('SELECT state FROM api_private.auth_recovery_actions WHERE request_id=$1',[reset.requestId])).rows[0].state,'unknown');
+  await assert.rejects(gateway.verifyIdentity('Bearer '+beforeReset.access_token),{code:'UNAUTHORIZED'});
+  await assert.rejects(recovery.reset(reset),{code:'RECOVERY_UNKNOWN'});
+  assert.equal((await recovery.reset({...reset,reconcile:true})).status,'local_password_reset_completed');
+  assert.equal((await recovery.reset(reset)).status,'local_password_reset_completed','lost completion receipt replays');
+  await assert.rejects(gateway.verifyIdentity('Bearer '+beforeReset.access_token),{code:'UNAUTHORIZED'});
+  await assert.rejects(recoveryAuth.login('fresh',password),{code:'UNAUTHORIZED'});
+  const recovered=await recoveryAuth.login('fresh',reset.newPassword);assert.equal(recovered.userId,fresh.userId);await recoveryAuth.release(recovered);
+  assert.equal((await setup.query("SELECT count(*) n FROM api_private.auth_recovery_actions WHERE state='completed'")).rows[0].n,'1');
+  const adminActor=await recoveryAuth.login('332',password);
+  try{
+   // Existing accepted records count against the fixed 3/hour limit.
+   await setup.query("INSERT INTO api_private.auth_recovery_actions(actor_id,request_id,target_id,target_student_id,request_mac,state,created_at) SELECT $1,gen_random_uuid(),$2,'fresh',repeat('b',64),'completed',now()-interval '1 minute' FROM generate_series(1,2)",[USERS.admin,fresh.userId]);
+   await assert.rejects(recovery.reset({...reset,requestId:'91000000-0000-4000-8000-000000000009'}),{code:'RATE_LIMITED'});
+   await service.disableLocalProfile(adminActor,fresh.userId);
+   await assert.rejects(recoveryAuth.login('fresh',reset.newPassword),{code:'UNAUTHORIZED'});
+   assert.equal((await setup.query('SELECT count(*) n FROM auth.sessions WHERE user_id=$1',[fresh.userId])).rows[0].n,'0');
+  }finally{await recoveryAuth.release(adminActor);}
  }finally{
   if(running)docker(['rm','--force','village-auth-ci']);await db?.close();await setup?.end();
   if(owned)await admin.query('DROP DATABASE village_unified_candidate WITH (FORCE)');

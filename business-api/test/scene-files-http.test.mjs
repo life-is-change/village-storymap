@@ -1,9 +1,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createServer} from 'node:http';import {Readable} from 'node:stream';import {randomUUID} from 'node:crypto';
+import {listenLoopback} from './fixtures/http-listen.mjs';
 const mod=await import('../scene-files/http.mjs').catch(()=>({}));
 test('HTTP authenticates before reading, bounds JSON and Range, and redacts failures',async()=>{
  assert.equal(typeof mod.createSceneFilesHandler,'function');let calls=0,closed=0;const id=randomUUID();
  const server=createServer(mod.createSceneFilesHandler({verifyIdentity:async h=>{if(h!=='Bearer good')throw {code:'UNAUTHORIZED'};return {userId:id};},database:{run:async()=>{calls++;throw Error('private SQL secret');}},uploads:{read:async()=>({size:4,mime:'model/gltf-binary',extension:'glb',role:'display',stream:({start,end})=>Readable.from([Buffer.from('glTF').subarray(start,end+1)]),close:async()=>{closed++;}})}}));
- await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port+'/api/v1/scene-files';
+ await listenLoopback(server);const base='http://127.0.0.1:'+server.address().port+'/api/v1/scene-files';
  try{
   assert.equal((await fetch(base+'/scene/load',{method:'POST',body:'{bad json'})).status,401);assert.equal(calls,0);
   const huge=await fetch(base+'/scene/load',{method:'POST',headers:{Authorization:'Bearer good','Content-Type':'application/json'},body:JSON.stringify({padding:'x'.repeat(2*1024*1024)})});assert.equal(huge.status,413);
