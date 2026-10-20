@@ -18,8 +18,10 @@ test('pinned GoTrue preserves imported password identity and local session, prof
  let setup,db,owned=false,roles=false,running=false;
  try{
   assert.equal((await admin.query("SELECT 1 FROM pg_database WHERE datname='village_unified_candidate'")).rowCount,0);
-  assert.equal((await admin.query("SELECT 1 FROM pg_roles WHERE rolname IN ('authenticated','anon','village_unified_login','village_auth_runtime','village_auth_migrator')")).rowCount,0);
-  await admin.query("CREATE ROLE authenticated NOLOGIN;CREATE ROLE anon NOLOGIN;CREATE ROLE village_auth_migrator LOGIN PASSWORD 'synthetic-ci-migration-only' NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB;CREATE ROLE village_auth_runtime LOGIN PASSWORD 'synthetic-ci-runtime-only' NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB CONNECTION LIMIT 2");roles=true;
+  assert.equal((await admin.query("SELECT 1 FROM pg_roles WHERE rolname IN ('postgres','authenticated','anon','village_unified_login','village_auth_runtime','village_auth_migrator')")).rowCount,0);
+  // Upstream 20240612123726 grants Auth SELECT to the postgres role. Our
+  // disposable cluster uses another bootstrap name; supply a NOLOGIN placeholder.
+  await admin.query("CREATE ROLE postgres NOLOGIN NOSUPERUSER NOBYPASSRLS;CREATE ROLE authenticated NOLOGIN;CREATE ROLE anon NOLOGIN;CREATE ROLE village_auth_migrator LOGIN PASSWORD 'synthetic-ci-migration-only' NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB;CREATE ROLE village_auth_runtime LOGIN PASSWORD 'synthetic-ci-runtime-only' NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB CONNECTION LIMIT 2");roles=true;
   await admin.query('CREATE DATABASE village_unified_candidate');owned=true;
   const target=new URL(base);target.pathname='/village_unified_candidate';setup=new pg.Client({connectionString:target.href});await setup.connect();
   await setup.query('CREATE SCHEMA auth AUTHORIZATION village_auth_migrator;CREATE SCHEMA extensions;CREATE EXTENSION pgcrypto WITH SCHEMA extensions;ALTER ROLE village_auth_migrator IN DATABASE village_unified_candidate SET search_path=auth;ALTER ROLE village_auth_runtime IN DATABASE village_unified_candidate SET search_path=auth');
@@ -75,6 +77,6 @@ test('pinned GoTrue preserves imported password identity and local session, prof
  }finally{
   if(running)docker(['rm','--force','village-auth-ci']);await db?.close();await setup?.end();
   if(owned)await admin.query('DROP DATABASE village_unified_candidate WITH (FORCE)');
-  if(roles)await admin.query('DROP ROLE IF EXISTS village_unified_login;DROP ROLE village_auth_runtime;DROP ROLE village_auth_migrator;DROP ROLE authenticated;DROP ROLE anon');await admin.end();
+  if(roles)await admin.query('DROP ROLE IF EXISTS village_unified_login;DROP ROLE village_auth_runtime;DROP ROLE village_auth_migrator;DROP ROLE authenticated;DROP ROLE anon;DROP ROLE postgres');await admin.end();
  }
 });
