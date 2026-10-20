@@ -5,7 +5,7 @@ const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageI
 test('native task outbox rolls back, replays a lost response and rejects stale local membership without a duplicate remote job',async()=>{
  await withUnifiedFixture(async({setup,install,config})=>{
   await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','tasks'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
-  await setup.query('INSERT INTO api_private.task_worker_villages VALUES($1,$1)',[context.villageId]);const db=createUnifiedDatabase(config);let service;
+  await setup.query('INSERT INTO api_private.task_worker_villages VALUES($1::uuid,$1::text)',[context.villageId]);const db=createUnifiedDatabase(config);let service;
   try{
    const receipt=new Map(),snapshots=[],remoteId=randomUUID();let requests=0,lose=true;
    const bridge={instanceId:'aliyun-test',async applyContext(s){snapshots.push(s);},async submit(input){requests++;if(!receipt.has(input.requestId))receipt.set(input.requestId,remoteId);if(lose){lose=false;throw {code:'BRIDGE_UNAVAILABLE'};}return {instanceId:'aliyun-test',runId:receipt.get(input.requestId)};},async status(){return {instanceId:'aliyun-test',runId:remoteId,run:{status:'completed',progress:100}};}};
