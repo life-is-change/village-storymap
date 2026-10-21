@@ -222,6 +222,13 @@ def copy_storage(source,state,archive_sha):
     return {'objects':len(index),'verified_bytes':result['verified_bytes'],'archive_sha256':archive_sha}
 
 
+def wait_runtime(docker,state,meta):
+    for attempt in range(50):
+        try:return runtime_health(docker,state,meta)
+        except (OSError,ValueError,RuntimeError):time.sleep(1)
+    raise ValueError('AUTONOMOUS_RUNTIME_HEALTH_TIMEOUT')
+
+
 def verify_copied_storage(state,archive_sha):
     doc,result=storage_input(state/'storage',archive_sha)
     doc,objects,manifest=storage.load_transfer(state/'storage',selected_buckets=storage.all_inventory_buckets(doc))
@@ -361,6 +368,9 @@ def apply(meta,state=STATE):
     initial=storage.read_private_json(state/'initial-baseline.json');old=docker.inspect('village-web-web-1')
     if old.get('Id')!=initial['web_id'] or old.get('Image')!=initial['web_image']:raise ValueError('OLD_PUBLIC_WEB_IDENTITY_CHANGED')
     backup=load_script('backup-autonomous');destination=backup.backup(state,Path.home()/'village-autonomous-backups')
+    # Backup restarted the original processes, which must become healthy
+    # before the previous public listener is stopped.
+    wait_runtime(docker,state,meta)
     require_acceptance(state,meta)
     write_once(state/'pre-apply-backup.json',json.dumps({'path':str(destination),'backup_sha256':storage.digest_file(destination/'backup.json')[0]},sort_keys=True))
     # Once the new listener is public, never auto-restore the Supabase-backed
@@ -369,7 +379,7 @@ def apply(meta,state=STATE):
     docker.run('stop','--time','30',old['Id'])
     storage.write_private_json(state/'compose.json',compose_document(state,meta,uid=os.geteuid(),gid=os.getegid(),public=True))
     docker.run('compose','-f',state/'compose.json','up','-d','--no-deps','--no-build','--pull','never','web')
-    runtime_health(docker,state,meta)
+    wait_runtime(docker,state,meta)
     prepare_tls=load_script('prepare-ip-tls')
     with prepare_tls.tls_lock(state):prepare_tls.perform(state,'renew-test')
     import pwd

@@ -2,6 +2,7 @@ import sys
 import importlib.util
 from pathlib import Path
 import pytest
+from unittest.mock import patch
 import json
 from unittest.mock import patch
 
@@ -101,3 +102,10 @@ def test_initial_schema_receipt_accepts_psql_blank_line_as_no_row():
             self.installed=True;return '\n'
     d=Docker();assert m.read_schema_receipt(d,'identity.sql') is None
     assert m.install_schema_step(d,'identity.sql',sql)==row
+
+
+def test_public_switch_waits_for_exact_restored_runtime_to_recover_after_backup():
+    m=module()
+    with patch.object(m,'runtime_health',side_effect=[ValueError('AUTONOMOUS_API_HEALTH_REQUIRED'),{'ready':True}]) as health,patch.object(m.time,'sleep'):
+        assert m.wait_runtime(object(),Path('/private/state'),{})=={'ready':True}
+    assert health.call_count==2
