@@ -84,6 +84,10 @@ jobs:
         run: node --test business-api/test/local-queue.integration.mjs
       - name: Autonomous private task bytes, resumable results and import
         run: node --test business-api/test/local-task-files.integration.mjs
+      - name: Fresh source fixture to complete autonomous deployment and own backup restore
+        env:
+          VILLAGE_TEST_AUTONOMOUS_RUNTIME: '1'
+        run: node --test business-api/test/autonomous-deployment.integration.mjs
       - name: Stop only this job's disposable container
         if: always()
         run: docker rm --force village-unified-ci
