@@ -187,7 +187,7 @@ def wait_pg(docker):
 def hba_install(docker,subnet,*,migration):
     text=schema.hba(subnet,migration=migration)
     docker.run('exec','-i','--user','postgres',PG,'sh','-c','set -eu; umask 077; cat > "$PGDATA/pg_hba.conf"',input=text)
-    if docker.sql('SELECT pg_reload_conf();').strip()!='t' or docker.sql('SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL;').strip()!='0':raise ValueError('AUTONOMOUS_HBA_RELOAD_FAILED')
+    if docker.sql('SELECT pg_reload_conf();','postgres').strip()!='t' or docker.sql('SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL;','postgres').strip()!='0':raise ValueError('AUTONOMOUS_HBA_RELOAD_FAILED')
     return {'sha256':hashlib.sha256(text.encode()).hexdigest()}
 
 

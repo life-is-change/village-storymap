@@ -73,3 +73,15 @@ def test_only_empty_nonsecret_init_directory_is_readable_by_postgres_uid(tmp_pat
         assert (state/'secrets').stat().st_mode&0o777==0o700
     (state/'empty-init/poison.sql').write_text('must never execute')
     with pytest.raises(ValueError,match='EMPTY_NATIVE_INIT_DIRECTORY_REQUIRED'):m.prepare_state_directories(state)
+
+
+def test_hba_reload_uses_control_database_before_business_database_exists():
+    m=module();calls=[]
+    class Docker:
+        def run(self,*args,**kwargs):pass
+        def sql(self,query,database=None):
+            calls.append(database)
+            if database!='postgres':raise RuntimeError('business database does not exist yet')
+            return 't' if 'pg_reload_conf' in query else '0'
+    assert m.hba_install(Docker(),'172.30.0.0/16',migration=True)['sha256']
+    assert calls==['postgres','postgres']
