@@ -1,15 +1,15 @@
 {
   "schemaVersion": 2,
   "kind": "autonomous",
-  "releaseId": "autonomous-44d05dddb594",
+  "releaseId": "autonomous-af71d213cd1d",
   "instanceId": "aliyun-village",
-  "git_sha": "44d05dddb5945597b17e99c7ae658ba05f9523df",
+  "git_sha": "af71d213cd1d17b0812e4163353aeb901bc2ac2b",
   "os": "linux",
   "architecture": "amd64",
   "code_sha256": "dda6a0873c4f90512742b831d05409fed584aba35b70b26266f1d4373bc1b64c",
   "schema_sha256": "b28f93c975fc366efc6ad591a707d4d6de6b98621552adaa34cabd53bde48d21",
-  "static_sha256": "467aa6c487bae4336c4700e91a9af3bf950e7adc9944aafea56aa835362f2d19",
-  "control_sha256": "0f2daaccb660841d53e03ba67a37ea7af85f4a21fb027596598375fafa447aa7",
+  "static_sha256": "cc658d26ad05838ee8ecbe4204571abfd437462795d0975b4191c7e3343164c9",
+  "control_sha256": "c608f55622ea74f50cf6d1a141ba5620bafa21a92a0e1754cd4f8bb845929b96",
   "schema_steps": [
     "identity.sql",
     "catalog.sql",
@@ -63,14 +63,21 @@
     "supabase/functions/facade-cloud/README.md": "44ee36af9c613b7b9b42dc1515ff84de22413ebdfd9cbb7f494b9054517c6ab8"
   },
   "validation": {
-    "native_run_id": 39589066873,
+    "native_run_id": 39593146527,
     "native_status": "success",
-    "platform_run_id": 39589066874,
+    "platform_run_id": 39593146482,
     "platform_status": "success",
     "code_sha256": "dda6a0873c4f90512742b831d05409fed584aba35b70b26266f1d4373bc1b64c",
     "schema_sha256": "b28f93c975fc366efc6ad591a707d4d6de6b98621552adaa34cabd53bde48d21",
-    "static_sha256": "467aa6c487bae4336c4700e91a9af3bf950e7adc9944aafea56aa835362f2d19",
-    "control_sha256": "0f2daaccb660841d53e03ba67a37ea7af85f4a21fb027596598375fafa447aa7",
+    "static_sha256": "cc658d26ad05838ee8ecbe4204571abfd437462795d0975b4191c7e3343164c9",
+    "control_sha256": "c608f55622ea74f50cf6d1a141ba5620bafa21a92a0e1754cd4f8bb845929b96",
+    "linux_fixture_digests": {
+      "archive_sha256": "4eafc7fcb48b40a39f90bffa514c3d5a140e4a4b5cea43764bc12531242e9db0",
+      "code_sha256": "dda6a0873c4f90512742b831d05409fed584aba35b70b26266f1d4373bc1b64c",
+      "schema_sha256": "b28f93c975fc366efc6ad591a707d4d6de6b98621552adaa34cabd53bde48d21",
+      "static_sha256": "cc658d26ad05838ee8ecbe4204571abfd437462795d0975b4191c7e3343164c9",
+      "control_sha256": "c608f55622ea74f50cf6d1a141ba5620bafa21a92a0e1754cd4f8bb845929b96"
+    },
     "coordinator_fixture": {
       "status": "verified_not_public_ca_or_gpu_accepted",
       "auth_users": 4,
@@ -89,36 +96,29 @@
         0
       ],
       "load_p95_ms": [
-        32.87,
-        174.16,
-        299.46,
-        599.6
+        17.46,
+        106.93,
+        139.93,
+        288.97
       ],
       "ca_called": false,
       "provider_called": false,
       "gpu_called": false
-    },
-    "linux_fixture_digests": {
-      "archive_sha256": "2cbe857d6dc592cb53358b3b6afcc28ee87e66e446c8752718ac3f38e4f941e6",
-      "code_sha256": "dda6a0873c4f90512742b831d05409fed584aba35b70b26266f1d4373bc1b64c",
-      "schema_sha256": "b28f93c975fc366efc6ad591a707d4d6de6b98621552adaa34cabd53bde48d21",
-      "static_sha256": "467aa6c487bae4336c4700e91a9af3bf950e7adc9944aafea56aa835362f2d19",
-      "control_sha256": "0f2daaccb660841d53e03ba67a37ea7af85f4a21fb027596598375fafa447aa7"
     }
   },
-  "image": "village-autonomous:44d05dddb594",
+  "image": "village-autonomous:af71d213cd1d",
   "accepted_image_ids": [
-    "sha256:9874fe693b2e920ecf752b9d1936a3d367305700aac5b5bca4cb61ccf8d01632",
-    "sha256:ad51cc13b9c653ad3425b43f6be6590ed40f8c7a28e4c4005febd081cab361d8",
-    "sha256:5468e1caabd513a9ab9400c2a9c9b823d9c8d0984213df8a9e91bcb420eaae5d",
-    "sha256:83a0035d61197ab307285eba05b6f69b9cf2aefe8aaa449583f95cf1fab802f6",
-    "sha256:8a82e4d20036e75449014899198787b369ee531aad2f8d0308e4f7438b07470c",
-    "sha256:e65dab6aeb77b1b60c9da71ee2f31dce60e69d5ffe621a310d63244676f32508",
-    "sha256:a4f19e1ba93710d59c66b21825bd157e66d0ba6d4ea0459f5102511ee2a64e01"
+    "sha256:8d8ccde18cbd29cc1a1ede5ef0b50cec7f6699d11a94a9d2bdd88c48ca221d8e",
+    "sha256:63a92f603bc3b7fca74460db4fe809e56117137ababf782b98b5eff014b329a7",
+    "sha256:52892d1ec0eafbbad561855ee071834be7c7adaa972f0521d4951faea4ad085f",
+    "sha256:56d3ea8550fee1f7a6b8d6436e3c356de0f435fd12b4b93b612faaa25ccf6b1c",
+    "sha256:78584889c4860fb50a5dacaeccc9772f659586a313826afd77a3c428f255ae77",
+    "sha256:195e43cfdea1bab019cc0fa75987f5924eab74c2e7a358e077e425bded2aeb07",
+    "sha256:1bfa4f22ababcf14c0d5cbbdaf37768b8867ae646f84c070a8cdbeb0b0fbb6e8"
   ],
   "base_manifest": "sha256:efd0ab5780c2d9ab1f0f869571a00d5edb17793bff4cce4a2792e3eb0ffc7562",
-  "archive_filename": "village-autonomous-44d05dddb594-amd64.tar.gz",
-  "archive_bytes": 103250877,
-  "archive_sha256": "56a332f446137c3409e03fdfa0a5beea635ac606d0c2d07316f177649b70fef6",
+  "archive_filename": "village-autonomous-af71d21-amd64.tar.gz",
+  "archive_bytes": 103250988,
+  "archive_sha256": "20f1320442e214fd0e118cb82d4809ff7a1b0f5cfb5e3c626abbbac37e7b28bd",
   "runtime_execution": "disposable_complete_release_verified_real_host_pending"
 }

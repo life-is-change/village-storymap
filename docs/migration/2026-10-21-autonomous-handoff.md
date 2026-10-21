@@ -6,7 +6,13 @@
 
 ## 当前边界
 
-发布镜像与整套隔离验收已就绪，运行提交 `44d05dddb594`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
+发布镜像与整套隔离验收已就绪，运行提交 `af71d213cd1d`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
+
+## 已在第1步遇到端口检查失败的现有上传包
+
+2026-10-21修复：Docker将默认发布地址存为 `HostIp=""`，实际监听为 `0.0.0.0:80` / `[::]:80`。现在核对运行时绑定后接受这种格式，仍拒绝未知端口、回环监听和额外绑定。目标站点无需改端口或重建旧容器。
+
+已为这次操作保留原快照/137个文件，生成 `C:\Users\MR\village-autonomous-handoff\village-autonomous-private-portfix.tar`，SHA256为 `e64a3d5889811f2f26c3dd303f6559a26bd4258545a8d984ccfd6c1a3eba32ce`。不需要再次隐藏输入密钥或从源库复制。上传到 `/home/admin/` 后，先拉取最新main、chmod600并核对SHA256；用 `prepare-autonomous-handoff.py --unpack` 解包到新目录 `$HOME/village-autonomous-handoff-portfix`，再对该目录执行 `install-autonomous-handoff.py --received`。不要覆盖旧解包目录或重新解包原包。快照仍须在24小时内进入候选部署。
 
 ## 1. 在 Windows 生成一个私有上传包
 
