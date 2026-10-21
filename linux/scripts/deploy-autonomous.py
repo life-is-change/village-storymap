@@ -42,7 +42,7 @@ def stop_old_candidates(docker,receipts):
 def install_schema_step(docker,name,sql):
     if name not in [n+'.sql' for n in (*schema.UNIFIED,*schema.LOCAL)]:raise ValueError('KNOWN_SCHEMA_STEP_REQUIRED')
     digest=schema.step_hash(sql)
-    row=json.loads(docker.sql("SELECT (SELECT json_build_object('sha256',sha256) FROM autonomous_control.installed_steps WHERE name='"+name+"');") or 'null')
+    row=json.loads(docker.sql("SELECT (SELECT json_build_object('sha256',sha256) FROM autonomous_control.installed_steps WHERE name='"+name+"');").strip() or 'null')
     if row is not None:
         if row!={'sha256':digest}:raise ValueError('SCHEMA_TRANSACTION_RECEIPT_CHANGED')
         return row
@@ -54,7 +54,7 @@ def install_schema_step(docker,name,sql):
 
 def read_schema_receipt(docker,name):
     if name not in [n+'.sql' for n in (*schema.UNIFIED,*schema.LOCAL)]:raise ValueError('KNOWN_SCHEMA_STEP_REQUIRED')
-    return json.loads(docker.sql("SELECT (SELECT json_build_object('sha256',sha256) FROM autonomous_control.installed_steps WHERE name='"+name+"');") or 'null')
+    return json.loads(docker.sql("SELECT (SELECT json_build_object('sha256',sha256) FROM autonomous_control.installed_steps WHERE name='"+name+"');").strip() or 'null')
 
 
 def require_acceptance(state,meta,*,now=None):

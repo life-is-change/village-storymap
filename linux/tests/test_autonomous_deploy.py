@@ -90,3 +90,14 @@ def test_hba_reload_uses_control_database_before_business_database_exists():
 def test_auth_owner_transfer_orders_tables_before_their_owned_sequences():
     m=module();sql=m.schema.auth_owner_sql('a'*48,'b'*48)
     assert "ORDER BY CASE WHEN c.relkind='S' THEN 1 ELSE 0 END,c.oid" in sql
+
+
+def test_initial_schema_receipt_accepts_psql_blank_line_as_no_row():
+    m=module();sql='CREATE TABLE synthetic(id int);';row={'sha256':m.schema.step_hash(sql)}
+    class Docker:
+        installed=False
+        def sql(self,query):
+            if query.startswith('SELECT'):return json.dumps(row) if self.installed else '\n'
+            self.installed=True;return '\n'
+    d=Docker();assert m.read_schema_receipt(d,'identity.sql') is None
+    assert m.install_schema_step(d,'identity.sql',sql)==row
