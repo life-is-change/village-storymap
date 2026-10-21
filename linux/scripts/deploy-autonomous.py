@@ -17,7 +17,7 @@ import autonomous_schema as schema
 from autonomous_bundle import load_script,validate_fresh_snapshot
 from autonomous_compose import compose_document
 from autonomous_extract import extract_release,tree_digest
-from autonomous_operator import Docker,Checkpoints,stop_receipt,OLD_CANDIDATES,PG,API,AUTH,WEB,PROJECT,DATABASE,ADMIN,audit_auth_triggers,AUTH_TRIGGER_SQL,verified_runtime,operation_lock,resolve_image
+from autonomous_operator import Docker,Checkpoints,stop_receipt,matches_stop_receipt,OLD_CANDIDATES,PG,API,AUTH,WEB,PROJECT,DATABASE,ADMIN,audit_auth_triggers,AUTH_TRIGGER_SQL,verified_runtime,operation_lock,resolve_image
 
 ROOT=storage.source_checkout()
 STATE=Path.home()/'village-autonomous'
@@ -32,8 +32,7 @@ def check_resources(*,available,disk,database,files):
 
 def stop_old_candidates(docker,receipts):
     for expected in receipts:
-        current=stop_receipt(docker.inspect(expected['name']))
-        if any(current[k]!=expected[k] for k in expected if k!='was_running'):raise ValueError('OLD_CANDIDATE_RECEIPT_CHANGED')
+        if not matches_stop_receipt(docker.inspect(expected['name']),expected):raise ValueError('OLD_CANDIDATE_RECEIPT_CHANGED')
     for expected in receipts:
         if expected['was_running']:docker.run('stop','--time','30',expected['id'])
     return receipts

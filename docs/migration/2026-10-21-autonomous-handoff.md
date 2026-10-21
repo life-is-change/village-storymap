@@ -8,6 +8,22 @@
 
 发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
+## 当前停在第5步：旧候选挂载顺序误报
+
+目标机已确认storage候选3个挂载、PostgreSQL候选4个挂载均与原记录完全相同，只是Docker返回排列不同；原摘要计入顺序造成误报。以下恢复仅适用于 `release=done`、`old-candidates-stopped=pending`，且没有新数据库容器/数据、没有release.json/公开切换记录的现场。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/repair-autonomous-candidate-order.py &&
+python3 linux/scripts/install-autonomous-handoff.py \
+  --received "$HOME/village-autonomous-handoff-acmefix"
+```
+
+无需更换发布镜像或重传私有数据。恢复工具从已校验的Git引导代码运行，保留冻结发布树及原始initial-baseline.json字节不变。核对当前私有输入/证书/镜像、精确检查点、原容器ID/镜像/项目/服务/端口及挂载源/目标/RW；旧顺序摘要仅通过最多8个挂载的完整排列匹配证明兼容，不接受真实挂载变化。所有候选验证完后才停止指定五个旧测试容器，保留其容器和数据；按原检查点机制记录完成，之后才由安装器创建新数据库。任何身份、控制树、检查点、挂载或数据条件不符即停止。
+
+成功标记 `OLD_CANDIDATE_ORDER_REPAIR_VERIFIED_DATABASE_NOT_CREATED`。若该标记已打印而后续安装出现STOP，只继续安装，不重复执行恢复命令。原f4b6f39发布镜像及其验证摘要保持不变；本补丁只完成进入数据库创建之前的引导兼容恢复。
+
 ## 当前在第2步遇到ACME校验HTTP错误：复用现有私有数据
 
 修复了私有umask077把公开ACME目录/探测文件变成700/600的问题。只将 `.well-known`、`acme-challenge` 及本次随机校验文件明确设置755/644；不改变站点其他目录、私钥或数据库备份权限。实际不同用户的Nginx容器已验证能读取200。

@@ -12,6 +12,7 @@ import secrets
 import subprocess
 import sys
 import contextlib
+import itertools
 import business_storage_copy as storage
 
 PROJECT='village-autonomous'
@@ -102,8 +103,19 @@ def stop_receipt(obj):
                 raise ValueError('OLD_CANDIDATE_PUBLIC_OR_UNKNOWN_PORT')
     mounts=[{'source':v['Source'],'target':v['Destination'],'rw':v['RW']} for v in obj.get('Mounts',[])]
     return {'id':obj['Id'],'image':obj['Image'],'name':name,'project':project,'service':service,
-            'mounts_sha256':hashlib.sha256(json.dumps(mounts,sort_keys=True).encode()).hexdigest(),
+            'mounts_sha256':hashlib.sha256(json.dumps(sorted(mounts,key=lambda m:(m['target'],m['source'],m['rw'])),sort_keys=True).encode()).hexdigest(),
             'was_running':bool(obj.get('State',{}).get('Running'))}
+
+
+def matches_stop_receipt(obj,expected):
+    current=stop_receipt(obj)
+    if set(current)!=set(expected) or any(current[k]!=expected[k] for k in current if k not in ('was_running','mounts_sha256')):return False
+    if current['mounts_sha256']==expected['mounts_sha256']:return True
+    # Old receipts encoded Docker's arbitrary mount-list order. A permutation
+    # matching the exact old digest proves the same complete mount multiset.
+    mounts=[{'source':v['Source'],'target':v['Destination'],'rw':v['RW']} for v in obj.get('Mounts',[])]
+    if len(mounts)>8:return False
+    return any(hashlib.sha256(json.dumps(list(order),sort_keys=True).encode()).hexdigest()==expected['mounts_sha256'] for order in itertools.permutations(mounts))
 
 
 class Checkpoints:

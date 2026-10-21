@@ -135,13 +135,24 @@ def main():
         # A fixed-name old site is fixture-owned. Production's stricter old
         # custom-image identity guard remains covered separately and unchanged.
         nginx=meta['nginx_image_id']
+        candidate_mounts=root/'candidate-mounts';candidate_mounts.mkdir(mode=0o700)
+        for part in ('a','b'):(candidate_mounts/part).mkdir(mode=0o700)
         for name,(project,service) in OLD_CANDIDATES.items():
+            mounts=[]
+            if name in ('village-storage-validation-api','village-api-validation-postgres'):
+                for part in ('a','b'):mounts+=['--mount',f'type=bind,source={candidate_mounts/part},target=/fixture/{part},readonly']
             docker('run','--detach','--init','--name',name,'--network','none','--label','com.docker.compose.project='+project,
-                '--label','com.docker.compose.service='+service,'--entrypoint','/bin/sleep',nginx,'1200');created.append(name)
+                '--label','com.docker.compose.service='+service,*mounts,'--entrypoint','/bin/sleep',nginx,'1200');created.append(name)
         docker('run','--detach','--init','--name',old_web,'--network','none','--entrypoint','/bin/sleep',nginx,'1200');created.append(old_web)
         old_info=json.loads(docker('inspect',old_web))[0]
-        deploy.baseline=lambda d:{'web_id':old_info['Id'],'web_image':old_info['Image'],'config_sha256':'0'*64,
-            'candidates':[stop_receipt(d.inspect(name)) for name in OLD_CANDIDATES]}
+        def legacy_baseline(d):
+            receipts=[]
+            for name in OLD_CANDIDATES:
+                row=d.inspect(name);receipt=stop_receipt(row)
+                mounts=sorted([{'source':m['Source'],'target':m['Destination'],'rw':m['RW']} for m in row['Mounts']],key=lambda m:m['target'],reverse=True)
+                receipt['mounts_sha256']=hashlib.sha256(json.dumps(mounts,sort_keys=True).encode()).hexdigest();receipts.append(receipt)
+            return {'web_id':old_info['Id'],'web_image':old_info['Image'],'config_sha256':'0'*64,'candidates':receipts}
+        deploy.baseline=legacy_baseline
         def dry_run(st,mode):
             if mode!='renew-test':raise ValueError('NO_REAL_CA_CALLS_IN_FIXTURE')
             prepare_tls.verify_acme_webroot(st/'acme',port=80);prepare_tls.reload_current(deploy.DeployDocker(st),meta,st/'tls')
@@ -164,6 +175,21 @@ def main():
         # control files still contain the real, strict production implementations.
         deploy.load_script=load
         with patch.object(ssl,'create_default_context',side_effect=fixture_context),patch.object(tls,'validate_leaf',side_effect=fixture_leaf),patch.object(tls,'verify_certificate_pair',side_effect=fixture_pair):
+            phase='legacy-mount-pending-stop';original_stop=deploy.stop_old_candidates
+            def interrupted(*args):raise RuntimeError('SYNTHETIC_INTERRUPTION_BEFORE_ANY_STOP')
+            deploy.stop_old_candidates=interrupted
+            try:
+                deploy.deploy(meta,archive,backup,source_files,state=state)
+                raise ValueError('FIXTURE_STOP_INTERRUPT_NOT_REACHED')
+            except RuntimeError as error:
+                if str(error)!='SYNTHETIC_INTERRUPTION_BEFORE_ANY_STOP':raise
+            finally:deploy.stop_old_candidates=original_stop
+            repair=load('repair-autonomous-candidate-order');repair.load_script=load
+            deploy.read_meta=lambda:meta
+            before_baseline=(state/'initial-baseline.json').read_bytes()
+            repair.repair(state)
+            if (state/'initial-baseline.json').read_bytes()!=before_baseline:raise ValueError('FIXTURE_BASELINE_WAS_MODIFIED')
+            print('LEGACY_CANDIDATE_ORDER_PENDING_RECOVERY_VERIFIED',flush=True)
             phase='coordinator-deploy';result=deploy.deploy(meta,archive,backup,source_files,state=state)
             if result['status']!='autonomous_internal_deployed_not_accepted':raise ValueError('FIXTURE_DEPLOY_STATUS_DIFFERS')
             for name in (PG,API,AUTH,WEB):created.append(name)

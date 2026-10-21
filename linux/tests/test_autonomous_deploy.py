@@ -109,3 +109,21 @@ def test_public_switch_waits_for_exact_restored_runtime_to_recover_after_backup(
     with patch.object(m,'runtime_health',side_effect=[ValueError('AUTONOMOUS_API_HEALTH_REQUIRED'),{'ready':True}]) as health,patch.object(m.time,'sleep'):
         assert m.wait_runtime(object(),Path('/private/state'),{})=={'ready':True}
     assert health.call_count==2
+
+
+def test_stopping_old_candidates_accepts_legacy_order_but_rejects_real_mount_changes_before_any_stop():
+    import copy,hashlib
+    m=module();from test_autonomous_operator import baseline
+    obj=baseline('village-storage-validation-api','sha256:'+'a'*64,'village-storage-read-validation','api')
+    obj['Mounts']=[{'Source':'/private/a','Destination':'/run/a','RW':False},{'Source':'/private/b','Destination':'/run/b','RW':True}]
+    original=m.stop_receipt(obj)
+    old=[{'source':v['Source'],'target':v['Destination'],'rw':v['RW']} for v in reversed(obj['Mounts'])]
+    receipt={**original,'mounts_sha256':hashlib.sha256(json.dumps(old,sort_keys=True).encode()).hexdigest()}
+    calls=[]
+    class Docker:
+        def inspect(self,name):return obj
+        def run(self,*args):calls.append(args)
+    m.stop_old_candidates(Docker(),[receipt]);assert len(calls)==1
+    obj['Mounts'][0]['RW']=True;calls.clear()
+    with pytest.raises(ValueError,match='OLD_CANDIDATE_RECEIPT_CHANGED'):m.stop_old_candidates(Docker(),[receipt])
+    assert calls==[]

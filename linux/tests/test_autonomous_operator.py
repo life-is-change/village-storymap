@@ -115,3 +115,27 @@ def test_offline_runtime_identity_can_use_only_archive_derived_import_aliases():
     assert m.resolve_image(Docker(),[config,imported])==imported
     with pytest.raises(ValueError):m.resolve_image(Docker(),['untrusted:latest'])
     assert len(calls)==2
+
+
+def test_mount_receipts_are_order_independent_and_old_hashes_require_identical_sets():
+    import copy,hashlib,itertools
+    m=module();obj=baseline('village-storage-validation-api','sha256:'+'a'*64,'village-storage-read-validation','api')
+    obj['Mounts']=[{'Source':'/private/a','Destination':'/run/a','RW':False},{'Source':'/private/b','Destination':'/run/b','RW':True}]
+    original=m.stop_receipt(obj);reverse=copy.deepcopy(obj);reverse['Mounts'].reverse()
+    assert m.stop_receipt(reverse)['mounts_sha256']==original['mounts_sha256']
+    old=[{'source':v['Source'],'target':v['Destination'],'rw':v['RW']} for v in reverse['Mounts']]
+    legacy={**original,'mounts_sha256':hashlib.sha256(json.dumps(old,sort_keys=True).encode()).hexdigest()}
+    assert m.matches_stop_receipt(obj,legacy)
+    reverse['Mounts'][0]['RW']=False
+    assert not m.matches_stop_receipt(reverse,legacy)
+    changed=copy.deepcopy(obj);changed['Id']='d'*64
+    assert not m.matches_stop_receipt(changed,legacy)
+    changed=copy.deepcopy(obj);changed['Mounts'][0]['Source']='/private/other'
+    assert not m.matches_stop_receipt(changed,legacy)
+
+
+def test_legacy_mount_permutation_proof_is_bounded():
+    m=module();obj=baseline('village-storage-validation-api','sha256:'+'a'*64,'village-storage-read-validation','api')
+    obj['Mounts']=[{'Source':'/private/'+str(i),'Destination':'/run/'+str(i),'RW':False} for i in range(9)]
+    receipt=m.stop_receipt(obj);receipt['mounts_sha256']='f'*64
+    assert not m.matches_stop_receipt(obj,receipt)
