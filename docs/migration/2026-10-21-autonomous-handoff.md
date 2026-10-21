@@ -8,7 +8,21 @@
 
 发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
-## 当前停在第5步：旧候选挂载顺序误报
+## 当前停在第5步：旧个人空间表缺少项目关联字段
+
+已恢复数据库和认证，`schema-files` 原子事务因 `column s.teaching_project_id does not exist` 回滚。实际快照中的 `course_personal_spaces` 是旧结构；之前的合成测试预先补过该列，未覆盖这一情况。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/repair-autonomous-personal-context.py &&
+python3 linux/scripts/install-autonomous-handoff.py \
+  --received "$HOME/village-autonomous-handoff-acmefix"
+```
+
+无需上传镜像、重新导出或恢复数据库。修复工具要求当前精确断点、冻结发布摘要、原集群/数据库身份及前五个结构事务收据一致；只在当前独立候选库补齐两个可空关联字段、索引及对应五参数个人空间函数。整个兼容迁移单事务提交，比较原有行的全部原始字段，保留原行不自动分配项目；原三参数函数保留，新函数仅由受控API调用。相同修复可在此断点重复验证，不修改检查点或冻结镜像/结构。失败则保留数据和私有日志。成功标记 `PERSONAL_CONTEXT_PREREQUISITE_REPAIRED_EXISTING_ROWS_RETAINED`，之后由原安装器续跑；若后续再次停止，不重复运行已完成的历史修复。
+
+## 已完成的第5步挂载顺序修复（历史记录）
 
 目标机已确认storage候选3个挂载、PostgreSQL候选4个挂载均与原记录完全相同，只是Docker返回排列不同；原摘要计入顺序造成误报。以下恢复仅适用于 `release=done`、`old-candidates-stopped=pending`，且没有新数据库容器/数据、没有release.json/公开切换记录的现场。
 

@@ -190,6 +190,26 @@ def main():
             repair.repair(state)
             if (state/'initial-baseline.json').read_bytes()!=before_baseline:raise ValueError('FIXTURE_BASELINE_WAS_MODIFIED')
             print('LEGACY_CANDIDATE_ORDER_PENDING_RECOVERY_VERIFIED',flush=True)
+            phase='legacy-personal-schema'
+            try:
+                deploy.deploy(meta,archive,backup,source_files,state=state)
+                raise ValueError('LEGACY_PERSONAL_MISSING_COLUMN_NOT_REPRODUCED')
+            except RuntimeError as error:
+                if str(error)!='DOCKER_OPERATION_FAILED':raise
+            pending=storage.read_private_json(state/'autonomous-checkpoints.json')
+            if pending['steps'].get('schema-files',{}).get('status')!='pending':raise ValueError('WRONG_LEGACY_SCHEMA_FAILURE')
+            d=deploy.DeployDocker(state)
+            if deploy.read_schema_receipt(d,'files.sql') is not None or d.sql("SELECT to_regclass('api_private.file_sessions') IS NULL;").strip()!='t':raise ValueError('FILES_TRANSACTION_NOT_ROLLED_BACK')
+            legacy_repair=load('repair-autonomous-personal-context');legacy_repair.load_script=load
+            original_steps=(state/'autonomous-checkpoints.json').read_bytes()
+            legacy_repair.repair(state);legacy_repair.repair(state)
+            if (state/'autonomous-checkpoints.json').read_bytes()!=original_steps:raise ValueError('LEGACY_SCHEMA_REPAIR_CHANGED_CHECKPOINTS')
+            # Existing rows are not auto-assigned. Explicit owner ensure is the
+            # only path that may attach a legacy personal space to a project.
+            if d.sql('SELECT count(*) FROM public.course_personal_spaces WHERE teaching_project_id IS NOT NULL;').strip()!='0':raise ValueError('LEGACY_PERSONAL_ROWS_REASSIGNED')
+            own=d.sql("BEGIN;SELECT set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);SELECT (public.ensure_course_personal_space('course','a0000000-0000-4000-8000-000000000001'::uuid,'b0000000-0000-4000-8000-000000000001','formal_personal','Owned legacy')).id;ROLLBACK;")
+            if 'a0000000-0000-4000-8000-000000000001' not in own:raise ValueError('LEGACY_OWNER_ENSURE_NOT_VERIFIED')
+            print('LEGACY_PERSONAL_SCHEMA_ATOMIC_REPAIR_VERIFIED',flush=True)
             phase='coordinator-deploy';result=deploy.deploy(meta,archive,backup,source_files,state=state)
             if result['status']!='autonomous_internal_deployed_not_accepted':raise ValueError('FIXTURE_DEPLOY_STATUS_DIFFERS')
             for name in (PG,API,AUTH,WEB):created.append(name)
