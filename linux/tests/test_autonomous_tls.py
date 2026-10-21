@@ -68,6 +68,8 @@ def test_proxy_keeps_auth_internal_secrets_and_private_files_off_the_public_rout
     assert 'location ^~ /api/worker/v1/' in text
     assert 'ssl_session_tickets off' in text
     assert 'proxy_request_buffering off' in text
+    for name in ('client_body_temp_path','proxy_temp_path','fastcgi_temp_path','uwsgi_temp_path','scgi_temp_path'):
+        assert name+' /tmp/' in text
     assert 'privkey.pem' in text and 'fullchain.pem' in text
     assert 'supabase.co' not in text and 'api_key' not in text.lower()
 

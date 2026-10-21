@@ -71,7 +71,7 @@ def main():
         (root/'web/index.html').write_text('autonomous fixture')
         (root/'web/deployment-config.js').write_text('fixture deployment')
         (root/'nginx.conf').write_text((ROOT/'linux/nginx.autonomous.conf').read_text())
-        (root/'upstreams.conf').write_text('pid /tmp/nginx.pid; error_log /dev/stderr warn; events {} http { access_log off; server { listen 8080; location / { default_type application/json; return 401 \'{"fixture":"api"}\'; } } server { listen 9999; location = /health { return 200 "fixture-auth"; } location / { return 401; } } }')
+        (root/'upstreams.conf').write_text('pid /tmp/nginx.pid; error_log /dev/stderr warn; events {} http { access_log off; client_body_temp_path /tmp/client; proxy_temp_path /tmp/proxy; fastcgi_temp_path /tmp/fastcgi; uwsgi_temp_path /tmp/uwsgi; scgi_temp_path /tmp/scgi; server { listen 8080; location / { default_type application/json; return 401 \'{"fixture":"api"}\'; } } server { listen 9999; location = /health { return 200 "fixture-auth"; } location / { return 401; } } }')
         first,first_key=fixture_certificate(root,'first');second,second_key=fixture_certificate(root,'second')
         tls.atomic_certificate(root/'tls',fullchain=first.read_bytes(),private_key=first_key.read_bytes(),reload=lambda:None)
         docker('network','create','--internal',NETWORK)
