@@ -59,7 +59,8 @@ ALTER ROLE village_auth_migrator IN DATABASE village_unified_candidate SET searc
 ALTER ROLE village_auth_runtime IN DATABASE village_unified_candidate SET search_path=auth;
 DO $$DECLARE item record;command text;BEGIN
  FOR item IN SELECT c.oid,c.relname,c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname='auth' AND c.relkind IN ('r','p','S','v','m','f') LOOP
+ WHERE n.nspname='auth' AND c.relkind IN ('r','p','S','v','m','f')
+ ORDER BY CASE WHEN c.relkind='S' THEN 1 ELSE 0 END,c.oid LOOP
   command:=CASE item.relkind WHEN 'S' THEN 'SEQUENCE' WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'f' THEN 'FOREIGN TABLE' ELSE 'TABLE' END;
   EXECUTE format('ALTER %s auth.%I OWNER TO village_auth_migrator',command,item.relname);
  END LOOP;

@@ -85,3 +85,8 @@ def test_hba_reload_uses_control_database_before_business_database_exists():
             return 't' if 'pg_reload_conf' in query else '0'
     assert m.hba_install(Docker(),'172.30.0.0/16',migration=True)['sha256']
     assert calls==['postgres','postgres']
+
+
+def test_auth_owner_transfer_orders_tables_before_their_owned_sequences():
+    m=module();sql=m.schema.auth_owner_sql('a'*48,'b'*48)
+    assert "ORDER BY CASE WHEN c.relkind='S' THEN 1 ELSE 0 END,c.oid" in sql
