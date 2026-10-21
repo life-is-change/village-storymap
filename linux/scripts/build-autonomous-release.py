@@ -23,7 +23,7 @@ CONTROLS=('deploy-autonomous.py','autonomous_operator.py','autonomous_compose.py
 def test_context_template(root):
     sql=(Path(root)/'linux/sql/scene-files-test-context.sql').read_text(encoding='utf-8')
     replacements={'village_scene_files_validation':'village_unified_candidate','c2a-test-20261019':'autonomous-test-20261021',
-        'c2a-test-group-20261019':'autonomous-test-group-20261021','c2a-test-space-20261019':'autonomous-test-space-20261021',
+        'c2a-test-group-20261019':'autonomous-test-group-20261021','c2a-test-space-20261019':'unified-test-autonomous-20261021',
         'c2a00000':'c4a00000','C2a TEST':'Autonomous TEST',"student_id='332'":"id='__ADMIN_ID__'", 
         "student_id='25213040'":"id='__MEMBER_ID__'",'__BEGIN__':'BEGIN;',
         '__BOUNDARY_EWKT__':'SRID=4326;MULTIPOLYGON(((112.999 22.999,113.001 22.999,113.001 23.001,112.999 23.001,112.999 22.999)))',"'group_plan'":"'practice_shared'"}

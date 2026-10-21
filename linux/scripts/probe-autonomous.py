@@ -113,7 +113,7 @@ def context_callback(docker,state):
     def prepare(admin,member,previous):
         if not all(re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}',v) for v in (admin,member)) or admin==member:raise old.TransportFailure('TEST_CONTEXT_REQUIRED')
         context={'teachingProjectId':'c4a00000-0000-4000-8000-000000000002','villageId':'c4a00000-0000-4000-8000-000000000001',
-            'courseId':'autonomous-test-20261021','groupId':'autonomous-test-group-20261021','spaceId':'autonomous-test-space-20261021'}
+            'courseId':'autonomous-test-20261021','groupId':'autonomous-test-group-20261021','spaceId':'unified-test-autonomous-20261021'}
         if previous is not None and previous!=context:raise old.TransportFailure('TEST_CONTEXT_REQUIRED')
         template=storage.private_path(state/'control/autonomous-test-context.sql').read_text()
         value=json.loads(docker.sql(template.replace('__ADMIN_ID__',admin).replace('__MEMBER_ID__',member)))

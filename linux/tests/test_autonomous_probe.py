@@ -42,7 +42,7 @@ def test_local_auth_probe_proves_profile_uuid_refresh_and_logged_out_session_den
     assert 'fixture-local-token' not in json.dumps(report) and 'fixture-refresh' not in json.dumps(report) and not any('supabase.co' in p for p in calls)
 
 
-def test_autonomous_test_context_is_isolated_and_does_not_change_current_project_slot():
+def test_autonomous_test_context_is_isolated_and_does_not_change_current_project_slot(tmp_path):
     builder_path=S/'build-autonomous-release.py'
     spec=importlib.util.spec_from_file_location('autonomous_context_builder_test',builder_path);builder=importlib.util.module_from_spec(spec);spec.loader.exec_module(builder)
     sql=builder.test_context_template(S.parents[1])
@@ -50,3 +50,8 @@ def test_autonomous_test_context_is_isolated_and_does_not_change_current_project
     assert "id='__ADMIN_ID__'" in sql and "id='__MEMBER_ID__'" in sql
     assert "'practice_shared'" in sql and "'completed'" in sql
     assert 'UPDATE public.teaching_projects' not in sql
+    control=tmp_path/'control';control.mkdir(mode=0o700);template=control/'autonomous-test-context.sql';template.write_text(sql);template.chmod(0o600)
+    class Docker:
+        def sql(self,text):return '{"status":"ready","test_memberships":1}'
+    context=module().context_callback(Docker(),tmp_path)('91000000-0000-4000-8000-000000000009','91000000-0000-4000-8000-000000000008',None)
+    assert context['spaceId'].startswith('unified-test-') and context['spaceId'] in sql
