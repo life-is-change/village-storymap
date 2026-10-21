@@ -266,9 +266,9 @@ def test_detected_source_change_stays_sticky_across_two_resumes(tmp_path):
 @pytest.mark.parametrize('operation',['copy','verify'])
 def test_full_manifest_read_modify_verify_transaction_holds_exclusive_lock(tmp_path,monkeypatch,operation):
     m=module();root=setup_copy(tmp_path,m);real_load=m.load_transfer
-    def checked_load(path):
+    def checked_load(path,**kwargs):
         assert (root/'.transfer.lock').is_file(), 'State must be loaded only after acquiring its lock'
-        return real_load(path)
+        return real_load(path,**kwargs)
     monkeypatch.setattr(m,'load_transfer',checked_load)
     if operation=='copy':m.copy_inventory(root/'inventory.json',root,'sb_secret_'+'a'*40,Transport(m))
     else:m.verify_copy(root)

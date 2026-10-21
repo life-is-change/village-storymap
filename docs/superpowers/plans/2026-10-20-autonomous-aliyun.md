@@ -129,9 +129,9 @@
 
 **Interfaces:** `submitProvider(run)` records intent before billing, persists provider ID, polls boundedly and streams outputs locally. Unknown submit response enters manual reconciliation; no blind paid resubmission. Secrets are server-only files, provider host allowlisted.
 
-- [ ] Test unknown acknowledgement, repeated submit, cancellation after provider acceptance, provider errors/oversized output/URL substitution and output ownership; use fixtures only.
-- [ ] Run RED; implement then GREEN with frontend facade flow regressions.
-- [ ] Commit `feat: manage optional facade provider jobs from Aliyun`.
+- [x] Test unknown acknowledgement, repeated submit, cancellation after provider acceptance, provider errors/oversized output/URL substitution and output ownership; use fixtures only.
+- [x] Run RED; implement then GREEN with frontend facade flow regressions.
+- [x] Commit `feat: manage optional facade provider jobs from Aliyun`.
 
 ### Task 9: HTTPS IP, full copy and coordinated deployment
 

@@ -89,11 +89,21 @@ def validate_inventory(doc):
     return {'version':1,'project_ref':PROJECT,'source_archive_sha256':doc['source_archive_sha256'],
             'generated_at':text(doc['generated_at'],100),'buckets':buckets,'objects':objects}
 
-def inventory_summary(doc):
-    selected=[o for o in doc['objects'] if o['bucket'] in SELECTED_BUCKETS]
+def all_inventory_buckets(doc):
+    return frozenset(b['id'] for b in validate_inventory(doc)['buckets'])
+
+def selection(doc,selected_buckets=None):
+    if selected_buckets is None:return frozenset(SELECTED_BUCKETS)
+    selected=frozenset(selected_buckets)
+    if not selected.issubset(all_inventory_buckets(doc)):raise ValueError('UNKNOWN_STORAGE_SCOPE')
+    return selected
+
+def inventory_summary(doc,*,selected_buckets=None):
+    scope=selection(doc,selected_buckets)
+    selected=[o for o in doc['objects'] if o['bucket'] in scope]
     return {'selected_objects':len(selected),'excluded_objects':len(doc['objects'])-len(selected),
             'known_bytes':sum(o['declared_size'] or 0 for o in selected),'unknown_sizes':sum(o['declared_size'] is None for o in selected),
-            'buckets':[{'bucket':b['id'],'selected':b['id'] in SELECTED_BUCKETS,
+            'buckets':[{'bucket':b['id'],'selected':b['id'] in scope,
                         'objects':sum(o['bucket']==b['id'] for o in doc['objects'])} for b in doc['buckets']]}
 
 def export_inventory(docker,state,output,deploy):
@@ -149,11 +159,62 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):raise ValueError('Source redirects are not accepted.')
 
 class SourceTransport:
-    def __init__(self,key,opener=None):
+    def __init__(self,key,opener=None,*,selected_buckets=None):
         self.headers=credential_headers(key)
-        self.opener=opener or urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
+        self.selected_buckets=frozenset(SELECTED_BUCKETS if selected_buckets is None else selected_buckets)
+        if any(not re.fullmatch('[A-Za-z0-9_-]+',b) for b in self.selected_buckets):raise ValueError('INVALID_STORAGE_SCOPE')
+        self.opener=opener or urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
+
+    def _json(self,path,body=None):
+        data=None if body is None else json.dumps(body).encode()
+        request=urllib.request.Request(ORIGIN+'/storage/v1/'+path,data=data,
+                headers={**self.headers,'Content-Type':'application/json'},method='GET' if body is None else 'POST')
+        try:
+            with self.opener.open(request,timeout=30) as response:
+                if getattr(response,'status',200)!=200:raise SourceFailure(0)
+                raw=response.read(8*CHUNK+1)
+                if len(raw)>8*CHUNK:raise ValueError('SOURCE_LIST_RESPONSE_TOO_LARGE')
+                value=json.loads(raw)
+                if not isinstance(value,list):raise ValueError('SOURCE_LIST_INVALID')
+                return value
+        except urllib.error.HTTPError as e:
+            status=e.code;e.close();raise SourceFailure(status) from None
+        except (OSError,http.client.HTTPException):raise SourceFailure(0) from None
+
+    def verify_inventory(self,doc):
+        doc=validate_inventory(doc)
+        # Check every bucket, including empty buckets, rather than silently
+        # projecting a changed source onto the old snapshot's five-bucket scope.
+        rows=self._json('bucket');actual=[text(row.get('id'),100) for row in rows]
+        if len(actual)!=len(set(actual)) or set(actual)!=all_inventory_buckets(doc):raise ValueError('SOURCE_INVENTORY_CHANGED')
+        expected={(o['bucket'],o['name'],o['id']) for o in doc['objects']};found=set();calls=0
+        for bucket in sorted(actual):
+            pending=[''];folders=set();names=set()
+            while pending:
+                prefix=pending.pop()
+                if prefix in folders:raise ValueError('SOURCE_LIST_DUPLICATE_FOLDER')
+                folders.add(prefix);offset=0
+                while True:
+                    calls+=1
+                    if calls>20000 or len(folders)>20000:raise ValueError('SOURCE_LIST_LIMIT')
+                    page=self._json('object/list/'+bucket,{'prefix':prefix,'limit':1000,'offset':offset,'sortBy':{'column':'name','order':'asc'}})
+                    if len(page)>1000:raise ValueError('SOURCE_LIST_LIMIT')
+                    for row in page:
+                        segment=text(row.get('name'))
+                        if '/' in segment:raise ValueError('SOURCE_LIST_AMBIGUOUS_NAME')
+                        name=object_name(prefix+segment)
+                        if name in names:raise ValueError('SOURCE_LIST_DUPLICATE_NAME')
+                        names.add(name)
+                        if len(names)>40000 or len(found)>20000 or len(name.split('/'))>64:raise ValueError('SOURCE_LIST_LIMIT')
+                        if row.get('id') is None:pending.append(name+'/')
+                        else:found.add((bucket,name,text(row['id'],200)))
+                    if len(page)<1000:break
+                    offset+=1000
+        if found!=expected:raise ValueError('SOURCE_INVENTORY_CHANGED')
+        return {'buckets':len(actual),'objects':len(found)}
+
     def _open(self,obj,method,etag=None):
-        if obj['bucket'] not in SELECTED_BUCKETS:raise ValueError('Excluded bucket cannot be downloaded.')
+        if obj['bucket'] not in self.selected_buckets:raise ValueError('Excluded bucket cannot be downloaded.')
         name=object_name(obj['name'])
         url=ORIGIN+'/storage/v1/object/authenticated/'+obj['bucket']+'/'+urllib.parse.quote(name,safe='/')
         headers={**self.headers,**({'If-Match':etag} if etag is not None else {})}
@@ -186,19 +247,21 @@ def digest_file(path):
 
 def inventory_digest(doc):return hashlib.sha256(json.dumps(doc,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
 
-def load_transfer(root):
+def load_transfer(root,*,selected_buckets=None):
     root=private_path(root,directory=True);private_path(root/'blobs',directory=True)
     for protected in (Path(__file__).resolve().parents[2],Path.home()/'village-deploy',Path.home()/'village-db-backups',Path.home()/'village-api-validation'):
         p=no_links(protected)
         if root==p or root in p.parents or p in root.parents:raise ValueError('Transfer directory overlaps protected data.')
     doc=validate_inventory(read_private_json(root/'inventory.json'))
-    objects=[o for o in doc['objects'] if o['bucket'] in SELECTED_BUCKETS]
+    scope=selection(doc,selected_buckets)
+    objects=[o for o in doc['objects'] if o['bucket'] in scope]
     path=root/'copy-manifest.json'
     if path.exists():
         manifest=read_private_json(path)
         if manifest.get('version')!=1 or manifest.get('inventory_sha256')!=inventory_digest(doc) or set(manifest.get('records',{}))!={o['id'] for o in objects}:
             raise ValueError('Copy manifest differs from inventory.')
-    else:manifest={'version':1,'inventory_sha256':inventory_digest(doc),'records':{o['id']:{'status':'pending','needs_final_refresh':True} for o in objects}}
+        if frozenset(manifest.get('selected_buckets',SELECTED_BUCKETS))!=scope:raise ValueError('Copy manifest differs from selected scope.')
+    else:manifest={'version':1,'inventory_sha256':inventory_digest(doc),'selected_buckets':sorted(scope),'records':{o['id']:{'status':'pending','needs_final_refresh':True} for o in objects}}
     for row in manifest['records'].values():
         if row.get('status') not in ('pending','copied','source_changed','missing','failed'):raise ValueError('Invalid transfer state.')
         if row['status']=='copied':
@@ -207,9 +270,9 @@ def load_transfer(root):
             if digest_file(root/'blobs'/digest)!=(digest,size):raise ValueError('Completed object failed local checksum verification.')
     return doc,objects,manifest
 
-def transfer_summary(doc,manifest):
+def transfer_summary(doc,manifest,*,selected_buckets=None):
     result={status:sum(r['status']==status for r in manifest['records'].values()) for status in ('pending','copied','source_changed','missing','failed')}
-    return {**inventory_summary(doc),**result,'verified_bytes':sum(r['received_bytes'] for r in manifest['records'].values() if r['status']=='copied')}
+    return {**inventory_summary(doc,selected_buckets=selected_buckets),**result,'verified_bytes':sum(r['received_bytes'] for r in manifest['records'].values() if r['status']=='copied')}
 
 def acquire_transfer_lock(root):
     lock=private_path(root,directory=True)/'.transfer.lock'
@@ -219,12 +282,12 @@ def acquire_transfer_lock(root):
         json.dump({'pid':os.getpid(),'started_at':now()},stream)
     return lock
 
-def verify_copy(run_directory):
+def verify_copy(run_directory,*,selected_buckets=None):
     root=private_path(run_directory,directory=True)
     lock=acquire_transfer_lock(root)
     try:
-        doc,objects,manifest=load_transfer(root)
-        result=transfer_summary(doc,manifest)
+        doc,objects,manifest=load_transfer(root,selected_buckets=selected_buckets)
+        result=transfer_summary(doc,manifest,selected_buckets=selected_buckets)
         done=(root/'copy-manifest.json').is_file() and all(r['status']=='copied' for r in manifest['records'].values())
         return {**result,'status':'private_copy_verified_not_cut_over' if done else 'private_copy_incomplete'}
     finally:lock.unlink()
@@ -232,14 +295,15 @@ def verify_copy(run_directory):
 def check_disk(root,needed):
     if shutil.disk_usage(root).free<RESERVE+needed+CHUNK:raise RuntimeError('STORAGE_DISK_RESERVE_REQUIRED')
 
-def copy_inventory(inventory_path,output_root,credential,transport=None):
+def copy_inventory(inventory_path,output_root,credential,transport=None,*,selected_buckets=None,check_source_inventory=False):
     root=private_path(output_root,directory=True)
     if no_links(inventory_path)!=root/'inventory.json':raise ValueError('Use the inventory in the selected private run directory.')
     credential_headers(credential)
-    transport=transport or SourceTransport(credential)
+    transport=transport or SourceTransport(credential,selected_buckets=selected_buckets)
     lock=acquire_transfer_lock(root)
     try:
-        doc,objects,manifest=load_transfer(root)
+        doc,objects,manifest=load_transfer(root,selected_buckets=selected_buckets)
+        if check_source_inventory:transport.verify_inventory(doc)
         write_private_json(root/'copy-manifest.json',manifest)
         heads={}
         # Resolve all lengths before allocating files, including unknown snapshot sizes.
@@ -293,5 +357,16 @@ def copy_inventory(inventory_path,output_root,credential,transport=None):
                 if e.status not in (404,412):raise
             except (OSError,ValueError,http.client.HTTPException):row.update(status='failed',error_code='transfer_or_integrity',checked_at=now())
             finally:write_private_json(root/'copy-manifest.json',manifest)
-        return transfer_summary(doc,manifest)
+        if check_source_inventory:
+            transport.verify_inventory(doc)
+            # A later object changing while an earlier one downloads also fails
+            # the final gate. Previously copied receipts retain their digest.
+            for obj in objects:
+                row=manifest['records'][obj['id']]
+                if row['status']!='copied':continue
+                head=transport.head(obj)
+                if (head['etag'],head['size'])!=(row['source_etag'],row['received_bytes']):
+                    row.update(status='source_changed',checked_at=now())
+            write_private_json(root/'copy-manifest.json',manifest)
+        return transfer_summary(doc,manifest,selected_buckets=selected_buckets)
     finally:lock.unlink()
