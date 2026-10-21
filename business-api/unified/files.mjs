@@ -1,9 +1,10 @@
 import {randomUUID,createHash} from 'node:crypto';import {statfs} from 'node:fs/promises';import {createRequire} from 'node:module';
 import {parseBusinessUpload,parseBusinessCommit,DATASET_NAMES} from './file-contracts.mjs';import {requestDigest} from '../scene-files/uploads.mjs';import {uuid,fault} from '../scene-files/contracts.mjs';import {fileType} from '../src/storage.mjs';
+import {createReadSlots} from './read-slots.mjs';
 const require=createRequire(import.meta.url),packages=require('../../features/admin/village-package.js');
 export {parseBusinessUpload,parseBusinessCommit};
 export function createBusinessFilesService({database,store,legacyReader,spaceAvailable,now=Date.now}){
- let readers=0;const tx=(identity,fn)=>database.withIdentity(identity,fn),one=async(c,sql,args)=>(await c.query(sql,args)).rows[0]?.data;
+ const acquireReader=createReadSlots();const tx=(identity,fn)=>database.withIdentity(identity,fn),one=async(c,sql,args)=>(await c.query(sql,args)).rows[0]?.data;
  const lock=(c,id)=>one(c,'SELECT api_private.file_session($1) AS data',[id]);
  const available=spaceAvailable??(async()=>{const s=await statfs(store.root);return Number(s.bavail)*Number(s.bsize);});
  async function checkFiles(s){for(const f of s.files){const opened=await store.open(f.id,{size:Number(f.size),sha256:f.sha256});await opened.close();}}
@@ -40,11 +41,11 @@ export function createBusinessFilesService({database,store,legacyReader,spaceAva
    const verified=s.purpose==='dataset'?await packageRecord(s,record):record;
    return one(c,'SELECT api_private.file_commit($1,$2,$3::jsonb) AS data',[id,digest,JSON.stringify(verified)]);
   });},
-  async read(identity,fileId){if(!uuid(fileId))throw fault('INVALID_INPUT');if(readers>=4)throw fault('FILE_BUSY');readers++;let opened;
+  async read(identity,fileId){if(!uuid(fileId))throw fault('INVALID_INPUT');const release=await acquireReader();let opened;
    try{const f=await tx(identity,c=>one(c,'SELECT api_private.file_authorize($1) AS data',[fileId]));if(!f)throw fault('FORBIDDEN');
     opened=f.legacy?await legacyReader?.open(f):await store.open(f.id,{size:Number(f.size),sha256:f.sha256});if(!opened)throw fault('FILE_UNAVAILABLE');let closed=false;
-    return {...opened,sha256:f.sha256??opened.sha256,mime:f.mime??fileType(f.name),extension:f.extension??f.name.split('.').at(-1).toLowerCase(),async close(){if(!closed){closed=true;try{await opened.close();}finally{readers--;}}}};
-   }catch(e){await opened?.close();readers--;throw e;}
+    return {...opened,sha256:f.sha256??opened.sha256,mime:f.mime??fileType(f.name),extension:f.extension??f.name.split('.').at(-1).toLowerCase(),async close(){if(!closed){closed=true;try{await opened.close();}finally{release();}}}};
+   }catch(e){try{await opened?.close();}finally{release();}throw e;}
   },
   async resolvePath(identity,bucket,path){if(!['house-photos','group-models','village-datasets'].includes(bucket)||typeof path!=='string'||path.length>4096)throw fault('INVALID_INPUT');return tx(identity,c=>one(c,'SELECT api_private.file_resolve_path($1,$2) AS data',[bucket,path]));},
   async archive(identity,id){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,c=>one(c,'SELECT api_private.file_archive($1) AS data',[id]));},
