@@ -6,7 +6,7 @@ export const TEST_DB='village_unified_candidate';
 export const TEST_PASSWORD='synthetic-only-unified-00000000000';
 export function testIdentity(userId=USERS.student){return {userId,issuer:'https://rzmbmwauomzwiyenafha.supabase.co/auth/v1',expiry:Math.floor(Date.now()/1000)+60};}
 export function disposableURL(){const raw=process.env.VILLAGE_TEST_PG_URL;if(!raw)throw Error('Explicit disposable PG URL required; do not substitute a business database');const url=new URL(raw);if(!['127.0.0.1','localhost'].includes(url.hostname)||url.username!=='village_test_admin'||url.pathname!=='/postgres')throw Error('Disposable loopback test cluster only');return url;}
-export async function withUnifiedFixture(fn){
+export async function withUnifiedFixture(fn,{prepareAuth,authCleanup}={}){
  const url=disposableURL(),admin=new pg.Client({connectionString:url.href});await admin.connect();let setup,owned=false,roles=false;
  try{
   assert.equal((await admin.query('SELECT 1 FROM pg_database WHERE datname=$1',[TEST_DB])).rowCount,0,'Never overwrite an existing candidate');
@@ -15,8 +15,12 @@ export async function withUnifiedFixture(fn){
   const target=new URL(url);target.pathname='/'+TEST_DB;setup=new pg.Client({connectionString:target.href});await setup.connect();
   await setup.query('CREATE SCHEMA extensions;CREATE EXTENSION postgis WITH SCHEMA extensions;SET search_path=public,extensions');
   assert.match((await setup.query('SELECT extensions.postgis_lib_version() version')).rows[0].version,/^3\./,'Actual native PostGIS required');
-  await setup.query(await readFile(new URL('./identity.sql',import.meta.url),'utf8'));
-  await setup.query(`CREATE TABLE auth.users(id uuid PRIMARY KEY,email text);INSERT INTO auth.users(id) SELECT id FROM profiles;
+  if(prepareAuth)await prepareAuth({setup,url,target});
+  let identity=await readFile(new URL('./identity.sql',import.meta.url),'utf8');
+  if(prepareAuth)identity=identity.replace('CREATE SCHEMA auth;','').replace('CREATE FUNCTION auth.uid()','CREATE OR REPLACE FUNCTION auth.uid()');
+  await setup.query(identity);
+  const simpleAuth=prepareAuth?'':'CREATE TABLE auth.users(id uuid PRIMARY KEY,email text);INSERT INTO auth.users(id) SELECT id FROM profiles;';
+  await setup.query(`${simpleAuth}
     ALTER TABLE profiles ADD CONSTRAINT profiles_identity_fk FOREIGN KEY(id) REFERENCES auth.users(id);
     CREATE TABLE villages(id uuid PRIMARY KEY,name text,boundary extensions.geometry,status text);
     CREATE TABLE teaching_projects(id uuid PRIMARY KEY,course_id text REFERENCES courses,name text,stage text,practice_village_id uuid REFERENCES villages);
@@ -30,6 +34,7 @@ export async function withUnifiedFixture(fn){
   await fn({admin,setup,url,config,install:async()=>{await setup.query(await readFile(new URL('../../../linux/sql/unified/identity.sql',import.meta.url),'utf8'));await setup.query("ALTER ROLE village_unified_login PASSWORD '"+TEST_PASSWORD+"'");}});
  }finally{
   await setup?.end();if(owned)await admin.query('DROP DATABASE '+TEST_DB+' WITH (FORCE)');
-  if(roles)await admin.query('DROP ROLE IF EXISTS village_unified_login;DROP ROLE authenticated;DROP ROLE anon');await admin.end();
+  if(roles)await admin.query('DROP ROLE IF EXISTS village_unified_login;DROP ROLE authenticated;DROP ROLE anon');
+  if(authCleanup)await authCleanup(admin);await admin.end();
  }
 }

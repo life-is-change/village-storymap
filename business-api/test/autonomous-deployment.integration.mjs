@@ -12,10 +12,10 @@ test('full committed coordinator preserves imported accounts and real business f
  const prepareAuth=async({setup,url})=>{
   assert.equal((await setup.query("SELECT 1 FROM pg_roles WHERE rolname='postgres'")).rowCount,0);
   await setup.query('CREATE ROLE postgres NOLOGIN NOSUPERUSER NOBYPASSRLS');postgresCreated=true;
-  await setup.query('CREATE SCHEMA auth;CREATE EXTENSION pgcrypto WITH SCHEMA extensions');
+  await setup.query('CREATE SCHEMA auth;CREATE EXTENSION pgcrypto WITH SCHEMA extensions;ALTER ROLE village_test_admin IN DATABASE village_unified_candidate SET search_path=auth');
   const auth=JSON.parse(await readFile(new URL('../../linux/auth-runtime.json',import.meta.url),'utf8'));
   docker(['run','--rm','--network','host','--env','GOTRUE_DB_DRIVER=postgres','--env','GOTRUE_DB_NAMESPACE=auth',
-   '--env',`GOTRUE_DB_DATABASE_URL=postgresql://village_test_admin:synthetic-ci-only@127.0.0.1:${url.port}/village_unified_candidate?options=-csearch_path%3Dauth`,
+   '--env',`GOTRUE_DB_DATABASE_URL=postgresql://village_test_admin:synthetic-ci-only@127.0.0.1:${url.port}/village_unified_candidate`,
    '--env','API_EXTERNAL_URL=https://8.148.248.237/auth/v1','--env','GOTRUE_SITE_URL=https://8.148.248.237',
    '--env','GOTRUE_JWT_SECRET=synthetic-source-migration-only-signing-secret-00000000000',auth.image,'auth','migrate']);
   for(const [kind,id] of Object.entries(USERS)){
