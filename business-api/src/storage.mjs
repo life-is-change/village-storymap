@@ -29,15 +29,18 @@ async function privateOpen(path){
  await noLinks(path);const fd=await open(path,constants.O_RDONLY|(constants.O_NOFOLLOW??0));
  try{privateStat(await fd.stat());return fd;}catch(e){await fd.close();throw e;}
 }
-export async function createStorageReader({root,indexPath}){
+export async function createStorageReader({root,indexPath,scope='ordinary'}){
  try{
+  if(!['ordinary','autonomous'].includes(scope))throw failure('FILE_UNAVAILABLE');
+  const allowedBuckets=scope==='autonomous'?new Set([...buckets,'geoprocessing-results','facade-generation']):buckets;
   root=resolve(root);await noLinks(root);privateStat(await lstat(root),true);
   const fd=await privateOpen(indexPath);let index;
   try{if((await fd.stat()).size>8*1024*1024)throw failure('FILE_UNAVAILABLE');index=JSON.parse(await fd.readFile('utf8'));}finally{await fd.close();}
   if(index.version!==1||!sha.test(index.source_archive_sha256)||!Array.isArray(index.objects)||index.objects.length>20000)throw failure('FILE_UNAVAILABLE');
   const objects=new Map();const paths=new Set();
   for(const o of index.objects){
-   if(!UUID.test(o.id)||o.id!==o.id.toLowerCase()||!buckets.has(o.bucket)||!sha.test(o.sha256)||!Number.isSafeInteger(o.size)||o.size<0||o.size>52428800
+   const limit=scope==='autonomous'&&o.bucket==='geoprocessing-results'?512*1024**2:50*1024**2;
+   if(!UUID.test(o.id)||o.id!==o.id.toLowerCase()||!allowedBuckets.has(o.bucket)||!sha.test(o.sha256)||!Number.isSafeInteger(o.size)||o.size<0||o.size>limit
     ||typeof o.name!=='string'||!o.name.length||o.name.length>4096||/[\x00-\x1f\x7f\\]/.test(o.name)||o.name.split('/').some(p=>['','.','..'].includes(p))
     ||objects.has(o.id)||paths.has(o.bucket+'\0'+o.name))throw failure('FILE_UNAVAILABLE');
    version(o);objects.set(o.id,Object.freeze({...o}));paths.add(o.bucket+'\0'+o.name);

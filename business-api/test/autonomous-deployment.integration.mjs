@@ -36,6 +36,9 @@ test('full committed coordinator preserves imported accounts and real business f
   for(const [kind,id] of Object.entries(USERS))await setup.query('UPDATE public.profiles SET student_id=$1 WHERE id=$2',[kind==='admin'?'332':kind,id]);
   await setup.query((await readFile(new URL('../../supabase_SQL/Scene Edit Studio.sql',import.meta.url),'utf8')).split('insert into storage.buckets')[0]);
   for(const name of ['house-photos','scene-assets','scene-version-previews','group-models','village-datasets','geoprocessing-results','facade-generation'])await setup.query('INSERT INTO storage.buckets(id,name) VALUES($1,$1)',[name]);
+  for(const [index,bucket] of ['house-photos','geoprocessing-results','facade-generation'].entries())await setup.query(
+   "INSERT INTO storage.objects(id,bucket_id,name,metadata,version) VALUES($1,$2,'fixture/legacy.bin',$3::jsonb,'fixture-v1')",
+   ['d1a00000-0000-4000-8000-00000000000'+(index+1),bucket,JSON.stringify({size:Buffer.byteLength('synthetic legacy private bytes\n')})]);
   const child=spawnSync('python3',['linux/scripts/test-autonomous-deployment-ci.py'],{encoding:'utf8',timeout:1200000,maxBuffer:2*1024**2});
   console.log(child.stdout?.trim());assert.equal(child.status,0,'DISPOSABLE_COORDINATOR_FAILED '+String(child.stderr??'').slice(-1500));
  },{prepareAuth,authCleanup});

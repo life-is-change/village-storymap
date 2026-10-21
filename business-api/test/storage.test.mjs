@@ -51,3 +51,18 @@ test('bounded active readers release slots when closed',async()=>{
   await files.pop().close();const next=await reader.open(f.object);await next.close();
  }finally{await Promise.all(files.map(f=>f.close()));await f.cleanup();}
 });
+
+test('explicit autonomous inventory retains both historical GPU buckets without changing ordinary scope',async()=>{
+ const f=await fixture();try{
+  for(const bucket of ['geoprocessing-results','facade-generation']){
+   const object={...f.object,bucket};await writeFile(f.indexPath,JSON.stringify({...f.index,objects:[object]}));
+   await assert.rejects(m.createStorageReader(f));
+   const reader=await m.createStorageReader({...f,scope:'autonomous'});const opened=await reader.open(object);
+   const chunks=[];for await(const part of opened.stream({start:0,end:f.bytes.length-1}))chunks.push(part);
+   assert.deepEqual(Buffer.concat(chunks),f.bytes);await opened.close();
+  }
+  const geo={...f.object,bucket:'geoprocessing-results',size:51*1024**2,declared_size:51*1024**2};
+  await writeFile(f.indexPath,JSON.stringify({...f.index,objects:[geo]}));await m.createStorageReader({...f,scope:'autonomous'});
+  await writeFile(f.indexPath,JSON.stringify({...f.index,objects:[{...geo,size:512*1024**2+1}]}));await assert.rejects(m.createStorageReader({...f,scope:'autonomous'}));
+ }finally{await f.cleanup();}
+});

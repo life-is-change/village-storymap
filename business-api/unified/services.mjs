@@ -8,7 +8,7 @@ export async function createUnifiedServices(config){
  const database=createUnifiedDatabase(config.database,{authPolicy:config});
  try{
   await database.verifyInstallation();const gateway=createIdentityGateway({...config,checkLocalSession:database.checkLocalSession}),identity=createIdentityService({database,sourceProfileReader:gateway.sourceProfileReader,verifyIdentity:gateway.verifyIdentity,authPolicy:config});
-  const budget=createFileBudget(),store=budget.wrap(await createBusinessFileStore({root:config.filesRoot,instanceId:config.instanceId})),sceneStore=budget.wrap(await createFileStore({root:config.sceneRoot})),legacyReader=budget.wrap(await createStorageReader(config.legacy));
+  const budget=createFileBudget(),store=budget.wrap(await createBusinessFileStore({root:config.filesRoot,instanceId:config.instanceId})),sceneStore=budget.wrap(await createFileStore({root:config.sceneRoot})),legacyReader=budget.wrap(await createStorageReader({...config.legacy,scope:config.authMode==='local'?'autonomous':'ordinary'}));
   const taskFiles=createTaskFiles({database,store,legacyReader,instanceId:config.instanceId});
   const workerQueue=config.authMode==='local'?createLocalQueueService({database,instanceId:config.instanceId}):null;
   if(workerQueue)await workerQueue.verifyInstallation();

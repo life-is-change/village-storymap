@@ -19,6 +19,7 @@ def main():
     import datetime as dt
     import hashlib
     import json
+    import io
     from pathlib import Path
     import re
     import shutil
@@ -76,14 +77,23 @@ def main():
         report=bundle.decode_stream(bundle.offline_restore_command(backup,image_id=pg_image,schema='auth',tables=auth_prepare.TABLES,uid=uid,gid=gid),auth_prepare.summarize_auth_copy)
         doc=bundle.decode_stream(bundle.offline_restore_command(backup,image_id=pg_image,schema='storage',tables=('buckets','objects'),uid=uid,gid=gid),
             lambda lines:bundle.inventory_from_copy(lines,archive_sha256=archive_sha,generated_at=now))
-        if report['users']!=4 or doc['objects']:raise ValueError('DISPOSABLE_SOURCE_FIXTURE_DIFFERS')
+        if report['users']!=4 or len(doc['objects'])!=3 or {o['bucket'] for o in doc['objects']}!={'house-photos','geoprocessing-results','facade-generation'}:raise ValueError('DISPOSABLE_SOURCE_FIXTURE_DIFFERS')
         inputs=load('prepare-autonomous-inputs');source_files=inputs.initialize_inputs(root/'source-files',doc,report)
-        class EmptyFixtureSource:
+        payload=b'synthetic legacy private bytes\n'
+        class FixtureBody(io.BytesIO):
+            headers={'ETag':'"fixture-etag"'}
+        class FixtureSource:
             def verify_inventory(self,value):
-                if value['objects']:raise ValueError('FIXTURE_SOURCE_MUST_BE_EMPTY')
-        storage.copy_inventory(source_files/'inventory.json',source_files,'sb_secret_'+'x'*40,EmptyFixtureSource(),selected_buckets=storage.all_inventory_buckets(doc),check_source_inventory=True)
+                if value!=doc:raise ValueError('FIXTURE_SOURCE_INVENTORY_DIFFERS')
+            def head(self,obj):
+                if obj['declared_size']!=len(payload):raise ValueError('FIXTURE_SOURCE_SIZE_DIFFERS')
+                return {'size':len(payload),'etag':'"fixture-etag"'}
+            def get(self,obj,etag):
+                if etag!='"fixture-etag"':raise ValueError('FIXTURE_SOURCE_ETAG_DIFFERS')
+                return FixtureBody(payload)
+        storage.copy_inventory(source_files/'inventory.json',source_files,'sb_secret_'+'x'*40,FixtureSource(),selected_buckets=storage.all_inventory_buckets(doc),check_source_inventory=True)
         storage.write_private_json(source_files/'full-copy-proof.json',{'version':1,'status':'all_source_storage_verified_not_cut_over',
-            'source_archive_sha256':archive_sha,'inventory_sha256':storage.inventory_digest(doc),'objects':0,'verified_bytes':0,'fixture_only':True})
+            'source_archive_sha256':archive_sha,'inventory_sha256':storage.inventory_digest(doc),'objects':3,'verified_bytes':3*len(payload),'fixture_only':True})
         phase='public-images'
         for name in ('auth','nginx'):
             runtime=json.loads((repo/'linux'/(name+'-runtime.json')).read_text())
@@ -223,7 +233,7 @@ def main():
         if checkpoint.exists():
             doc=storage.read_private_json(checkpoint);print('COORDINATOR_PENDING_STEPS '+json.dumps([k for k,v in doc.get('steps',{}).items() if v.get('status')=='pending']))
         # Only structural first ERROR lines, never DETAIL rows/commands/env.
-        for path in sorted(state.glob('*.log'),key=lambda p:p.stat().st_mtime_ns)[-30:]:
+        for path in sorted([*state.glob('*.log'),*root.glob('ci-command-*.log')],key=lambda p:p.stat().st_mtime_ns)[-50:]:
             for line in path.read_text(errors='replace').splitlines():
                 match=re.search(r'ERROR:\s+(.+)',line)
                 if match:
