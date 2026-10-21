@@ -173,6 +173,12 @@ def main():
                 result=original_request(path,method,headers,data,binary);last_request['status']=result[0]
                 return result
             api.request_impl=traced_request
+            original_load_probe=api.load_probe
+            def traced_load(*args,**kwargs):
+                rows=original_load_probe(*args,**kwargs)
+                print('FIXTURE_LOAD_REPORT '+json.dumps(rows),flush=True)
+                return rows
+            api.load_probe=traced_load
             core=probe.auth_probe(api,('332','synthetic-ci-password-0001'))
             phase='business-whole-flow';full=probe.old.run_probe(api,('332','synthetic-ci-password-0001'),('student','synthetic-ci-password-0001'),{})
             if full.get('restart_persistence') is not True:raise ValueError('FIXTURE_BUSINESS_RESTART_FAILED')

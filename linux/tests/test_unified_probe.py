@@ -80,3 +80,13 @@ def test_load_report_captures_per_request_server_timing_without_tokens():
   assert all(row['samples']>=3*row['concurrency'] and row['failures']==0 and row['auth_p95_ms']==4.5 and row['sql_p95_ms']==2.25 for row in report)
   assert 'private-test-token' not in str(report)
  finally:server.shutdown();server.server_close();thread.join()
+
+def test_load_failure_counts_retain_only_allowlisted_categories_not_exception_details():
+ m=module();api=m.HttpApi('http://127.0.0.1:18088','sb_publishable_fixture',prepare_context=None,restart=None,persist=None,resources=None,task_proof=None)
+ def failed(*args,**kwargs):raise m.TransportFailure('FILE_BUSY',503)
+ api.request=failed;rows=api.load_probe({'token':'never-print'})
+ assert all(row['failure_categories']=={'FILE_BUSY:503':row['samples']} for row in rows)
+ def private(*args,**kwargs):raise RuntimeError('private-password private-row')
+ api.request=private;rows=api.load_probe({'token':'never-print'})
+ assert all(row['failure_categories']=={'CHECK_FAILED':row['samples']} for row in rows)
+ assert 'private' not in str(rows) and 'never-print' not in str(rows)

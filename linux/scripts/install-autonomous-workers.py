@@ -46,6 +46,14 @@ def assert_others(before,after):
     if before!=after:raise ValueError('OTHER_CONTAINER_CHANGED')
 
 
+def credential_probe_args(image,kind,key):
+    if kind not in KINDS or not re.fullmatch('sha256:[a-f0-9]{64}',image):raise ValueError('EXACT_WORKER_PROBE_REQUIRED')
+    command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.call('sources'); h.close()"
+    return ['run','--rm','--pull=never','--network','village-platform_egress','--user','10001:10001','--read-only','--cap-drop','ALL',
+        '--security-opt','no-new-privileges:true','--memory','128m','--memory-swap','128m','--pids-limit','64',
+        '--mount','type=bind,source='+str(key)+',target=/run/secrets/aliyun-worker-key,readonly','--entrypoint','python',image,'-c',command]
+
+
 def other_containers(docker):
     identifiers=docker.run('ps','-aq').split();rows=json.loads(docker.run('inspect',*identifiers)) if identifiers else []
     return {row['Name']:{'Id':row['Id'],'Image':row['Image'],'State':{'Running':row['State']['Running']}} for row in rows if row['Name'] not in ['/'+value for value in NAMES.values()]}
@@ -117,6 +125,8 @@ def verify(docker,receipt):
     for kind in KINDS:
         row=docker.inspect(NAMES[kind]);validate_worker(row,kind)
         if row['Image']!=receipt['images'][kind] or snapshot_worker(row)!=receipt['workers'][kind]:raise ValueError('WORKER_RUNTIME_DIFFERS')
+        env=dict(value.split('=',1) for value in row['Config'].get('Env',[]) if '=' in value)
+        if any(env.get(key)!=value for key,value in overlay(receipt['images'],Path('/ignored'))['services'][kind+'-worker']['environment'].items()):raise ValueError('WORKER_BACKEND_ENVIRONMENT_DIFFERS')
         # Use the actual container's CA/network/key/UID. This reads sources only;
         # it does not claim, submit, cancel or run a GPU task.
         command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.call('sources'); h.close()"
@@ -154,6 +164,7 @@ def install(docker,state,bundle,commit,*,apply=False):
         if image.get('Architecture')!='amd64' or image.get('Os')!='linux':raise ValueError('WORKER_IMAGE_PLATFORM_DIFFERS')
         images[kind]=image['Id']
         docker.run('run','--rm','--pull=never','--network','none','--entrypoint','python',image['Id'],'-c','from village_processing.queue.local_gateway import LocalGeoGateway; from village_processing.facade.local_gateway import LocalFacadeGateway')
+        docker.run(*credential_probe_args(image['Id'],kind,key_root/('aliyun-'+kind+'.key')),timeout=150)
     receipt={'version':1,'commit':commit,'images':images,'workers':{kind:snapshot_worker(row) for kind,row in rows.items()},'others':before,'status':'pending'}
     storage.write_private_json(state/'workers-switch.json',receipt);path=state/'overlay.json';storage.write_private_json(path,overlay(images,key_root))
     # Check other services again before the only mutation of existing containers.

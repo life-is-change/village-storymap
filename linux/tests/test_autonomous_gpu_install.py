@@ -49,3 +49,11 @@ def test_recreation_refuses_changed_pipeline_mounts_or_environment():
     m.validate_rendered(row,service,{'egress':{'name':'village-platform_egress'}},image)
     service['volumes'][0]['source']='/other-models'
     with pytest.raises(ValueError):m.validate_rendered(row,service,{'egress':{'name':'village-platform_egress'}},image)
+
+
+def test_new_key_and_ca_can_be_probed_before_replacing_either_existing_worker():
+    m=module();args=m.credential_probe_args('sha256:'+'a'*64,'geo',Path('/etc/village-platform/aliyun-aaaaaaaaaaaa/aliyun-geo.key'))
+    assert args[:3]==['run','--rm','--pull=never']
+    assert 'village-platform_egress' in args and '--read-only' in args
+    assert '10001:10001' in args and 'ALL' in args and '--memory' in args
+    assert 'sources' in args[-1] and 'claim' not in args[-1] and 'heartbeat' not in args[-1]

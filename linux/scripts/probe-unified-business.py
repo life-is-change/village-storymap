@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """One hidden-input, resumable TEST-only acceptance pass. Never submits GPU/provider tasks."""
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 from pathlib import Path
 import argparse,base64,copy,getpass,hashlib,importlib.util,json,re,ssl,struct,time,urllib.error,urllib.parse,urllib.request,uuid,warnings
 
@@ -180,12 +181,15 @@ class HttpApi:
      for path,options in actions:
       stage={};self.request(self.base+path,actor,timings=stage,**options)
       for key,value in stage.items():timings[key]=timings.get(key,0)+value
-     return (time.monotonic()-start)*1000,False,timings
-    except Exception:return (time.monotonic()-start)*1000,True,{}
+     return (time.monotonic()-start)*1000,False,timings,None
+    except Exception as error:
+     code=getattr(error,'code',None);code=code if code in SAFE_CODES else 'CHECK_FAILED';status=getattr(error,'status',None)
+     category=code+(':'+str(status) if type(status) is int and 100<=status<=599 else '')
+     return (time.monotonic()-start)*1000,True,{},category
    with ThreadPoolExecutor(max_workers=concurrency) as executor:samples=list(executor.map(sample,range(3*concurrency)))
    def percentile(values,p):
     values=sorted(values);return round(values[max(0,(p*len(values)+99)//100-1)],2) if values else None
-   times=[value[0] for value in samples];row={'concurrency':concurrency,'samples':len(samples),'failures':sum(value[1] for value in samples),'p50_ms':percentile(times,50),'p95_ms':percentile(times,95)}
+   times=[value[0] for value in samples];row={'concurrency':concurrency,'samples':len(samples),'failures':sum(value[1] for value in samples),'p50_ms':percentile(times,50),'p95_ms':percentile(times,95),'failure_categories':dict(Counter(value[3] for value in samples if value[3]))}
    for kind in ['auth','sql','file']:row[kind+'_p95_ms']=percentile([value[2][kind] for value in samples if kind in value[2]],95)
    results.append(row)
   return results
