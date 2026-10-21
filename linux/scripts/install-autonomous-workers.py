@@ -48,7 +48,7 @@ def assert_others(before,after):
 
 def credential_probe_args(image,kind,key):
     if kind not in KINDS or not re.fullmatch('sha256:[a-f0-9]{64}',image):raise ValueError('EXACT_WORKER_PROBE_REQUIRED')
-    command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.call('sources'); h.close()"
+    command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.verify_identity(); h.close()"
     return ['run','--rm','--pull=never','--network','village-platform_egress','--user','10001:10001','--read-only','--cap-drop','ALL',
         '--security-opt','no-new-privileges:true','--memory','128m','--memory-swap','128m','--pids-limit','64',
         '--mount','type=bind,source='+str(key)+',target=/run/secrets/aliyun-worker-key,readonly','--entrypoint','python',image,'-c',command]
@@ -127,9 +127,9 @@ def verify(docker,receipt):
         if row['Image']!=receipt['images'][kind] or snapshot_worker(row)!=receipt['workers'][kind]:raise ValueError('WORKER_RUNTIME_DIFFERS')
         env=dict(value.split('=',1) for value in row['Config'].get('Env',[]) if '=' in value)
         if any(env.get(key)!=value for key,value in overlay(receipt['images'],Path('/ignored'))['services'][kind+'-worker']['environment'].items()):raise ValueError('WORKER_BACKEND_ENVIRONMENT_DIFFERS')
-        # Use the actual container's CA/network/key/UID. This reads sources only;
+        # Use the actual container's CA/network/key/UID. This reads Worker identity only;
         # it does not claim, submit, cancel or run a GPU task.
-        command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.call('sources'); h.close()"
+        command="from village_processing.local_task_http import LocalTaskHTTP; h=LocalTaskHTTP(key_file='/run/secrets/aliyun-worker-key',kind='"+kind+"'); h.verify_identity(); h.close()"
         docker.run('exec',NAMES[kind],'python','-c',command,timeout=150)
     assert_others(receipt['others'],other_containers(docker))
 

@@ -13,10 +13,10 @@ export function createLocalWorkerHandler({queue,files,log=()=>{}}){
   const send=(code,value)=>{status=code;if(!res.headersSent&&!res.destroyed){res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Request-Id':requestId});res.end(JSON.stringify(value));}};
   try{
    if(typeof req.url!=='string'||req.url.length>512)throw taskFault('INVALID_INPUT');const url=new URL(req.url,'http://internal');if(url.search)throw taskFault('INVALID_INPUT');
-   const plain=/^\/api\/worker\/v1\/(heartbeat|claim|sources|source-status)$/.exec(url.pathname),run=/^\/api\/worker\/v1\/runs\/([a-f0-9-]{36})\/(renew|progress|fail|cancel|cancel-status|complete|publish-rectification|retry-failure)$/.exec(url.pathname);
+   const plain=/^\/api\/worker\/v1\/(identity|heartbeat|claim|sources|source-status)$/.exec(url.pathname),run=/^\/api\/worker\/v1\/runs\/([a-f0-9-]{36})\/(renew|progress|fail|cancel|cancel-status|complete|publish-rectification|retry-failure)$/.exec(url.pathname);
    const file=files&&/^\/api\/worker\/v1\/runs\/([a-f0-9-]{36})\/(input|artifacts\/(rectified_preview|rectified_source|building_mask)|uploads(?:\/([a-f0-9-]{36})(?:\/(commit|chunks\/(\d{1,2})))?)?)$/.exec(url.pathname);
    if(!plain&&!run&&!file)throw taskFault('NOT_FOUND');action=plain?.[1]??run?.[2]??(file[2]==='input'?'input':file[3]?'artifact':file[6]?'chunk':file[5]==='commit'?'commit':!file[4]?'begin':req.method==='DELETE'?'abort':'status');
-   const method=['sources','cancel-status','input','artifact','status'].includes(action)?'GET':action==='chunk'?'PUT':action==='abort'?'DELETE':'POST';
+   const method=['identity','sources','cancel-status','input','artifact','status'].includes(action)?'GET':action==='chunk'?'PUT':action==='abort'?'DELETE':'POST';
    if(req.method!==method)throw taskFault('METHOD_NOT_ALLOWED');
    if((req.rawHeaders??[]).filter((v,i)=>i%2===0&&v.toLowerCase()==='authorization').length!==1)throw taskFault('UNAUTHORIZED');
    if(active>=8)throw taskFault('DB_UNAVAILABLE');active++;counted=true;

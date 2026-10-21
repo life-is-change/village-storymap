@@ -68,7 +68,7 @@ class LocalTaskHTTP:
         self.client.close()
 
     def _path(self, path):
-        if not isinstance(path, str) or not re.fullmatch(r'(?:heartbeat|claim|sources|source-status|runs/[a-f0-9-]{36}/(?:renew|progress|fail|cancel|cancel-status|complete|publish-rectification|retry-failure|input|artifacts/(?:rectified_source|rectified_preview|building_mask)|uploads(?:/[a-f0-9-]{36}(?:/(?:commit|chunks/[0-9]{1,2}))?)?))', path):
+        if not isinstance(path, str) or not re.fullmatch(r'(?:identity|heartbeat|claim|sources|source-status|runs/[a-f0-9-]{36}/(?:renew|progress|fail|cancel|cancel-status|complete|publish-rectification|retry-failure|input|artifacts/(?:rectified_source|rectified_preview|building_mask)|uploads(?:/[a-f0-9-]{36}(?:/(?:commit|chunks/[0-9]{1,2}))?)?))', path):
             raise ValueError('INVALID_LOCAL_GATEWAY_PATH')
         return path
 
@@ -109,6 +109,12 @@ class LocalTaskHTTP:
                 if attempt == 2:
                     raise httpx.TransportError('ALIYUN_NETWORK_UNAVAILABLE') from None
                 self.sleep(0.5 * (attempt + 1))
+
+    def verify_identity(self):
+        value = self.request('GET', 'identity')
+        if value != {'workerId': self.worker_id, 'kind': self.kind, 'instanceId': 'aliyun-village'}:
+            raise RuntimeError('WORKER_IDENTITY_MISMATCH')
+        return value
 
     def call(self, action, payload=None):
         if action not in ('heartbeat', 'claim', 'sources', 'source-status'):

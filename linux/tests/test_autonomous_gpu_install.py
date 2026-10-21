@@ -56,4 +56,4 @@ def test_new_key_and_ca_can_be_probed_before_replacing_either_existing_worker():
     assert args[:3]==['run','--rm','--pull=never']
     assert 'village-platform_egress' in args and '--read-only' in args
     assert '10001:10001' in args and 'ALL' in args and '--memory' in args
-    assert 'sources' in args[-1] and 'claim' not in args[-1] and 'heartbeat' not in args[-1]
+    assert 'verify_identity' in args[-1] and 'sources' not in args[-1] and 'claim' not in args[-1] and 'heartbeat' not in args[-1]

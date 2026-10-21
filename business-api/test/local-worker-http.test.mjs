@@ -32,3 +32,15 @@ test('Worker file routes require lease, bound binary chunks and serve byte range
   assert.equal((await fetch(base+'/input',{headers:{Authorization:authorization}})).status,400);
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
+
+
+test('read-only Worker identity accepts both kinds without queue mutation',async()=>{
+ for(const kind of ['geo','facade']){
+  let calls=0;
+  const queue=createLocalQueueService({instanceId:'aliyun-test',database:{withMaintenance:async fn=>fn({query:async(sql)=>{calls++;assert.match(sql,/local_worker_auth/);return {rows:[{data:{workerId,kind}}]};}})}});
+  const server=createServer(mod.createLocalWorkerHandler({queue}));await listenLoopback(server);
+  try{const result=await fetch('http://127.0.0.1:'+server.address().port+'/api/worker/v1/identity',{headers:{Authorization:authorization}});
+   assert.equal(result.status,200);assert.deepEqual((await result.json()).data,{workerId,kind,instanceId:'aliyun-test'});assert.equal(calls,1);
+  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
+ }
+});

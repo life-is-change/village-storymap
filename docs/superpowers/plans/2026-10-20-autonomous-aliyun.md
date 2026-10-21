@@ -139,10 +139,10 @@
 
 **Interfaces:** `prepare-ip-tls.py --check|--staging|--issue|--renew-test`; Certbot 5.4+ webroot, fixed IP SAN, atomic cert install and tested reload hook. `deploy-autonomous.py --check|--deploy|--verify|--apply` resumes private checkpoints, exact image/hash labels and Auth schema proof; no automatic source mutations or data rollback.
 
-- [ ] Test invalid IP/SAN/issuer, failed certificate or reload, old site preservation, image mismatch, unsupported Auth schema, disk budget, interrupted copy, file inventory growth, restart, retained candidate and explicit stop-only allowlist for obsolete containers.
-- [ ] Run RED; implement fixed same-origin Auth proxy/ACME route and guarded handoff; run GREEN. Copy all relevant objects including the previous 114 exclusions, fresh consistent snapshot and Auth compatibility report; do not mark files complete from metadata alone.
-- [ ] Validate Compose/Nginx/TLS renewal in disposable CI; resource/CA access on real host remains operator gate.
-- [ ] Commit `feat: deploy and back up an autonomous HTTPS IP platform`.
+- [x] Test invalid IP/SAN/issuer, failed certificate or reload, old site preservation, image mismatch, unsupported Auth schema, disk budget, interrupted copy, file inventory growth, restart, retained candidate and explicit stop-only allowlist for obsolete containers.
+- [x] Run RED; implement fixed same-origin Auth proxy/ACME route and guarded handoff; run GREEN. Copy all relevant objects including the previous 114 exclusions, fresh consistent snapshot and Auth compatibility report; do not mark files complete from metadata alone.
+- [x] Validate Compose/Nginx/TLS renewal in disposable CI; resource/CA access on real host remains operator gate.
+- [x] Commit `feat: deploy and back up an autonomous HTTPS IP platform`.
 
 ### Task 10: Unified acceptance, release package and final review
 

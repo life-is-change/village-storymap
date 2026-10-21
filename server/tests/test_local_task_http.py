@@ -148,3 +148,18 @@ def test_complete_private_partial_is_adopted_after_restart_without_an_invalid_ra
     transport.download(str(uuid4()),str(uuid4()),'input',target,expected_sha=hashlib.sha256(content).hexdigest(),expected_size=len(content))
     assert target.read_bytes()==content and not pending.exists()
     transport.close()
+
+
+@pytest.mark.parametrize('kind', ['geo', 'facade'])
+def test_read_only_identity_is_kind_and_instance_bound(tmp_path, kind):
+    path, wid = key(tmp_path)
+    state = {'workerId': wid, 'kind': kind, 'instanceId': 'aliyun-village'}
+    def handler(request):
+        assert request.method == 'GET' and request.url.path.endswith('/identity')
+        return httpx.Response(200, json={'data': state})
+    transport = api().LocalTaskHTTP(key_file=path, kind=kind, transport=httpx.MockTransport(handler))
+    transport.verify_identity()
+    state['kind'] = 'facade' if kind == 'geo' else 'geo'
+    with pytest.raises(RuntimeError, match='WORKER_IDENTITY_MISMATCH'):
+        transport.verify_identity()
+    transport.close()

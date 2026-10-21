@@ -14,7 +14,7 @@ export function createLocalQueueService({database,instanceId}){
    const actor=Object.freeze({workerId:row.workerId,kind:row.kind});proofs.set(actor,proof);return actor;
   },
   async workerCall(actor,action,runId=null,leaseToken=null,payload={}){
-   const proof=proofs.get(actor);if(!proof)throw taskFault('UNAUTHORIZED');const parsed=workerCommand(actor.kind,action,runId,leaseToken,payload);
+   const proof=proofs.get(actor);if(!proof)throw taskFault('UNAUTHORIZED');if(action==='identity'){if(runId!==null||leaseToken!==null||!payload||Array.isArray(payload)||typeof payload!=='object'||Object.keys(payload).length)throw taskFault('INVALID_INPUT');return {workerId:actor.workerId,kind:actor.kind,instanceId};}const parsed=workerCommand(actor.kind,action,runId,leaseToken,payload);
    return result(await database.withMaintenance(c=>one(c,'SELECT api_private.local_worker_call($1,$2,$3,$4,$5,$6,$7::jsonb) AS data',[proof.workerId,proof.tokenDigest,instanceId,action,runId,leaseToken,JSON.stringify(parsed)])));
   },
   async control(action,input){

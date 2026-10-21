@@ -1,3 +1,4 @@
+import {createServer} from 'node:http';import {listenLoopback} from './fixtures/http-listen.mjs';import {createLocalWorkerHandler} from '../local-tasks/http.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID,createHash} from 'node:crypto';import {readFile} from 'node:fs/promises';
 import {withUnifiedFixture,testIdentity,USERS} from './fixtures/unified.mjs';import {prepareFiles} from './fixtures/files.mjs';
 import {createUnifiedDatabase} from '../unified/database.mjs';import {createTaskService} from '../unified/tasks.mjs';
@@ -78,5 +79,20 @@ test('transient failures back off and exhaust five leases; revoked local members
   const other=await submit(),active=await claim(actor);await setup.query("DELETE FROM group_memberships WHERE student_key='a::A'");
   await assert.rejects(queue.workerCall(actor,'progress',active.run.id,active.leaseToken,{state:'running',stage:'starting',progress:1}),{code:'LEASE_LOST'});
   await assert.rejects(tasks.execute(testIdentity(),'tasks.get',{requestId:other.requestId}),{code:'FORBIDDEN'});assert.notEqual(p.requestId,other.requestId);
+ });
+});
+
+
+test('real Worker identity proves both credential kinds read-only and rejects revocation',async()=>{
+ await fixture(async({setup,queue,worker})=>{
+  const server=createServer(createLocalWorkerHandler({queue}));await listenLoopback(server);
+  try{for(const kind of ['geo','facade']){
+   const actor=await worker(kind),header='Bearer village_worker_'+actor.workerId+'.'+'A'.repeat(43);
+   const before=(await setup.query('SELECT row_to_json(w) v FROM api_private.local_gpu_workers w WHERE id=$1',[actor.workerId])).rows[0].v;
+   const probe=()=>fetch('http://127.0.0.1:'+server.address().port+'/api/worker/v1/identity',{headers:{Authorization:header}});
+   const response=await probe();assert.equal(response.status,200);assert.deepEqual((await response.json()).data,{workerId:actor.workerId,kind,instanceId:'aliyun-test'});
+   assert.deepEqual((await setup.query('SELECT row_to_json(w) v FROM api_private.local_gpu_workers w WHERE id=$1',[actor.workerId])).rows[0].v,before);
+   await setup.query('UPDATE api_private.local_gpu_workers SET revoked_at=now() WHERE id=$1',[actor.workerId]);assert.equal((await probe()).status,401);
+  }}finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
  });
 });
