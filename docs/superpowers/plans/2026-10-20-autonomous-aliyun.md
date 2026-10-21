@@ -150,10 +150,10 @@
 
 **Interfaces:** Release package includes exact runtime commit/digests/CI evidence, API/Auth/Worker artifacts and immutable source defaults; private input bundle created only with hidden operator secrets. Acceptance emits separate synthetic/cloud/GPU/provider status, never a blanket success before actual evidence.
 
-- [ ] Test source-blocked local login/signup/refresh/logout/disable/reset, user ownership, 2D→facade→3D, geo→import, scene/version/restart; test concurrency 1/5/10/20 and resource-bound failure reporting. Synthetic jobs do not claim actual ML output quality.
-- [ ] Run all appropriate tests once; obtain fresh whole-change review, fix important findings with RED→GREEN regression, retain private ledgers.
-- [ ] Build immutable archives, verify hash/platform/runtime/CI against exact commit; push unified change through authorized main workflow, avoid per-module deployment requests.
-- [ ] Document one Aliyun flow then controlled two-Worker switch and one actual whole-flow checklist; remaining actual passwords/CA/GPU work clearly pending. Commit release proof after successful CI.
+- [x] Test source-blocked local login/signup/refresh/logout/disable/reset, user ownership, 2D→facade→3D, geo→import, scene/version/restart; test concurrency 1/5/10/20 and resource-bound failure reporting. Synthetic jobs do not claim actual ML output quality.
+- [x] Run all appropriate tests once; obtain fresh whole-change review, fix important findings with RED→GREEN regression, retain private ledgers.
+- [x] Build immutable archives, verify hash/platform/runtime/CI against exact commit; push unified change through authorized main workflow, avoid per-module deployment requests.
+- [x] Document one Aliyun flow then controlled two-Worker switch and one actual whole-flow checklist; remaining actual passwords/CA/GPU work clearly pending. Commit release proof after successful CI.
 
 ## Preflight evidence and execution authorization
 
