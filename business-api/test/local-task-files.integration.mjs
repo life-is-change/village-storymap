@@ -2,18 +2,19 @@ import test from 'node:test';import assert from 'node:assert/strict';import {ran
 import {withUnifiedFixture,testIdentity,USERS} from './fixtures/unified.mjs';import {prepareFiles} from './fixtures/files.mjs';import {png,glb} from './fixtures/scene-files.mjs';
 import {createUnifiedDatabase} from '../unified/database.mjs';import {createTaskService} from '../unified/tasks.mjs';import {createTaskFiles} from '../unified/task-files.mjs';import {createBusinessFileStore} from '../unified/file-store.mjs';import {createBusinessFilesService} from '../unified/files.mjs';import {createFileBudget} from '../unified/budgets.mjs';
 import {createLocalQueueService} from '../local-tasks/service.mjs';import {createLocalTaskTransport} from '../local-tasks/transport.mjs';import {createTaskChunkStore} from '../local-tasks/chunks.mjs';import {createLocalTaskFiles} from '../local-tasks/files.mjs';
+import {createCloudRepository} from '../local-tasks/cloud-repository.mjs';import {createLocalCloudFacade} from '../local-tasks/cloud.mjs';import {createCloudFiles} from '../local-tasks/cloud-files.mjs';
 const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A',courseId:'course'},hash=b=>createHash('sha256').update(b).digest('hex');
-async function fixture(fn){await withUnifiedFixture(async({setup,install,config})=>{
+async function fixture(fn,provider={available:false}){await withUnifiedFixture(async({setup,install,config})=>{
  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','tasks'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
- for(const name of ['local-tasks','local-task-files'])await setup.query(await readFile(new URL('../../linux/sql/'+name+'.sql',import.meta.url),'utf8'));
+ for(const name of ['local-tasks','local-task-files','local-cloud'])await setup.query(await readFile(new URL('../../linux/sql/'+name+'.sql',import.meta.url),'utf8'));
  await setup.query('INSERT INTO api_private.task_worker_villages VALUES($1::uuid,$1::text)',[context.villageId]);
  const root=await mkdtemp(join(tmpdir(),'local-files-native-')),db=createUnifiedDatabase(config),budget=createFileBudget();let tasks;
- try{for(const d of ['files','chunks'])await mkdir(join(root,d),{mode:0o700});const store=budget.wrap(await createBusinessFileStore({root:join(root,'files'),instanceId:'aliyun-test'})),chunks=await createTaskChunkStore({root:join(root,'chunks'),instanceId:'aliyun-test'}),queue=createLocalQueueService({database:db,instanceId:'aliyun-test'}),taskFiles=createTaskFiles({database:db,store,instanceId:'aliyun-test'}),create=()=>createLocalTaskFiles({queue,store,chunks,budget,taskFiles}),files=create(),bridge=createLocalTaskTransport({queue,artifactReader:(input,type)=>files.readArtifact(input,type)});
+ try{for(const d of ['files','chunks'])await mkdir(join(root,d),{mode:0o700});const store=budget.wrap(await createBusinessFileStore({root:join(root,'files'),instanceId:'aliyun-test'})),chunks=await createTaskChunkStore({root:join(root,'chunks'),instanceId:'aliyun-test'}),queue=createLocalQueueService({database:db,instanceId:'aliyun-test'}),taskFiles=createTaskFiles({database:db,store,instanceId:'aliyun-test'}),create=()=>createLocalTaskFiles({queue,store,chunks,budget,taskFiles}),files=create(),repository=createCloudRepository({database:db,instanceId:'aliyun-test'}),cloud=createLocalCloudFacade({repository,provider,files:createCloudFiles({store,taskFiles,instanceId:'aliyun-test'})}),bridge=createLocalTaskTransport({queue,cloud,artifactReader:(input,type)=>files.readArtifact(input,type)});
   tasks=createTaskService({database:db,bridge,files:taskFiles});await queue.verifyFilesInstallation();
   async function worker(kind='geo'){const workerId=randomUUID(),secret='A'.repeat(43);await setup.query('INSERT INTO api_private.local_gpu_workers(id,instance_id,name,kind,token_digest) VALUES($1::uuid,$2,$1::uuid::text,$3,$4)',[workerId,'aliyun-test',kind,hash(secret)]);const actor=await queue.authenticate('Bearer village_worker_'+workerId+'.'+secret);await queue.workerCall(actor,'heartbeat',null,null,{state:'idle',protocol:kind+'-aliyun-local-v1'});return actor;}
   const claim=a=>queue.workerCall(a,'claim',null,null,{requestId:randomUUID()});
   async function upload(actor,job,type,bytes,mime='image/png',extension='png'){const input={requestId:randomUUID(),artifactType:type,size:bytes.length,sha256:hash(bytes),mime,extension},u=await files.begin(actor,job.run.id,job.leaseToken,input);await files.put(actor,job.run.id,job.leaseToken,{uploadId:u.uploadId,index:0,size:bytes.length,sha256:hash(bytes)},Readable.from([bytes]));return files.commit(actor,job.run.id,job.leaseToken,{uploadId:u.uploadId});}
-  await fn({setup,db,budget,store,queue,taskFiles,files,create,tasks,worker,claim,upload});assert.deepEqual(budget.diagnostics(),{read:0,write:0});
+  await fn({setup,db,budget,store,queue,taskFiles,files,create,tasks,worker,claim,upload,repository,cloud});assert.deepEqual(budget.diagnostics(),{read:0,write:0});
  }finally{await tasks?.close();await db.close();await rm(root,{recursive:true,force:true});}
 });}
 
@@ -65,4 +66,49 @@ test('native facade retains original photo identity and approved rectification a
   await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await tasks.tick();const h=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'building_glb');assert.equal(h.size,glb().length);await h.close();
   assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_outputs WHERE state=\'ready\'')).rows[0].n,'5');
  });
+});
+
+async function cloudRequest({db,store,tasks}){
+ const files=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3}),session=await files.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:'A'},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await files.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await files.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'}),input={...context,kind:'cloud-facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()};await tasks.execute(testIdentity(),'tasks.submitFacade',input);await tasks.tick();return {ownerId:USERS.student,requestId:input.requestId};
+}
+const pollNow=setup=>setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll';UPDATE api_private.local_cloud_jobs SET next_at=now()");
+
+test('native optional provider persists an immutable local output once and isolates source history',async()=>{
+ let submissions=0;const provider={available:true,submit:async({image})=>{submissions++;assert.equal(image.sha256,hash(png));return {jobId:'fixture-job'};},poll:async()=>({status:'succeeded',output:'fixture-only'}),openOutput:async()=>({size:png.length,mime:'image/png',stream:Readable.from([png])})};
+ await fixture(async({setup,db,store,tasks,taskFiles,repository})=>{
+  await repository.verifyInstallation();const input=await cloudRequest({db,store,tasks});await pollNow(setup);await tasks.tick();assert.equal(submissions,1);
+  assert.equal((await setup.query('SELECT state FROM api_private.local_cloud_jobs')).rows[0].state,'accepted');
+  await pollNow(setup);await tasks.tick();assert.equal((await tasks.execute(testIdentity(),'tasks.get',{requestId:input.requestId})).state,'completed');
+  const opened=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'standard_facade');assert.equal(opened.sha256,hash(png));await opened.close();
+  await assert.rejects(taskFiles.readTaskArtifact(testIdentity(USERS.other),input.requestId,'standard_facade'),{code:'NOT_FOUND'});
+  assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_outputs')).rows[0].n,'1');
+  assert.equal((await repository.claim(input)).operation,'complete');assert.equal(submissions,1);
+ },provider);
+});
+
+test('native paid intent survives a crash, rejects automatic retry and permits only owner reconciliation',async()=>{
+ const provider={available:true,submit:async()=>{throw Error('must not call paid provider in this intent fixture');}};
+ await fixture(async({setup,db,store,tasks,repository})=>{
+  const input=await cloudRequest({db,store,tasks}),claim=await repository.claim(input);await repository.intent(input,claim);
+  assert.equal((await repository.claim(input)).operation,'wait');
+  await setup.query("UPDATE api_private.local_cloud_jobs SET lease_until=now()-interval '1 second'");assert.equal((await repository.claim(input)).operation,'unknown');assert.equal((await repository.claim(input)).operation,'unknown');
+  const unknown=await tasks.execute(testIdentity(),'tasks.get',{requestId:input.requestId});assert.equal(unknown.state,'failed');assert.equal(unknown.errorCode,'PROVIDER_SUBMISSION_UNKNOWN');
+  await pollNow(setup);await tasks.tick();assert.equal((await setup.query("SELECT done FROM api_private.task_outbox WHERE operation='poll'")).rows[0].done,true);
+  const args=[input.ownerId,input.requestId,'aliyun-test','reconcile',JSON.stringify({jobId:'fixture-reconciled-job'})];
+  const rejected=await db.withMaintenance(async c=>(await c.query('SELECT api_private.local_cloud_call($1,$2,$3,$4,$5::jsonb) AS data',args)).rows[0].data);assert.equal(rejected.error,'FORBIDDEN');
+  assert.equal((await setup.query('SELECT api_private.local_cloud_call($1,$2,$3,$4,$5::jsonb) AS data',args)).rows[0].data.ok,true);
+  assert.equal((await setup.query("SELECT done FROM api_private.task_outbox WHERE operation='poll'")).rows[0].done,false);
+  const resumed=await repository.claim(input);assert.equal(resumed.operation,'poll');assert.equal(resumed.jobId,'fixture-reconciled-job');
+  await assert.rejects(repository.intent(input,claim),{code:'LEASE_LOST'});assert.equal((await setup.query("SELECT count(*) n FROM api_private.local_cloud_audit WHERE action='billable_submit_intent'")).rows[0].n,'1');
+ },provider);
+});
+
+test('native cancellation after provider acceptance cannot publish a late image or consume a GPU lease',async()=>{
+ let submissions=0;const provider={available:true,submit:async()=>{submissions++;return {jobId:'fixture-job'};},poll:async()=>({status:'succeeded',output:'fixture-only'}),openOutput:async()=>({size:png.length,mime:'image/png',stream:Readable.from([png])})};
+ await fixture(async({setup,db,store,tasks,repository,cloud,worker,claim})=>{
+  const input=await cloudRequest({db,store,tasks});await pollNow(setup);await tasks.tick();assert.equal(submissions,1);
+  const active=await worker('geo');assert.equal((await claim(active)).run,null);const facade=await worker('facade');assert.equal((await claim(facade)).run,null);
+  await tasks.execute(testIdentity(),'tasks.cancel',{taskId:input.requestId,requestId:randomUUID()});await tasks.tick();await cloud.drive(input);
+  assert.equal((await repository.claim(input)).operation,'canceled');assert.equal((await setup.query('SELECT count(*) n FROM api_private.local_gpu_outputs')).rows[0].n,'0');assert.equal(submissions,1);
+ },provider);
 });

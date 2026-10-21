@@ -2,6 +2,11 @@ import test from 'node:test';import assert from 'node:assert/strict';import {mkd
 import {glbHeader,png} from './fixtures/scene-files.mjs';
 let api,storeAPI;try{api=await import('../unified/files.mjs');storeAPI=await import('../unified/file-store.mjs');}catch{api={};storeAPI={};}
 const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A'};
+test('a verified temporary result can atomically adopt its digest-derived identity without copying bytes',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'local-cloud-promote-')),from=randomUUID(),to=randomUUID();
+ try{const store=await storeAPI.createBusinessFileStore({root,instanceId:'aliyun-test'}),receipt=await store.stage({fileId:from,role:'photo',size:png.length,mime:'image/png',extension:'png',stream:Readable.from([png])});await store.persist(from,to);const file=await store.open(to,receipt);await file.close();await assert.rejects(store.open(from,receipt),{code:'FILE_UNAVAILABLE'});await assert.rejects(store.persist(from,to));
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 test('ordinary upload contracts fix file roles and never accept paths, owners or generic MIME',()=>{
  assert.equal(typeof api.parseBusinessUpload,'function');const p={requestId:randomUUID(),purpose:'photo',context:c,files:[{role:'photo',size:20,mime:'image/png',extension:'png'}]};
  assert.doesNotThrow(()=>api.parseBusinessUpload(p));for(const edit of [{path:'../../x'},{ownerId:randomUUID()},{files:[{...p.files[0],size:10*1024**2+1}]},{files:[{...p.files[0],mime:'application/octet-stream'}]}])assert.throws(()=>api.parseBusinessUpload({...p,...edit}));

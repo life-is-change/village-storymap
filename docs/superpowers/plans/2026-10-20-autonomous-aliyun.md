@@ -119,9 +119,9 @@
 
 **Interfaces:** New gateway matches each existing pipeline gateway method; `VILLAGE_TASK_BACKEND=aliyun` selects approved HTTPS IP with per-kind private credential. Default source mode remains unchanged. HTTP client validates TLS and fixed relative paths, streams/hash-checks files, renews leases and never automatically falls back.
 
-- [ ] Synthetic HTTP tests cover both pipeline method contracts, lost response retry, cancellation/lease loss, malformed server URLs, TLS errors, stale upload and no source client construction in local mode.
-- [ ] Run RED; implement adapters only, preserving pipelines/models/GPU locks and egress networks; run Worker suite GREEN.
-- [ ] Commit `feat: let campus GPU workers consume Aliyun queues over HTTPS`.
+- [x] Synthetic HTTP tests cover both pipeline method contracts, lost response retry, cancellation/lease loss, malformed server URLs, TLS errors, stale upload and no source client construction in local mode.
+- [x] Run RED; implement adapters only, preserving pipelines/models/GPU locks and egress networks; run Worker suite GREEN.
+- [x] Commit `feat: let campus GPU workers consume Aliyun queues over HTTPS`.
 
 ### Task 8: Local cloud-facade provider control
 

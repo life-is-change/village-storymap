@@ -4,3 +4,9 @@ test('unified config fixes DB identity, refuses inline secrets and keeps the sou
  const config=api.loadUnifiedConfig(env,{readSecret:()=> 'x'.repeat(40)});assert.equal(config.bridge.enabled,false);assert.equal(config.database.user,'village_unified_login');assert.equal(config.port,8080);
  for(const patch of [{PGUSER:'postgres'},{PGPASSWORD:'bad'},{UNIFIED_SCENE_ROOT:'/data/business'},{SUPABASE_AUTH_ORIGIN:'https://evil.test'},{BRIDGE_ENABLED:'true'},{UNIFIED_INSTANCE_ID:'source'}])assert.throws(()=>api.loadUnifiedConfig({...env,...patch},{readSecret:()=> 'x'.repeat(40)}),/INVALID_CONFIGURATION/);
 });
+test('optional local provider is disabled by default and reads its key only from a private file',()=>{
+ const env={AUTH_MODE:'local',AUTH_PUBLIC_ORIGIN:'https://8.148.248.237',AUTH_INTERNAL_ORIGIN:'http://auth:9999',PGHOST:'postgres',PGDATABASE:'village_unified_candidate',PGUSER:'village_unified_login',PGPASSWORD_FILE:'/run/secrets/db',UNIFIED_INSTANCE_ID:'aliyun-test',UNIFIED_FILES_ROOT:'/data/business',UNIFIED_SCENE_ROOT:'/data/scene',UNIFIED_LEGACY_ROOT:'/legacy',UNIFIED_LEGACY_INDEX:'/legacy/index.json',UNIFIED_RELEASE_FILE:'/app/release.json'},read=[];
+ const readSecret=p=>{read.push(p);return 'x'.repeat(40);};assert.equal(api.loadUnifiedConfig(env,{readSecret}).cloud.enabled,false);assert.deepEqual(read,['/run/secrets/db']);
+ const config=api.loadUnifiedConfig({...env,FACADE_CLOUD_ENABLED:'true',DASHSCOPE_KEY_FILE:'/run/secrets/provider',DASHSCOPE_WORKSPACE_ID:'fixture-workspace'},{readSecret});assert.equal(config.cloud.enabled,true);assert.equal(config.cloud.key,'x'.repeat(40));
+ for(const patch of [{DASHSCOPE_API_KEY:'inline'},{FACADE_CLOUD_ENABLED:'yes'},{FACADE_CLOUD_ENABLED:'true'},{FACADE_CLOUD_ENABLED:'true',DASHSCOPE_KEY_FILE:'/run/secrets/provider',DASHSCOPE_WORKSPACE_ID:'evil.test/path'}])assert.throws(()=>api.loadUnifiedConfig({...env,...patch},{readSecret}),/INVALID_CONFIGURATION/);
+});

@@ -12,6 +12,12 @@ test('local outbox submission keeps the same immutable photo ID/hash without upl
  const service=createTaskService({database,bridge:transport,files});await service.tick();await service.close();
  assert.equal(closed,1);assert.deepEqual(calls,[['enqueue',{ownerId:id,requestId:id,photo:{fileId,size:8,mime:'image/png',sha256:'a'.repeat(64)}}]]);assert.equal(finished.runId,id);
 });
+test('optional local provider uses the same local task and drives only its poll operation',async()=>{
+ let drives=0;const cloud={available:true,capability:()=>({available:true}),drive:async()=>{drives++;}},queue={instanceId:'aliyun-test',control:async(action)=>action==='status'?{kind:'cloud-facade',runId:id}:{runId:id}};
+ const transport=api.createLocalTaskTransport({queue,cloud});assert.equal((await transport.availability({kind:'cloud-facade'})).data.available,true);
+ await transport.submit({kind:'cloud-facade',ownerId:id,requestId:id});assert.equal(drives,0);await transport.status({ownerId:id,requestId:id});assert.equal(drives,1);
+ const disabled=api.createLocalTaskTransport({queue});await assert.rejects(disabled.submit({kind:'cloud-facade',ownerId:id,requestId:id}),{code:'SOURCE_NOT_READY'});
+});
 test('local artifact download has no network fallback and preserves fixed task ownership',async()=>{
  assert.equal(typeof api.createLocalTaskTransport,'function');const queue={instanceId:'aliyun-test',control:async()=>({data:{available:false}})};
  const transport=api.createLocalTaskTransport({queue});assert.equal((await transport.availability({kind:'geoprocessing'})).data.available,false);

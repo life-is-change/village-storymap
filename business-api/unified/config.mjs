@@ -7,7 +7,7 @@ export function privateSecret(path){
 }
 export function loadUnifiedConfig(env=process.env,{readSecret=privateSecret}={}){
  const fail=()=>{throw Error('INVALID_CONFIGURATION');};
- if(env.PGPASSWORD!==undefined||env.BRIDGE_TOKEN!==undefined||env.SUPABASE_SECRET_KEY!==undefined||env.GOTRUE_JWT_SECRET!==undefined||!/^aliyun-[a-zA-Z0-9_-]{1,92}$/.test(env.UNIFIED_INSTANCE_ID??''))fail();
+ if(env.PGPASSWORD!==undefined||env.BRIDGE_TOKEN!==undefined||env.SUPABASE_SECRET_KEY!==undefined||env.GOTRUE_JWT_SECRET!==undefined||env.DASHSCOPE_API_KEY!==undefined||!/^aliyun-[a-zA-Z0-9_-]{1,92}$/.test(env.UNIFIED_INSTANCE_ID??''))fail();
  const authMode=env.AUTH_MODE??'source';
  const auth=authMode==='local'?{authMode,authOrigin:env.AUTH_PUBLIC_ORIGIN,authInternalOrigin:env.AUTH_INTERNAL_ORIGIN}:{authMode,authOrigin:env.SUPABASE_AUTH_ORIGIN,publishableKey:env.SUPABASE_PUBLISHABLE_KEY};
  resolveAuthPolicy(auth);
@@ -19,6 +19,11 @@ export function loadUnifiedConfig(env=process.env,{readSecret=privateSecret}={})
  const within=(a,b)=>{const r=relative(a,b);return !r||r!=='..'&&!r.startsWith('..'+sep)&&!isAbsolute(r);};
  for(const a of [filesRoot,sceneRoot,legacyRoot])for(const b of [filesRoot,sceneRoot,legacyRoot])if(a!==b&&within(a,b))fail();if(new Set([filesRoot,sceneRoot,legacyRoot]).size!==3||[filesRoot,sceneRoot].some(root=>within(root,indexPath)||within(root,releaseFile)))fail();
  const database={host:env.PGHOST,port:number(env.PGPORT,5432),database:env.PGDATABASE,user:env.PGUSER,password:readSecret(env.PGPASSWORD_FILE)};poolOptions(database);
+ if(env.FACADE_CLOUD_ENABLED!==undefined&&!['true','false'].includes(env.FACADE_CLOUD_ENABLED))fail();
+ const cloud={enabled:env.FACADE_CLOUD_ENABLED==='true'};if(cloud.enabled){
+  if(authMode!=='local'||!isAbsolute(env.DASHSCOPE_KEY_FILE??'')||!/^[a-zA-Z0-9-]{1,100}$/.test(env.DASHSCOPE_WORKSPACE_ID??'')||!['cn-beijing','ap-southeast-1'].includes(env.DASHSCOPE_REGION??'cn-beijing'))fail();
+  Object.assign(cloud,{key:readSecret(env.DASHSCOPE_KEY_FILE),workspace:env.DASHSCOPE_WORKSPACE_ID,region:env.DASHSCOPE_REGION??'cn-beijing'});
+ }
  if(env.BRIDGE_ENABLED!==undefined&&!['true','false'].includes(env.BRIDGE_ENABLED))fail();const enabled=env.BRIDGE_ENABLED==='true';if(enabled&&!env.BRIDGE_TOKEN_FILE)fail();
- return Object.freeze({...auth,port:number(env.PORT,8080),instanceId:env.UNIFIED_INSTANCE_ID,database,filesRoot,sceneRoot,legacy:{root:legacyRoot,indexPath},releaseFile,bridge:{enabled,...(enabled?{token:readSecret(env.BRIDGE_TOKEN_FILE)}:{})}});
+ return Object.freeze({...auth,port:number(env.PORT,8080),instanceId:env.UNIFIED_INSTANCE_ID,database,filesRoot,sceneRoot,legacy:{root:legacyRoot,indexPath},releaseFile,cloud,bridge:{enabled,...(enabled?{token:readSecret(env.BRIDGE_TOKEN_FILE)}:{})}});
 }

@@ -195,15 +195,14 @@ AS $$ DECLARE t api_private.task_requests;r api_private.local_gpu_runs;available
   IF FOUND THEN
    IF r.input_digest<>expected THEN RETURN jsonb_build_object('error','REVISION_CONFLICT');END IF;
   ELSE
-   IF t.kind='cloud-facade' THEN RETURN jsonb_build_object('error','SOURCE_NOT_READY');END IF;
    IF (SELECT count(*) FROM api_private.local_gpu_runs WHERE instance_id=instance AND owner_id=t.owner_id AND kind=t.kind AND status NOT IN('failed','canceled','completed'))>=2 THEN RETURN jsonb_build_object('error','TOO_MANY_ACTIVE_RUNS');END IF;
-   IF t.kind='facade' THEN
+   IF t.kind IN('facade','cloud-facade') THEN
     IF p->'photo'->>'fileId' IS DISTINCT FROM (SELECT file_id::text FROM public.object_photos WHERE id=t.photo_id)
        OR p->'photo'->>'sha256'!~'^[a-f0-9]{64}$' OR (p->'photo'->>'size')::bigint NOT BETWEEN 1 AND 10485760
        OR p->'photo'->>'mime' NOT IN('image/jpeg','image/png') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
    END IF;
    INSERT INTO api_private.local_gpu_runs(id,instance_id,owner_id,kind,input,input_digest,photo_snapshot,phase,status)
-    VALUES(t.id,instance,t.owner_id,t.kind,t.input,expected,p->'photo',CASE WHEN t.kind='geo' THEN 'geo' ELSE 'rectification' END,CASE WHEN t.kind='geo' THEN 'queued' ELSE 'queued_rectification' END) RETURNING * INTO r;
+    VALUES(t.id,instance,t.owner_id,t.kind,t.input,expected,p->'photo',CASE t.kind WHEN 'geo' THEN 'geo' WHEN 'cloud-facade' THEN 'cloud' ELSE 'rectification' END,CASE WHEN t.kind='facade' THEN 'queued_rectification' ELSE 'queued' END) RETURNING * INTO r;
    PERFORM api_private.local_gpu_sync(r.id);
   END IF;
   RETURN jsonb_build_object('instanceId',instance,'runId',r.id);
@@ -215,6 +214,7 @@ AS $$ DECLARE t api_private.task_requests;r api_private.local_gpu_runs;available
   END IF;
   RETURN jsonb_build_object('instanceId',instance,'canceled',true);
  ELSIF action='retry' THEN
+  IF r.kind='cloud-facade' THEN RETURN jsonb_build_object('error','SOURCE_NOT_READY');END IF;
   IF r.status='failed' AND r.attempts<5 THEN
    UPDATE api_private.local_gpu_runs SET status=CASE phase WHEN 'geo' THEN 'queued' WHEN 'rectification' THEN 'queued_rectification' ELSE 'queued_generation' END,lease_until=NULL,worker_id=NULL,lease_token=NULL,error_code=NULL,next_at=now(),updated_at=now() WHERE id=r.id RETURNING * INTO r;PERFORM api_private.local_gpu_sync(r.id);
   END IF;
