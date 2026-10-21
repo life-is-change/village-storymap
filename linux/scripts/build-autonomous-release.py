@@ -34,6 +34,13 @@ def test_context_template(root):
 def stage_autonomous(root,target,*,release_id):
     if not re.fullmatch(r'autonomous-[a-f0-9]{12}',release_id):raise ValueError('AUTONOMOUS_RELEASE_ID_REQUIRED')
     load_script('stage-web').stage(root,target)
+    # Windows autocrlf must not produce a different runtime than Linux CI.
+    # Normalize only staged text assets; source files and binary models stay intact.
+    text_suffixes={'.html','.js','.css','.json','.geojson','.svg','.csv','.gltf','.czml','.xml','.md'}
+    for path in Path(target).rglob('*'):
+        if path.is_file() and path.suffix.lower() in text_suffixes:
+            raw=path.read_bytes()
+            if b'\r\n' in raw:path.write_bytes(raw.replace(b'\r\n',b'\n'))
     config={'mode':'aliyun','stage':'candidate','instanceId':'aliyun-village','apiBase':'/api/v1','releaseId':release_id,
         'auth':{'version':1,'mode':'local','path':'/auth/v1','publicKey':'village-local-public-v1'}}
     (Path(target)/'deployment-config.js').write_text('globalThis.VILLAGE_DEPLOYMENT=Object.freeze('+json.dumps(config,separators=(',',':'))+');\n',encoding='utf-8',newline='\n')

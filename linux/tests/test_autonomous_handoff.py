@@ -32,7 +32,8 @@ def test_handoff_refuses_unsafe_or_unexpected_members_before_writing(tmp_path,na
     with tarfile.open(archive,'w') as tar:
         data=json.dumps(manifest).encode();h=tarfile.TarInfo('handoff.json');h.size=len(data);tar.addfile(h,io.BytesIO(data))
         h=tarfile.TarInfo(name);h.size=1;tar.addfile(h,io.BytesIO(b'x'))
-    with pytest.raises(ValueError):m.unpack(archive,tmp_path/'received')
+    archive.chmod(0o600)
+    with pytest.raises(ValueError,match='HANDOFF_MEMBER_REFUSED'):m.unpack(archive,tmp_path/'received')
     assert not (tmp_path/'outside').exists()
 
 
@@ -42,5 +43,6 @@ def test_handoff_rejects_corrupt_payload_and_keeps_private_partial(tmp_path):
     with tarfile.open(archive,'w') as tar:
         data=json.dumps(manifest).encode();h=tarfile.TarInfo('handoff.json');h.size=len(data);tar.addfile(h,io.BytesIO(data))
         h=tarfile.TarInfo(name);h.size=1;tar.addfile(h,io.BytesIO(b'x'))
+    archive.chmod(0o600)
     with pytest.raises(ValueError,match='HANDOFF_FILE_CHECKSUM_DIFFERS'):m.unpack(archive,tmp_path/'received')
     assert (tmp_path/'received').exists()

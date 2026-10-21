@@ -101,6 +101,7 @@ def main():
         old_builder.verified_ci=lambda *args,**kwargs:{'native_run_id':1,'native_status':'success','platform_run_id':2,'platform_status':'success','fixture_only':True}
         assembler.load_script=load
         archive=root/'autonomous-fixture.tar.gz';meta=assembler.build(repo,base,archive,native_run=1,platform_run=2)
+        print('FIXTURE_RUNTIME_DIGESTS '+json.dumps({key:meta[key] for key in ('archive_sha256','code_sha256','schema_sha256','static_sha256','control_sha256')}),flush=True)
         docker('load','-i',archive)
         phase='synthetic-tls';proxy=load('test-autonomous-proxy-ci');cert,key=proxy.fixture_certificate(root,'coordinator')
         (state/'tls').mkdir(mode=0o700);tls.atomic_certificate(state/'tls',fullchain=cert.read_bytes(),private_key=key.read_bytes(),reload=lambda:None)

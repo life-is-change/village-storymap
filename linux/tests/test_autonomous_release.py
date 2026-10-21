@@ -22,6 +22,7 @@ def test_autonomous_stage_has_same_origin_auth_and_preserves_github_source_confi
     assert (ROOT/'deployment-config.js').read_bytes()==source
     script=(tmp_path/'web/deployment-config.js').read_text()
     assert 'supabase.co' not in script and 'bridge' not in script.lower()
+    assert b'\r\n' not in (tmp_path/'web/index.html').read_bytes()
 
 
 def test_package_schema_version_and_runtime_contract_are_explicitly_distinct():
