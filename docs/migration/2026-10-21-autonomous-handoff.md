@@ -6,9 +6,29 @@
 
 ## 当前边界
 
-发布镜像与整套隔离验收已就绪，运行提交 `af71d213cd1d`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
+发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
-## 已在第1步遇到端口检查失败的现有上传包
+## 当前在第2步遇到ACME校验HTTP错误：复用现有私有数据
+
+修复了私有umask077把公开ACME目录/探测文件变成700/600的问题。只将 `.well-known`、`acme-challenge` 及本次随机校验文件明确设置755/644；不改变站点其他目录、私钥或数据库备份权限。实际不同用户的Nginx容器已验证能读取200。
+
+本次只上传 `C:\Users\MR\village-image-transfer\village-autonomous-acmefix-f4b6f39-amd64.tar.gz` 到 `/home/admin/`，不重新上传整份私有包。其SHA256为 `735b4c8344c8693096a3eb954ce123364c4b7a317a69f0e5f86ed09c7cdb6c58`，更新工具自动校验。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+chmod 600 ~/village-autonomous-acmefix-f4b6f39-amd64.tar.gz &&
+python3 linux/scripts/prepare-autonomous-handoff.py \
+  --refresh-release "$HOME/village-autonomous-handoff-portfix" \
+  --image-archive "$HOME/village-autonomous-acmefix-f4b6f39-amd64.tar.gz" \
+  --output "$HOME/village-autonomous-handoff-acmefix" &&
+python3 linux/scripts/install-autonomous-handoff.py \
+  --received "$HOME/village-autonomous-handoff-acmefix"
+```
+
+更新工具要求数据库尚未部署/公开切换，先逐项验证旧接收目录的原始摘要，再验证原快照仍新鲜、所有文件完整以及新旧业务代码/数据库结构/源站配置相同；只更新引导控制和发布标识。它保留原目录，不使用硬链接、不覆盖已有输出，不请求源站或密码。新接收目录生成后如安装出现STOP，保留它并只继续安装，不重复执行 `--refresh-release`。
+
+## 已完成的第1步端口修复（历史记录）
 
 2026-10-21修复：Docker将默认发布地址存为 `HostIp=""`，实际监听为 `0.0.0.0:80` / `[::]:80`。现在核对运行时绑定后接受这种格式，仍拒绝未知端口、回环监听和额外绑定。目标站点无需改端口或重建旧容器。
 
