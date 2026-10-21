@@ -23,7 +23,7 @@ WEB='village-autonomous-web'
 ADMIN='village_restore_admin'
 OLD_CANDIDATES={
     'village-api-validation-api':('village-api-validation','api'),
-    'village-storage-validation-api':('village-storage-validation','api'),
+    'village-storage-validation-api':('village-storage-read-validation','api'),
     'village-scene-validation-api':('village-scene-validation','api'),
     'village-scene-files-validation-api':('village-scene-files-validation','api'),
     'village-api-validation-postgres':('village-api-validation','db'),
@@ -32,6 +32,18 @@ OLD_CANDIDATES={
 
 def clean_environment():
     return {k:v for k,v in os.environ.items() if not k.startswith(('DOCKER_','COMPOSE_','PG'))}
+
+
+def resolve_image(docker,accepted):
+    if not isinstance(accepted,list) or not 1<=len(accepted)<=16 or any(not re.fullmatch('sha256:[a-f0-9]{64}',v or '') for v in accepted):
+        raise ValueError('ARCHIVE_DERIVED_IMAGE_IDENTITIES_REQUIRED')
+    for reference in accepted:
+        try:rows=json.loads(docker.run('image','inspect',reference))
+        except RuntimeError:continue
+        if len(rows)!=1 or rows[0].get('Id') not in accepted or (rows[0].get('Os'),rows[0].get('Architecture'))!=('linux','amd64'):
+            raise ValueError('PINNED_RUNTIME_PLATFORM_DIFFERS')
+        return rows[0]['Id']
+    raise ValueError('PINNED_RUNTIME_IMAGE_NOT_LOADED')
 
 
 class Docker:

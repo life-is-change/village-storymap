@@ -39,7 +39,7 @@ def quiesce(docker,meta):
 
 
 def required_paths(meta):
-    return ['secrets','files','scene-files','storage/blobs','control','releases/'+meta['releaseId'],
+    return ['secrets','worker-credentials','worker-credentials.tar.gz','files','scene-files','storage/blobs','control','releases/'+meta['releaseId'],
             'tls','certbot-production/config','compose.json','release.json','storage-index.json','nginx.conf']
 
 
@@ -73,12 +73,13 @@ def backup_layout(state,meta):
 def backup_files(state,meta):return backup_layout(state,meta)[0]
 
 
-def stream_command(command,path,*,maximum,reserve=4*1024**3,timeout=600):
+def stream_command(command,path,*,maximum,reserve=4*1024**3,timeout=600,input_path=None):
     path=storage.no_links(path);storage.private_path(path.parent,directory=True)
     if path.exists():raise ValueError('BACKUP_OUTPUT_ALREADY_EXISTS')
     log=path.with_name(path.name+'.error.log');deadline=time.monotonic()+timeout
-    with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as output,os.fdopen(os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as errors:
-        process=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=errors,env=clean_environment())
+    source=storage.private_path(input_path).open('rb') if input_path is not None else contextlib.nullcontext(subprocess.DEVNULL)
+    with source as input_file,os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as output,os.fdopen(os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as errors:
+        process=subprocess.Popen(command,stdin=input_file,stdout=subprocess.PIPE,stderr=errors,env=clean_environment())
         timed_out=threading.Event()
         def expire():
             if process.poll() is None:

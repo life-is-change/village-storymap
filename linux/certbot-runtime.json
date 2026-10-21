@@ -7,5 +7,14 @@
   "archive_filename": "village-autonomous-certbot-v5.4.0-amd64.tar",
   "archive_bytes": 89148928,
   "archive_sha256": "06f0687c8087b3f6b30778ddca65ac028131d8a1cc594d82594fdf6626731c64",
-  "runtime_execution": "pending_disposable_linux_certbot_version_test"
+  "runtime_execution": "pending_disposable_linux_certbot_version_test",
+  "accepted_image_ids": [
+    "sha256:f0cfa0056d76325c6a2d3f4dc4dc41449763a9ee1000ed11caf8dc180450144d",
+    "sha256:d14e225f73c7c5fd2ec036bd8b7339ce92ee19453a3abb77959fbc81ddb238de",
+    "sha256:45eff7938b4dc6ee3358e24b43e26feb7f969962a716acb319039a3a1da40bcc",
+    "sha256:03f2ccb4820a6ece70b92cfd3ddb0970fa594c7e062382b40915d089f44614f6",
+    "sha256:740c02449af10714b61468be2bb787b0e593de554ce441e033bd8d864a189444",
+    "sha256:aa4d5cea8711de565f64696d132b1139d770edb40a9599fb6b90cb5e01d03dde",
+    "sha256:e58bc505b0d047cebf71bca4df55d2e3966051c89be1648f9b0b7a5942eef5f9"
+  ]
 }

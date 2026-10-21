@@ -7,5 +7,14 @@
   "archive_filename": "village-autonomous-nginx-amd64.ecr.tar",
   "archive_bytes": 28542464,
   "archive_sha256": "c5a93a87d5674dc32ea99acf85c3b331d61c5e455e71d9ce5c8b876f63b26519",
-  "runtime_execution": "pending_disposable_linux_proxy_test"
+  "runtime_execution": "pending_disposable_linux_proxy_test",
+  "accepted_image_ids": [
+    "sha256:0d831f5435ede3eeaba5768270c9e6f542d58306f69bb61f148e5c2374b57c56",
+    "sha256:797d5a6896bd427586c4c8c9f839932f4599fce7554d0398d4dcb50a86b84698",
+    "sha256:44a72c270d98e1f6781696221e6cdd07bcc8dd5044d15784f1903c6d39276ad5",
+    "sha256:35b34a15ae8b2c2cb9e12d733b9fc95312977bfec20c722cd2ba40eb7333452f",
+    "sha256:578d8f8b350fc412862e7ce63714eaf0de662e47592b0977aa1170ff36b890a0",
+    "sha256:dda7015f17552dc03ccb49410c3119780f61bb2d0c445fbefa9e4061ac6288e0",
+    "sha256:d65af774828a332df1b88ccbccdafbb916fa601655bc5aaa4caca63d1cf65d9a"
+  ]
 }

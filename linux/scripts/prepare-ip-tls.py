@@ -12,9 +12,10 @@ import socket
 import ssl
 import urllib.request
 import time
+import subprocess
 import autonomous_tls as tls
 import business_storage_copy as storage
-from autonomous_operator import Docker,WEB
+from autonomous_operator import Docker,WEB,resolve_image
 
 LEGACY_IMAGES={'sha256:8d9379beb74336a1c62c8237ea56d4f2a573119b9ffd0997714331bb32aa0cca'}
 OLD_WEB='village-web-web-1'
@@ -130,6 +131,30 @@ def certbot_metadata():
     return json.loads((sibling if sibling.is_file() else Path(__file__).resolve().parents[1]/'certbot-runtime.json').read_text(encoding='utf-8'))
 
 
+def install_timer(state,user,*,units=Path('/etc/systemd/system'),run=None):
+    state=storage.private_path(state,directory=True);units=storage.no_links(units)
+    service,timer=tls.renewal_units(user)
+    values={'village-autonomous-tls.service':service,'village-autonomous-tls.timer':timer}
+    for name,value in values.items():
+        path=units/name
+        if path.is_symlink() or path.exists() and (not path.is_file() or path.stat().st_nlink!=1 or path.stat().st_size>16384 or path.read_text()!=value):
+            raise ValueError('EXISTING_TLS_SYSTEM_UNIT_DIFFERS')
+    if run is None:
+        def run(*args):
+            log=state/('systemd-'+secrets.token_hex(10)+'.log')
+            with os.fdopen(os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as errors:
+                try:subprocess.run(['sudo','-n',*map(str,args)],check=True,stdout=subprocess.DEVNULL,stderr=errors,timeout=30)
+                except subprocess.SubprocessError:raise RuntimeError('TLS_TIMER_INSTALL_FAILED') from None
+    for name,value in values.items():
+        source=state/('.'+name+'.install')
+        if source.exists():
+            if storage.private_path(source).read_text()!=value:raise ValueError('TLS_TIMER_INPUT_CHANGED')
+        else:tls._write(source,value.encode())
+        run('install','-o','root','-g','root','-m','0644','--',str(source),str(units/name))
+    run('systemctl','daemon-reload');run('systemctl','enable','--now','village-autonomous-tls.timer')
+    return {'installed':True,'interval_hours':6}
+
+
 @contextlib.contextmanager
 def tls_lock(state):
     import fcntl
@@ -145,6 +170,7 @@ def tls_lock(state):
 
 def perform(state,mode):
     state=storage.private_path(state,directory=True);docker=Docker(state);meta=certbot_metadata()
+    meta['image_id']=resolve_image(docker,meta.get('accepted_image_ids',[meta['image_id']]))
     image=json.loads(docker.run('image','inspect',meta['image_id']))[0]
     if image.get('Id')!=meta['image_id'] or image.get('Os')!='linux' or image.get('Architecture')!='amd64':raise ValueError('CERTBOT_IMAGE_DIFFERS')
     live=(state/'release.json').exists()

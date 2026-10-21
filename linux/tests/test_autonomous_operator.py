@@ -62,6 +62,11 @@ def test_old_candidates_stop_allowlist_requires_exact_label_image_and_no_public_
     with pytest.raises(ValueError):m.stop_receipt(obj)
 
 
+def test_storage_candidate_matches_the_existing_deployer_project_name():
+    m=module();obj=baseline('village-storage-validation-api','sha256:'+'a'*64,'village-storage-read-validation','api')
+    assert m.stop_receipt(obj)['project']=='village-storage-read-validation'
+
+
 def test_checkpoint_is_bound_to_exact_source_release_and_never_reexecutes_unproven_pending(tmp_path):
     m=module();state=tmp_path/'state';state.mkdir(mode=0o700)
     gate=m.Checkpoints(state,{'release':'a'*40,'archive':'b'*64});calls=[]
@@ -98,3 +103,15 @@ def test_private_operations_require_exact_local_runtime_and_shared_internal_netw
     d=Docker();assert m.verified_runtime(d,state)==(meta,'village-autonomous_dbnet')
     d.bad=True
     with pytest.raises(ValueError,match='LOCAL_RUNTIME_REQUIRED'):m.verified_runtime(d,state)
+
+
+def test_offline_runtime_identity_can_use_only_archive_derived_import_aliases():
+    m=module();calls=[];config='sha256:'+'a'*64;imported='sha256:'+'b'*64
+    class Docker:
+        def run(self,*args):
+            calls.append(args)
+            if args[-1]==config:raise RuntimeError('DOCKER_OPERATION_FAILED')
+            return json.dumps([{'Id':imported,'Os':'linux','Architecture':'amd64'}])
+    assert m.resolve_image(Docker(),[config,imported])==imported
+    with pytest.raises(ValueError):m.resolve_image(Docker(),['untrusted:latest'])
+    assert len(calls)==2

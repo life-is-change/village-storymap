@@ -70,3 +70,11 @@ def test_stream_timeout_kills_a_child_that_never_writes_stdout(tmp_path):
     m=module()
     with pytest.raises(ValueError,match='BACKUP_STREAM_TIMEOUT'):
         m.stream_command([sys.executable,'-c','import time;time.sleep(10)'],tmp_path/'stalled.dump',maximum=4000,reserve=0,timeout=.2)
+
+
+def test_archive_input_is_streamed_from_file_without_putting_bytes_in_arguments(tmp_path):
+    m=module();source=tmp_path/'source.dump';source.write_bytes(b'fixture archive'*1000);source.chmod(0o600)
+    target=tmp_path/'decoded.sql'
+    m.stream_command([sys.executable,'-c','import sys;sys.stdout.buffer.write(sys.stdin.buffer.read())'],target,
+                     maximum=20000,reserve=0,input_path=source)
+    assert target.read_bytes()==source.read_bytes()

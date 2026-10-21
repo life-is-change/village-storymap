@@ -70,3 +70,12 @@ def test_rollback_reload_derives_fingerprint_again_from_restored_current_link(tm
         m.reload_current(object(),{'releaseId':'fixture'},tmp_path)
         m.reload_current(object(),{'releaseId':'fixture'},tmp_path)
     assert [call.kwargs['expected_peer'] for call in reload.call_args_list]==[new,old]
+
+
+def test_timer_install_refuses_existing_different_or_linked_system_units(tmp_path):
+    m=module();state=tmp_path/'state';state.mkdir(mode=0o700);units=tmp_path/'units';units.mkdir()
+    (units/'village-autonomous-tls.service').write_text('unexpected old service')
+    calls=[]
+    with pytest.raises(ValueError,match='EXISTING_TLS_SYSTEM_UNIT_DIFFERS'):
+        m.install_timer(state,'admin',units=units,run=lambda *args:calls.append(args))
+    assert calls==[]

@@ -100,5 +100,18 @@
     "signup_profile_role_boundary": true,
     "refresh_logout_restart": true,
     "actual_source_password_login": false
-  }
+  },
+  "image_id": "sha256:1181bff5ba4ce440013a63cef9f4cf13024c432d705c9b1fbc9e5b949e852f48",
+  "archive_filename": "village-autonomous-auth-v2.197.0-amd64.tar",
+  "archive_bytes": 30453248,
+  "archive_sha256": "8eec75134fe15357914d41e42f5655a67fe4e360a076eb98aad19a9d927b53b8",
+  "accepted_image_ids": [
+    "sha256:1181bff5ba4ce440013a63cef9f4cf13024c432d705c9b1fbc9e5b949e852f48",
+    "sha256:71e06ce47379cc369d196ef80fcb65dd37f6b30c8ba76e501712f428ce1a1c23",
+    "sha256:af3c45ff24d08515c0c4e400a04b46de15d3cc781e5dc64c19969de83a3e9468",
+    "sha256:48e384def9a0b1f80c368d13ac98a040af6e6cf0d10160c607747fc202d9db1d",
+    "sha256:f7ade2f095341f932e5f2603342bdd8b6643691696576f34b4e82040df85a351",
+    "sha256:2dfc35e421bb76f5de163e972e715bf95b25ae5bebe8b0ee4452bb5606ce706c",
+    "sha256:846846a7f51341f2e25b8108478c880dac200237fc55dd983a6ca7abbb3a5d8b"
+  ]
 }
