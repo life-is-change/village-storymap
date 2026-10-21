@@ -17,7 +17,7 @@ export async function preparePlanning(setup){
   UPDATE survey_feature_reviews SET baseline_object_code=object_code;
   ALTER TABLE course_personal_spaces ALTER village_id TYPE text USING village_id::text;ALTER TABLE course_personal_spaces ADD teaching_project_id uuid,ADD created_at timestamptz DEFAULT now(),ADD updated_at timestamptz DEFAULT now();
   CREATE TABLE geoprocessing_runs(id uuid PRIMARY KEY);
-  CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$SELECT current_setting('request.jwt.claim.role',true)$$;
+  CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$SELECT current_setting('request.jwt.claim.role',true)$$;
   INSERT INTO course_groups(id,course_id,name,join_code,space_id) VALUES('group-a','course','Group A','GROUPA','G');
   INSERT INTO group_memberships(course_id,group_id,student_key,student_name,student_id) VALUES('course','group-a','b::B','B','b');
   UPDATE teaching_projects SET formal_village_id=practice_village_id,formal_project_open=true;
