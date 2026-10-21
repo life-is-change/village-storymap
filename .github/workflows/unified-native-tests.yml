@@ -2,13 +2,27 @@ name: Unified native database tests
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['business-api/**', 'linux/sql/unified/**', 'linux/sql/local-*.sql', 'linux/auth-runtime.json', 'linux/scripts/**', 'linux/tests/**', 'supabase_SQL/Aliyun Task Bridge.sql', 'supabase/functions/**', 'server/src/**', 'server/tests/**', '.github/workflows/unified-native-tests.yml']
+    paths: ['business-api/**', 'linux/sql/unified/**', 'linux/sql/local-*.sql', 'linux/*runtime.json', 'linux/nginx.autonomous.conf', 'linux/scripts/**', 'linux/tests/**', 'supabase_SQL/Aliyun Task Bridge.sql', 'supabase/functions/**', 'server/src/**', 'server/tests/**', '.github/workflows/unified-native-tests.yml']
   pull_request:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  autonomous-proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Verify pinned IP certificate client and real proxy rotation in isolation
+        env:
+          VILLAGE_TEST_PROXY_RUNTIME: '1'
+        run: python linux/scripts/test-autonomous-proxy-ci.py
   native-database:
     runs-on: ubuntu-latest
     timeout-minutes: 15

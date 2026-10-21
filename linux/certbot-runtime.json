@@ -1,0 +1,11 @@
+{
+  "version": "v5.4.0",
+  "image": "certbot/certbot@sha256:1dc5b4a99cce916f154c706569baf062600d7dea13e0711e7d7e1461d6230e39",
+  "image_id": "sha256:f0cfa0056d76325c6a2d3f4dc4dc41449763a9ee1000ed11caf8dc180450144d",
+  "os": "linux",
+  "architecture": "amd64",
+  "archive_filename": "village-autonomous-certbot-v5.4.0-amd64.tar",
+  "archive_bytes": 89148928,
+  "archive_sha256": "06f0687c8087b3f6b30778ddca65ac028131d8a1cc594d82594fdf6626731c64",
+  "runtime_execution": "pending_disposable_linux_certbot_version_test"
+}

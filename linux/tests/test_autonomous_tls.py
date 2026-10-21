@@ -76,6 +76,7 @@ def test_certificate_chain_and_key_are_verified_before_rotation(tmp_path):
     m=module();now,cert=leaf();root=tmp_path/'private';root.mkdir(mode=0o700)
     chain=root/'fullchain.pem';key=root/'privkey.pem'
     for p in [chain,key]:p.write_bytes(b'fixture');p.chmod(0o600)
+    chain.chmod(0o644) # Certbot public chain defaults are readable; the key is private.
     calls=[]
     def run(command,**kwargs):
         calls.append(command)
@@ -107,6 +108,8 @@ def test_acme_patch_is_idempotent_and_refuses_proxy_or_multiple_servers():
     after=m.add_legacy_acme_location(before)
     assert 'location ^~ /.well-known/acme-challenge/' in after
     assert m.add_legacy_acme_location(after)==after
+    known=before.replace('http {','http { include /etc/nginx/mime.types;').replace('location / {','location ~ /\\. { deny all; } location / {')
+    assert 'include /etc/nginx/mime.types;' in m.add_legacy_acme_location(known)
     for bad in [before.replace('try_files $uri =404','proxy_pass http://other'),before.replace('server {','server {} server {'),before.replace('/usr/share/nginx/html','/private')]:
         with pytest.raises(ValueError):m.add_legacy_acme_location(bad)
 

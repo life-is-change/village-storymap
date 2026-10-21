@@ -1,0 +1,11 @@
+{
+  "image": "nginx@sha256:959ae6b898852db82e5b29b929388e59914f42be0a8f4d44c89a4c1f53b49208",
+  "image_id": "sha256:0d831f5435ede3eeaba5768270c9e6f542d58306f69bb61f148e5c2374b57c56",
+  "architecture": "amd64",
+  "os": "linux",
+  "version": "NGINX_VERSION=1.30.6",
+  "archive_filename": "village-autonomous-nginx-amd64.ecr.tar",
+  "archive_bytes": 28542464,
+  "archive_sha256": "c5a93a87d5674dc32ea99acf85c3b331d61c5e455e71d9ce5c8b876f63b26519",
+  "runtime_execution": "pending_disposable_linux_proxy_test"
+}

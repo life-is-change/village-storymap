@@ -46,29 +46,37 @@ def _directory(path):
     return path
 
 
-def _private_file(path):
-    path=Path(path).absolute();_directory(path.parent)
+def _certbot_directory(path):
+    path=Path(path).absolute()
+    if any(p.is_symlink() for p in (path,*path.parents)):raise ValueError('LINKED_CERTBOT_DIRECTORY')
+    st=path.stat()
+    if not path.is_dir() or os.name=='posix' and (st.st_uid!=os.geteuid() or st.st_mode&0o022):raise ValueError('OPERATOR_CERTBOT_DIRECTORY_REQUIRED')
+    return path
+
+
+def _private_file(path,*,private=True):
+    path=Path(path).absolute();_certbot_directory(path.parent)
     st=path.lstat()
-    if path.is_symlink() or not path.is_file() or st.st_nlink!=1 or st.st_size>64*1024 or os.name=='posix' and (st.st_uid!=os.geteuid() or st.st_mode&0o077):
+    if path.is_symlink() or not path.is_file() or st.st_nlink!=1 or st.st_size>64*1024 or os.name=='posix' and (st.st_uid!=os.geteuid() or st.st_mode&(0o077 if private else 0o022)):
         raise ValueError('PRIVATE_CERTIFICATE_FILE_REQUIRED')
     return path
 
 
 def certbot_material(config):
-    config=_directory(config);archive=config/'archive'/IP;_directory(archive)
-    live=config/'live'/IP;_directory(live)
+    config=_directory(config);archive=config/'archive'/IP;_certbot_directory(archive)
+    live=config/'live'/IP;_certbot_directory(live)
     result=[]
     for kind in ('fullchain','privkey'):
         path=live/(kind+'.pem')
         if not path.is_symlink():raise ValueError('CONTROLLED_CERTBOT_LINK_REQUIRED')
         target=path.resolve(strict=True)
         if target.parent!=archive or not re.fullmatch(kind+r'[1-9][0-9]*\.pem',target.name):raise ValueError('CERTBOT_LINK_OUTSIDE_PRIVATE_ARCHIVE')
-        result.append(_private_file(target))
+        result.append(_private_file(target,private=kind=='privkey'))
     return tuple(result)
 
 
 def verify_certificate_pair(fullchain,private_key,*,now=None):
-    chain=_private_file(fullchain);key=_private_file(private_key)
+    chain=_private_file(fullchain,private=False);key=_private_file(private_key)
     # Issuer text alone is not a trust proof. OpenSSL uses the host trust store
     # and validates the IP before Python checks SAN and short-lived expiry.
     def openssl(*args):
@@ -90,7 +98,8 @@ ACME_LOCATION='location ^~ /.well-known/acme-challenge/ { root /usr/share/nginx/
 def add_legacy_acme_location(before):
     # Only the known static baseline is eligible; a reverse proxy may carry
     # live writes and must never be treated as the old static deployment.
-    if len(before)>65536 or any(word in before for word in ('proxy_pass','fastcgi_pass','include','ssl_certificate','\\')):
+    without_mime=before.replace('include /etc/nginx/mime.types;','')
+    if len(before)>65536 or any(word in without_mime for word in ('proxy_pass','fastcgi_pass','uwsgi_pass','grpc_pass','include','ssl_certificate')):
         raise ValueError('UNKNOWN_LEGACY_STATIC_CONFIGURATION')
     if len(re.findall(r'\bserver\s*\{',before))!=1 or len(re.findall(r'\blisten\s+8080\s*;',before))!=1:
         raise ValueError('UNKNOWN_LEGACY_STATIC_CONFIGURATION')
