@@ -29,6 +29,7 @@ def test_candidate_has_private_ports_bounded_resources_and_no_source_credentials
     assert doc['networks']['dbnet']['internal'] is True
     assert 'egress' not in db['networks'] and 'egress' not in auth['networks']
     assert 'egress' in api['networks']
+    assert 'frontnet' in web['networks'] and not doc['networks']['frontnet'].get('internal',False)
     assert api['environment']['AUTH_MODE']=='local'
     assert api['environment']['AUTH_INTERNAL_ORIGIN']=='http://auth:9999'
     assert api['environment']['FACADE_CLOUD_ENABLED']=='false'

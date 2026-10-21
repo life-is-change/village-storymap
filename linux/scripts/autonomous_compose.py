@@ -46,10 +46,10 @@ def compose_document(state,meta,*,uid,gid,public=False):
         'env_file':[str(state/'secrets/auth-runtime.env')],'networks':{'dbnet':{'aliases':['auth']}},
         'depends_on':{'postgres':{'condition':'service_healthy'}}}
     web={**limited,'image':meta['nginx_image_id'],'container_name':WEB,'mem_limit':'64m','memswap_limit':'64m','cpus':0.25,
-        'entrypoint':['/usr/sbin/nginx'],'command':['-g','daemon off;'],'networks':{'dbnet':{}},
+        'entrypoint':['/usr/sbin/nginx'],'command':['-g','daemon off;'],'networks':{'dbnet':{},'frontnet':{}},
         'ports':['0.0.0.0:80:8080','0.0.0.0:443:8443'] if public else ['127.0.0.1:18086:8080','127.0.0.1:18443:8443'],
         'volumes':[bind(state/'releases'/meta['releaseId']/'web','/srv/village-web'),bind(state/'nginx.conf','/etc/nginx/nginx.conf'),
             bind(state/'tls','/run/tls'),bind(state/'acme','/srv/acme')],
         'depends_on':{'api':{'condition':'service_healthy'},'auth':{'condition':'service_started'}}}
     return {'name':PROJECT,'services':{'postgres':db,'api':api,'auth':auth,'web':web},
-            'networks':{'dbnet':{'internal':True},'egress':{}}}
+            'networks':{'dbnet':{'internal':True},'egress':{},'frontnet':{}}}

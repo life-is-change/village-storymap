@@ -17,6 +17,7 @@ import autonomous_tls as tls
 
 ROOT=Path(__file__).resolve().parents[2]
 NETWORK='village-autonomous-proxy-ci'
+FRONT='village-autonomous-front-ci'
 WEB='village-autonomous-proxy-ci'
 UPSTREAM='village-autonomous-upstreams-ci'
 
@@ -75,15 +76,16 @@ def main():
         first,first_key=fixture_certificate(root,'first');second,second_key=fixture_certificate(root,'second')
         tls.atomic_certificate(root/'tls',fullchain=first.read_bytes(),private_key=first_key.read_bytes(),reload=lambda:None)
         docker('network','create','--internal',NETWORK)
+        docker('network','create',FRONT)
         try:
-            common=['--detach','--pull=never','--network',NETWORK,'--user',f'{os.geteuid()}:{os.getegid()}',
+            common=['--detach','--pull=never','--user',f'{os.geteuid()}:{os.getegid()}',
                 '--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--memory','64m','--tmpfs','/tmp:size=16m,mode=1777','--entrypoint','/usr/sbin/nginx']
-            docker('run',*common,'--name',UPSTREAM,'--network-alias','api','--network-alias','auth',
+            docker('run',*common,'--network',NETWORK,'--name',UPSTREAM,'--network-alias','api','--network-alias','auth',
                 '--mount',f'type=bind,source={root}/upstreams.conf,target=/etc/nginx/nginx.conf,readonly',nginx['image_id'],'-g','daemon off;')
             mounts=[]
             for source,target in [('web','/srv/village-web'),('tls','/run/tls'),('acme','/srv/acme'),('nginx.conf','/etc/nginx/nginx.conf')]:
                 mounts+=['--mount',f'type=bind,source={root/source},target={target},readonly']
-            docker('run',*common,'--name',WEB,'-p','127.0.0.1:18086:8080','-p','127.0.0.1:18443:8443',*mounts,nginx['image_id'],'-g','daemon off;')
+            docker('run',*common,'--network',FRONT,'--network',NETWORK,'--name',WEB,'-p','127.0.0.1:18086:8080','-p','127.0.0.1:18443:8443',*mounts,nginx['image_id'],'-g','daemon off;')
             last_probe='not_attempted'
             for attempt in range(50):
                 try:
@@ -121,6 +123,7 @@ def main():
             # Exact CI-only names on a disposable runner; no production paths.
             for name in (WEB,UPSTREAM):subprocess.run(['docker','--context','default','rm','--force',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             subprocess.run(['docker','--context','default','network','rm',NETWORK],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            subprocess.run(['docker','--context','default','network','rm',FRONT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
 
 if __name__=='__main__':main()

@@ -80,3 +80,21 @@ def test_auth_trigger_audit_allows_only_known_signup_hook():
     for row in [{'name':'unexpected','table':'users','function_schema':'public','function_name':'handle_new_user'},
                 {'name':'on_auth_user_created','table':'users','function_schema':'public','function_name':'send_to_network'}]:
         with pytest.raises(ValueError,match='UNKNOWN_AUTH_TRIGGER'):m.audit_auth_triggers([row])
+
+
+def test_private_operations_require_exact_local_runtime_and_shared_internal_network(tmp_path):
+    m=module();state=tmp_path/'state';state.mkdir(mode=0o700)
+    meta={'schemaVersion':2,'kind':'autonomous','releaseId':'autonomous-'+'a'*12,
+          'accepted_image_ids':['sha256:'+'a'*64],'auth_image_id':'sha256:'+'b'*64,'postgres_image_id':'sha256:'+'c'*64}
+    m.storage.write_private_json(state/'release.json',meta)
+    class Docker:
+        bad=False
+        def own_container(self,name,release):
+            image='a' if name==m.API else 'b' if name==m.AUTH else 'c'
+            return {'Image':'sha256:'+image*64,'State':{'Running':True},'HostConfig':{'PortBindings':{}},
+                'NetworkSettings':{'Networks':{'village-autonomous_dbnet':{'NetworkID':'d'*64}}},
+                'Config':{'Env':['AUTH_MODE='+('source' if self.bad else 'local'),'AUTH_INTERNAL_ORIGIN=http://auth:9999','AUTH_PUBLIC_ORIGIN=https://8.148.248.237','PGHOST=postgres']}}
+        def run(self,*args):return json.dumps([{'Name':'village-autonomous_dbnet','Id':'d'*64,'Internal':True}])
+    d=Docker();assert m.verified_runtime(d,state)==(meta,'village-autonomous_dbnet')
+    d.bad=True
+    with pytest.raises(ValueError,match='LOCAL_RUNTIME_REQUIRED'):m.verified_runtime(d,state)

@@ -131,3 +131,25 @@ COMMIT;"""
 def audit_auth_triggers(rows):
     allowed={'name':'on_auth_user_created','table':'users','function_schema':'public','function_name':'handle_new_auth_user'}
     if not isinstance(rows,list) or len(rows)>1 or any(row!=allowed for row in rows):raise ValueError('UNKNOWN_AUTH_TRIGGER')
+
+
+def verified_runtime(docker,state):
+    meta=storage.read_private_json(Path(state)/'release.json')
+    if meta.get('schemaVersion')!=2 or meta.get('kind')!='autonomous':raise ValueError('LOCAL_RUNTIME_REQUIRED')
+    network=PROJECT+'_dbnet';network_id=None
+    for name in (API,AUTH,PG):
+        obj=docker.own_container(name,meta['releaseId'])
+        allowed=meta['accepted_image_ids'] if name==API else [meta['auth_image_id'] if name==AUTH else meta['postgres_image_id']]
+        if obj.get('Image') not in allowed or not obj.get('State',{}).get('Running'):raise ValueError('LOCAL_RUNTIME_REQUIRED')
+        if name in (AUTH,PG) and any(values for values in (obj.get('HostConfig',{}).get('PortBindings') or {}).values()):raise ValueError('PRIVATE_AUTH_DATABASE_REQUIRED')
+        if name==API:
+            env={row.split('=',1)[0]:row.split('=',1)[1] for row in obj.get('Config',{}).get('Env',[]) if '=' in row}
+            for key,value in {'AUTH_MODE':'local','AUTH_INTERNAL_ORIGIN':'http://auth:9999','AUTH_PUBLIC_ORIGIN':'https://8.148.248.237','PGHOST':'postgres'}.items():
+                if env.get(key)!=value:raise ValueError('LOCAL_RUNTIME_REQUIRED')
+            if env.get('BRIDGE_ENABLED')=='true' or env.get('SUPABASE_AUTH_ORIGIN') or env.get('SUPABASE_SECRET_KEY'):raise ValueError('LOCAL_RUNTIME_REQUIRED')
+        current=obj.get('NetworkSettings',{}).get('Networks',{}).get(network,{}).get('NetworkID')
+        if not current or network_id is not None and current!=network_id:raise ValueError('SHARED_INTERNAL_NETWORK_REQUIRED')
+        network_id=current
+    obj=json.loads(docker.run('network','inspect',network))[0]
+    if obj.get('Name')!=network or obj.get('Id')!=network_id or obj.get('Internal') is not True:raise ValueError('SHARED_INTERNAL_NETWORK_REQUIRED')
+    return meta,network
