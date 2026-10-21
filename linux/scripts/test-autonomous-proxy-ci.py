@@ -89,7 +89,14 @@ def main():
                     if request('/',certificate=first)[:2]==(200,b'autonomous fixture'):break
                 except (OSError,ssl.SSLError):pass
                 time.sleep(.1)
-            else:raise ValueError('DISPOSABLE_PROXY_NOT_READY')
+            else:
+                # These containers contain synthetic upstreams/certificates
+                # only. Capture startup diagnostics before the exact-name CI
+                # cleanup; production operator code never prints logs.
+                for name in (WEB,UPSTREAM):
+                    result=subprocess.run(['docker','--context','default','logs','--tail','15',name],capture_output=True,text=True,timeout=10)
+                    print('FIXTURE_CONTAINER_STARTUP '+name+' '+(result.stdout+result.stderr)[-3000:])
+                raise ValueError('DISPOSABLE_PROXY_NOT_READY')
             assert request('/.well-known/acme-challenge/fixture')[:2]==(200,b'fixture-acme')
             assert request('/')[0]==308
             for path,status in [('/auth/v1/health',200),('/auth/v1/admin/users',404),('/api/v1/me',401),('/.git/config',403),('/business-api/package.json',404)]:
