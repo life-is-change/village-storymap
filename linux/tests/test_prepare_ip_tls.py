@@ -79,3 +79,18 @@ def test_timer_install_refuses_existing_different_or_linked_system_units(tmp_pat
     with pytest.raises(ValueError,match='EXISTING_TLS_SYSTEM_UNIT_DIFFERS'):
         m.install_timer(state,'admin',units=units,run=lambda *args:calls.append(args))
     assert calls==[]
+
+
+def test_default_docker_host_binding_requires_confirmed_public_port80_runtime(tmp_path):
+    m=module();base=tmp_path/'village-deploy';base.mkdir();(base/'public').mkdir();(base/'nginx.conf').write_text('fixture')
+    obj={'Name':'/village-web-web-1','Image':next(iter(m.LEGACY_IMAGES)),'State':{'Running':True},
+         'HostConfig':{'PortBindings':{'8080/tcp':[{'HostIp':'','HostPort':'80'}]}},
+         'NetworkSettings':{'Ports':{'8080/tcp':[{'HostIp':'0.0.0.0','HostPort':'80'},{'HostIp':'::','HostPort':'80'}]}},
+         'Mounts':[{'Type':'bind','Source':str(base/'public'),'Destination':'/usr/share/nginx/html','RW':False},
+                   {'Type':'bind','Source':str(base/'nginx.conf'),'Destination':'/etc/nginx/nginx.conf','RW':False}]}
+    assert m.legacy_static_paths(obj,base)==(base/'nginx.conf',base/'public')
+    for ports in ({}, {'8080/tcp':[]}, {'8080/tcp':[{'HostIp':'127.0.0.1','HostPort':'80'}]},
+                  {'8080/tcp':[{'HostIp':'0.0.0.0','HostPort':'8080'}]},
+                  {'8080/tcp':[{'HostIp':'0.0.0.0','HostPort':'80'}],'443/tcp':[]}):
+        obj['NetworkSettings']['Ports']=ports
+        with pytest.raises(ValueError,match='KNOWN_STATIC_PORT_REQUIRED'):m.legacy_static_paths(obj,base)

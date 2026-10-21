@@ -26,8 +26,14 @@ def legacy_static_paths(obj,base):
     if obj.get('Name')!='/'+OLD_WEB or obj.get('Image') not in LEGACY_IMAGES or not obj.get('State',{}).get('Running'):
         raise ValueError('KNOWN_RUNNING_STATIC_WEB_REQUIRED')
     ports=obj.get('HostConfig',{}).get('PortBindings') or {}
-    if set(ports)!={'8080/tcp'} or not ports['8080/tcp'] or any(p.get('HostPort')!='80' or p.get('HostIp') not in ('0.0.0.0','::') for p in ports['8080/tcp']):
+    if set(ports)!={'8080/tcp'} or not ports['8080/tcp'] or any(p.get('HostPort')!='80' or p.get('HostIp') not in ('','0.0.0.0','::') for p in ports['8080/tcp']):
         raise ValueError('KNOWN_STATIC_PORT_REQUIRED')
+    # Docker Compose's default publish address is stored as an empty HostIp;
+    # inspect the running bindings rather than treating that as an explicit IP.
+    if any(p.get('HostIp')=='' for p in ports['8080/tcp']):
+        actual=obj.get('NetworkSettings',{}).get('Ports') or {}
+        if set(actual)!={'8080/tcp'} or not actual['8080/tcp'] or any(p.get('HostPort')!='80' or p.get('HostIp') not in ('0.0.0.0','::') for p in actual['8080/tcp']):
+            raise ValueError('KNOWN_STATIC_PORT_REQUIRED')
     mounts={m['Destination']:m for m in obj.get('Mounts',[])}
     for target,source in [('/usr/share/nginx/html',base/'public'),('/etc/nginx/nginx.conf',base/'nginx.conf')]:
         mount=mounts.get(target,{})
