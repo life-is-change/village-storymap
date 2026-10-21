@@ -84,18 +84,24 @@ def main():
             for source,target in [('web','/srv/village-web'),('tls','/run/tls'),('acme','/srv/acme'),('nginx.conf','/etc/nginx/nginx.conf')]:
                 mounts+=['--mount',f'type=bind,source={root/source},target={target},readonly']
             docker('run',*common,'--name',WEB,'-p','127.0.0.1:18086:8080','-p','127.0.0.1:18443:8443',*mounts,nginx['image_id'],'-g','daemon off;')
+            last_probe='not_attempted'
             for attempt in range(50):
                 try:
-                    if request('/',certificate=first)[:2]==(200,b'autonomous fixture'):break
-                except (OSError,ssl.SSLError):pass
+                    reply=request('/',certificate=first)
+                    last_probe='status='+str(reply[0])+' body='+repr(reply[1][:100])
+                    if reply[:2]==(200,b'autonomous fixture'):break
+                except (OSError,ssl.SSLError) as error:last_probe=type(error).__name__+': '+str(error)[:200]
                 time.sleep(.1)
             else:
+                print('FIXTURE_LAST_TLS_PROBE '+last_probe)
                 # These containers contain synthetic upstreams/certificates
                 # only. Capture startup diagnostics before the exact-name CI
                 # cleanup; production operator code never prints logs.
                 for name in (WEB,UPSTREAM):
                     result=subprocess.run(['docker','--context','default','logs','--tail','15',name],capture_output=True,text=True,timeout=10)
                     print('FIXTURE_CONTAINER_STARTUP '+name+' '+(result.stdout+result.stderr)[-3000:])
+                result=subprocess.run(['docker','--context','default','exec',WEB,'wget','-qO-','http://127.0.0.1:8080/.well-known/acme-challenge/fixture'],capture_output=True,text=True,timeout=10)
+                print('FIXTURE_INSIDE_ACME '+str(result.returncode)+' '+result.stdout[:100])
                 raise ValueError('DISPOSABLE_PROXY_NOT_READY')
             assert request('/.well-known/acme-challenge/fixture')[:2]==(200,b'fixture-acme')
             assert request('/')[0]==308
