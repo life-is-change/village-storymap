@@ -91,3 +91,12 @@ def test_busy_gpu_or_provider_prevents_backup_and_daily_timer_uses_private_opera
     assert 'User=admin' in service and '/home/admin/village-autonomous/control/backup-autonomous.py' in service
     assert 'OnCalendar=*-*-* 04:15:00 Asia/Shanghai' in timer and 'Persistent=true' in timer
     assert 'RestartSec=15min' in service
+
+
+def test_own_backup_grants_map_to_new_fresh_restore_bootstrap_without_changing_archive():
+    m=module();source='CREATE ROLE village_restore_admin;\nGRANT authenticated TO village_unified_login WITH INHERIT TRUE GRANTED BY village_restore_admin;\n'
+    mapped=m.recovery_roles_sql(source,'village_backup_check_admin')
+    assert 'GRANTED BY "village_backup_check_admin";' in mapped
+    assert 'CREATE ROLE village_restore_admin;' in mapped
+    assert source.endswith('GRANTED BY village_restore_admin;\n')
+    with pytest.raises(ValueError):m.recovery_roles_sql(source.replace('GRANTED BY village_restore_admin','GRANTED BY unreviewed_role'),'village_backup_check_admin')

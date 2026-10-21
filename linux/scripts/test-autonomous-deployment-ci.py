@@ -209,7 +209,7 @@ def main():
                 if ready:break
                 time.sleep(1)
             else:raise ValueError('BACKUP_CHECK_PG_NOT_READY')
-            sql(storage.private_path(own/'roles.sql').read_text(),checker,'restore_control','village_backup_check_admin')
+            sql(load('backup-autonomous').recovery_roles_sql(storage.private_path(own/'roles.sql').read_text(),'village_backup_check_admin'),checker,'restore_control','village_backup_check_admin')
             sql('CREATE DATABASE '+DATABASE+' OWNER postgres TEMPLATE template0;',checker,'restore_control','village_backup_check_admin')
             stream(['exec','-i',checker,'pg_restore','--exit-on-error','--single-transaction','-h','/var/run/postgresql','-U','village_backup_check_admin','-d',DATABASE],
                 root/'own-restore-output.txt',maximum=1024**2,input_path=own/'database.dump')

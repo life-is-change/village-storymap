@@ -17,6 +17,21 @@ import business_storage_copy as storage
 from autonomous_operator import Docker,API,AUTH,PG,ADMIN,DATABASE,clean_environment,operation_lock
 
 
+def recovery_roles_sql(sql,bootstrap):
+    """Adapt grant authority for a NEW empty recovery cluster, never the archive."""
+    from autonomous_bundle import load_script
+    rd=load_script('restore-db-copy')
+    if not re.fullmatch('village_backup_[a-z_]{1,32}',bootstrap or '') or re.search(r'\b'+re.escape(bootstrap)+r'\b',sql):raise ValueError('FRESH_RECOVERY_BOOTSTRAP_REQUIRED')
+    lines=[]
+    for line in sql.splitlines():
+        if line.startswith('GRANT '):
+            grant=re.fullmatch(r'(GRANT .+ GRANTED BY )('+rd.IDENT+r');',line)
+            if not grant or rd.unquote_ident(grant[2])!=ADMIN:raise ValueError('OWN_BACKUP_GRANTOR_DIFFERS')
+            line=grant[1]+rd.quote_ident(bootstrap)+';'
+        lines.append(line)
+    return '\n'.join(lines)+'\n'
+
+
 def require_idle(docker):
     busy=docker.sql("SELECT (SELECT count(*) FROM api_private.local_gpu_runs WHERE lease_until>now() AND status NOT IN('completed','failed','canceled'))+(SELECT count(*) FROM api_private.local_cloud_jobs WHERE state IN('preparing','submitting','accepted','polling'));").strip()
     if busy!='0':raise ValueError('AUTONOMOUS_TASKS_BUSY')
