@@ -89,7 +89,8 @@ class AutonomousHttpApi(old.HttpApi):
 def auth_probe(api,credentials):
     actor=api.login(credentials);profile=api.request(api.base+'/api/v1/me',actor)['data']
     if profile.get('id')!=actor['userId'] or profile.get('role')!='admin':raise old.TransportFailure('FORBIDDEN')
-    api.request(api.base+api.routes['catalog.listCourses']['path'],actor)
+    route=api.routes['catalog.listCourses']
+    api.request(api.base+route['path'],actor,method=route['method'],data={})
     value=api.request(api.base+'/auth/v1/token?grant_type=refresh_token',method='POST',data={'refresh_token':actor['refreshToken']})
     if value.get('user',{}).get('id')!=actor['userId'] or not isinstance(value.get('access_token'),str):raise old.TransportFailure('AUTH_REJECTED')
     refreshed={'userId':actor['userId'],'token':value['access_token']}

@@ -32,7 +32,9 @@ def test_local_auth_probe_proves_profile_uuid_refresh_and_logged_out_session_den
         if path=='/api/v1/me':
             if logged_out or headers.get('Authorization')!='Bearer fixture-local-token':return 401,b'{"error":{"code":"UNAUTHORIZED"}}',{}
             return 200,json.dumps({'data':{'id':user,'role':'admin'}}).encode(),{}
-        if path.endswith('list-courses'):return 200,b'{"data":[]}',{}
+        if path.endswith('list-courses'):
+            assert method=='POST' and json.loads(data)=={}
+            return 200,b'{"data":[]}',{}
         pytest.fail('unexpected probe path')
     api=m.AutonomousHttpApi(port=18443,request_impl=request)
     report=m.auth_probe(api,('332','fixture password'))
