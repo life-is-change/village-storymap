@@ -94,3 +94,39 @@ def test_default_docker_host_binding_requires_confirmed_public_port80_runtime(tm
                   {'8080/tcp':[{'HostIp':'0.0.0.0','HostPort':'80'}],'443/tcp':[]}):
         obj['NetworkSettings']['Ports']=ports
         with pytest.raises(ValueError,match='KNOWN_STATIC_PORT_REQUIRED'):m.legacy_static_paths(obj,base)
+
+
+def test_public_acme_probe_repairs_only_challenge_permissions_under_private_umask(tmp_path):
+    import os,stat,contextlib
+    from unittest.mock import patch
+    m=module();root=tmp_path/'public';root.mkdir(mode=0o775)
+    parent=root/'.well-known';parent.mkdir(mode=0o700);directory=parent/'acme-challenge';directory.mkdir(mode=0o700)
+    untouched=root/'private-test';untouched.write_text('unrelated');untouched.chmod(0o600)
+    modes=[];original_chmod=Path.chmod
+    def chmod(path,mode,*args,**kwargs):
+        modes.append((path,mode));return original_chmod(path,mode,*args,**kwargs)
+    class Opener:
+        def open(self,request,timeout):
+            name=request.full_url.rsplit('/',1)[1];p=directory/name
+            assert (parent,0o755) in modes and (directory,0o755) in modes and (p,0o644) in modes
+            if os.name=='posix':
+                assert stat.S_IMODE(parent.stat().st_mode)==0o755
+                assert stat.S_IMODE(directory.stat().st_mode)==0o755
+                assert stat.S_IMODE(p.stat().st_mode)==0o644
+            response=type('Reply',(),{'status':200,'read':lambda self,n:p.read_bytes()})()
+            return contextlib.nullcontext(response)
+    old=os.umask(0o077)
+    try:
+        with patch.object(m.urllib.request,'build_opener',return_value=Opener()),patch.object(Path,'chmod',chmod):m.verify_acme_webroot(root)
+    finally:os.umask(old)
+    assert not list(directory.iterdir())
+    assert untouched not in [p for p,mode in modes]
+    if os.name=='posix':assert stat.S_IMODE(untouched.stat().st_mode)==0o600
+
+
+def test_tls_failure_diagnostic_reports_http_status_without_private_url_or_body():
+    from urllib.error import HTTPError
+    m=module();error=HTTPError('https://private.invalid/secret',404,'private body',{},None)
+    assert m.error_diagnostic(error)=={'category':'HTTP_ERROR','http_status':404}
+    assert m.error_diagnostic(ValueError('KNOWN_STATIC_CONFIG_REQUIRED'))=={'category':'KNOWN_STATIC_CONFIG_REQUIRED'}
+    assert m.error_diagnostic(ValueError('private secret text'))=={'category':'ValueError'}

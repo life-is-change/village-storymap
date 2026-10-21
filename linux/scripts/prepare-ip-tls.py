@@ -121,9 +121,15 @@ def reload_current(docker,meta,root):
 
 def verify_acme_webroot(root,*,port=80):
     root=storage.no_links(root);directory=root/'.well-known'/'acme-challenge'
-    directory.mkdir(parents=True,exist_ok=True,mode=0o755);storage.no_links(directory)
+    # These are public challenge paths, not private operator/key directories.
+    # mkdir/open modes are otherwise reduced to700/600 by the operator umask.
+    for folder in (root/'.well-known',directory):
+        folder.mkdir(exist_ok=True,mode=0o755);storage.no_links(folder)
+        if not folder.is_dir() or os.name=='posix' and folder.stat().st_uid!=os.geteuid():raise ValueError('ACME_DIRECTORY_OWNER_REQUIRED')
+        folder.chmod(0o755)
     name='village-check-'+secrets.token_hex(20);path=directory/name;value=secrets.token_hex(32).encode()
-    with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o644),'wb') as stream:stream.write(value)
+    with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o644),'wb') as stream:
+        path.chmod(0o644);stream.write(value)
     try:
         opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),storage.NoRedirect())
         request=urllib.request.Request(f'http://127.0.0.1:{port}/.well-known/acme-challenge/'+name,headers={'Host':tls.IP})
@@ -224,6 +230,19 @@ def perform(state,mode):
     return {'status':'production_ip_tls_reloaded' if live else 'production_ip_tls_prepared_not_serving','remaining_hours':proof['remaining_hours']}
 
 
+
+def error_diagnostic(error):
+    # Never print exception text from HTTP, TLS, Docker or filesystem errors.
+    if isinstance(error,urllib.error.HTTPError):return {'category':'HTTP_ERROR','http_status':error.code}
+    codes={'KNOWN_RUNNING_STATIC_WEB_REQUIRED','KNOWN_STATIC_PORT_REQUIRED','KNOWN_STATIC_BIND_PATHS_REQUIRED',
+        'KNOWN_STATIC_CONFIG_REQUIRED','UNKNOWN_LEGACY_STATIC_CONFIGURATION','UNKNOWN_ACME_CONFIGURATION',
+        'ACME_DIRECTORY_OWNER_REQUIRED','ACME_WEBROOT_NOT_SERVED','ACME_CONFIG_RELOAD_FAILED_OLD_CONFIG_RESTORED',
+        'ACME_CONFIG_ROLLBACK_RELOAD_FAILED','DOCKER_OPERATION_FAILED','CERTBOT_IMAGE_DIFFERS','PINNED_RUNTIME_IMAGE_NOT_LOADED',
+        'PINNED_CERTBOT_VERSION_REQUIRED','LOCAL_DOCKER_REQUIRED','PRIVATE_TLS_LOCK_REQUIRED','TLS_OPERATION_ALREADY_RUNNING'}
+    code=str(error)
+    return {'category':code if isinstance(error,(ValueError,RuntimeError)) and code in codes else type(error).__name__}
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__);group=parser.add_mutually_exclusive_group(required=True)
     for flag in ('check','staging','issue','renew','renew-test'):group.add_argument('--'+flag,action='store_const',const=flag,dest='mode')
@@ -233,8 +252,8 @@ def main():
         os.umask(0o077);state=Path.home()/'village-autonomous';state.mkdir(mode=0o700,exist_ok=True);storage.private_path(state,directory=True)
         with tls_lock(state):result=perform(state,args.mode)
         print(json.dumps(result));return 0
-    except (OSError,ValueError,RuntimeError,ssl.SSLError):
-        print('STOP: IP_TLS_OPERATION_FAILED. Keep private logs and previous certificates; no database changes were made.');return 1
+    except (OSError,ValueError,RuntimeError,ssl.SSLError) as error:
+        print('STOP: IP_TLS_OPERATION_FAILED '+json.dumps(error_diagnostic(error))+'. Keep private logs and previous certificates; no database changes were made.');return 1
 
 
 if __name__=='__main__':raise SystemExit(main())

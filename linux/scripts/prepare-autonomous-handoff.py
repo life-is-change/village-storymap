@@ -11,6 +11,7 @@ import re
 import shutil
 import tarfile
 import warnings
+import tempfile
 import business_storage_copy as storage
 from autonomous_bundle import load_script,validate_fresh_snapshot
 
@@ -85,7 +86,7 @@ def unpack(archive,target):
     return target
 
 
-def collect(backup,source_files,image_dir,metadata):
+def collect(backup,source_files,image_dir,metadata,*,image_overrides=None):
     rd=load_script('restore-db-copy');manifest=rd.verify_backup(backup);validate_fresh_snapshot(manifest)
     deploy=load_script('deploy-autonomous');deploy.storage_input(source_files,manifest['files']['database.dump']['sha256'])
     auth=storage.read_private_json(Path(source_files)/'auth-compatibility.json')
@@ -97,8 +98,8 @@ def collect(backup,source_files,image_dir,metadata):
         else:raise ValueError('HANDOFF_UNEXPECTED_STORAGE_FILE')
     runtime=[meta,*[json.loads((Path(__file__).resolve().parents[1]/(name+'-runtime.json')).read_text()) for name in ('auth','nginx','certbot')]]
     for row in runtime:
-        path=Path(image_dir)/row['archive_filename']
-        if storage.digest_file(path)!=(row['archive_sha256'],row['archive_bytes']):raise ValueError('HANDOFF_IMAGE_ARCHIVE_DIFFERS')
+        path=(image_overrides or {}).get(row['archive_filename'],Path(image_dir)/row['archive_filename'])
+        if storage.digest_file(storage.private_path(path))!=(row['archive_sha256'],row['archive_bytes']):raise ValueError('HANDOFF_IMAGE_ARCHIVE_DIFFERS')
         files['images/'+path.name]=path
     files['release/autonomous-release.json']=Path(metadata)
     return files
@@ -114,6 +115,37 @@ def load_images(root):
         docker.run('load','-i',path,timeout=600)
     deploy.assert_images(docker,meta)
     return meta
+
+
+
+def refresh_release(root,image,output,metadata,*,state=None):
+    """Reuse an unchanged private snapshot before first deployment only."""
+    state=Path(state) if state is not None else Path.home()/'village-autonomous'
+    from autonomous_operator import operation_lock
+    if not state.exists():private_directory(state)
+    with operation_lock(state):
+        if any((state/name).exists() for name in ('release.json','inputs.json','initial-baseline.json','autonomous-checkpoints.json','public-switch.json')):
+            raise ValueError('PREDEPLOY_RELEASE_REFRESH_ONLY')
+        root=storage.private_path(root,directory=True);output=storage.no_links(output)
+        if output.exists() or root in output.parents:raise ValueError('HANDOFF_DESTINATION_ALREADY_EXISTS')
+        manifest=storage.read_private_json(root/'handoff.json');rows=manifest.get('files')
+        if manifest.get('version')!=1 or manifest.get('kind')!='autonomous-private-inputs' or not isinstance(rows,dict) or not 1<=len(rows)<=300000:raise ValueError('HANDOFF_MANIFEST_REQUIRED')
+        for name,row in rows.items():
+            if not allowed(name) or not isinstance(row,dict) or storage.digest_file(storage.private_path(root/name))!=(row.get('sha256'),row.get('bytes')):
+                raise ValueError('RECEIVED_HANDOFF_FILE_CHANGED')
+        old=storage.read_private_json(root/'release/autonomous-release.json');new=json.loads(Path(metadata).read_text())
+        for key in ('kind','schemaVersion','instanceId','code_sha256','schema_sha256','source_defaults','auth_image_id','nginx_image_id','postgres_image_id'):
+            if key not in old or old[key]!=new.get(key):raise ValueError('BOOTSTRAP_RELEASE_COMPATIBILITY_REQUIRED')
+        image=storage.private_path(image)
+        if image.name!=new.get('archive_filename'):raise ValueError('HANDOFF_IMAGE_ARCHIVE_DIFFERS')
+        files=collect(root/'backup',root/'storage',root/'images',metadata,image_overrides={image.name:image})
+        # Preserve the old received tree and private snapshot, including on any
+        # failure. No hardlinks (private readers reject shared inodes).
+        work=Path(tempfile.mkdtemp(prefix='received-refresh-',dir=state))
+        private_meta=work/'autonomous-release.json';storage.write_private_json(private_meta,new)
+        files['release/autonomous-release.json']=private_meta
+        archive=work/'verified-private.tar';pack_files(files,archive);unpack(archive,output)
+    return output
 
 
 def prepare(output,pg_bin,image_dir,metadata):
@@ -145,8 +177,9 @@ def prepare(output,pg_bin,image_dir,metadata):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);g=p.add_mutually_exclusive_group(required=True);g.add_argument('--pack',action='store_true');g.add_argument('--prepare',action='store_true');g.add_argument('--unpack',type=Path);g.add_argument('--load-images',type=Path)
+    p=argparse.ArgumentParser(description=__doc__);g=p.add_mutually_exclusive_group(required=True);g.add_argument('--pack',action='store_true');g.add_argument('--prepare',action='store_true');g.add_argument('--unpack',type=Path);g.add_argument('--load-images',type=Path);g.add_argument('--refresh-release',type=Path)
     p.add_argument('--backup-dir',type=Path);p.add_argument('--storage-dir',type=Path);p.add_argument('--image-dir',type=Path,default=Path.home()/'village-image-transfer');p.add_argument('--output',type=Path,required=False)
+    p.add_argument('--image-archive',type=Path)
     p.add_argument('--metadata',type=Path,default=Path(__file__).resolve().parents[1]/'autonomous-release.json');a=p.parse_args()
     try:
         os.umask(0o077)
@@ -158,6 +191,9 @@ def main():
             if not a.backup_dir or not a.storage_dir or not a.output:raise ValueError('HANDOFF_PATHS_REQUIRED')
             files=collect(a.backup_dir,a.storage_dir,a.image_dir,a.metadata);digest,size=pack_files(files,a.output)
             print(json.dumps({'archive':str(a.output),'bytes':size,'sha256':digest}));print('AUTONOMOUS_PRIVATE_HANDOFF_PACKED_NOT_DEPLOYED')
+        elif a.refresh_release:
+            if not a.output or not a.image_archive:raise ValueError('HANDOFF_PATHS_REQUIRED')
+            refresh_release(a.refresh_release,a.image_archive,a.output,a.metadata);print('AUTONOMOUS_RECEIVED_RELEASE_REFRESHED_NOT_INSTALLED')
         elif a.unpack:
             if not a.output:raise ValueError('HANDOFF_OUTPUT_REQUIRED')
             unpack(a.unpack,a.output);print('AUTONOMOUS_PRIVATE_HANDOFF_UNPACKED_NOT_DEPLOYED')

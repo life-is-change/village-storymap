@@ -46,3 +46,45 @@ def test_handoff_rejects_corrupt_payload_and_keeps_private_partial(tmp_path):
     archive.chmod(0o600)
     with pytest.raises(ValueError,match='HANDOFF_FILE_CHECKSUM_DIFFERS'):m.unpack(archive,tmp_path/'received')
     assert (tmp_path/'received').exists()
+
+
+def test_refresh_keeps_verified_private_inputs_and_old_received_immutable(tmp_path,monkeypatch):
+    import os,contextlib,autonomous_operator
+    if os.name=='nt':monkeypatch.setattr(autonomous_operator,'operation_lock',lambda state:contextlib.nullcontext())
+    m=module();source=tmp_path/'original';source.mkdir(mode=0o700)
+    values={'backup/database.dump':b'private fixture','release/autonomous-release.json':b'{}'}
+    for name,data in values.items():
+        p=source/name;p.parent.mkdir(mode=0o700,exist_ok=True);p.write_bytes(data);p.chmod(0o600)
+    rows={name:{'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)} for name,data in values.items()}
+    (source/'handoff.json').write_text(json.dumps({'version':1,'kind':'autonomous-private-inputs','files':rows}));(source/'handoff.json').chmod(0o600)
+    meta={'kind':'autonomous','schemaVersion':2,'instanceId':'aliyun-village','code_sha256':'a','schema_sha256':'b','source_defaults':{},'auth_image_id':'auth','nginx_image_id':'nginx','postgres_image_id':'postgres','archive_filename':'new.tar.gz'}
+    (source/'release/autonomous-release.json').write_text(json.dumps(meta));rows['release/autonomous-release.json']={'sha256':m.storage.digest_file(source/'release/autonomous-release.json')[0],'bytes':(source/'release/autonomous-release.json').stat().st_size}
+    (source/'handoff.json').write_text(json.dumps({'version':1,'kind':'autonomous-private-inputs','files':rows}))
+    metadata=tmp_path/'metadata.json';metadata.write_text(json.dumps(meta));metadata.chmod(0o600)
+    image=tmp_path/'new.tar.gz';image.write_bytes(b'new verified fixture image');image.chmod(0o600)
+    state=tmp_path/'state';state.mkdir(mode=0o700)
+    def collect(backup,storage,image_dir,metadata_arg,**kwargs):
+        assert backup==source/'backup' and storage==source/'storage'
+        assert kwargs['image_overrides']=={'new.tar.gz':image}
+        return {'backup/database.dump':source/'backup/database.dump','release/autonomous-release.json':metadata,'images/new.tar.gz':image}
+    monkeypatch.setattr(m,'collect',collect)
+    target=tmp_path/'received-new';m.refresh_release(source,image,target,metadata,state=state)
+    assert (target/'backup/database.dump').read_bytes()==values['backup/database.dump']
+    assert (source/'backup/database.dump').read_bytes()==values['backup/database.dump']
+    assert (target/'images/new.tar.gz').read_bytes()==image.read_bytes()
+    assert not (source/'images/new.tar.gz').exists()
+    with pytest.raises(ValueError):m.refresh_release(source,image,target,metadata,state=state)
+    meta['schema_sha256']='changed';metadata.write_text(json.dumps(meta))
+    with pytest.raises(ValueError,match='BOOTSTRAP_RELEASE_COMPATIBILITY_REQUIRED'):m.refresh_release(source,image,tmp_path/'different-schema',metadata,state=state)
+    (state/'release.json').write_text('{}')
+    with pytest.raises(ValueError,match='PREDEPLOY_RELEASE_REFRESH_ONLY'):m.refresh_release(source,image,tmp_path/'other',metadata,state=state)
+
+
+def test_refresh_refuses_changed_private_input_before_repack(tmp_path,monkeypatch):
+    import os,contextlib,autonomous_operator
+    if os.name=='nt':monkeypatch.setattr(autonomous_operator,'operation_lock',lambda state:contextlib.nullcontext())
+    m=module();root=tmp_path/'old';root.mkdir(mode=0o700)
+    (root/'handoff.json').write_text(json.dumps({'version':1,'kind':'autonomous-private-inputs','files':{'backup/database.dump':{'sha256':'a'*64,'bytes':1}}}));(root/'handoff.json').chmod(0o600)
+    (root/'backup').mkdir(mode=0o700);(root/'backup/database.dump').write_bytes(b'bad');(root/'backup/database.dump').chmod(0o600)
+    state=tmp_path/'state';state.mkdir(mode=0o700)
+    with pytest.raises(ValueError,match='RECEIVED_HANDOFF_FILE_CHANGED'):m.refresh_release(root,tmp_path/'image',tmp_path/'new',tmp_path/'meta',state=state)

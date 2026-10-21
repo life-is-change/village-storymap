@@ -20,6 +20,7 @@ NETWORK='village-autonomous-proxy-ci'
 FRONT='village-autonomous-front-ci'
 WEB='village-autonomous-proxy-ci'
 UPSTREAM='village-autonomous-upstreams-ci'
+LEGACY='village-autonomous-legacy-acme-ci'
 
 
 def run(*args):
@@ -49,6 +50,35 @@ def request(path,*,certificate=None):
         fingerprint=hashlib.sha256(secure.getpeercert(binary_form=True)).hexdigest() if certificate else None
         return reply.status,body,fingerprint
     finally:secure.close()
+
+
+
+def legacy_acme_permissions_fixture(root,image):
+    from autonomous_bundle import load_script
+    public=root/'legacy-web';public.mkdir(mode=0o755);public.chmod(0o755)
+    (public/'index.html').write_text('legacy fixture');(public/'index.html').chmod(0o644)
+    for folder in (public/'.well-known',public/'.well-known/acme-challenge'):folder.mkdir(mode=0o700);folder.chmod(0o700)
+    config=root/'legacy-nginx.conf'
+    config.write_text('user nginx; pid /tmp/nginx.pid; error_log /dev/stderr warn; events {} http { access_log off; client_body_temp_path /tmp/client; proxy_temp_path /tmp/proxy; fastcgi_temp_path /tmp/fastcgi; uwsgi_temp_path /tmp/uwsgi; scgi_temp_path /tmp/scgi; server { listen 8080; root /usr/share/nginx/html; '+tls.ACME_LOCATION+' location / { try_files $uri =404; } } }')
+    config.chmod(0o644)
+    docker('run','--detach','--pull=never','--name',LEGACY,'--network',FRONT,'--read-only','--cap-drop','ALL',
+        '--cap-add','SETUID','--cap-add','SETGID','--cap-add','CHOWN','--security-opt','no-new-privileges:true','--memory','64m',
+        '--tmpfs','/tmp:size=16m,mode=1777','--entrypoint','/usr/sbin/nginx','-p','127.0.0.1:18089:8080',
+        '--mount',f'type=bind,source={public},target=/usr/share/nginx/html,readonly',
+        '--mount',f'type=bind,source={config},target=/etc/nginx/nginx.conf,readonly',image,'-g','daemon off;')
+    for attempt in range(50):
+        connection=http.client.HTTPConnection('127.0.0.1',18089,timeout=2)
+        try:
+            connection.request('GET','/index.html');reply=connection.getresponse()
+            if reply.status==200 and reply.read(256)==b'legacy fixture':break
+        except OSError:pass
+        finally:connection.close()
+        time.sleep(.1)
+    else:raise ValueError('LEGACY_ACME_FIXTURE_NOT_READY')
+    previous=os.umask(0o077)
+    try:load_script('prepare-ip-tls').verify_acme_webroot(public,port=18089)
+    finally:os.umask(previous)
+    print('LEGACY_ACME_PRIVATE_UMASK_DIFFERENT_UID_VERIFIED')
 
 
 def main():
@@ -118,10 +148,11 @@ def main():
                 except ssl.SSLError:pass
                 time.sleep(.1)
             else:raise ValueError('DISPOSABLE_TLS_ROTATION_NOT_VISIBLE')
+            legacy_acme_permissions_fixture(root,nginx['image_id'])
             print('AUTONOMOUS_PROXY_CERTBOT_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_DEPLOYMENT')
         finally:
             # Exact CI-only names on a disposable runner; no production paths.
-            for name in (WEB,UPSTREAM):subprocess.run(['docker','--context','default','rm','--force',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            for name in (LEGACY,WEB,UPSTREAM):subprocess.run(['docker','--context','default','rm','--force',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             subprocess.run(['docker','--context','default','network','rm',NETWORK],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             subprocess.run(['docker','--context','default','network','rm',FRONT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
