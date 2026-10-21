@@ -196,14 +196,17 @@ def main():
                 raise ValueError('LEGACY_PERSONAL_MISSING_COLUMN_NOT_REPRODUCED')
             except RuntimeError as error:
                 if str(error)!='DOCKER_OPERATION_FAILED':raise
+            phase='legacy-personal-rollback'
             pending=storage.read_private_json(state/'autonomous-checkpoints.json')
             if pending['steps'].get('schema-files',{}).get('status')!='pending':raise ValueError('WRONG_LEGACY_SCHEMA_FAILURE')
             d=deploy.DeployDocker(state)
             if deploy.read_schema_receipt(d,'files.sql') is not None or d.sql("SELECT to_regclass('api_private.file_sessions') IS NULL;").strip()!='t':raise ValueError('FILES_TRANSACTION_NOT_ROLLED_BACK')
             legacy_repair=load('repair-autonomous-personal-context');legacy_repair.load_script=load
             original_steps=(state/'autonomous-checkpoints.json').read_bytes()
+            phase='legacy-personal-repair'
             legacy_repair.repair(state);legacy_repair.repair(state)
             if (state/'autonomous-checkpoints.json').read_bytes()!=original_steps:raise ValueError('LEGACY_SCHEMA_REPAIR_CHANGED_CHECKPOINTS')
+            phase='legacy-personal-owner-ensure'
             # Existing rows are not auto-assigned. Explicit owner ensure is the
             # only path that may attach a legacy personal space to a project.
             if d.sql('SELECT count(*) FROM public.course_personal_spaces WHERE teaching_project_id IS NOT NULL;').strip()!='0':raise ValueError('LEGACY_PERSONAL_ROWS_REASSIGNED')
@@ -270,6 +273,9 @@ def main():
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))
     except Exception as error:
+        import traceback
+        for frame in traceback.extract_tb(error.__traceback__):
+            print('FIXTURE_ERROR_AT '+Path(frame.filename).name+':'+frame.name+':'+str(frame.lineno),flush=True)
         reason=str(error) if re.fullmatch('[A-Z0-9_]{1,100}',str(error)) else type(error).__name__
         print('COORDINATOR_FIXTURE_FAILED phase='+phase+' category='+reason,flush=True)
         if re.fullmatch('[a-z_]{1,40}',str(getattr(error,'phase',''))) and re.fullmatch('[A-Z_]{1,80}',str(getattr(error,'code',''))):
@@ -281,7 +287,7 @@ def main():
         # Only structural first ERROR lines, never DETAIL rows/commands/env.
         for path in sorted([*state.glob('*.log'),*root.glob('ci-command-*.log')],key=lambda p:p.stat().st_mtime_ns)[-50:]:
             for line in path.read_text(errors='replace').splitlines():
-                match=re.search(r'ERROR:\s+(.+)',line)
+                match=re.search(r'(?:ERROR|FATAL):\s+(.+)',line)
                 if match:
                     message=re.sub(r"'[^']*'",'[redacted]',match[1])
                     if re.match(r'(permission denied|relation |column |function |schema |type |syntax error|must be owner|cannot |role |database |duplicate |invalid |unrecognized |[A-Z_]{5,})',message):print('FIXTURE_SQL_ERROR '+message[:400])
