@@ -8,7 +8,21 @@
 
 发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
-## 当前停在第5步：旧个人空间表缺少项目关联字段
+## 当前停在第7步：验收测试空间缺少基础数据集
+
+独立候选部署、重启和两次网站登录已通过。真实 `survey_feature_reviews.base_dataset_id` 为必填，而旧版验收模板把测试空间创建为 `practice_shared` 后没有绑定测试基线，导致几何新增事务回滚。不会放宽必填规则；只给固定 `Autonomous TEST` 空间建立一份合成数据集并绑定它。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/repair-autonomous-test-dataset.py &&
+python3 linux/scripts/probe-autonomous.py &&
+python3 linux/scripts/deploy-autonomous.py --apply
+```
+
+成功先打印 `AUTONOMOUS_TEST_BASELINE_READY_BUSINESS_ROWS_RETAINED`，随后按提示输入原管理员和学生账号的网站登录密码。继续原流程第7/8步，无需重跑证书申请、恢复数据库或上传镜像。修复核对本地认证运行时、冻结发布摘要及已存在的TEST上下文/账号，单事务校验固定测试课程、村庄、项目、空间、成员与数据集归属；只允许空基线或同一个已验证TEST基线，碰撞停止。它不改正式数据、不清理失败状态、不降低约束；公开切换或已有验收成功凭据时拒绝执行。后续新构建的验收模板将同一基线创建合并进首次上下文事务；已发布f4镜像/冻结控制不替换。
+
+## 已完成的第5步个人空间结构修复（历史记录）
 
 已恢复数据库和认证，`schema-files` 原子事务因 `column s.teaching_project_id does not exist` 回滚。实际快照中的 `course_personal_spaces` 是旧结构；之前的合成测试预先补过该列，未覆盖这一情况。
 

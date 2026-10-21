@@ -20,7 +20,7 @@ CONTROLS=('deploy-autonomous.py','autonomous_operator.py','autonomous_compose.py
     'backup-autonomous.py','autonomous_private_ops.py','reset-local-password.py','maintain-autonomous.py','provision-local-workers.py','probe-autonomous.py','probe-unified-business.py')
 
 
-def test_context_template(root):
+def legacy_test_context_template(root):
     sql=(Path(root)/'linux/sql/scene-files-test-context.sql').read_text(encoding='utf-8')
     replacements={'village_scene_files_validation':'village_unified_candidate','c2a-test-20261019':'autonomous-test-20261021',
         'c2a-test-group-20261019':'autonomous-test-group-20261021','c2a-test-space-20261019':'unified-test-autonomous-20261021',
@@ -29,6 +29,16 @@ def test_context_template(root):
         '__BOUNDARY_EWKT__':'SRID=4326;MULTIPOLYGON(((112.999 22.999,113.001 22.999,113.001 23.001,112.999 23.001,112.999 22.999)))',"'group_plan'":"'practice_shared'"}
     for before,after in replacements.items():sql=sql.replace(before,after)
     return sql
+
+
+def test_context_template(root):
+    sql=legacy_test_context_template(root)
+    baseline=(Path(root)/'linux/sql/autonomous-test-dataset.sql').read_text(encoding='utf-8')
+    start=baseline.index('DO $test_dataset$')
+    end=baseline.index('$test_dataset$;',start)+len('$test_dataset$;')
+    marker="SELECT json_build_object('status',CASE"
+    if sql.count(marker)!=1:raise ValueError('ONE_TEST_CONTEXT_RECEIPT_REQUIRED')
+    return sql.replace(marker,baseline[start:end]+'\n'+marker)
 
 
 def stage_autonomous(root,target,*,release_id):

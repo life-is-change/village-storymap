@@ -108,6 +108,9 @@ def main():
             except RuntimeError:continue
         else:raise ValueError('PINNED_NODE_BASE_UNAVAILABLE')
         phase='assembly';assembler=load('build-autonomous-release');old_builder=load('build-unified-release')
+        # Deliberately retain the shipped legacy TEST template so this fixture
+        # proves recovery of the actual already-installed immutable release.
+        assembler.test_context_template=assembler.legacy_test_context_template
         old_builder.verified_ci=lambda *args,**kwargs:{'native_run_id':1,'native_status':'success','platform_run_id':2,'platform_status':'success','fixture_only':True}
         assembler.load_script=load
         archive=root/'autonomous-fixture.tar.gz';meta=assembler.build(repo,base,archive,native_run=1,platform_run=2)
@@ -239,7 +242,24 @@ def main():
                 return rows
             api.load_probe=traced_load
             core=probe.auth_probe(api,('332','synthetic-ci-password-0001'))
-            phase='business-whole-flow';full=probe.old.run_probe(api,('332','synthetic-ci-password-0001'),('student','synthetic-ci-password-0001'),{})
+            phase='legacy-test-baseline'
+            try:
+                probe.old.run_probe(api,('332','synthetic-ci-password-0001'),('student','synthetic-ci-password-0001'),{})
+                raise ValueError('MISSING_TEST_BASELINE_NOT_REPRODUCED')
+            except probe.old.ProbeFailure as error:
+                if (error.phase,error.code,error.status)!=('planning','DB_UNAVAILABLE',503):raise
+            # Prove rollback and the actual constraint from the authoritative DB.
+            if d.sql("SELECT count(*) FROM public.planning_features WHERE space_id='unified-test-autonomous-20261021';").strip()!='0':raise ValueError('FAILED_TEST_SAVE_NOT_ROLLED_BACK')
+            if d.sql("SELECT attnotnull FROM pg_attribute WHERE attrelid='public.survey_feature_reviews'::regclass AND attname='base_dataset_id';").strip()!='t':raise ValueError('REAL_BASELINE_NOT_NULL_REQUIRED')
+            def ordinary_digest():
+                return d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(d) ORDER BY id)::text,'[]')) FROM public.village_datasets d WHERE village_id<>'c4a00000-0000-4000-8000-000000000001'::uuid;").strip()
+            baseline_digest=ordinary_digest()
+            test_repair=load('repair-autonomous-test-dataset');test_repair.load_script=load
+            test_repair.repair(state,docker=d);test_repair.repair(state,docker=d)
+            if ordinary_digest()!=baseline_digest:raise ValueError('ORDINARY_DATASETS_CHANGED')
+            print('AUTONOMOUS_TEST_BASELINE_NOT_NULL_REPAIR_VERIFIED',flush=True)
+            previous=storage.read_private_json(state/'business-probe-state.json')
+            phase='business-whole-flow';full=probe.old.run_probe(api,('332','synthetic-ci-password-0001'),('student','synthetic-ci-password-0001'),previous)
             if full.get('restart_persistence') is not True:raise ValueError('FIXTURE_BUSINESS_RESTART_FAILED')
             storage.write_private_json(state/'acceptance.json',{'status':'local_auth_business_verified_not_cut_over','releaseId':meta['releaseId'],
                 'accepted_at':time.time(),**core,'business_restart':True,'fixture_only':True})

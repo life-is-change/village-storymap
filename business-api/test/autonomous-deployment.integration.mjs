@@ -40,6 +40,12 @@ test('full committed coordinator preserves imported accounts and real business f
    UPDATE public.course_personal_spaces SET space_type='course_personal';
    ALTER TABLE public.course_personal_spaces ADD CHECK(space_type='course_personal');
    CREATE UNIQUE INDEX personal_legacy_owner_context ON public.course_personal_spaces(owner_id,course_id,village_id,space_type);`);
+  // Match the real source's mandatory survey baseline, rather than a nullable
+  // simplified fixture that silently accepts incomplete shared TEST spaces.
+  await setup.query(`INSERT INTO public.village_datasets(id,village_id,version_number,version_label,source_kind,status,created_by)
+   VALUES('b9000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001',1,'Source fixture baseline','uploaded_bundle','ready','40000000-0000-4000-8000-000000000004');
+   UPDATE public.survey_feature_reviews SET base_dataset_id='b9000000-0000-4000-8000-000000000001';
+   ALTER TABLE public.survey_feature_reviews ALTER COLUMN base_dataset_id SET NOT NULL;`);
   for(const [kind,id] of Object.entries(USERS))await setup.query('UPDATE public.profiles SET student_id=$1 WHERE id=$2',[kind==='admin'?'332':kind,id]);
   await setup.query((await readFile(new URL('../../supabase_SQL/Scene Edit Studio.sql',import.meta.url),'utf8')).split('insert into storage.buckets')[0]);
   for(const name of ['house-photos','scene-assets','scene-version-previews','group-models','village-datasets','geoprocessing-results','facade-generation'])await setup.query('INSERT INTO storage.buckets(id,name) VALUES($1,$1)',[name]);
