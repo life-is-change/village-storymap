@@ -210,6 +210,8 @@ def main():
     except Exception as error:
         reason=str(error) if re.fullmatch('[A-Z0-9_]{1,100}',str(error)) else type(error).__name__
         print('COORDINATOR_FIXTURE_FAILED phase='+phase+' category='+reason,flush=True)
+        if re.fullmatch('[a-z_]{1,40}',str(getattr(error,'phase',''))) and re.fullmatch('[A-Z_]{1,80}',str(getattr(error,'code',''))):
+            print('FIXTURE_PROBE_FAILURE phase='+error.phase+' code='+error.code+' status='+str(getattr(error,'status',None)),flush=True)
         if last_request:print('FIXTURE_LAST_HTTP '+json.dumps(last_request),flush=True)
         checkpoint=state/'autonomous-checkpoints.json'
         if checkpoint.exists():
