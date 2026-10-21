@@ -29,14 +29,15 @@ def initialize_inputs(root,doc,auth_report):
 
 
 def build_index(root):
-    doc=storage.validate_inventory(storage.read_private_json(Path(root)/'inventory.json'))
-    scope=storage.all_inventory_buckets(doc)
-    verified=storage.verify_copy(root,selected_buckets=scope)
-    if verified['status']!='private_copy_verified_not_cut_over' or verified['excluded_objects']:
-        raise ValueError('ALL_STORAGE_BYTES_REQUIRED')
-    doc,objects,manifest=storage.load_transfer(root,selected_buckets=scope)
-    return {'version':1,'source_archive_sha256':doc['source_archive_sha256'],'objects':[
-        {**obj,'size':manifest['records'][obj['id']]['received_bytes'],'sha256':manifest['records'][obj['id']]['sha256']} for obj in objects]}
+    root=storage.private_path(root,directory=True);lock=storage.acquire_transfer_lock(root)
+    try:
+        doc=storage.validate_inventory(storage.read_private_json(root/'inventory.json'));scope=storage.all_inventory_buckets(doc)
+        doc,objects,manifest=storage.load_transfer(root,selected_buckets=scope)
+        if not (root/'copy-manifest.json').is_file() or any(r['status']!='copied' for r in manifest['records'].values()):
+            raise ValueError('ALL_STORAGE_BYTES_REQUIRED')
+        return {'version':1,'source_archive_sha256':doc['source_archive_sha256'],'objects':[
+            {**obj,'size':manifest['records'][obj['id']]['received_bytes'],'sha256':manifest['records'][obj['id']]['sha256']} for obj in objects]}
+    finally:lock.unlink()
 
 
 def inspect_inputs(backup,*,pg_bin=None,image_id=None):

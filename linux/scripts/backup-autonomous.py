@@ -13,7 +13,7 @@ import subprocess
 import time
 import threading
 import business_storage_copy as storage
-from autonomous_operator import Docker,API,AUTH,PG,ADMIN,DATABASE,clean_environment
+from autonomous_operator import Docker,API,AUTH,PG,ADMIN,DATABASE,clean_environment,operation_lock
 
 
 @contextlib.contextmanager
@@ -123,7 +123,7 @@ def backup(state,output_root):
     pg=docker.own_container(PG,meta['releaseId'])
     if pg.get('Image')!=meta['postgres_image_id'] or not pg.get('State',{}).get('Running'):raise ValueError('BACKUP_PG_IDENTITY_REQUIRED')
     output_root=storage.no_links(output_root)
-    for forbidden in [state,Path(__file__).resolve().parents[2],Path.home()/'village-deploy']:
+    for forbidden in [state,storage.source_checkout(),Path.home()/'village-deploy']:
         if output_root==forbidden or output_root in forbidden.parents or forbidden in output_root.parents:raise ValueError('BACKUP_PATH_OVERLAP')
     output_root.mkdir(parents=True,exist_ok=True,mode=0o700);storage.private_path(output_root,directory=True)
     destination=output_root/(dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ-')+secrets.token_hex(6));destination.mkdir(mode=0o700)
@@ -159,7 +159,8 @@ def backup(state,output_root):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output-root',type=Path,default=Path.home()/'village-autonomous-backups');args=parser.parse_args()
     try:
-        os.umask(0o077);destination=backup(Path.home()/'village-autonomous',args.output_root)
+        os.umask(0o077);state=Path.home()/'village-autonomous'
+        with operation_lock(state):destination=backup(state,args.output_root)
         print('AUTONOMOUS_OWN_BACKUP_VERIFIED_NOT_TEST_RESTORED');print('Backup directory: '+str(destination));return 0
     except (OSError,ValueError,RuntimeError,subprocess.SubprocessError):
         print('STOP: AUTONOMOUS_BACKUP_FAILED. Keep partial private backup and logs; verify original writer status.');return 1

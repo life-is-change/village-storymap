@@ -22,6 +22,10 @@ SELECTED_BUCKETS={'house-photos','scene-assets','scene-version-previews','group-
 CHUNK=1024*1024
 RESERVE=4*1024**3
 
+def source_checkout():
+    here=Path(__file__).resolve()
+    return Path.home()/'village-deploy/source' if here.parent.name=='control' else here.parents[2]
+
 def now():return dt.datetime.now(dt.timezone.utc).isoformat()
 
 def no_links(path):
@@ -249,7 +253,7 @@ def inventory_digest(doc):return hashlib.sha256(json.dumps(doc,sort_keys=True,en
 
 def load_transfer(root,*,selected_buckets=None):
     root=private_path(root,directory=True);private_path(root/'blobs',directory=True)
-    for protected in (Path(__file__).resolve().parents[2],Path.home()/'village-deploy',Path.home()/'village-db-backups',Path.home()/'village-api-validation'):
+    for protected in (source_checkout(),Path.home()/'village-deploy',Path.home()/'village-db-backups',Path.home()/'village-api-validation'):
         p=no_links(protected)
         if root==p or root in p.parents or p in root.parents:raise ValueError('Transfer directory overlaps protected data.')
     doc=validate_inventory(read_private_json(root/'inventory.json'))

@@ -4,6 +4,7 @@ import sys
 import pytest
 from unittest.mock import patch
 import json
+import hashlib
 
 S=Path(__file__).resolve().parents[1]/'scripts';sys.path.insert(0,str(S))
 
@@ -51,3 +52,21 @@ def test_renewal_refuses_wrong_release_before_reload_and_dry_run_does_not_instal
     assert m.should_install('renew-test') is False
     assert m.should_install('staging') is False
     assert m.should_install('issue') is True
+
+
+def test_reload_waits_for_new_peer_fingerprint_not_just_old_valid_certificate():
+    m=module();calls=[];expected=hashlib.sha256(b'new fixture').hexdigest()
+    class Docker:
+        def own_container(self,*args):return {'Image':'sha256:'+'a'*64,'State':{'Running':True},'HostConfig':{'PortBindings':{'8443/tcp':[{'HostIp':'127.0.0.1','HostPort':'18443'}]}}}
+        def run(self,*args):calls.append(args)
+    with patch.object(m,'tls_loopback',side_effect=[{'peer_sha256':'old'},{'peer_sha256':expected}]) as probe,patch.object(m.time,'sleep'):
+        m.reload_autonomous(Docker(),{'releaseId':'fixture','nginx_image_id':'sha256:'+'a'*64},expected_peer=expected)
+    assert probe.call_count==2 and len(calls)==2
+
+
+def test_rollback_reload_derives_fingerprint_again_from_restored_current_link(tmp_path):
+    m=module();new='a'*64;old='b'*64
+    with patch.object(m,'current_peer',side_effect=[new,old]),patch.object(m,'reload_autonomous') as reload:
+        m.reload_current(object(),{'releaseId':'fixture'},tmp_path)
+        m.reload_current(object(),{'releaseId':'fixture'},tmp_path)
+    assert [call.kwargs['expected_peer'] for call in reload.call_args_list]==[new,old]

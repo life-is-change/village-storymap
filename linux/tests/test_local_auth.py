@@ -45,3 +45,10 @@ def test_runtime_environment_has_fixed_origin_bounded_pool_and_no_provider_crede
     assert env['GOTRUE_EXTERNAL_EMAIL_ENABLED']=='true' and env['GOTRUE_MAILER_AUTOCONFIRM']=='true'
     assert env['GOTRUE_EXTERNAL_PHONE_ENABLED']=='false' and env['GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED']=='false'
     with pytest.raises(ValueError):m.auth_environment('postgresql://postgres:secret@evil/postgres','s'*64)
+
+
+def test_frozen_control_reads_its_matching_auth_manifest(tmp_path,monkeypatch):
+    m=module();control=tmp_path/'control';control.mkdir()
+    manifest=m.runtime_manifest();(control/'auth-runtime.json').write_text(json.dumps(manifest))
+    monkeypatch.setattr(m,'__file__',str(control/'prepare-local-auth.py'));monkeypatch.setattr(m,'ROOT',tmp_path/'missing-repository')
+    assert m.runtime_manifest()==manifest

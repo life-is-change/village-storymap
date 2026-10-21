@@ -12,7 +12,8 @@ COPY=re.compile(r'^COPY auth\."?([a-z_]+)"? \(([^)]+)\) FROM stdin;$')
 TABLES=('users','identities','mfa_factors','schema_migrations','oauth_clients','sso_providers','sso_domains','passkeys')
 
 def runtime_manifest():
-    return json.loads((ROOT/'linux/auth-runtime.json').read_text(encoding='utf-8'))
+    sibling=Path(__file__).with_name('auth-runtime.json')
+    return json.loads((sibling if sibling.is_file() else ROOT/'linux/auth-runtime.json').read_text(encoding='utf-8'))
 
 def summarize_auth_copy(lines):
     runtime=runtime_manifest();known=set(runtime['migration_versions']+runtime['legacy_migration_versions'])

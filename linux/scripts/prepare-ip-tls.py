@@ -11,6 +11,7 @@ import secrets
 import socket
 import ssl
 import urllib.request
+import time
 import autonomous_tls as tls
 import business_storage_copy as storage
 from autonomous_operator import Docker,WEB
@@ -71,7 +72,8 @@ def tls_loopback(port):
         return proof
 
 
-def reload_autonomous(docker,meta):
+def reload_autonomous(docker,meta,*,expected_peer=None):
+    if expected_peer is not None and not re.fullmatch('[a-f0-9]{64}',expected_peer):raise ValueError('EXPECTED_TLS_PEER_REQUIRED')
     obj=docker.own_container(WEB,meta['releaseId'])
     if obj.get('Image')!=meta.get('nginx_image_id') or not obj.get('State',{}).get('Running'):
         raise ValueError('VERIFIED_AUTONOMOUS_NGINX_REQUIRED')
@@ -80,10 +82,34 @@ def reload_autonomous(docker,meta):
     if binds[0].get('HostPort')=='18443' and binds[0].get('HostIp')!='127.0.0.1':raise ValueError('PRIVATE_CANDIDATE_TLS_REQUIRED')
     docker.run('exec',WEB,'/usr/sbin/nginx','-t')
     docker.run('exec',WEB,'/usr/sbin/nginx','-s','reload')
-    return tls_loopback(int(binds[0]['HostPort']))
+    deadline=time.monotonic()+15
+    for attempt in range(20):
+        proof=tls_loopback(int(binds[0]['HostPort']))
+        if expected_peer is None or proof['peer_sha256']==expected_peer:return proof
+        if time.monotonic()>deadline:break
+        time.sleep(.1)
+    raise ValueError('NEW_CERTIFICATE_NOT_SERVED')
 
 
 def should_install(mode):return mode in ('issue','renew')
+
+
+def current_peer(root):
+    root=tls._directory(root);link=root/'current'
+    if not link.is_symlink():raise ValueError('CONTROLLED_CURRENT_TLS_REQUIRED')
+    current=link.resolve(strict=True)
+    if current.parent!=root/'versions':raise ValueError('CONTROLLED_CURRENT_TLS_REQUIRED')
+    chain=tls._private_file(current/'fullchain.pem',private=False)
+    first=re.search(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----',chain.read_text(),re.S)
+    if not first:raise ValueError('LEAF_CERTIFICATE_REQUIRED')
+    return hashlib.sha256(ssl.PEM_cert_to_DER_cert(first.group(0))).hexdigest()
+
+
+def reload_current(docker,meta,root):
+    # Re-evaluate after an atomic rollback as well as the first rotation.
+    # Capturing the new certificate's digest would reject a successful old-cert
+    # rollback and incorrectly report the recovery itself as failed.
+    return reload_autonomous(docker,meta,expected_peer=current_peer(root))
 
 
 def verify_acme_webroot(root,*,port=80):
@@ -153,7 +179,7 @@ def perform(state,mode):
     chain,key=tls.certbot_material(state/'certbot-production'/'config');proof=tls.verify_certificate_pair(chain,key)
     root=state/'tls';root.mkdir(mode=0o700,exist_ok=True)
     result=tls.atomic_certificate(root,fullchain=chain.read_bytes(),private_key=key.read_bytes(),
-            reload=(lambda:reload_autonomous(docker,release)) if live else lambda:None)
+            reload=(lambda:reload_current(docker,release,root)) if live else lambda:None)
     storage.write_private_json(state/'tls-proof.json',{**result,**proof,'installed_at':storage.now(),'runtime_reloaded':live})
     return {'status':'production_ip_tls_reloaded' if live else 'production_ip_tls_prepared_not_serving','remaining_hours':proof['remaining_hours']}
 

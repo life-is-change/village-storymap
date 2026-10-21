@@ -33,3 +33,23 @@ def test_resume_inputs_refuses_swapping_snapshot_or_auth_report(tmp_path):
     assert m.initialize_inputs(root,doc,auth)==root
     with pytest.raises(ValueError):m.initialize_inputs(root,{**doc,'generated_at':'changed'},auth)
     with pytest.raises(ValueError):m.initialize_inputs(root,doc,{**auth,'users':5})
+
+
+def test_full_index_loads_receipts_only_under_one_exclusive_lock(tmp_path,monkeypatch):
+    m=module()
+    from test_business_storage_copy import inventory,Transport
+    s=m.storage;root=s.new_run_directory(tmp_path/'inputs',[]);doc=s.validate_inventory(inventory());s.write_private_json(root/'inventory.json',doc)
+    s.copy_inventory(root/'inventory.json',root,'sb_secret_'+'a'*40,Transport(s),selected_buckets=s.all_inventory_buckets(doc))
+    original=s.load_transfer
+    def guarded(*args,**kwargs):
+        assert (root/'.transfer.lock').is_file()
+        return original(*args,**kwargs)
+    monkeypatch.setattr(s,'load_transfer',guarded)
+    assert len(m.build_index(root)['objects'])==2
+
+
+def test_frozen_control_helpers_do_not_treat_entire_operator_home_as_repository(tmp_path,monkeypatch):
+    from test_business_storage_copy import module as storage_module,inventory
+    s=storage_module();root=s.new_run_directory(tmp_path/'inputs',[]);s.write_private_json(root/'inventory.json',inventory())
+    monkeypatch.setattr(s,'__file__',str(tmp_path/'state/control/business_storage_copy.py'))
+    assert s.load_transfer(root)[0]['project_ref']==s.PROJECT

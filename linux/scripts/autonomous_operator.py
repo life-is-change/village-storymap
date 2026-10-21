@@ -11,6 +11,7 @@ import re
 import secrets
 import subprocess
 import sys
+import contextlib
 import business_storage_copy as storage
 
 PROJECT='village-autonomous'
@@ -153,3 +154,17 @@ def verified_runtime(docker,state):
     obj=json.loads(docker.run('network','inspect',network))[0]
     if obj.get('Name')!=network or obj.get('Id')!=network_id or obj.get('Internal') is not True:raise ValueError('SHARED_INTERNAL_NETWORK_REQUIRED')
     return meta,network
+
+
+@contextlib.contextmanager
+def operation_lock(state):
+    import fcntl
+    state=storage.private_path(state,directory=True);path=state/'.operator-operation.lock'
+    fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_NOFOLLOW,0o600)
+    try:
+        st=os.fstat(fd)
+        if st.st_uid!=os.geteuid() or st.st_nlink!=1 or st.st_mode&0o077:raise ValueError('PRIVATE_OPERATION_LOCK_REQUIRED')
+        try:fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:raise ValueError('ANOTHER_OPERATOR_OPERATION_RUNNING') from None
+        yield
+    finally:os.close(fd)
