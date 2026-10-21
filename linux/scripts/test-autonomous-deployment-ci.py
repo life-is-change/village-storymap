@@ -205,12 +205,12 @@ def main():
         if checkpoint.exists():
             doc=storage.read_private_json(checkpoint);print('COORDINATOR_PENDING_STEPS '+json.dumps([k for k,v in doc.get('steps',{}).items() if v.get('status')=='pending']))
         # Only structural first ERROR lines, never DETAIL rows/commands/env.
-        for path in list(state.glob('*.log'))[-20:]:
+        for path in sorted(state.glob('*.log'),key=lambda p:p.stat().st_mtime_ns)[-30:]:
             for line in path.read_text(errors='replace').splitlines():
                 match=re.search(r'ERROR:\s+(.+)',line)
                 if match:
                     message=re.sub(r"'[^']*'",'[redacted]',match[1])
-                    if re.match(r'(permission denied|relation |column |function |schema |type |syntax error|must be owner|[A-Z_]{5,})',message):print('FIXTURE_SQL_ERROR '+message[:400])
+                    if re.match(r'(permission denied|relation |column |function |schema |type |syntax error|must be owner|cannot |role |database |duplicate |invalid |unrecognized |[A-Z_]{5,})',message):print('FIXTURE_SQL_ERROR '+message[:400])
         for name in (PG,API,AUTH,WEB):
             result=subprocess.run([*prefix,'inspect',name,'--format','{{json .State}}'],capture_output=True,text=True)
             if result.returncode==0:
