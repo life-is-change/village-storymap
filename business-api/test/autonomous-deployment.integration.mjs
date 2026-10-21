@@ -36,6 +36,7 @@ test('full committed coordinator preserves imported accounts and real business f
   // The real legacy source predates the optional project-context migration.
   // Do not silently supply that column via preparePlanning in this fixture.
   await setup.query(`ALTER TABLE public.course_personal_spaces DROP COLUMN teaching_project_id;
+   ALTER TABLE public.course_personal_spaces ALTER COLUMN id SET DEFAULT gen_random_uuid();
    UPDATE public.course_personal_spaces SET space_type='course_personal';
    ALTER TABLE public.course_personal_spaces ADD CHECK(space_type='course_personal');
    CREATE UNIQUE INDEX personal_legacy_owner_context ON public.course_personal_spaces(owner_id,course_id,village_id,space_type);`);

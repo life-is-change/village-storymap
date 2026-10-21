@@ -290,7 +290,7 @@ def main():
                 match=re.search(r'(?:ERROR|FATAL):\s+(.+)',line)
                 if match:
                     message=re.sub(r"'[^']*'",'[redacted]',match[1])
-                    if re.match(r'(permission denied|relation |column |function |schema |type |syntax error|must be owner|cannot |role |database |duplicate |invalid |unrecognized |[A-Z_]{5,})',message):print('FIXTURE_SQL_ERROR '+message[:400])
+                    if re.match(r'(permission denied|relation |column |function |schema |type |syntax error|must be owner|cannot |role |database |duplicate |invalid |unrecognized |null value in column |record |there is no unique|[A-Z_]{5,})',message):print('FIXTURE_SQL_ERROR '+message[:400])
         for name in (PG,API,AUTH,WEB):
             result=subprocess.run([*prefix,'inspect',name,'--format','{{json .State}}'],capture_output=True,text=True)
             if result.returncode==0:
