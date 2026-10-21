@@ -35,7 +35,7 @@ def main():
     # Do not repurpose HOME or modify its permissions. Every candidate/input
     # path is explicitly injected into a newly allocated disposable fixture.
     root=Path(tempfile.mkdtemp(prefix='village-autonomous-ci-',dir=os.environ['RUNNER_TEMP']));root.chmod(0o700)
-    state=root/'state';state.mkdir(mode=0o700);phase='guard';created=[];meta=None
+    state=root/'state';state.mkdir(mode=0o700);phase='guard';created=[];meta=None;last_request={}
     source='village-unified-ci';old_web='village-web-web-1';checker='village-autonomous-backup-check-ci'
     prefix=['docker','--context','default']
     cache={}
@@ -164,6 +164,14 @@ def main():
             api=probe.AutonomousHttpApi(port=18443,prepare_context=probe.context_callback(d,state),restart=restart,
                 persist=lambda value:storage.write_private_json(state/'business-probe-state.json',value),
                 resources=lambda:{'fixture':True},task_proof=lambda:{'verified':True,'releaseId':meta['releaseId'],'real_jobs':False})
+            original_request=api.request_impl
+            def traced_request(path,method,headers,data,binary):
+                # Fixed route names and HTTP status only; never headers/body or
+                # identifying path segments from the synthetic private fixture.
+                last_request.clear();last_request.update(method=method,route=re.sub(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}','UUID',path.split('?')[0])[:160])
+                result=original_request(path,method,headers,data,binary);last_request['status']=result[0]
+                return result
+            api.request_impl=traced_request
             core=probe.auth_probe(api,('332','synthetic-ci-password-0001'))
             phase='business-whole-flow';full=probe.old.run_probe(api,('332','synthetic-ci-password-0001'),('student','synthetic-ci-password-0001'),{})
             if full.get('restart_persistence') is not True:raise ValueError('FIXTURE_BUSINESS_RESTART_FAILED')
@@ -201,6 +209,7 @@ def main():
     except Exception as error:
         reason=str(error) if re.fullmatch('[A-Z0-9_]{1,100}',str(error)) else type(error).__name__
         print('COORDINATOR_FIXTURE_FAILED phase='+phase+' category='+reason,flush=True)
+        if last_request:print('FIXTURE_LAST_HTTP '+json.dumps(last_request),flush=True)
         checkpoint=state/'autonomous-checkpoints.json'
         if checkpoint.exists():
             doc=storage.read_private_json(checkpoint);print('COORDINATOR_PENDING_STEPS '+json.dumps([k for k,v in doc.get('steps',{}).items() if v.get('status')=='pending']))
