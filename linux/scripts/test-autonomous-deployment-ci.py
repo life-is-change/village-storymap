@@ -142,6 +142,13 @@ def main():
             if not any('enable' in args for args in calls):raise ValueError('FIXTURE_TIMER_NOT_CHECKED')
             return result
         prepare_tls.perform=dry_run;prepare_tls.install_timer=fake_timer
+        own_backup=load('backup-autonomous');original_backup_timer=own_backup.install_timer
+        def fake_backup_timer(st,user):
+            units=root/'system-unit-fixture';units.mkdir(exist_ok=True);calls=[]
+            result=original_backup_timer(st,user,units=units,run=lambda *args:calls.append(args))
+            if not any('village-autonomous-backup.timer' in args for args in calls):raise ValueError('FIXTURE_BACKUP_TIMER_NOT_CHECKED')
+            return result
+        own_backup.install_timer=fake_backup_timer
         # All injected trust is scoped to this guarded CI process. The archived
         # control files still contain the real, strict production implementations.
         deploy.load_script=load
@@ -165,7 +172,7 @@ def main():
             phase='public-listener-and-backup';public=deploy.apply(meta,state)
             if public['status']!='autonomous_public_https_core_requires_browser_and_gpu_acceptance':raise ValueError('FIXTURE_PUBLIC_STATUS_DIFFERS')
             phase='own-backup-restore';receipt=storage.read_private_json(state/'pre-apply-backup.json');own=Path(receipt['path'])
-            empty=root/'check-empty-init';empty.mkdir(mode=0o700)
+            empty=root/'check-empty-init';empty.mkdir(mode=0o755);empty.chmod(0o755)
             docker('run','--detach','--name',checker,'--network','none','--read-only','--memory','384m','--tmpfs','/var/lib/postgresql/data:size=256m,mode=0700',
                 '--tmpfs','/tmp:size=32m,mode=1777','--tmpfs','/var/run/postgresql:size=16m,mode=3775',
                 '--mount',f'type=bind,source={empty},target=/docker-entrypoint-initdb.d,readonly',

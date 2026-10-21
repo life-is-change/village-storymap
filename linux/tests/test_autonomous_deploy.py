@@ -62,3 +62,14 @@ def test_existing_public_switch_blocks_replaying_fresh_candidate_deployment(tmp_
     m.storage.write_private_json(state/'public-switch.json',{'status':'pending'})
     with pytest.raises(ValueError,match='PUBLIC_SWITCH_REQUIRES_EXPLICIT_RECOVERY'):
         m.deploy({'releaseId':'fixture'},tmp_path/'image',tmp_path/'backup',tmp_path/'files',state=state)
+
+
+def test_only_empty_nonsecret_init_directory_is_readable_by_postgres_uid(tmp_path):
+    m=module();state=tmp_path/'state';state.mkdir(mode=0o700)
+    m.prepare_state_directories(state)
+    assert list((state/'empty-init').iterdir())==[]
+    if m.os.name=='posix':
+        assert (state/'empty-init').stat().st_mode&0o777==0o755
+        assert (state/'secrets').stat().st_mode&0o777==0o700
+    (state/'empty-init/poison.sql').write_text('must never execute')
+    with pytest.raises(ValueError,match='EMPTY_NATIVE_INIT_DIRECTORY_REQUIRED'):m.prepare_state_directories(state)

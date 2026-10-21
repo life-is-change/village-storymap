@@ -132,9 +132,15 @@ def certbot_metadata():
 
 
 def install_timer(state,user,*,units=Path('/etc/systemd/system'),run=None):
-    state=storage.private_path(state,directory=True);units=storage.no_links(units)
     service,timer=tls.renewal_units(user)
     values={'village-autonomous-tls.service':service,'village-autonomous-tls.timer':timer}
+    install_system_units(state,values,units=units,run=run)
+    return {'installed':True,'interval_hours':6}
+
+
+def install_system_units(state,values,*,units=Path('/etc/systemd/system'),run=None):
+    state=storage.private_path(state,directory=True);units=storage.no_links(units)
+    if not values or any(not re.fullmatch(r'village-autonomous-(tls|backup)\.(service|timer)',name) for name in values):raise ValueError('FIXED_SYSTEM_UNIT_REQUIRED')
     for name,value in values.items():
         path=units/name
         if path.is_symlink() or path.exists() and (not path.is_file() or path.stat().st_nlink!=1 or path.stat().st_size>16384 or path.read_text()!=value):
@@ -151,8 +157,10 @@ def install_timer(state,user,*,units=Path('/etc/systemd/system'),run=None):
             if storage.private_path(source).read_text()!=value:raise ValueError('TLS_TIMER_INPUT_CHANGED')
         else:tls._write(source,value.encode())
         run('install','-o','root','-g','root','-m','0644','--',str(source),str(units/name))
-    run('systemctl','daemon-reload');run('systemctl','enable','--now','village-autonomous-tls.timer')
-    return {'installed':True,'interval_hours':6}
+    run('systemctl','daemon-reload')
+    for name in values:
+        if name.endswith('.timer'):run('systemctl','enable','--now',name)
+    return {'installed':True}
 
 
 @contextlib.contextmanager

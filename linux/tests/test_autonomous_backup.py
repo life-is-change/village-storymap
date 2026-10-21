@@ -78,3 +78,16 @@ def test_archive_input_is_streamed_from_file_without_putting_bytes_in_arguments(
     m.stream_command([sys.executable,'-c','import sys;sys.stdout.buffer.write(sys.stdin.buffer.read())'],target,
                      maximum=20000,reserve=0,input_path=source)
     assert target.read_bytes()==source.read_bytes()
+
+
+def test_busy_gpu_or_provider_prevents_backup_and_daily_timer_uses_private_operator_command():
+    m=module()
+    class Docker:
+        def sql(self,query):
+            assert 'lease_until' in query and 'local_cloud_jobs' in query
+            return '1'
+    with pytest.raises(ValueError,match='AUTONOMOUS_TASKS_BUSY'):m.require_idle(Docker())
+    service,timer=m.backup_units('admin')
+    assert 'User=admin' in service and '/home/admin/village-autonomous/control/backup-autonomous.py' in service
+    assert 'OnCalendar=*-*-* 04:15:00 Asia/Shanghai' in timer and 'Persistent=true' in timer
+    assert 'RestartSec=15min' in service

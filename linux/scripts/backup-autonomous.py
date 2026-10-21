@@ -12,8 +12,49 @@ import shutil
 import subprocess
 import time
 import threading
+import re
 import business_storage_copy as storage
 from autonomous_operator import Docker,API,AUTH,PG,ADMIN,DATABASE,clean_environment,operation_lock
+
+
+def require_idle(docker):
+    busy=docker.sql("SELECT (SELECT count(*) FROM api_private.local_gpu_runs WHERE lease_until>now() AND status NOT IN('completed','failed','canceled'))+(SELECT count(*) FROM api_private.local_cloud_jobs WHERE state IN('preparing','submitting','accepted','polling'));").strip()
+    if busy!='0':raise ValueError('AUTONOMOUS_TASKS_BUSY')
+
+
+def backup_units(user):
+    if not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}',user or '') or user=='root':raise ValueError('STANDARD_OPERATOR_REQUIRED')
+    service=f'''[Unit]
+Description=Village autonomous private database and file backup
+After=docker.service
+StartLimitIntervalSec=4h
+StartLimitBurst=4
+[Service]
+Type=oneshot
+User={user}
+Group={user}
+UMask=0077
+ExecStart=/usr/bin/python3 /home/{user}/village-autonomous/control/backup-autonomous.py
+Restart=on-failure
+RestartSec=15min
+'''
+    timer='''[Unit]
+Description=Daily Village autonomous private backup
+[Timer]
+OnCalendar=*-*-* 04:15:00 Asia/Shanghai
+RandomizedDelaySec=20min
+Persistent=true
+[Install]
+WantedBy=timers.target
+'''
+    return service,timer
+
+
+def install_timer(state,user,**kwargs):
+    from autonomous_bundle import load_script
+    service,timer=backup_units(user)
+    return load_script('prepare-ip-tls').install_system_units(state,{
+        'village-autonomous-backup.service':service,'village-autonomous-backup.timer':timer},**kwargs)
 
 
 @contextlib.contextmanager
@@ -123,6 +164,7 @@ def backup(state,output_root):
     if meta.get('schemaVersion')!=2 or meta.get('kind')!='autonomous':raise ValueError('AUTONOMOUS_BACKUP_ONLY')
     pg=docker.own_container(PG,meta['releaseId'])
     if pg.get('Image')!=meta['postgres_image_id'] or not pg.get('State',{}).get('Running'):raise ValueError('BACKUP_PG_IDENTITY_REQUIRED')
+    require_idle(docker)
     output_root=storage.no_links(output_root)
     for forbidden in [state,storage.source_checkout(),Path.home()/'village-deploy']:
         if output_root==forbidden or output_root in forbidden.parents or forbidden in output_root.parents:raise ValueError('BACKUP_PATH_OVERLAP')
@@ -131,6 +173,7 @@ def backup(state,output_root):
     from autonomous_bundle import load_script
     prepare_tls=load_script('prepare-ip-tls')
     with prepare_tls.tls_lock(state),quiesce(docker,meta):
+        require_idle(docker)
         files,links=backup_layout(state,meta)
         size=int(docker.sql('SELECT pg_database_size(current_database());').strip())
         required=sum(path.stat().st_size for path in files.values())+max(512*1024**2,size*2)
@@ -163,7 +206,11 @@ def main():
         os.umask(0o077);state=Path.home()/'village-autonomous'
         with operation_lock(state):destination=backup(state,args.output_root)
         print('AUTONOMOUS_OWN_BACKUP_VERIFIED_NOT_TEST_RESTORED');print('Backup directory: '+str(destination));return 0
-    except (OSError,ValueError,RuntimeError,subprocess.SubprocessError):
+    except ValueError as error:
+        if str(error)=='AUTONOMOUS_TASKS_BUSY':
+            print('AUTONOMOUS_BACKUP_DEFERRED_TASKS_BUSY - writers retained; timer retries later.');return 75
+        print('STOP: AUTONOMOUS_BACKUP_FAILED. Keep partial private backup and logs; verify original writer status.');return 1
+    except (OSError,RuntimeError,subprocess.SubprocessError):
         print('STOP: AUTONOMOUS_BACKUP_FAILED. Keep partial private backup and logs; verify original writer status.');return 1
 
 

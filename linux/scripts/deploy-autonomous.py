@@ -231,6 +231,20 @@ def verify_copied_storage(state,archive_sha):
     return {'objects':len(objects),'verified_bytes':result['verified_bytes'],'archive_sha256':archive_sha}
 
 
+def prepare_state_directories(state):
+    for name in ('releases','secrets','files','scene-files','data','empty-init','acme'):
+        path=storage.no_links(Path(state)/name)
+        if not path.exists():path.mkdir(mode=0o700)
+        if name=='empty-init':
+            if not path.is_dir() or any(path.iterdir()):raise ValueError('EMPTY_NATIVE_INIT_DIRECTORY_REQUIRED')
+            st=path.stat()
+            if os.name=='posix' and (st.st_uid!=os.geteuid() or st.st_mode&0o022):raise ValueError('EMPTY_INIT_OWNER_REQUIRED')
+            # The image switches to its postgres UID before listing init scripts.
+            # This folder is deliberately empty; private parent/secrets stay700.
+            path.chmod(0o755)
+        elif name!='data':storage.private_path(path,directory=True)
+
+
 def deploy(meta,archive,backup,storage_root,*,state=STATE):
     state=storage.private_path(state,directory=True)
     if (state/'public-switch.json').exists():raise ValueError('PUBLIC_SWITCH_REQUIRES_EXPLICIT_RECOVERY')
@@ -240,10 +254,7 @@ def deploy(meta,archive,backup,storage_root,*,state=STATE):
     if 'nonce' not in gate.doc:gate.doc['nonce']=secrets.token_hex(16);gate.save()
     nonce=gate.doc['nonce'];initial=preflight['baseline'];storage.write_private_json(state/'initial-baseline.json',initial)
     storage.write_private_json(state/'inputs.json',{'archive':str(Path(archive).absolute()),'backup':str(Path(backup).absolute()),'storage':str(Path(storage_root).absolute())})
-    for name in ('releases','secrets','files','scene-files','data','empty-init','acme'):
-        path=state/name
-        if not path.exists():path.mkdir(mode=0o700)
-        if name!='data':storage.private_path(path,directory=True)
+    prepare_state_directories(state)
     release=state/'releases'/meta['releaseId']
     wanted={'web':meta['static_sha256'],'schema':meta['schema_sha256'],'control':meta['control_sha256']}
     def extracted(receipt):return receipt==wanted and all(tree_digest(release/name)==digest for name,digest in wanted.items())
@@ -268,11 +279,16 @@ def deploy(meta,archive,backup,storage_root,*,state=STATE):
         lambda receipt:receipt==initial['candidates'] and all(not docker.inspect(row['name'])['State']['Running'] for row in receipt),
         recover=lambda:stop_old_candidates(docker,initial['candidates']))
     def pg_start():
+        if any((state/'data').iterdir()):raise ValueError('NEW_AUTONOMOUS_PGDATA_MUST_BE_EMPTY')
         docker.run('compose','-f',state/'compose.json','up','-d','--no-build','--pull','never','postgres');wait_pg(docker)
         return {'system':docker.sql('SELECT system_identifier FROM pg_control_system();','postgres').strip()}
     def pg_receipt():
         docker.own_container(PG,meta['releaseId']);return {'system':docker.sql('SELECT system_identifier FROM pg_control_system();','postgres').strip()}
-    gate.step('postgres',pg_start,lambda row:row==pg_receipt(),recover=pg_receipt)
+    def recover_pg():
+        fresh=json.loads(docker.sql(rd.RESUME_CATALOG_SQL,'postgres'))
+        rd.validate_resume_catalog(fresh)
+        return pg_receipt()
+    gate.step('postgres',pg_start,lambda row:row==pg_receipt(),recover=recover_pg)
     subnet=json.loads(docker.run('network','inspect',PROJECT+'_dbnet'))[0]['IPAM']['Config'][0]['Subnet']
     hba_install(docker,subnet,migration=True)
     def roles():
@@ -360,6 +376,7 @@ def apply(meta,state=STATE):
     operator=pwd.getpwuid(os.geteuid()).pw_name
     if Path.home()!=Path('/home')/operator:raise ValueError('STANDARD_OPERATOR_HOME_REQUIRED_FOR_TIMER')
     prepare_tls.install_timer(state,operator)
+    backup.install_timer(state,operator)
     storage.write_private_json(state/'public-switch.json',{'releaseId':meta['releaseId'],'status':'public_https_core_not_gpu_accepted','old_web_id':old['Id'],'applied_at':time.time()})
     return {'status':'autonomous_public_https_core_requires_browser_and_gpu_acceptance','origin':'https://8.148.248.237'}
 
