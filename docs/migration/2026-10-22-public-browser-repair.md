@@ -10,7 +10,9 @@ v3 预检再次要求 H001 只有一个共享上下文，且精确匹配历史�
 
 执行仍为本文下方相同的 git pull、repair-autonomous-browser.py 预检和 --apply。v3 核验 v1/v2 回执后生成独立 files/browser-20261022-v3/web，保留前两版修复，额外发布 app.js 和对象留言依赖模块；无需镜像或重新迁移。预检同样核对 H001 的完整范围，范围不匹配会停止。成功标记为 h001_review_and_local_comments_repaired_browser_check_required。Ctrl+Shift+R 后重新选择 H001 删除并保存，再验证刷新和3D；旧的未保存编辑请先放弃后重做。
 
-本地回归：1076 项 JavaScript、395 项 Python 通过，6 项 Windows/POSIX 差异跳过。数据库/部署集成加入专用旧 H001、外空间快照拒绝、只读预检、待校核补齐、无锁删除拒绝、有锁删除成功、删除版本留存、原照片摘要不变及重复运行不复活。远端 CI 和真实阿里云结果尚待本次验证，不将本地测试或 CI 写成实际网站验收。
+本地回归：1076 项 JavaScript、395 项 Python 通过，6 项 Windows/POSIX 差异跳过。数据库/部署集成加入专用旧 H001、外空间快照拒绝、只读预检、待校核补齐、无锁删除拒绝、有锁删除成功、删除版本留存、原照片摘要不变及重复运行不复活。
+
+提交 `3b06fa9` 的 [数据库与部署集成测试](https://github.com/life-is-change/village-storymap/actions/runs/39757168128)和[平台回归](https://github.com/life-is-change/village-storymap/actions/runs/39757168161)均成功。原生数据库任务实际输出 H001_BASELINE_REPAIR_LEASED_DELETE_HISTORY_AND_REPEAT_VERIFIED，并完成 114 表备份恢复、重启和 1/5/10/20 并发测试；没有调用真实 CA、提供商或4090。真实阿里云执行及浏览器验收仍待用户返回，不将 CI 成功写成实际网站验收。
 
 ## v2 历史记录
 
