@@ -143,7 +143,7 @@ def snapshot_worker(row):
         'networks':sorted(row['NetworkSettings']['Networks']),'cmd':row['Config'].get('Cmd'),'entrypoint':row['Config'].get('Entrypoint')}
 
 
-def validate_rendered(row,service,networks,image):
+def validate_rendered(row,service,networks,image,*,kind=None):
     actual=row['Config'];base=image['Config']
     env=dict(value.split('=',1) for value in base.get('Env',[]) if '=' in value)
     env.update(service.get('environment',{}));env={k:str(v) for k,v in env.items() if v is not None}
@@ -152,7 +152,11 @@ def validate_rendered(row,service,networks,image):
     for mount in service.get('volumes',[]):
         if mount.get('type')!='bind':raise ValueError('EXISTING_BIND_MOUNTS_REQUIRED')
         mounts.append([str(PurePosixPath(mount['source'])),mount['target'],not mount.get('read_only',False)])
-    if env!=current or sorted(mounts)!=snapshot_worker(row)['mounts'] or sorted(networks[name]['name'] for name in service.get('networks',{}))!=snapshot_worker(row)['networks']:
+    expected_networks=sorted(networks[name]['name'] for name in service.get('networks',{}))
+    actual_networks=snapshot_worker(row)['networks']
+    networks_match=expected_networks==actual_networks or (kind=='geo' and 'village-platform_egress' in expected_networks
+        and actual_networks==[n for n in expected_networks if n!='village-platform_egress'])
+    if env!=current or sorted(mounts)!=snapshot_worker(row)['mounts'] or not networks_match:
         raise ValueError('RENDERED_WORKER_RESOURCES_DIFFER')
     for key,field in [('command','Cmd'),('entrypoint','Entrypoint')]:
         if service.get(key,base.get(field))!=actual.get(field):raise ValueError('RENDERED_WORKER_PIPELINE_DIFFERS')
@@ -184,7 +188,7 @@ def install(docker,state,bundle,commit,*,apply=False,campus_root=ROOT):
     for kind,row in rows.items():
         service=config['services'][kind+'-worker'];image=json.loads(docker.run('image','inspect',row['Image']))[0]
         if image['Id']!=row['Image'] or service.get('user')!='10001:10001':raise ValueError('GPU_ENV_DOES_NOT_MATCH_RUNNING_WORKERS')
-        validate_rendered(row,service,config['networks'],image)
+        validate_rendered(row,service,config['networks'],image,kind=kind)
     # Probe the intended network without giving an old Supabase polling loop
     # new egress. Only the replacement Aliyun Worker receives it during up.
     target_overlay({kind:row['Image'] for kind,row in rows.items()},Path('/ignored'),config)
@@ -210,8 +214,11 @@ def install(docker,state,bundle,commit,*,apply=False,campus_root=ROOT):
              'original_workers':{kind:snapshot_worker(row) for kind,row in rows.items()},'others':before,'status':'pending'}
     # Private rollback material records actual mixed-version image IDs, not a
     # guessed common IMAGE_TAG. Never write the original checkout or env file.
-    for kind in KINDS:config['services'][kind+'-worker']['image']=rows[kind]['Image']
-    storage.write_private_json(state/'original-compose.json',config)
+    rollback=json.loads(json.dumps(config))
+    for kind in KINDS:
+        service=rollback['services'][kind+'-worker'];service['image']=rows[kind]['Image']
+        service['networks']={n:v for n,v in service.get('networks',{}).items() if config['networks'][n]['name'] in rows[kind]['NetworkSettings']['Networks']}
+    storage.write_private_json(state/'original-compose.json',rollback)
     storage.write_private_json(state/'workers-switch.json',receipt);path=state/'overlay.json';storage.write_private_json(path,target_overlay(images,key_root,config))
     # Check other services again before the only mutation of existing containers.
     current_config=json.loads(docker.run(*compose_args(campus_root),'config','--format','json'))

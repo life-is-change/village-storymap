@@ -150,3 +150,18 @@ def test_private_handoff_code_is_readable_by_the_unchanged_container_uid_only_in
     assert stat.S_IMODE(p.stat().st_mode)==0o600
     assert stat.S_IMODE((target/'server/src/village_processing').stat().st_mode)==0o755
     assert stat.S_IMODE((target/'server/src/village_processing/__init__.py').stat().st_mode)==0o644
+
+
+def test_only_the_confirmed_geo_egress_drift_is_accepted_without_weakening_resource_checks():
+    m=module();row={'Config':{'User':'10001:10001','Cmd':['python'],'Entrypoint':None,'Env':['PRIVATE=secret']},
+        'HostConfig':{'ReadonlyRootfs':True,'CapDrop':['ALL']},'Mounts':[],
+        'NetworkSettings':{'Networks':{'village-platform_backend':{}}}}
+    image={'Config':{'Env':['PRIVATE=secret'],'Cmd':['python'],'Entrypoint':None}}
+    service={'user':'10001:10001','read_only':True,'cap_drop':['ALL'],'volumes':[],'networks':{'backend':{},'egress':{}}}
+    networks={'backend':{'name':'village-platform_backend'},'egress':{'name':'village-platform_egress'}}
+    m.validate_rendered(row,service,networks,image,kind='geo')
+    with pytest.raises(ValueError):m.validate_rendered(row,service,networks,image,kind='facade')
+    service['environment']={'PRIVATE':'changed'}
+    with pytest.raises(ValueError):m.validate_rendered(row,service,networks,image,kind='geo')
+    service.pop('environment');row['NetworkSettings']['Networks']={}
+    with pytest.raises(ValueError):m.validate_rendered(row,service,networks,image,kind='geo')

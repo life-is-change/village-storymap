@@ -13,6 +13,8 @@
 
 随后用户在 facade-worker 内禁用环境代理、保留默认 TLS 验证访问公开 IP，返回 HTTP 404。这证明该容器到阿里云443的连接和证书验证已成功；404来自当时给出的 `/healthz` 路径，不应归类为网络断连。公开入口的连接预检改用 `/deployment-config.js`，同时核对返回的本地模式与实例标识。尚未验证私有 Worker 鉴权或实际GPU任务。
 
+r2 预检在修改任何 Worker 之前拒绝 RENDERED_WORKER_RESOURCES_DIFFER。用户逐项只读诊断确认两种 Worker 的 ENV_DIFFER 均为空、MOUNTS_MATCH 均为 True，facade 网络完全匹配；geo 配置已声明 backend+egress，实际旧容器仅有 backend。r3 因此只对 geo 接受“缺少这一条既定 egress”差异，不能接受 backend 消失、额外网络、环境、挂载或 facade 差异。最终替换仍沿用原配置中已经声明的 egress；私有回退配置按实际旧网络记录，不把尚未生效的 egress 误记为旧状态。
+
 最初“未找到命令”和 docker ps accepts no arguments 并非 Docker 未安装；多条命令粘成一行且缺少连接符，使后续命令成了 docker ps 参数。后续每次给一条可直接复制的命令。
 
 ## 接入方式
