@@ -1,0 +1,34 @@
+# 校园4090连接阿里云：现场记录与实施边界
+
+目标为4090主动通过有效 HTTPS 访问 https://8.148.248.237 的独立队列与文件接口。图底和白模贴图的身份、输入、状态及结果均在阿里云；GitHub Pages/Supabase 仍为独立备用站点，不自动双向同步。
+
+## 已确认的现场
+
+2026-10-22 用户在 `/media/gpu332/newapply/village-storymap` 返回：Git 分支 `2026-0926`，HEAD `6f4bbcb`，大量本机部署文件已修改或未跟踪。不能要求直接 checkout main、git pull、reset 或覆盖这个目录。Docker 正常，以下容器运行中：
+
+- geo-worker：`village-geo-worker:8c2719e392ee3141e87bd331788f23635e44984d`，容器 `e2b6b5d02273`，用户10001:10001，仅连接 village-platform_backend，缺少出网网络。
+- facade-worker：`village-facade-worker:336b7ef0d17fe77d7558707ebc625402405b0299`，容器 `f8fbbe7c84ab`，同一用户，连接 village-platform_facade-internal 与 village-platform_egress。
+- building、facade-ml、facade-lama 均健康，原本地 web 健康，另有 Open WebUI 在3000端口。这些服务不在更新范围内。
+- 用户确认两个模块没有旧任务需要继续处理。HTTPS 容器实测、Worker 鉴权与真实两类 GPU 输出仍需实际返回结果。
+
+随后用户在 facade-worker 内禁用环境代理、保留默认 TLS 验证访问公开 IP，返回 HTTP 404。这证明该容器到阿里云443的连接和证书验证已成功；404来自当时给出的 `/healthz` 路径，不应归类为网络断连。公开入口的连接预检改用 `/deployment-config.js`，同时核对返回的本地模式与实例标识。尚未验证私有 Worker 鉴权或实际GPU任务。
+
+最初“未找到命令”和 docker ps accepts no arguments 并非 Docker 未安装；多条命令粘成一行且缺少连接符，使后续命令成了 docker ps 参数。后续每次给一条可直接复制的命令。
+
+## 接入方式
+
+源码与原运行配置分开。代码包只从已提交版本导出 Python 与覆盖层 Dockerfile，不包括 dotenv、密钥、数据、模型或原网站。下载包先核对独立 SHA256，再解压到 Home 下的新版本目录；运行 `python3 -B .../linux/scripts/install-autonomous-workers.py --campus-root /media/gpu332/newapply/village-storymap --check`。包内逐文件摘要及完整文件清单在导入业务模块之前核对；源码版本写入回执。
+
+原目录的 Git、文件和 `linux/gpu.env` 不改。安装器读取原 Compose 和 env，用实际镜像 ID 校验原容器的用户、命令、挂载、环境和网络，允许两个 Worker 的历史镜像版本不同；不会猜测统一 IMAGE_TAG。构建覆盖层时禁止联网和拉取，不安装依赖或模型。代码导出由 `prepare-campus-worker-bundle.py` 完成，公开制品和摘要由 linux/campus-worker-release.json 记录。
+
+图底的 egress 只在替换成 Aliyun Worker 时加入覆盖配置，并保留 backend；不先给旧 Supabase 轮询进程开放网络。预检通过只运行 urllib 的临时受限容器测试目标出网网络，既不读取密钥，也不启动 Worker。随后以独立的 geo/facade 私有凭据、目标UID和真实 httpx TLS 验证身份；实际替换后再次从两个真实容器内验证。预检成功不等于实际容器或GPU验收成功。
+
+阿里云侧已由公开切换生成 `~/village-autonomous/worker-credentials.tar.gz`；如需再次检查，`provision-local-workers.py` 只复用并核对已有凭据，不重新生成。通过受保护的本机文件传输把它放到4090的 `~/worker-credentials.tar.gz`，设为0600，不在聊天粘贴、截图或提交Git。它不是数据库密码、网站密码或 Supabase Secret key。
+
+确认预检后，使用 `--apply --source-workers-idle --credentials "$HOME/worker-credentials.tar.gz"`，同时指定原 `--campus-root`。仅以 --no-deps/--no-build/--pull never 更新 geo-worker、facade-worker。原渲染配置（含私密信息，0600）和实际旧镜像写入私有回退材料；再次比较原配置摘要，构建期间有变化则拒绝更新。其他所有容器 ID、镜像与运行状态必须保持相同。新网络配置不会写回旧仓库，后续管理这两个新 Worker 应使用生成的 overlay；不要直接用旧 Compose up 把它们恢复到原队列。
+
+状态保留在 `~/village-campus-autonomous/`。同一凭据包可在替换前的失败后再次核对使用，不清理旧构建或日志。替换回执已存在时只执行 --verify，不盲目重复 apply。回执挂载采用 JSON 稳定结构，避免 tuple/list 序列化差异造成假失败。
+
+## 验证边界
+
+本机与 CI 测试覆盖旧分支部署目录分离、仅图底补 egress、临时 HTTPS 探测不启动旧队列、凭据原样复用、回执保存后比较，以及代码包内容/摘要/路径限制。没有从 Windows 访问真实校园 Docker、请求提供商或运行GPU。真实验收还需两个 Worker 的身份连接成功，并在阿里云站点各完成一项已授权的小型图底任务和白模贴图任务，确认输入下载、状态、结果回传和空间导入。
