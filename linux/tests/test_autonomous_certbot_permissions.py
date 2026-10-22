@@ -17,6 +17,7 @@ def module():
 
 def fixture(state):
     root = state / 'certbot-production/config'
+    root.mkdir(parents=True, mode=0o700)
     archive = root / 'archive/8.148.248.237'
     archive.mkdir(parents=True, mode=0o700)
     target = archive / 'fullchain1.pem'
