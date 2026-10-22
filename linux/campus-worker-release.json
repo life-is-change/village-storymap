@@ -1,8 +1,8 @@
 {
-  "source_commit": "0d7e684def95481894d0fad8b5b2723cbbf8f92c",
-  "archive_filename": "village-campus-worker-20261022-r4.tar.gz",
-  "directory": "village-campus-worker-0d7e684def95",
-  "archive_bytes": 210347,
-  "archive_sha256": "0006b66cad6ca27ea0bcda8aa90554639a909a39b399de14d183ded177f80a3f",
+  "source_commit": "2670bc1af16997019a68c7ace74f05ba47a52c87",
+  "archive_filename": "village-campus-worker-20261022-r5.tar.gz",
+  "directory": "village-campus-worker-2670bc1af169",
+  "archive_bytes": 210511,
+  "archive_sha256": "22b20094cd21d3f375eaad876b92e3bbe9f9057434e0ebc7167eb2c09ddd965f",
   "purpose": "public-code-only-no-models-or-credentials"
 }
