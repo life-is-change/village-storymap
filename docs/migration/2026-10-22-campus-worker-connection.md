@@ -39,6 +39,8 @@ r2 预检在修改任何 Worker 之前拒绝 RENDERED_WORKER_RESOURCES_DIFFER。
 
 本机与 CI 测试覆盖旧分支部署目录分离、仅图底补 egress、临时 HTTPS 探测不启动旧队列、凭据原样复用、回执保存后比较，以及代码包内容/摘要/路径限制。没有从 Windows 访问真实校园 Docker、请求提供商或运行GPU。真实验收还需两个 Worker 的身份连接成功，并在阿里云站点各完成一项已授权的小型图底任务和白模贴图任务，确认输入下载、状态、结果回传和空间导入。
 
-当前公开代码包为 `linux/releases/village-campus-worker-20261022-r3.tar.gz`，208170字节，源码提交 `18845da39318cd4ccd4594e6cc2d15bcab209c13`，SHA256 `f5c92745b7889e49c91a1cdd109ca38acb9ba9fe75d3cec542acfd014c0c6845`。本机解包后逐文件验证并实际运行安装器 --help，未生成源码缓存或修改源码。包内无密钥，私有 Worker 凭据另行传输；不要把公开代码包与 worker-credentials.tar.gz 混淆。
+当前公开代码包为 `linux/releases/village-campus-worker-20261022-r4.tar.gz`，210347字节，源码提交 `0d7e684def95481894d0fad8b5b2723cbbf8f92c`，SHA256 `0006b66cad6ca27ea0bcda8aa90554639a909a39b399de14d183ded177f80a3f`。本机解包后逐文件验证并实际运行安装器 --help，未生成源码缓存或修改源码。包内无密钥；r4 在4090本机生成凭据，仅转交公开登记摘要。不要把公开代码包与本机 worker-credentials.tar.gz 混淆。
 
 代码包 r2 还覆盖宿主机私有权限到容器内公开代码权限的转换：只在新建构建上下文中将包目录设为0755、Python代码设为0644。否则 COPY 的默认 root 所有权加上原0600代码会让10001用户无法导入。源代码包、密钥、模型和旧目录权限保持原样；Linux CI 验证源文件0600不变、构建副本可读。初始公开包保留用于审计，不用于当前部署。
+
+本次本地验证：406 项 linux/tests 通过，7 项 Windows/POSIX 差异跳过；33 项 Worker/本地网关测试通过。代码包实际解包后完整摘要与 CLI 导入通过。登记功能另有合成原生数据库、TLS Worker 身份、原身份保留与重复登记回归；精确 CI 及真实校园部署结果需另行记录，不能将本机测试视为真实GPU验收。
