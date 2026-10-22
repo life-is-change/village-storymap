@@ -377,7 +377,14 @@ def main():
                     if attempt==14:raise
                     time.sleep(1)
             legacy_id=d.sql("SELECT id FROM storage.objects WHERE bucket_id='house-photos' LIMIT 1;").strip()
-            d.sql("UPDATE public.object_photos SET teaching_project_id=NULL,village_id=NULL,space_id=NULL WHERE file_id='"+legacy_id+"'::uuid;")
+            # The source fixture's copied Storage object was deliberately an
+            # orphan. Keep orphan denial, then explicitly register a TEST photo
+            # to reproduce the real administrator's unscoped legacy record.
+            try:api.request(api.base+'/api/v1/files/'+legacy_id,actor,binary=True)
+            except probe.old.TransportFailure as error:
+                if error.code!='FORBIDDEN':raise
+            else:raise ValueError('UNREGISTERED_STORAGE_OBJECT_WAS_READABLE')
+            d.sql("INSERT INTO public.object_photos(object_code,object_type,photo_url,photo_path,file_id) SELECT 'synthetic-admin-legacy','building','synthetic://legacy',name,id FROM storage.objects WHERE id='"+legacy_id+"'::uuid;")
             try:api.request(api.base+'/api/v1/files/'+legacy_id,actor,binary=True)
             except probe.old.TransportFailure as error:
                 if error.code!='FORBIDDEN':raise
