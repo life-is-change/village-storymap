@@ -10,6 +10,17 @@ v2 保留 v1 的课件/入口修复。管理员取得全部照片元数据后，
 
 刷新后核对：照片列表可读，单图异常不影响其余行；二维已删建筑及模型在3D消失，新增矢量白模仍在；切回二维、刷新再进三维仍一致。4090接入保持暂停。
 
+### 提交和验证记录
+
+- `fa02f9f`：入口参数投影、照片时间字段兼容、七讲 PDF 打包，以及 v1 部署工具。用户已确认 PDF 和 INVALID_INPUT 问题解决。
+- `6a1a68b`：管理员照片读取、单图错误隔离、3D 删除标记，以及带原始版本核验的 v1 → v2 升级。
+- `13b8cc0`：集成测试补齐旧照片的显式登记。此前测试访问的是没有照片记录关联的 Storage 对象，修复后继续拒绝属于正确权限行为；本提交保留未登记对象拒绝用例，再验证已登记照片允许读取，没有削弱权限规则。
+- 本地验证：1074 项 JavaScript、393 项 Python 测试通过，6 项因 Windows/POSIX 差异跳过。
+- 精确提交 `13b8cc0` 的 [数据库与部署集成测试](https://github.com/life-is-change/village-storymap/actions/runs/39749716852)、[平台回归](https://github.com/life-is-change/village-storymap/actions/runs/39749716881)、[Pages 构建](https://github.com/life-is-change/village-storymap/actions/runs/39749715972)均成功。数据库测试验证管理员读取、学生/教师拒绝、删除照片后重新上传、v1 → v2 升级、重复运行、HTTPS 文件摘要及备份恢复；3D 删除场景通过真实前端函数与合并器回归验证。
+- 集成环境没有调用真实 CA、付费提供商或4090。v2 阿里云执行结果及浏览器验收仍待用户返回；不得将 CI 成功记成真实网站验收完成。
+
+## v1 历史记录（当前执行使用上方 v2 说明）
+
 真实公网反馈：管理员认证成功但首页/进入平台报 INVALID_INPUT；照片管理 DB_UNAVAILABLE；理论课 PDF 显示缺失。内部探针之前直接调用窄参数接口、测试照片表有 created_at，且未检查课件静态发布，因此未覆盖这些问题。
 
 根因与修复：VillageClient.listSpaces 现在仅发送 teachingProjectId/villageId，丢弃页面 villageRole 等非接口字段，服务端严格校验保持原样。照片读取兼容真实 uploaded_at 和旧测试 created_at 两种结构；用户列表补回注册时间。网页打包只额外允许 assets/lessons/lesson01.pdf 至 lesson07.pdf。

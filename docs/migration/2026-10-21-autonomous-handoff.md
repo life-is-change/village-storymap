@@ -229,6 +229,8 @@ python3 linux/scripts/install-autonomous-workers.py \
 
 成功标记为 `CERTBOT_PRIVATE_MODES_AND_MAINTENANCE_HOOKS_VERIFIED`。随后运行 `python3 linux/scripts/probe-autonomous.py && python3 linux/scripts/deploy-autonomous.py --apply`：内部验收超过30分钟会过期，所以继续保留原有真实登录验收门槛。无需重新上传镜像，也无需重新运行证书签发或数据库恢复。
 
+目标机后续诊断还确认修复脚本自身由 Git 创建为0664，所有者正确、单硬链接；维护工具因此拒绝将组可写源脚本安装成定时执行文件。只对 `linux/scripts/repair-autonomous-certbot-permissions.py` 执行 `chmod 644` 后通过，未递归修改项目权限。证书0644公开读取文件收紧到0600，0400私钥保持0400；这是与源脚本0664写权限检查分开的两个原因。相关修复提交为 `1554113`、`7335385`、`51a76b3`，随后用户已返回内部完整验收和 `autonomous_public_https_core_requires_browser_and_gpu_acceptance` 公网切换成功标记；真实浏览器后续问题另见 [公网修复记录](2026-10-22-public-browser-repair.md)。
+
 这个维护检查器位于 `~/village-autonomous/certbot-permission-maintenance/`，systemd drop-in 位于 `/etc/systemd/system/village-autonomous-{tls,backup}.service.d/10-village-certbot-private.conf`。旧冻结备份范围不包括维护脚本本身，恢复到新机器后需从受控 Git 版本重新安装这些维护钩子。
 
 每日04:15上海时间备份，繁忙任务时跳过并以15分钟间隔有限重试；证书每6小时检查续期。旧备份保留，空间不足停止并报告，不会自动删除。备份包含自己的数据库、文件、认证/Worker私钥、配置和证书，位于 `/home/admin/village-autonomous-backups/`；应另存受保护的离机副本。
