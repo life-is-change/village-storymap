@@ -17,7 +17,12 @@ from autonomous_bundle import load_script
 from autonomous_extract import tree_digest
 from autonomous_operator import Docker, WEB, API, AUTH, PG, operation_lock, verified_runtime
 
-PATCH='browser-20261022-v1'
+PATCH='browser-20261022-v2'
+PREVIOUS_PATCH='browser-20261022-v1'
+LEGACY_PHOTO_GATE='AND api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id)) INTO allowed;'
+ADMIN_PHOTO_GATE="AND (api_private.current_role()='admin' OR api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id))) INTO allowed;"
+LEGACY_LOCAL_GATE='ELSE PERFORM api_private.file_guard(s.purpose,s.context,false);END IF;'
+ADMIN_LOCAL_GATE="ELSIF s.purpose='photo' AND api_private.current_role()='admin' AND EXISTS(SELECT 1 FROM public.object_photos p WHERE p.file_id=f.id AND p.photo_path=f.logical_path) THEN NULL;\n ELSE PERFORM api_private.file_guard(s.purpose,s.context,false);END IF;"
 TIMESTAMP="coalesce((to_jsonb(x)->>'uploaded_at')::timestamptz,(to_jsonb(x)->>'created_at')::timestamptz)"
 PROFILE='id,student_id,display_name,role,gender,class_name,grade,disabled_at'
 
@@ -44,6 +49,30 @@ def photo_sql(catalog,survey):
     return '\n'.join(parts)+'\nCOMMIT;\n'
 
 
+def file_sql(files):
+    parts=[]
+    for name,signature,old,new in [('file_legacy','uuid',LEGACY_PHOTO_GATE,ADMIN_PHOTO_GATE),('file_authorize','uuid',LEGACY_LOCAL_GATE,ADMIN_LOCAL_GATE)]:
+        before=function_body(files,name)
+        if old not in before and new not in before:raise ValueError('FIXED_PHOTO_AUTHORIZATION_REQUIRED')
+        after=before if new in before else before.replace(old,new)
+        quote=lambda value:"'"+value.replace("'","''")+"'"
+        parts.append("DO $repair$DECLARE original text:="+quote(before)+";patched text:="+quote(after)+";actual text;definition text;BEGIN\n"
+            +"SELECT prosrc,pg_get_functiondef(oid) INTO actual,definition FROM pg_proc WHERE oid='api_private."+name+"("+signature+")'::regprocedure;\n"
+            +"IF actual=original THEN EXECUTE replace(definition,original,patched);ELSIF actual<>patched THEN RAISE EXCEPTION 'PHOTO_AUTHORIZATION_CHANGED';END IF;\nEND$repair$;")
+    return '\n'.join(parts)+'\n'
+
+
+def previous_overlay(state,meta,manifest,sql_hash):
+    root=storage.private_path(state/'files'/PREVIOUS_PATCH,directory=True)
+    receipt=storage.read_private_json(root/'receipt.json')
+    expected={name:value for name,value in manifest.items() if name not in ('admin.js','app-3d.js')}
+    if (receipt.get('releaseId')!=meta['releaseId'] or receipt.get('files')!=expected
+            or receipt.get('sql_sha256')!=sql_hash or receipt.get('phase')!='served_verified_browser_login_pending'
+            or tree_digest(root/'web')!=storage.read_private_json(root/'overlay-proof.json').get('tree_sha256')):
+        raise ValueError('PREVIOUS_BROWSER_PATCH_CHANGED')
+    return root/'web'
+
+
 def overlay_compose(document,root,*,original_source):
     result=copy.deepcopy(document);volumes=result['services']['web']['volumes']
     selected=[v for v in volumes if isinstance(v,dict) and v.get('target')=='/srv/village-web']
@@ -65,7 +94,7 @@ def immutable_write(path,data):
 
 def inputs(source):
     source=storage.no_links(source)
-    paths=['features/villages/village-client.js',*[f'assets/lessons/lesson{i:02}.pdf' for i in range(1,8)]]
+    paths=['features/villages/village-client.js','admin.js','app-3d.js',*[f'assets/lessons/lesson{i:02}.pdf' for i in range(1,8)]]
     result={}
     for name in paths:
         path=storage.no_links(source/name)
@@ -76,7 +105,7 @@ def inputs(source):
             if not data.startswith(b'%PDF-'):raise ValueError('LESSON_PDF_REQUIRED')
         else:
             data=data.replace(b'\r\n',b'\n')
-            if b"call('catalog.listSpaces',{teachingProjectId:input.teachingProjectId,villageId:input.villageId})" not in data:
+            if name=='features/villages/village-client.js' and b"call('catalog.listSpaces',{teachingProjectId:input.teachingProjectId,villageId:input.villageId})" not in data:
                 raise ValueError('FIXED_ENTRY_ADAPTER_REQUIRED')
         result[name]=data
     return result
@@ -114,18 +143,24 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
         if not any(v.get('HostPort')=='443' for v in ports.get('8443/tcp',[])):raise ValueError('PUBLIC_TLS_REQUIRED')
         root=state/'files'/PATCH
         document=storage.read_private_json(state/'compose.json')
-        updated=overlay_compose(document,root,original_source=release/'web')
         expected_mount=next(v['source'] for v in document['services']['web']['volumes'] if v.get('target')=='/srv/village-web')
         data=inputs(source)
-        sql=photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
+        old_sql=photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
+        sql=old_sql.removesuffix('COMMIT;\n')+file_sql((release/'schema/files.sql').read_text())+'COMMIT;\n'
         frozen_sql_hash=hashlib.sha256(sql.encode()).hexdigest()
         manifest={name:hashlib.sha256(value).hexdigest() for name,value in data.items()}
+        original_source=release/'web'
+        if expected_mount==str(state/'files'/PREVIOUS_PATCH/'web'):
+            original_source=previous_overlay(state,meta,manifest,hashlib.sha256(old_sql.encode()).hexdigest())
+        updated=overlay_compose(document,root,original_source=original_source)
         identity={'releaseId':meta['releaseId'],'files':manifest,'sql_sha256':frozen_sql_hash}
         receipt_path=root/'receipt.json'
         receipt=storage.read_private_json(receipt_path) if receipt_path.exists() else {}
         if receipt and any(receipt.get(k)!=v for k,v in identity.items()):raise ValueError('BROWSER_PATCH_RECEIPT_CHANGED')
         allowed_mounts={expected_mount}
-        if expected_mount==str(root/'web') and receipt.get('phase')=='sql_repaired':allowed_mounts.add(str(release/'web'))
+        if expected_mount==str(root/'web') and receipt.get('phase')=='sql_repaired':
+            allowed_mounts.add(str(release/'web'))
+            if (state/'files'/PREVIOUS_PATCH).exists():allowed_mounts.add(str(previous_overlay(state,meta,manifest,hashlib.sha256(old_sql.encode()).hexdigest())))
         mounts=[v for v in web.get('Mounts',[]) if v.get('Destination')=='/srv/village-web']
         if len(mounts)!=1 or mounts[0].get('RW') is not False or mounts[0].get('Source') not in allowed_mounts:raise ValueError('RUNNING_WEB_MOUNT_CHANGED')
         if not apply:return {'status':'browser_repair_preflight_passed_no_changes','lessons':7}
@@ -165,7 +200,7 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
         if before_ids!={name:docker.own_container(name,meta['releaseId'])['Id'] for name in (API,AUTH,PG)}:raise ValueError('OTHER_SERVICES_CHANGED')
         if tree_digest(release/'web')!=meta['static_sha256'] or tree_digest(state/'control')!=meta['control_sha256']:raise ValueError('FROZEN_RELEASE_CHANGED')
         receipt['phase']='served_verified_browser_login_pending';storage.write_private_json(receipt_path,receipt)
-        return {'status':'browser_entry_photos_lessons_repaired_real_browser_check_required','lessons':7,'other_services_retained':True}
+        return {'status':'photo_permissions_and_deleted_building_handoff_repaired_browser_check_required','lessons':7,'other_services_retained':True}
 
 
 def main():

@@ -417,7 +417,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function list3DBuildingsFromDb() {
     if(window.VillageBusinessServices?.planning) {
       const c=getActiveVillage3DContext();
-      return window.VillageBusinessServices.planning.execute('planning.listFeatures',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:getActualLinkedSpaceIdFor3D(),layerKey:'building'});
+      return window.VillageBusinessServices.planning.execute('planning.listFeatures',{teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:getActualLinkedSpaceIdFor3D(),layerKey:'building',includeDeleted:true});
     }
     if (!supabaseClient) return [];
 

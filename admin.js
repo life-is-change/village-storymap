@@ -37,7 +37,15 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if(!row)throw Error('NOT_FOUND');return row;
   }
   async function localPhotos(rows) {
-    return Promise.all(rows.map(async row=>({...row,photo_url:await services.files.resolveFileUrl(row.fileId)})));
+    return Promise.all(rows.map(async row=>{
+      if(!row.fileId)return {...row,photo_url:'',photo_load_error:'INVALID_FILE_ID'};
+      try{return {...row,photo_url:await services.files.resolveFileUrl(row.fileId)};}
+      catch(error){
+        const code=error.code||error.message;
+        if(!['FORBIDDEN','INVALID_FILE_ID','FILE_UNAVAILABLE','NOT_FOUND'].includes(code))throw error;
+        return {...row,photo_url:'',photo_load_error:code};
+      }
+    }));
   }
   let isDeletingUser = false;
   let remoteCleanupWarnings = [];
@@ -614,23 +622,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const displayUrl = getPhotoDisplayUrl(p);
       return `
         <div class="admin-photo-item" data-photo-id="${escapeHtml(String(p.id))}" data-photo-path="${escapeHtml(p.photo_path || "")}">
-          <a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
+          ${displayUrl ? `<a class="admin-photo-download" href="${escapeHtml(displayUrl)}" download title="下载原图" data-download-src="${escapeHtml(displayUrl)}">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-          </a>
+          </a>` : ''}
           <button type="button" class="admin-photo-delete" title="删除" data-delete-photo>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
           </button>
-          <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="admin-photo-missing" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
-            <span>原图文件已丢失</span>
-            <button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>
+          <img src="${escapeHtml(displayUrl)}" alt="" loading="lazy" style="${displayUrl?'':'display:none;'}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="admin-photo-missing" style="display:${displayUrl?'none':'flex'};align-items:center;justify-content:center;flex-direction:column;gap:8px;height:140px;color:#718397;font-size:12px;">
+            <span>原图暂不可读取${p.photo_load_error?'（'+escapeHtml(p.photo_load_error)+'）':''}</span>
+            ${services.files?'':'<button type="button" class="admin-btn" data-repair-photo>重新上传原图</button>'}
           </div>
           <div class="admin-photo-meta">
             <div class="photo-type">${typeLabel} · ${code}</div>

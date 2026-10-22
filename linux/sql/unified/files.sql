@@ -154,7 +154,7 @@ CREATE FUNCTION api_private.file_legacy(fid uuid) RETURNS jsonb LANGUAGE plpgsql
  IF api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'PROFILE_DISABLED';END IF;
  SELECT * INTO o FROM storage.objects WHERE id=fid;IF NOT FOUND THEN RETURN NULL;END IF;
  CASE o.bucket_id
- WHEN 'house-photos' THEN SELECT EXISTS(SELECT 1 FROM public.object_photos x WHERE (x.photo_path=o.name OR x.photo_url='https://rzmbmwauomzwiyenafha.supabase.co/storage/v1/object/public/house-photos/'||o.name) AND api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id)) INTO allowed;
+ WHEN 'house-photos' THEN SELECT EXISTS(SELECT 1 FROM public.object_photos x WHERE (x.photo_path=o.name OR x.photo_url='https://rzmbmwauomzwiyenafha.supabase.co/storage/v1/object/public/house-photos/'||o.name) AND (api_private.current_role()='admin' OR api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id))) INTO allowed;
  WHEN 'group-models' THEN SELECT EXISTS(SELECT 1 FROM public.group_model_assets a WHERE api_private.model_can_read(a) AND (a.storage_path=o.name OR regexp_replace(a.storage_path,'\.glb$','.original.glb')=o.name OR regexp_replace(a.storage_path,'\.glb$','.low.glb')=o.name)) INTO allowed;
  WHEN 'village-datasets' THEN allowed:=public.can_read_village_dataset_object(o.name);
  WHEN 'scene-assets' THEN SELECT EXISTS(SELECT 1 FROM public.scene_edit_assets a WHERE a.storage_path=o.name AND public.can_read_scene_edit_asset(a.scope_kind,a.course_id,a.group_id,a.owner_id)) INTO allowed;
@@ -170,6 +170,7 @@ CREATE FUNCTION api_private.file_authorize(fid uuid) RETURNS jsonb LANGUAGE plpg
  IF s.state<>'committed' OR f.state<>'ready' OR f.archived_at IS NOT NULL THEN RETURN NULL;END IF;
  IF s.purpose='dataset' THEN
   IF NOT api_private.staff() AND NOT EXISTS(SELECT 1 FROM public.village_datasets d WHERE d.id=(s.result->>'id')::uuid AND d.status='published') THEN RETURN NULL;END IF;
+ ELSIF s.purpose='photo' AND api_private.current_role()='admin' AND EXISTS(SELECT 1 FROM public.object_photos p WHERE p.file_id=f.id AND p.photo_path=f.logical_path) THEN NULL;
  ELSE PERFORM api_private.file_guard(s.purpose,s.context,false);END IF;
  RETURN to_jsonb(f);
 END$$;

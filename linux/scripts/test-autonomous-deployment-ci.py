@@ -118,6 +118,7 @@ def main():
             values=original_schema_bundle(root_path)
             for key in ('catalog.sql','survey.sql'):
                 values[key]=values[key].replace(browser_repair.TIMESTAMP,'x.created_at').replace("(to_jsonb(profiles)->>'created_at') AS created_at,disabled_at",'disabled_at')
+            values['files.sql']=values['files.sql'].replace(browser_repair.ADMIN_PHOTO_GATE,browser_repair.LEGACY_PHOTO_GATE).replace(browser_repair.ADMIN_LOCAL_GATE,browser_repair.LEGACY_LOCAL_GATE)
             return values
         assembler.schema_bundle=legacy_browser_schema
         original_stage=assembler.stage_autonomous
@@ -353,12 +354,42 @@ def main():
             except probe.old.TransportFailure as error:
                 if error.code!='DB_UNAVAILABLE':raise
             else:raise ValueError('LEGACY_PHOTO_COLUMN_FAILURE_NOT_REPRODUCED')
+            # Reproduce the exact already-installed v1 hotfix, including its
+            # receipt and mount. The v2 installer must upgrade this state too.
+            release=state/'releases'/meta['releaseId']
+            previous_root=state/'files'/browser_repair.PREVIOUS_PATCH
+            previous_root.mkdir(mode=0o700)
+            shutil.copytree(release/'web',previous_root/'web',copy_function=shutil.copyfile)
+            for p in [previous_root/'web',*(previous_root/'web').rglob('*')]:p.chmod(0o700 if p.is_dir() else 0o600)
+            previous_files={k:v for k,v in browser_repair.inputs(repo).items() if k not in ('admin.js','app-3d.js')}
+            for name,value in previous_files.items():
+                p=previous_root/'web'/name;p.parent.mkdir(parents=True,mode=0o700,exist_ok=True);p.write_bytes(value);p.chmod(0o600)
+            previous_sql=browser_repair.photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
+            d.sql(previous_sql)
+            storage.write_private_json(previous_root/'receipt.json',{'releaseId':meta['releaseId'],'files':{k:hashlib.sha256(v).hexdigest() for k,v in previous_files.items()},'sql_sha256':hashlib.sha256(previous_sql.encode()).hexdigest(),'phase':'served_verified_browser_login_pending'})
+            storage.write_private_json(previous_root/'overlay-proof.json',{'tree_sha256':tree_digest(previous_root/'web')})
+            doc=browser_repair.overlay_compose(storage.read_private_json(state/'compose.json'),previous_root,original_source=release/'web')
+            storage.write_private_json(state/'compose.json',doc)
+            d.run('compose','-f',state/'compose.json','up','-d','--no-deps','--no-build','--pull','never','web')
+            for attempt in range(15):
+                try:browser_repair.check_served('features/villages/village-client.js',previous_files['features/villages/village-client.js'],443);break
+                except (OSError,ValueError):
+                    if attempt==14:raise
+                    time.sleep(1)
+            legacy_id=d.sql("SELECT id FROM storage.objects WHERE bucket_id='house-photos' LIMIT 1;").strip()
+            d.sql("UPDATE public.object_photos SET teaching_project_id=NULL,village_id=NULL,space_id=NULL WHERE file_id='"+legacy_id+"'::uuid;")
+            try:api.request(api.base+'/api/v1/files/'+legacy_id,actor,binary=True)
+            except probe.old.TransportFailure as error:
+                if error.code!='FORBIDDEN':raise
+            else:raise ValueError('LEGACY_ADMIN_PHOTO_DENIAL_NOT_REPRODUCED')
             browser_repair.load_script=load
             result=browser_repair.repair(state,repo,apply=True,docker=d)
-            if result['status']!='browser_entry_photos_lessons_repaired_real_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
+            if result['status']!='photo_permissions_and_deleted_building_handoff_repaired_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
             browser_repair.repair(state,repo,apply=True,docker=d)
             photos=api.request(api.base+route['path'],actor,method=route['method'],data={})['data']
             if not isinstance(photos,list):raise ValueError('LEGACY_PHOTOS_NOT_REPAIRED')
+            photo_bytes=api.request(api.base+'/api/v1/files/'+legacy_id,actor,binary=True)
+            if photo_bytes!=payload:raise ValueError('ADMIN_LEGACY_PHOTO_READ_FAILED')
             print('PUBLIC_BROWSER_ENTRY_LESSONS_PHOTO_COMPATIBILITY_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,

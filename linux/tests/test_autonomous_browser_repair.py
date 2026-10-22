@@ -35,3 +35,25 @@ def test_web_overlay_changes_only_fixed_mounts_and_preserves_all_other_services(
     assert len(mounts)==1
     assert all(v['read_only'] for v in mounts)
     with pytest.raises(ValueError):m.overlay_compose(changed,tmp_path/'another',original_source='/original')
+
+
+def test_photo_authorization_patch_only_targets_registered_photo_files():
+    m=module()
+    source='CREATE FUNCTION api_private.file_legacy(fid uuid) RETURNS jsonb AS $$'+m.LEGACY_PHOTO_GATE+'$$;\nCREATE FUNCTION api_private.file_authorize(fid uuid) RETURNS jsonb AS $$'+m.LEGACY_LOCAL_GATE+'$$;'
+    sql=m.file_sql(source)
+    assert "s.purpose=''photo''" in sql
+    assert 'p.file_id=f.id AND p.photo_path=f.logical_path' in sql
+    assert 'PHOTO_AUTHORIZATION_CHANGED' in sql
+    assert 'GRANT ' not in sql and 'ALTER TABLE' not in sql
+
+
+def test_upgrade_requires_exact_prior_overlay_receipt_and_file_tree(tmp_path):
+    m=module();root=tmp_path/'files'/m.PREVIOUS_PATCH;root.mkdir(parents=True,mode=0o700)
+    (root/'web').mkdir(mode=0o700);(root/'web/index.html').write_bytes(b'original overlay')
+    manifest={'features/villages/village-client.js':'a'*64,'admin.js':'b'*64,'app-3d.js':'c'*64}
+    meta={'releaseId':'test-release'}
+    m.storage.write_private_json(root/'receipt.json',{'releaseId':'test-release','files':{'features/villages/village-client.js':'a'*64},'sql_sha256':'d'*64,'phase':'served_verified_browser_login_pending'})
+    m.storage.write_private_json(root/'overlay-proof.json',{'tree_sha256':m.tree_digest(root/'web')})
+    assert m.previous_overlay(tmp_path,meta,manifest,'d'*64)==root/'web'
+    (root/'web/index.html').write_bytes(b'changed')
+    with pytest.raises(ValueError,match='PREVIOUS_BROWSER_PATCH_CHANGED'):m.previous_overlay(tmp_path,meta,manifest,'d'*64)
