@@ -69,7 +69,7 @@
       const mappings={createDraft:'createVillage',createTeachingProject:'createTeachingProject',archiveTeachingProject:'archiveTeachingProject',getVillageRemovalPreview:'previewVillageRemoval',archiveVillage:'archiveVillage',restoreVillage:'restoreVillage',deleteUnusedVillage:'deleteVillage',saveDatasetDraft:'saveDataset',publishDataset:'publishDataset',bindFormalVillage:'bindFormalVillage',saveRealityDraft:'saveRealityModel',publishRealityModel:'publishRealityModel'};
       const client={
         async listVillages(){return (await call('catalog.listVillages')).map(mapVillage);},
-        async listSpaces(input){return (await call('catalog.listSpaces',input)).map(mapSpace);},
+        async listSpaces(input){return (await call('catalog.listSpaces',{teachingProjectId:input.teachingProjectId,villageId:input.villageId})).map(mapSpace);},
         async getActiveContext({onCatalog,includeSpaces=true}={}){
           const raw=await call('catalog.getActiveContext');if(!raw?.project)return null;
           const project=normalizeTeachingProject(raw.project),villages=await client.listVillages();

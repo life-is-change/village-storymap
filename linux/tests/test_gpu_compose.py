@@ -41,3 +41,12 @@ def test_web_staging_excludes_secrets_and_includes_cesium_and_csv(tmp_path):
         assert (target / name).is_file(), name
     for name in files[6:]:
         assert not (target / name).exists(), name
+
+
+def test_web_stages_only_public_lesson_pdfs(tmp_path):
+    spec=importlib.util.spec_from_file_location('lesson_stage', ROOT/'linux/scripts/stage-web.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    for name in ('assets/lessons/lesson01.pdf','assets/lessons/lesson07.pdf'):
+        assert module.public(name)
+    for name in ('assets/private.pdf','linux/secrets.pdf','assets/lessons/.private.pdf','assets/lessons/notes.pdf'):
+        assert not module.public(name)

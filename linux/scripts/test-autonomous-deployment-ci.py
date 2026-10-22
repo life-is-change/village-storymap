@@ -112,6 +112,22 @@ def main():
         # Deliberately retain the shipped legacy TEST template so this fixture
         # proves recovery of the actual already-installed immutable release.
         assembler.test_context_template=assembler.legacy_test_context_template
+        browser_repair=load('repair-autonomous-browser')
+        original_schema_bundle=assembler.schema_bundle
+        def legacy_browser_schema(root_path):
+            values=original_schema_bundle(root_path)
+            for key in ('catalog.sql','survey.sql'):
+                values[key]=values[key].replace(browser_repair.TIMESTAMP,'x.created_at').replace("(to_jsonb(profiles)->>'created_at') AS created_at,disabled_at",'disabled_at')
+            return values
+        assembler.schema_bundle=legacy_browser_schema
+        original_stage=assembler.stage_autonomous
+        def legacy_browser_stage(root_path,target,**kwargs):
+            result=original_stage(root_path,target,**kwargs)
+            for pdf in (Path(target)/'assets/lessons').glob('lesson*.pdf'):pdf.unlink()
+            client=Path(target)/'features/villages/village-client.js'
+            client.write_text(client.read_text().replace("call('catalog.listSpaces',{teachingProjectId:input.teachingProjectId,villageId:input.villageId})","call('catalog.listSpaces',input)"))
+            return result
+        assembler.stage_autonomous=legacy_browser_stage
         old_builder.verified_ci=lambda *args,**kwargs:{'native_run_id':1,'native_status':'success','platform_run_id':2,'platform_status':'success','fixture_only':True}
         assembler.load_script=load
         archive=root/'autonomous-fixture.tar.gz';meta=assembler.build(repo,base,archive,native_run=1,platform_run=2)
@@ -328,6 +344,22 @@ def main():
             rd.compare_snapshot(expected,rd.actual_snapshot(Restored(),expected))
             for name,record in storage.read_private_json(own/'backup.json')['files'].items():
                 if storage.digest_file(own/name)!=(record['sha256'],record['bytes']):raise ValueError('OWN_BACKUP_FILE_DIGEST_DIFFERS')
+            phase='public-browser-compatibility'
+            d.sql('ALTER TABLE public.object_photos DROP COLUMN created_at;')
+            api.port=443
+            actor=api.login(('332','synthetic-ci-password-0001'))
+            route=api.routes['admin.listPhotos']
+            try:api.request(api.base+route['path'],actor,method=route['method'],data={})
+            except probe.old.TransportFailure as error:
+                if error.code!='DB_UNAVAILABLE':raise
+            else:raise ValueError('LEGACY_PHOTO_COLUMN_FAILURE_NOT_REPRODUCED')
+            browser_repair.load_script=load
+            result=browser_repair.repair(state,repo,apply=True,docker=d)
+            if result['status']!='browser_entry_photos_lessons_repaired_real_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
+            browser_repair.repair(state,repo,apply=True,docker=d)
+            photos=api.request(api.base+route['path'],actor,method=route['method'],data={})['data']
+            if not isinstance(photos,list):raise ValueError('LEGACY_PHOTOS_NOT_REPAIRED')
+            print('PUBLIC_BROWSER_ENTRY_LESSONS_PHOTO_COMPATIBILITY_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

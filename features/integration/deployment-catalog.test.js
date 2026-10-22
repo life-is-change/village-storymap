@@ -1,6 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {createCourseService}=require('../course/course-service.js');
 const {createVillageClient}=require('../villages/village-client.js');
+
+test('real platform entry context is projected onto the strict local listSpaces contract',async()=>{
+ const {parseOperation}=await import('../../business-api/unified/contracts.mjs');
+ const project='a0000000-0000-4000-8000-000000000001',village='b0000000-0000-4000-8000-000000000001';
+ const calls=[];const client=createVillageClient({services:{catalog:{async execute(action,input){parseOperation(action,input);calls.push(input);return [];}}}});
+ await client.listSpaces({teachingProjectId:project,villageId:village,villageRole:'practice',courseId:'course',spaceType:'practice_personal',readonly:false});
+ assert.deepEqual(calls,[{teachingProjectId:project,villageId:village}]);
+});
 test('local course operations await server authority and never mirror or claim offline success',async()=>{
  const calls=[];const services={catalog:{async execute(action,input){calls.push([action,input]);if(action==='catalog.listGroups')return [];throw Object.assign(Error('DB_UNAVAILABLE'),{code:'DB_UNAVAILABLE'});}}};
  const service=createCourseService({services,course:{id:'course'},supabaseClient:{from(){throw Error('SOURCE_TOUCHED');}},storage:{getItem(){return '[]';},setItem(){throw Error('LOCAL_SUCCESS_WRITTEN');}},uuid:()=> 'a0000000-0000-4000-8000-000000000001'});

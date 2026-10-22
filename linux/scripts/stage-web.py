@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import sys
 import os
+import re
 
 EXTENSIONS = {'.html', '.js', '.css', '.json', '.geojson', '.png', '.jpg', '.jpeg',
               '.webp', '.svg', '.gif', '.glb', '.gltf', '.bin', '.b3dm', '.woff',
@@ -16,6 +17,8 @@ def public(name):
         return False
     if p.parts[:2] == ('3D_scenes_edit', 'legacy'):
         return False
+    if p.suffix.lower() == '.pdf':
+        return len(p.parts)==3 and p.parts[:2]==('assets','lessons') and re.fullmatch(r'lesson0[1-7]\.pdf',p.name) is not None
     if len(p.parts) == 1:
         return p.suffix in {'.html', '.js', '.css', '.ico'}
     if p.parts[0] == 'data' and p.suffix == '.csv':

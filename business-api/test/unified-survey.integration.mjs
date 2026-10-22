@@ -4,6 +4,8 @@ let api,community,dbAPI;try{api=await import('../unified/survey.mjs');community=
 test('native survey gate, UUID ownership, revisions, tombstones and cross-space separation',async()=>{
  await withUnifiedFixture(async({setup,install,config})=>{
   await prepareSurvey(setup);
+  // Production's original photo table has uploaded_at, without created_at.
+  await setup.query('ALTER TABLE object_photos RENAME COLUMN created_at TO uploaded_at');
   await install();await setup.query(await readFile(new URL('../../linux/sql/unified/catalog.sql',import.meta.url),'utf8'));await setup.query(await readFile(new URL('../../linux/sql/unified/survey.sql',import.meta.url),'utf8'));
   const db=dbAPI.createUnifiedDatabase(config),service=api.createSurveyService({database:db,files:{},taskReferences:{async assertPhotoMutable(){}}}),social=community.createCommunityService({database:db});
   const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A',objectCode:'B1',objectType:'building'},context={teachingProjectId:c.teachingProjectId,villageId:c.villageId,spaceId:c.spaceId};let seq=0;
