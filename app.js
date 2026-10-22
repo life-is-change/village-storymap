@@ -7806,6 +7806,7 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
   const editObjectType = getEditNamespaceObjectType(baseObjectType, currentSpaceId);
   const photoObjectType = getPhotoNamespaceObjectType(baseObjectType, currentSpaceId);
   const objectCommentDeps = window.ObjectInfoDepsModule.createObjectCommentDeps({
+    services: window.VillageBusinessServices,
     getClient: () => supabaseClient,
     getContext: () => ({
       teachingProjectId: activeVillageContext?.teachingProjectId,

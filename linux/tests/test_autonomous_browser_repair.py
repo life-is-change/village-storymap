@@ -47,13 +47,30 @@ def test_photo_authorization_patch_only_targets_registered_photo_files():
     assert 'GRANT ' not in sql and 'ALTER TABLE' not in sql
 
 
-def test_upgrade_requires_exact_prior_overlay_receipt_and_file_tree(tmp_path):
-    m=module();root=tmp_path/'files'/m.PREVIOUS_PATCH;root.mkdir(parents=True,mode=0o700)
+@pytest.mark.parametrize('version',[1,2])
+def test_upgrade_requires_exact_prior_overlay_receipt_and_file_tree(tmp_path,version):
+    m=module();patch=m.PREVIOUS_PATCH if version==1 else m.PREVIOUS_PHOTO_PATCH
+    root=tmp_path/'files'/patch;root.mkdir(parents=True,mode=0o700)
     (root/'web').mkdir(mode=0o700);(root/'web/index.html').write_bytes(b'original overlay')
-    manifest={'features/villages/village-client.js':'a'*64,'admin.js':'b'*64,'app-3d.js':'c'*64}
+    manifest={'features/villages/village-client.js':'a'*64,'admin.js':'b'*64,'app-3d.js':'c'*64,'app.js':'e'*64,'features/object-collaboration/object-info-deps.js':'f'*64}
     meta={'releaseId':'test-release'}
-    m.storage.write_private_json(root/'receipt.json',{'releaseId':'test-release','files':{'features/villages/village-client.js':'a'*64},'sql_sha256':'d'*64,'phase':'served_verified_browser_login_pending'})
+    expected={'features/villages/village-client.js':'a'*64}
+    if version==2:expected.update({'admin.js':'b'*64,'app-3d.js':'c'*64})
+    m.storage.write_private_json(root/'receipt.json',{'releaseId':'test-release','files':expected,'sql_sha256':'d'*64,'phase':'served_verified_browser_login_pending'})
     m.storage.write_private_json(root/'overlay-proof.json',{'tree_sha256':m.tree_digest(root/'web')})
-    assert m.previous_overlay(tmp_path,meta,manifest,'d'*64)==root/'web'
+    assert m.previous_overlay(tmp_path,meta,manifest,'d'*64,patch)==root/'web'
     (root/'web/index.html').write_bytes(b'changed')
-    with pytest.raises(ValueError,match='PREVIOUS_BROWSER_PATCH_CHANGED'):m.previous_overlay(tmp_path,meta,manifest,'d'*64)
+    with pytest.raises(ValueError,match='PREVIOUS_BROWSER_PATCH_CHANGED'):m.previous_overlay(tmp_path,meta,manifest,'d'*64,patch)
+
+
+def test_h001_repair_is_a_scoped_pending_baseline_not_a_geometry_or_history_reset():
+    m=module();sql=m.h001_sql(S.parents[1],apply=True)
+    check=m.h001_sql(S.parents[1],apply=False)
+    assert '__APPLY__' not in sql and 'IF false THEN' in check
+    assert "'H001','pending',0,false" in sql
+    assert 'b.teaching_project_id=target_space.teaching_project_id' in sql
+    assert 'b.village_id=target_space.village_id AND b.space_id=target_space.id' in sql
+    assert "b.version_type='initial'" in sql
+    assert 'H001_UNIQUE_SHARED_CONTEXT_REQUIRED' in sql
+    assert 'H001_EXISTING_REVIEW_CHANGED' in sql
+    assert not any(term in sql for term in ('UPDATE ', 'DELETE FROM', 'GRANT ', 'ALTER TABLE', 'confirmed_unchanged'))

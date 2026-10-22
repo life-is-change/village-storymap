@@ -127,6 +127,10 @@ def main():
             for pdf in (Path(target)/'assets/lessons').glob('lesson*.pdf'):pdf.unlink()
             client=Path(target)/'features/villages/village-client.js'
             client.write_text(client.read_text().replace("call('catalog.listSpaces',{teachingProjectId:input.teachingProjectId,villageId:input.villageId})","call('catalog.listSpaces',input)"))
+            app=Path(target)/'app.js'
+            app.write_text(app.read_text().replace('createObjectCommentDeps({\n    services: window.VillageBusinessServices,','createObjectCommentDeps({'))
+            deps=Path(target)/'features/object-collaboration/object-info-deps.js'
+            deps.write_text(deps.read_text().replace('services, getClient','getClient'))
             return result
         assembler.stage_autonomous=legacy_browser_stage
         old_builder.verified_ci=lambda *args,**kwargs:{'native_run_id':1,'native_status':'success','platform_run_id':2,'platform_status':'success','fixture_only':True}
@@ -361,7 +365,7 @@ def main():
             previous_root.mkdir(mode=0o700)
             shutil.copytree(release/'web',previous_root/'web',copy_function=shutil.copyfile)
             for p in [previous_root/'web',*(previous_root/'web').rglob('*')]:p.chmod(0o700 if p.is_dir() else 0o600)
-            previous_files={k:v for k,v in browser_repair.inputs(repo).items() if k not in ('admin.js','app-3d.js')}
+            previous_files=browser_repair.previous_manifest(browser_repair.inputs(repo),browser_repair.PREVIOUS_PATCH)
             for name,value in previous_files.items():
                 p=previous_root/'web'/name;p.parent.mkdir(parents=True,mode=0o700,exist_ok=True);p.write_bytes(value);p.chmod(0o600)
             previous_sql=browser_repair.photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
@@ -389,15 +393,49 @@ def main():
             except probe.old.TransportFailure as error:
                 if error.code!='FORBIDDEN':raise
             else:raise ValueError('LEGACY_ADMIN_PHOTO_DENIAL_NOT_REPRODUCED')
+            # Reject a globally matching H001 snapshot from a different space.
+            # This deliberate transaction rolls back on the required error.
+            before_legacy=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.planning_features f;")
+            before_history=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.feature_versions f;")
+            before_photos=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.object_photos f;")
+            try:d.sql("BEGIN; UPDATE public.feature_snapshots SET space_id='A' WHERE id='d1b00000-0000-4000-8000-000000000001';"+browser_repair.h001_sql(repo,apply=True)+'COMMIT;')
+            except RuntimeError:pass
+            else:raise ValueError('FOREIGN_H001_BASELINE_WAS_ACCEPTED')
+            if d.sql("SELECT count(1) FROM public.survey_feature_reviews WHERE object_code='H001';").strip()!='0':raise ValueError('H001_PREFLIGHT_WROTE_ROWS')
             browser_repair.load_script=load
+            browser_repair.repair(state,repo,docker=d)
             result=browser_repair.repair(state,repo,apply=True,docker=d)
-            if result['status']!='photo_permissions_and_deleted_building_handoff_repaired_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
+            if result['status']!='h001_review_and_local_comments_repaired_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
             browser_repair.repair(state,repo,apply=True,docker=d)
+            if before_legacy!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.planning_features f;"):raise ValueError('LEGACY_GEOMETRY_CHANGED_DURING_REPAIR')
+            if before_history!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.feature_versions f;"):raise ValueError('LEGACY_HISTORY_CHANGED_DURING_REPAIR')
+            h001={'teachingProjectId':'00000000-0000-4000-8000-000000000003','villageId':'00000000-0000-4000-8000-000000000001',
+                  'spaceId':'practice-shared-00000000-0000-4000-8000-000000000003','layerKey':'building','objectCode':'H001'}
+            def local_call(action,body):
+                route=api.routes[action]
+                return api.request(api.base+route['path'],actor,method=route['method'],data=body)['data']
+            review=local_call('survey.getReview',h001)
+            if (review['geometry_status'],review['geometry_revision'],review['is_v0_baseline'])!=('pending',0,True):raise ValueError('H001_WAS_NOT_PENDING_BASELINE')
+            change={'action':'delete','layerKey':'building','objectCode':'H001','expectedGeometryRevision':0}
+            save={k:v for k,v in h001.items() if k not in ('layerKey','objectCode')}
+            import uuid
+            try:local_call('planning.saveBatch',{**save,'changes':[{**change,'lockToken':str(uuid.uuid4())}],'summary':'TEST H001 delete','note':'TEST','requestId':str(uuid.uuid4())})
+            except probe.old.TransportFailure:pass
+            else:raise ValueError('H001_DELETE_WITHOUT_LEASE_ALLOWED')
+            lease=local_call('planning.acquireLock',h001)
+            local_call('planning.saveBatch',{**save,'changes':[{**change,'lockToken':lease['lockToken']}],'summary':'TEST H001 delete','note':'TEST','requestId':str(uuid.uuid4())})
+            local_call('planning.releaseLock',{**h001,'lockToken':lease['lockToken']})
+            browser_repair.repair(state,repo,apply=True,docker=d)
+            review=local_call('survey.getReview',h001)
+            if (review['geometry_status'],review['geometry_revision'],review['is_deleted'])!=('deleted',1,True):raise ValueError('H001_DELETE_WAS_RESET')
+            if d.sql("SELECT count(1) FROM public.feature_versions WHERE space_id='practice-shared-00000000-0000-4000-8000-000000000003' AND layer_key='building' AND object_code='H001' AND action='delete';").strip()!='1':raise ValueError('H001_DELETE_HISTORY_REQUIRED')
+            if before_photos!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.object_photos f;"):raise ValueError('LEGACY_PHOTOS_CHANGED_DURING_DELETE')
             photos=api.request(api.base+route['path'],actor,method=route['method'],data={})['data']
             if not isinstance(photos,list):raise ValueError('LEGACY_PHOTOS_NOT_REPAIRED')
             photo_bytes=api.request(api.base+'/api/v1/files/'+legacy_id,actor,binary=True)
             if photo_bytes!=payload:raise ValueError('ADMIN_LEGACY_PHOTO_READ_FAILED')
             print('PUBLIC_BROWSER_ENTRY_LESSONS_PHOTO_COMPATIBILITY_VERIFIED',flush=True)
+            print('H001_BASELINE_REPAIR_LEASED_DELETE_HISTORY_AND_REPEAT_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

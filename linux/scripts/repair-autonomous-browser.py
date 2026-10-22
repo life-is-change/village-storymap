@@ -17,8 +17,10 @@ from autonomous_bundle import load_script
 from autonomous_extract import tree_digest
 from autonomous_operator import Docker, WEB, API, AUTH, PG, operation_lock, verified_runtime
 
-PATCH='browser-20261022-v2'
+PATCH='browser-20261022-v3'
 PREVIOUS_PATCH='browser-20261022-v1'
+PREVIOUS_PHOTO_PATCH='browser-20261022-v2'
+COMMENT_FILES=('app.js','features/object-collaboration/object-info-deps.js')
 LEGACY_PHOTO_GATE='AND api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id)) INTO allowed;'
 ADMIN_PHOTO_GATE="AND (api_private.current_role()='admin' OR api_private.context_accessible(x.teaching_project_id,x.village_id,x.space_id))) INTO allowed;"
 LEGACY_LOCAL_GATE='ELSE PERFORM api_private.file_guard(s.purpose,s.context,false);END IF;'
@@ -62,10 +64,16 @@ def file_sql(files):
     return '\n'.join(parts)+'\n'
 
 
-def previous_overlay(state,meta,manifest,sql_hash):
-    root=storage.private_path(state/'files'/PREVIOUS_PATCH,directory=True)
+def previous_manifest(manifest,patch):
+    excluded=COMMENT_FILES+(('admin.js','app-3d.js') if patch==PREVIOUS_PATCH else ())
+    if patch not in (PREVIOUS_PATCH,PREVIOUS_PHOTO_PATCH):raise ValueError('KNOWN_PREVIOUS_PATCH_REQUIRED')
+    return {name:value for name,value in manifest.items() if name not in excluded}
+
+
+def previous_overlay(state,meta,manifest,sql_hash,patch=PREVIOUS_PATCH):
+    root=storage.private_path(state/'files'/patch,directory=True)
     receipt=storage.read_private_json(root/'receipt.json')
-    expected={name:value for name,value in manifest.items() if name not in ('admin.js','app-3d.js')}
+    expected=previous_manifest(manifest,patch)
     if (receipt.get('releaseId')!=meta['releaseId'] or receipt.get('files')!=expected
             or receipt.get('sql_sha256')!=sql_hash or receipt.get('phase')!='served_verified_browser_login_pending'
             or tree_digest(root/'web')!=storage.read_private_json(root/'overlay-proof.json').get('tree_sha256')):
@@ -94,7 +102,7 @@ def immutable_write(path,data):
 
 def inputs(source):
     source=storage.no_links(source)
-    paths=['features/villages/village-client.js','admin.js','app-3d.js',*[f'assets/lessons/lesson{i:02}.pdf' for i in range(1,8)]]
+    paths=['features/villages/village-client.js','admin.js','app-3d.js',*COMMENT_FILES,*[f'assets/lessons/lesson{i:02}.pdf' for i in range(1,8)]]
     result={}
     for name in paths:
         path=storage.no_links(source/name)
@@ -109,6 +117,11 @@ def inputs(source):
                 raise ValueError('FIXED_ENTRY_ADAPTER_REQUIRED')
         result[name]=data
     return result
+
+
+def h001_sql(source,*,apply):
+    text=storage.no_links(source/'linux/sql/legacy-h001-review-repair.sql').read_text(encoding='utf-8')
+    return text.replace('__APPLY__','true' if apply else 'false')
 
 
 def check_served(path,expected,port):
@@ -146,12 +159,16 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
         expected_mount=next(v['source'] for v in document['services']['web']['volumes'] if v.get('target')=='/srv/village-web')
         data=inputs(source)
         old_sql=photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
-        sql=old_sql.removesuffix('COMMIT;\n')+file_sql((release/'schema/files.sql').read_text())+'COMMIT;\n'
+        photo_patch_sql=old_sql.removesuffix('COMMIT;\n')+file_sql((release/'schema/files.sql').read_text())+'COMMIT;\n'
+        sql=photo_patch_sql.removesuffix('COMMIT;\n')+h001_sql(source,apply=True)+'\nCOMMIT;\n'
         frozen_sql_hash=hashlib.sha256(sql.encode()).hexdigest()
         manifest={name:hashlib.sha256(value).hexdigest() for name,value in data.items()}
         original_source=release/'web'
-        if expected_mount==str(state/'files'/PREVIOUS_PATCH/'web'):
-            original_source=previous_overlay(state,meta,manifest,hashlib.sha256(old_sql.encode()).hexdigest())
+        prior_hashes={PREVIOUS_PATCH:hashlib.sha256(old_sql.encode()).hexdigest(),
+                      PREVIOUS_PHOTO_PATCH:hashlib.sha256(photo_patch_sql.encode()).hexdigest()}
+        for patch,sql_hash in prior_hashes.items():
+            if expected_mount==str(state/'files'/patch/'web'):
+                original_source=previous_overlay(state,meta,manifest,sql_hash,patch)
         updated=overlay_compose(document,root,original_source=original_source)
         identity={'releaseId':meta['releaseId'],'files':manifest,'sql_sha256':frozen_sql_hash}
         receipt_path=root/'receipt.json'
@@ -160,10 +177,12 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
         allowed_mounts={expected_mount}
         if expected_mount==str(root/'web') and receipt.get('phase')=='sql_repaired':
             allowed_mounts.add(str(release/'web'))
-            if (state/'files'/PREVIOUS_PATCH).exists():allowed_mounts.add(str(previous_overlay(state,meta,manifest,hashlib.sha256(old_sql.encode()).hexdigest())))
+            for patch,sql_hash in prior_hashes.items():
+                if (state/'files'/patch).exists():allowed_mounts.add(str(previous_overlay(state,meta,manifest,sql_hash,patch)))
         mounts=[v for v in web.get('Mounts',[]) if v.get('Destination')=='/srv/village-web']
         if len(mounts)!=1 or mounts[0].get('RW') is not False or mounts[0].get('Source') not in allowed_mounts:raise ValueError('RUNNING_WEB_MOUNT_CHANGED')
-        if not apply:return {'status':'browser_repair_preflight_passed_no_changes','lessons':7}
+        docker.sql('BEGIN READ ONLY; SET LOCAL statement_timeout=\'10s\';'+h001_sql(source,apply=False)+'COMMIT;')
+        if not apply:return {'status':'browser_repair_preflight_passed_no_changes','lessons':7,'h001_baseline_verified':True}
         root.mkdir(parents=True,mode=0o700,exist_ok=True);storage.private_path(root,directory=True)
         if not receipt:
             # Before any schema or serving change, take a verified own snapshot.
@@ -186,7 +205,7 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
             storage.write_private_json(root/'overlay-proof.json',{'tree_sha256':tree_digest(overlay)})
         if tree_digest(overlay)!=storage.read_private_json(root/'overlay-proof.json')['tree_sha256']:raise ValueError('WEB_OVERLAY_CHANGED')
         before_ids={name:docker.own_container(name,meta['releaseId'])['Id'] for name in (API,AUTH,PG)}
-        docker.sql(sql)
+        docker.sql(sql.replace('BEGIN;','BEGIN; SET LOCAL statement_timeout=\'15s\'; SET LOCAL lock_timeout=\'3s\';',1))
         receipt['phase']='sql_repaired';storage.write_private_json(receipt_path,receipt)
         storage.write_private_json(state/'compose.json',updated)
         docker.run('compose','-f',state/'compose.json','up','-d','--no-deps','--no-build','--pull','never','web')
@@ -200,7 +219,7 @@ def repair(state,source,*,apply=False,docker=None,check_http=check_served):
         if before_ids!={name:docker.own_container(name,meta['releaseId'])['Id'] for name in (API,AUTH,PG)}:raise ValueError('OTHER_SERVICES_CHANGED')
         if tree_digest(release/'web')!=meta['static_sha256'] or tree_digest(state/'control')!=meta['control_sha256']:raise ValueError('FROZEN_RELEASE_CHANGED')
         receipt['phase']='served_verified_browser_login_pending';storage.write_private_json(receipt_path,receipt)
-        return {'status':'photo_permissions_and_deleted_building_handoff_repaired_browser_check_required','lessons':7,'other_services_retained':True}
+        return {'status':'h001_review_and_local_comments_repaired_browser_check_required','lessons':7,'other_services_retained':True}
 
 
 def main():

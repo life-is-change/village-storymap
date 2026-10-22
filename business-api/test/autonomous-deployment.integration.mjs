@@ -52,6 +52,21 @@ test('full committed coordinator preserves imported accounts and real business f
   for(const [index,bucket] of ['house-photos','geoprocessing-results','facade-generation'].entries())await setup.query(
    "INSERT INTO storage.objects(id,bucket_id,name,metadata,version) VALUES($1,$2,'fixture/legacy.bin',$3::jsonb,'fixture-v1')",
    ['d1a00000-0000-4000-8000-00000000000'+(index+1),bucket,JSON.stringify({size:Buffer.byteLength('synthetic legacy private bytes\n')})]);
+  // Reproduce the user's legacy H001: restored geometry and initial snapshot,
+  // one shared context with a published dataset, but no review index entry.
+  await setup.query(`INSERT INTO villages(id,name,status) VALUES('00000000-0000-4000-8000-000000000001','Legacy TEST village','published');
+   INSERT INTO teaching_projects(id,course_id,name,stage,practice_village_id,created_by)
+    VALUES('00000000-0000-4000-8000-000000000003','course','Legacy TEST project','completed','00000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000004');
+   INSERT INTO village_datasets(id,village_id,version_number,version_label,source_kind,status,created_by)
+    VALUES('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000001',1,'Legacy TEST baseline','uploaded_bundle','published','40000000-0000-4000-8000-000000000004');
+   INSERT INTO planning_spaces(id,title,course_id,space_type,teaching_project_id,village_id,base_dataset_id)
+    VALUES('practice-shared-00000000-0000-4000-8000-000000000003','Legacy TEST shared','course','practice_shared','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002');
+   INSERT INTO planning_features(space_id,layer_key,object_code,object_name,geom,props,teaching_project_id,village_id)
+    SELECT 'practice-shared-00000000-0000-4000-8000-000000000003','building','H001','Legacy TEST H001',geom,props,'00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000001' FROM planning_features WHERE space_id='A' AND object_code='B1';
+   INSERT INTO feature_snapshots(id,space_id,version_name,version_type,created_by,teaching_project_id,village_id)
+    VALUES('d1b00000-0000-4000-8000-000000000001','practice-shared-00000000-0000-4000-8000-000000000003','Legacy TEST V0','initial','TEST','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000001');
+   INSERT INTO feature_snapshot_items(snapshot_id,layer_key,object_code,geom,props)
+    SELECT 'd1b00000-0000-4000-8000-000000000001',layer_key,object_code,geom,props FROM planning_features WHERE space_id='practice-shared-00000000-0000-4000-8000-000000000003' AND object_code='H001';`);
   const child=spawnSync('python3',['linux/scripts/test-autonomous-deployment-ci.py'],{encoding:'utf8',timeout:1200000,maxBuffer:2*1024**2});
   console.log(child.stdout?.trim());assert.equal(child.status,0,'DISPOSABLE_COORDINATOR_FAILED '+String(child.stderr??'').slice(-1500));
  },{prepareAuth,authCleanup});
