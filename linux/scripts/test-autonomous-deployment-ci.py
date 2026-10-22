@@ -32,6 +32,7 @@ def main():
     import autonomous_bundle as bundle
     import autonomous_tls as tls
     from autonomous_operator import PG,API,AUTH,WEB,OLD_CANDIDATES,stop_receipt,DATABASE
+    from autonomous_extract import tree_digest
     repo=Path(__file__).resolve().parents[2]
     # Do not repurpose HOME or modify its permissions. Every candidate/input
     # path is explicitly injected into a newly allocated disposable fixture.
@@ -219,6 +220,19 @@ def main():
             phase='coordinator-deploy';result=deploy.deploy(meta,archive,backup,source_files,state=state)
             if result['status']!='autonomous_internal_deployed_not_accepted':raise ValueError('FIXTURE_DEPLOY_STATUS_DIFFERS')
             for name in (PG,API,AUTH,WEB):created.append(name)
+            phase='legacy-frozen-bytecode'
+            control=state/'control';control.chmod(0o700)
+            run(['env','PYTHONDONTWRITEBYTECODE=0',sys.executable,'-c',
+                 'import sys;sys.path.insert(0,sys.argv[1]);import autonomous_operator,autonomous_extract,autonomous_schema',str(control)])
+            if not list((control/'__pycache__').glob('*.pyc')) or tree_digest(control)==meta['control_sha256']:
+                raise ValueError('LEGACY_BYTECODE_DRIFT_NOT_REPRODUCED')
+            cache_repair=load('repair-autonomous-control-cache');cache_repair.load_script=load
+            if cache_repair.repair(state)<1 or cache_repair.repair(state)!=0:raise ValueError('CACHE_QUARANTINE_NOT_IDEMPOTENT')
+            # Exercise actual frozen CLI imports with bytecode writes enabled;
+            # directory permissions must protect timer/direct calls too.
+            run(['env','PYTHONDONTWRITEBYTECODE=0',sys.executable,str(control/'deploy-autonomous.py'),'--help'])
+            if tree_digest(control)!=meta['control_sha256'] or (control/'__pycache__').exists():raise ValueError('FROZEN_CLI_RECREATED_BYTECODE')
+            print('FROZEN_CLI_BYTECODE_QUARANTINE_AND_READONLY_SOURCE_VERIFIED',flush=True)
             phase='coordinator-restart';deploy.verify(meta,state)
             phase='real-local-auth';probe=load('probe-autonomous');d=deploy.DeployDocker(state)
             def restart():

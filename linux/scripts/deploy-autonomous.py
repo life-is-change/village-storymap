@@ -270,6 +270,8 @@ def deploy(meta,archive,backup,storage_root,*,state=STATE):
         control.mkdir(mode=0o700)
         for path in (release/'control').iterdir():write_once(control/path.name,path.read_bytes())
     if tree_digest(control)!=meta['control_sha256']:raise ValueError('FROZEN_CONTROL_RELEASE_DIFFERS')
+    # Timers and direct CLI imports must not add bytecode to an immutable tree.
+    control.chmod(0o500)
     for name in ('bootstrap-password','api-password','auth-jwt','auth-migration-password','auth-runtime-password'):
         path=state/'secrets'/name
         if not path.exists():write_once(path,secrets.token_urlsafe(36)+'\n')
@@ -400,7 +402,7 @@ def main():
         if Path(__file__).parent.name!='control' and (STATE/'release.json').exists():
             deployed=storage.read_private_json(STATE/'release.json')
             if deployed.get('kind')!='autonomous' or tree_digest(STATE/'control')!=deployed.get('control_sha256'):raise ValueError('FROZEN_CONTROL_RELEASE_DIFFERS')
-            os.execv(sys.executable,[sys.executable,str(STATE/'control/deploy-autonomous.py'),*sys.argv[1:]])
+            os.execve(sys.executable,[sys.executable,'-B',str(STATE/'control/deploy-autonomous.py'),*sys.argv[1:]],clean_environment())
         with operation_lock(STATE):
             meta=read_meta()
             if args.mode in ('check','deploy'):

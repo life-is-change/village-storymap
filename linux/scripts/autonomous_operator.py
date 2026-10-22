@@ -32,7 +32,7 @@ OLD_CANDIDATES={
 
 
 def clean_environment():
-    return {k:v for k,v in os.environ.items() if not k.startswith(('DOCKER_','COMPOSE_','PG'))}
+    return {k:v for k,v in os.environ.items() if not k.startswith(('DOCKER_','COMPOSE_','PG'))}|{'PYTHONDONTWRITEBYTECODE':'1'}
 
 
 def resolve_image(docker,accepted):

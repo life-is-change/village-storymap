@@ -8,7 +8,25 @@
 
 发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
-## 当前停在第7步：验收测试空间缺少基础数据集
+## 当前停在测试基线修复之前：冻结目录生成了Python缓存
+
+2026-10-22目标机只读检查确认 `CONTROL_HASH_MATCH=False`、`CONTROL_PYC_COUNT=9`、`FROZEN_CONTROL_CHANGED`。旧控制脚本从冻结目录导入Python模块后会生成 `__pycache__`，而完整目录摘要把缓存也算进去了。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+export PYTHONDONTWRITEBYTECODE=1 &&
+python3 linux/scripts/repair-autonomous-control-cache.py &&
+python3 linux/scripts/repair-autonomous-test-dataset.py &&
+python3 linux/scripts/probe-autonomous.py &&
+python3 linux/scripts/deploy-autonomous.py --apply
+```
+
+缓存恢复工具不连接数据库、不替换冻结源码。它先匹配已发布元数据和独立解包目录的原始摘要，再逐个核对运行控制目录的全部原文件；只允许与这些Python源文件对应的CPython缓存作为额外文件，拒绝源码改动、未知文件、符号链接和硬链接。核验通过后，将整个缓存目录保留到私有 `~/village-autonomous/control-bytecode-quarantine/`，恢复原始完整目录摘要，并把控制目录设为0500，阻止包括定时器在内的后续导入写入缓存。原文件字节和摘要规则保持不变，缓存不会被执行或反序列化。该操作可重复验证，公开切换之后拒绝自动修复。
+
+成功标记 `FROZEN_CONTROL_SOURCE_VERIFIED_CACHE_QUARANTINED count=9`（数量以实际为准）。随后继续已有测试基线修复、网站密码验收和原第8步切换；无需上传镜像、重建数据库或重新申请证书。新构建的控制目录也会自动设为只读，子Python进程禁用字节码写入。
+
+## 第7步测试基线修复
 
 独立候选部署、重启和两次网站登录已通过。真实 `survey_feature_reviews.base_dataset_id` 为必填，而旧版验收模板把测试空间创建为 `practice_shared` 后没有绑定测试基线，导致几何新增事务回滚。不会放宽必填规则；只给固定 `Autonomous TEST` 空间建立一份合成数据集并绑定它。
 
