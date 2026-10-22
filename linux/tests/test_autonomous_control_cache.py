@@ -14,7 +14,8 @@ def fixture(tmp_path,monkeypatch):
  m=module();state=tmp_path/'state';state.mkdir(mode=0o700)
  control=state/'control';control.mkdir(mode=0o700)
  original=state/'releases/autonomous-fixture/control';original.mkdir(parents=True)
- for root in (original,control):(root/'sample.py').write_text('VALUE=1\n')
+ for root in (original,control):
+  (root/'sample.py').write_text('VALUE=1\n');(root/'sample.py').chmod(0o600)
  digest=m.tree_digest(original)
  meta={'kind':'autonomous','schemaVersion':2,'releaseId':'autonomous-fixture','control_sha256':digest,
   'archive_sha256':'a'*64,'schema_sha256':'b'*64,'static_sha256':'c'*64,'code_sha256':'d'*64}
