@@ -138,3 +138,15 @@ def test_preflight_accepts_the_legacy_dirty_runtime_without_opening_old_worker_e
     assert len([a for a in docker.calls if a[0]=='run'])==2
     assert all(a[0]!='exec' and not (a[:2]==('network','connect')) and 'up' not in a for a in docker.calls)
     assert {p.name:p.read_bytes() for p in (runtime/'linux').iterdir()}==original
+
+
+@pytest.mark.skipif(sys.platform=='win32',reason='POSIX in-image access modes')
+def test_private_handoff_code_is_readable_by_the_unchanged_container_uid_only_in_build_copy(tmp_path):
+    import stat
+    m=module();source=tmp_path/'source';package=source/'server/src/village_processing'
+    package.mkdir(parents=True,mode=0o700);p=package/'__init__.py';p.write_bytes(b'pass\n');p.chmod(0o600)
+    (source/'linux').mkdir();(source/'linux/Dockerfile.worker-local-overlay').write_bytes(b'FROM base\n')
+    target=tmp_path/'build';m.stage_code(source,target)
+    assert stat.S_IMODE(p.stat().st_mode)==0o600
+    assert stat.S_IMODE((target/'server/src/village_processing').stat().st_mode)==0o755
+    assert stat.S_IMODE((target/'server/src/village_processing/__init__.py').stat().st_mode)==0o644

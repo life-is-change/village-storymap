@@ -64,6 +64,16 @@ def public_probe_args(image):
         '--security-opt','no-new-privileges:true','--memory','128m','--pids-limit','64','--entrypoint','python',image,'-c',command]
 
 
+def stage_code(source,context):
+    package=context/'server/src/village_processing'
+    package.parent.mkdir(parents=True,mode=0o700)
+    shutil.copytree(source/'server/src/village_processing',package,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+    # Handoff files are private on the host. COPY defaults to root ownership;
+    # the unchanged UID10001 must be able to import the public code in-image.
+    for path in [package,*package.rglob('*')]:path.chmod(0o755 if path.is_dir() else 0o644)
+    shutil.copy2(source/'linux/Dockerfile.worker-local-overlay',context/'Dockerfile')
+
+
 def assert_others(before,after):
     if before!=after:raise ValueError('OTHER_CONTAINER_CHANGED')
 
@@ -182,9 +192,7 @@ def install(docker,state,bundle,commit,*,apply=False,campus_root=ROOT):
     if not apply:return {'status':'campus_preflight_only_not_switched'}
     before=other_containers(docker);source=credentials(bundle,state);key_root=Path('/etc/village-platform')/('aliyun-'+commit[:12])
     install_keys(source,key_root,state)
-    context=state/('build-'+commit[:12]+'-'+secrets.token_hex(8));(context/'server/src').mkdir(parents=True,mode=0o700)
-    shutil.copytree(ROOT/'server/src/village_processing',context/'server/src/village_processing',ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-    shutil.copy2(ROOT/'linux/Dockerfile.worker-local-overlay',context/'Dockerfile')
+    context=state/('build-'+commit[:12]+'-'+secrets.token_hex(8));stage_code(ROOT,context)
     images={}
     for kind in KINDS:
         tag='village-'+kind+'-aliyun:'+commit[:12]
