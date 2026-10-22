@@ -25,9 +25,13 @@ r2 预检在修改任何 Worker 之前拒绝 RENDERED_WORKER_RESOURCES_DIFFER。
 
 图底的 egress 只在替换成 Aliyun Worker 时加入覆盖配置，并保留 backend；不先给旧 Supabase 轮询进程开放网络。预检通过只运行 urllib 的临时受限容器测试目标出网网络，既不读取密钥，也不启动 Worker。随后以独立的 geo/facade 私有凭据、目标UID和真实 httpx TLS 验证身份；实际替换后再次从两个真实容器内验证。预检成功不等于实际容器或GPU验收成功。
 
-阿里云侧已由公开切换生成 `~/village-autonomous/worker-credentials.tar.gz`；如需再次检查，`provision-local-workers.py` 只复用并核对已有凭据，不重新生成。通过受保护的本机文件传输把它放到4090的 `~/worker-credentials.tar.gz`，设为0600，不在聊天粘贴、截图或提交Git。它不是数据库密码、网站密码或 Supabase Secret key。
+用户提出通过 GitHub 传文件后，当前推荐改为4090本机生成私钥、阿里云只登记公开摘要。代码包仍走 GitHub，私钥不上传、不进入聊天，也不需要跨机器下载。旧云端已生成的凭据包保留备用，不覆盖、不自动撤销。
 
-确认预检后，使用 `--apply --source-workers-idle --credentials "$HOME/worker-credentials.tar.gz"`，同时指定原 `--campus-root`。仅以 --no-deps/--no-build/--pull never 更新 geo-worker、facade-worker。原渲染配置（含私密信息，0600）和实际旧镜像写入私有回退材料；再次比较原配置摘要，构建期间有变化则拒绝更新。其他所有容器 ID、镜像与运行状态必须保持相同。新网络配置不会写回旧仓库，后续管理这两个新 Worker 应使用生成的 overlay；不要直接用旧 Compose up 把它们恢复到原队列。
+4090 在代码包内运行 `prepare-campus-local-credentials.py`，两份私钥与兼容安装器的私有包保留于 `~/village-campus-local-keys/`，0600；重复执行要求既有私钥和包一致。仅把输出的 PUBLIC_WORKER_REGISTRATION 转交到阿里云或本聊天；它只包含两个 Worker ID、随机私钥的 SHA256 摘要和种类，不具备 Worker API 调用能力。
+
+阿里云在原 main 源目录拉取更新，运行 `register-campus-local-workers.py --registration-base64 公开登记信息`。工具核对已公开的本机运行实例，在单事务中只增加 campus-local-geo、campus-local-facade 两个身份；旧 campus-geo/facade 保留，新名字已有不同身份或已撤销时拒绝覆盖。云端只存摘要，无法由它还原私钥。登记回执存入私有状态目录，内容只有公开登记信息。4090私有凭据包需本人另存受保护的备份，不能依靠阿里云摘要恢复私钥。
+
+确认预检与云端登记后，使用 `--apply --source-workers-idle --credentials "$HOME/village-campus-local-keys/worker-credentials.tar.gz"`，同时指定原 `--campus-root`。仅以 --no-deps/--no-build/--pull never 更新 geo-worker、facade-worker。原渲染配置（含私密信息，0600）和实际旧镜像写入私有回退材料；再次比较原配置摘要，构建期间有变化则拒绝更新。其他所有容器 ID、镜像与运行状态必须保持相同。新网络配置不会写回旧仓库，后续管理这两个新 Worker 应使用生成的 overlay；不要直接用旧 Compose up 把它们恢复到原队列。
 
 状态保留在 `~/village-campus-autonomous/`。同一凭据包可在替换前的失败后再次核对使用，不清理旧构建或日志。替换回执已存在时只执行 --verify，不盲目重复 apply。回执挂载采用 JSON 稳定结构，避免 tuple/list 序列化差异造成假失败。
 

@@ -436,6 +436,31 @@ def main():
             if photo_bytes!=payload:raise ValueError('ADMIN_LEGACY_PHOTO_READ_FAILED')
             print('PUBLIC_BROWSER_ENTRY_LESSONS_PHOTO_COMPATIBILITY_VERIFIED',flush=True)
             print('H001_BASELINE_REPAIR_LEASED_DELETE_HISTORY_AND_REPEAT_VERIFIED',flush=True)
+            phase='campus-public-registration'
+            create_keys=load('prepare-campus-local-credentials');register_keys=load('register-campus-local-workers')
+            campus_keys=root/'campus-private-keys';campus_keys.mkdir(mode=0o700)
+            public=register_keys.decode(create_keys.prepare(campus_keys))
+            old_workers=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(w) ORDER BY w.id),'[]')::text) FROM api_private.local_gpu_workers w WHERE name IN ('campus-geo','campus-facade');")
+            register_keys.register(state,public,docker=d);register_keys.register(state,public,docker=d)
+            import socket,http.client
+            for kind in ('geo','facade'):
+                key=storage.private_path(campus_keys/('aliyun-'+kind+'.key')).read_text().strip()
+                stream=socket.create_connection(('127.0.0.1',18443),timeout=15)
+                secure=ssl.create_default_context().wrap_socket(stream,server_hostname='8.148.248.237')
+                try:
+                    secure.sendall(('GET /api/worker/v1/identity HTTP/1.1\r\nHost: 8.148.248.237\r\nAuthorization: Bearer '+key+'\r\nConnection: close\r\n\r\n').encode())
+                    response=http.client.HTTPResponse(secure);response.begin()
+                    identity=json.loads(response.read(16385)).get('data')
+                    expected_id=next(r['id'] for r in public['workers'] if r['kind']==kind)
+                    if response.status!=200 or identity!={'workerId':expected_id,'kind':kind,'instanceId':'aliyun-village'}:raise ValueError('CAMPUS_LOCAL_KEY_HTTPS_IDENTITY_FAILED')
+                finally:secure.close()
+            if old_workers!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(w) ORDER BY w.id),'[]')::text) FROM api_private.local_gpu_workers w WHERE name IN ('campus-geo','campus-facade');"):raise ValueError('ORIGINAL_WORKER_IDENTITIES_CHANGED')
+            if d.sql("SELECT count(1) FROM api_private.local_gpu_workers WHERE name IN ('campus-local-geo','campus-local-facade') AND revoked_at IS NULL;").strip()!='2':raise ValueError('CAMPUS_PUBLIC_REGISTRATION_NOT_VERIFIED')
+            changed=json.loads(json.dumps(public));changed['workers'][0]['digest']='a'*64
+            try:register_keys.register(state,changed,docker=d)
+            except ValueError:pass
+            else:raise ValueError('CAMPUS_PUBLIC_REGISTRATION_CHANGED_IDENTITY')
+            print('CAMPUS_LOCAL_KEYS_PUBLIC_DIGEST_REGISTRATION_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))
