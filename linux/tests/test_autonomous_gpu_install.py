@@ -120,7 +120,8 @@ def test_preflight_accepts_the_legacy_dirty_runtime_without_opening_old_worker_e
             'HostConfig':{'ReadonlyRootfs':True,'CapDrop':['ALL']},'Mounts':[],
             'State':{'Running':True},'NetworkSettings':{'Networks':{networks[n]['name']:{} for n in nets}}}
         services[kind+'-worker']={'image':'old-tag-'+kind,'user':'10001:10001','read_only':True,'cap_drop':['ALL'],
-            'command':['python','-m','village_processing',kind],'environment':{'PRIVATE':'secret'},'volumes':[],'networks':nets}
+            'command':['python','-m','village_processing',kind] if kind=='geo' else None,
+            'entrypoint':None,'environment':{'PRIVATE':'secret'},'volumes':[],'networks':nets}
     class Docker:
         calls=[]
         def inspect(self,name):return rows[name]
@@ -165,3 +166,26 @@ def test_only_the_confirmed_geo_egress_drift_is_accepted_without_weakening_resou
     with pytest.raises(ValueError):m.validate_rendered(row,service,networks,image,kind='geo')
     service.pop('environment');row['NetworkSettings']['Networks']={}
     with pytest.raises(ValueError):m.validate_rendered(row,service,networks,image,kind='geo')
+
+
+def test_compose_null_inherits_image_pipeline_but_explicit_changes_are_rejected():
+    import copy
+    m=module();row={'Config':{'User':'10001:10001','Cmd':['python','-m','worker'],
+        'Entrypoint':['/entrypoint'],'Env':[]},'HostConfig':{'ReadonlyRootfs':True,'CapDrop':['ALL']},
+        'Mounts':[],'NetworkSettings':{'Networks':{}}}
+    image={'Config':copy.deepcopy(row['Config'])}
+    service={'user':'10001:10001','read_only':True,'cap_drop':['ALL'],'command':None,'entrypoint':None}
+    m.validate_rendered(row,service,{},image)
+    for field in ('command','entrypoint'):
+        for changed in ([], '', ['different']):
+            with pytest.raises(ValueError,match='RENDERED_WORKER_PIPELINE_DIFFERS'):
+                m.validate_rendered(row,{**service,field:changed},{},image)
+    changed=copy.deepcopy(row);changed['Config']['Cmd']=['changed-runtime']
+    with pytest.raises(ValueError,match='RENDERED_WORKER_PIPELINE_DIFFERS'):
+        m.validate_rendered(changed,service,{},image)
+    # A non-null entrypoint suppresses the image CMD according to Compose.
+    service['entrypoint']=['/entrypoint']
+    with pytest.raises(ValueError,match='RENDERED_WORKER_PIPELINE_DIFFERS'):
+        m.validate_rendered(row,service,{},image)
+    row['Config']['Cmd']=None
+    m.validate_rendered(row,service,{},image)

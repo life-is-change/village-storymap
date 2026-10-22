@@ -159,7 +159,12 @@ def validate_rendered(row,service,networks,image,*,kind=None):
     if env!=current or sorted(mounts)!=snapshot_worker(row)['mounts'] or not networks_match:
         raise ValueError('RENDERED_WORKER_RESOURCES_DIFFER')
     for key,field in [('command','Cmd'),('entrypoint','Entrypoint')]:
-        if service.get(key,base.get(field))!=actual.get(field):raise ValueError('RENDERED_WORKER_PIPELINE_DIFFERS')
+        # Compose renders inherited image defaults as explicit null values.
+        # Empty lists/strings remain explicit overrides, never inheritance.
+        expected=service.get(key)
+        if expected is None:
+            expected=None if key=='command' and service.get('entrypoint') is not None else base.get(field)
+        if expected!=actual.get(field):raise ValueError('RENDERED_WORKER_PIPELINE_DIFFERS')
     if service.get('user',base.get('User'))!=actual['User'] or bool(service.get('read_only'))!=row['HostConfig'].get('ReadonlyRootfs') or sorted(service.get('cap_drop',[]))!=sorted(row['HostConfig'].get('CapDrop') or []):raise ValueError('RENDERED_WORKER_SECURITY_DIFFERS')
 
 

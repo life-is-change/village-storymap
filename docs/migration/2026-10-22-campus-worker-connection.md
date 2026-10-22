@@ -15,6 +15,10 @@
 
 r2 预检在修改任何 Worker 之前拒绝 RENDERED_WORKER_RESOURCES_DIFFER。用户逐项只读诊断确认两种 Worker 的 ENV_DIFFER 均为空、MOUNTS_MATCH 均为 True，facade 网络完全匹配；geo 配置已声明 backend+egress，实际旧容器仅有 backend。r3 因此只对 geo 接受“缺少这一条既定 egress”差异，不能接受 backend 消失、额外网络、环境、挂载或 facade 差异。最终替换仍沿用原配置中已经声明的 egress；私有回退配置按实际旧网络记录，不把尚未生效的 egress 误记为旧状态。
 
+r4 实际预检继续在 RENDERED_WORKER_PIPELINE_DIFFERS 停止，未执行私钥生成。用户只读比较确认 geo 命令完全一致；facade 的 Compose command 显式为 null，实际命令非空且与镜像默认 Cmd 完全相同，两者 entrypoint 都为 null。安装器原先错误地把显式 null 当成覆盖，现按 [Docker Compose 规范](https://docs.docker.com/reference/compose-file/services/#command) 继承镜像默认值；空列表、空字符串仍是明确覆盖，真正不同的命令继续拒绝。非 null entrypoint 不继承镜像 Cmd。回归同时覆盖这套真实的混合渲染形式，原镜像、命令与容器未改。
+
+r4 的原生 CI 39796572452 在新登记验收阶段访问已关闭的候选18443端口，返回 ConnectionRefusedError；此时夹具已将公开入口切到443，业务请求通过。登记测试改为使用同一个 api.port 当前入口，仍保留真实 TLS 校验和两种 Worker 私钥身份检查，不跳过验收。此错误发生在合成 CI 环境，没有对真实阿里云或校园容器执行操作。
+
 最初“未找到命令”和 docker ps accepts no arguments 并非 Docker 未安装；多条命令粘成一行且缺少连接符，使后续命令成了 docker ps 参数。后续每次给一条可直接复制的命令。
 
 ## 接入方式

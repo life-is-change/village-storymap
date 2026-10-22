@@ -445,7 +445,9 @@ def main():
             import socket,http.client
             for kind in ('geo','facade'):
                 key=storage.private_path(campus_keys/('aliyun-'+kind+'.key')).read_text().strip()
-                stream=socket.create_connection(('127.0.0.1',18443),timeout=15)
+                # The fixture has already switched from candidate TLS to its
+                # public listener. Use the same current port as business reads.
+                stream=socket.create_connection(('127.0.0.1',api.port),timeout=15)
                 secure=ssl.create_default_context().wrap_socket(stream,server_hostname='8.148.248.237')
                 try:
                     secure.sendall(('GET /api/worker/v1/identity HTTP/1.1\r\nHost: 8.148.248.237\r\nAuthorization: Bearer '+key+'\r\nConnection: close\r\n\r\n').encode())
