@@ -32,3 +32,5 @@
 ## 验证边界
 
 本机与 CI 测试覆盖旧分支部署目录分离、仅图底补 egress、临时 HTTPS 探测不启动旧队列、凭据原样复用、回执保存后比较，以及代码包内容/摘要/路径限制。没有从 Windows 访问真实校园 Docker、请求提供商或运行GPU。真实验收还需两个 Worker 的身份连接成功，并在阿里云站点各完成一项已授权的小型图底任务和白模贴图任务，确认输入下载、状态、结果回传和空间导入。
+
+当前公开代码包为 `linux/releases/village-campus-worker-20261022.tar.gz`，207828字节，源码提交 `6bf003e209863ee59c062d9894863b77fb8a1ea7`，SHA256 `955b7dbb3649a62a1b0d74331f99fa18bdceeaabe6db72ec72a9d46af234ee52`。本机解包后逐文件验证并实际运行安装器 --help，未生成源码缓存或修改源码。包内无密钥，私有 Worker 凭据另行传输；不要把公开代码包与 worker-credentials.tar.gz 混淆。

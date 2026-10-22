@@ -42,3 +42,22 @@ def test_export_contains_committed_code_only_with_portable_safe_tar_members(tmp_
         assert set(record['files'])==set(paths[:4])
     for name in ('linux/gpu.env','../bad.py','/linux/scripts/a.py','linux/scripts/../../bad.py'):
         assert not allowed(name)
+
+
+def test_published_worker_code_archive_matches_its_download_receipt_and_every_source_digest():
+    root=S.parents[1];record=json.loads((root/'linux/campus-worker-release.json').read_text())
+    path=root/'linux/releases'/record['archive_filename']
+    assert path.stat().st_size==record['archive_bytes']
+    assert hashlib.sha256(path.read_bytes()).hexdigest()==record['archive_sha256']
+    with tarfile.open(path) as tar:
+        members=tar.getmembers();prefix=record['directory']+'/'
+        assert sum(m.size for m in members)<20*1024**2
+        assert all(m.isfile() or m.isdir() for m in members)
+        assert all(m.name==record['directory'] or m.name.startswith(prefix) for m in members)
+        manifest=json.load(tar.extractfile(prefix+'worker-source.json'))
+        assert manifest['commit']==record['source_commit']
+        files={m.name[len(prefix):]:tar.extractfile(m).read() for m in members if m.isfile() and not m.name.endswith('/worker-source.json')}
+        assert set(files)==set(manifest['files'])
+        for name,data in files.items():
+            assert allowed(name)
+            assert hashlib.sha256(data).hexdigest()==manifest['files'][name]
