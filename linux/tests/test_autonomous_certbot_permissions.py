@@ -103,3 +103,30 @@ def test_unknown_dropin_is_not_overwritten_or_installed(tmp_path):
     calls = []
     with pytest.raises(ValueError): m.install_hooks(state, 'admin', units=units, run=lambda *args: calls.append(args))
     assert not calls and existing.read_text() == 'unrelated dropin'
+
+
+@pytest.mark.parametrize('mode,expected', [(0o400,0o400),(0o500,0o500),(0o700,0o700),
+    (0o600,0o600),(0o644,0o600),(0o640,0o600),(0o444,0o400)])
+def test_private_mode_policy_preserves_owner_bits_and_only_removes_external_reads(mode,expected):
+    assert module().private_mode(mode) == expected
+
+
+@pytest.mark.parametrize('mode', [0o664,0o666,0o755,0o200,0o4600,0o2600,0o1600])
+def test_private_mode_policy_rejects_writable_public_executable_special_or_unreadable_files(mode):
+    with pytest.raises(ValueError,match='CERTBOT_FILE_MODE_REQUIRED'):
+        module().private_mode(mode)
+
+
+@pytest.mark.skipif(os.name != 'posix', reason='POSIX preserved owner modes')
+def test_repair_leaves_private_readonly_key_and_private_executable_hook_unchanged(tmp_path):
+    m = module(); state = tmp_path / 'state'; state.mkdir(mode=0o700)
+    root, target = fixture(state)
+    key = target.with_name('privkey1.pem'); key.write_bytes(b'private synthetic key'); key.chmod(0o400)
+    hook = root / 'renewal-hooks/deploy/private-hook'
+    hook.parent.mkdir(parents=True, mode=0o700)
+    hook.write_bytes(b'#!/bin/sh\nexit 0\n'); hook.chmod(0o500)
+    assert m.repair(state) == 1
+    assert key.stat().st_mode & 0o777 == 0o400
+    assert hook.stat().st_mode & 0o777 == 0o500
+    assert key.read_bytes() == b'private synthetic key'
+    assert hook.read_bytes() == b'#!/bin/sh\nexit 0\n'

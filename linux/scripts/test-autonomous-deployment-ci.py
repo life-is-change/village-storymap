@@ -283,6 +283,8 @@ def main():
             for index in range(8):
                 path=cert_config/('synthetic-certbot-'+str(index)+'.pem')
                 path.write_bytes(b'SYNTHETIC CERTBOT PUBLIC BYTES\n');path.chmod(0o644);cert_files.append(path)
+            readonly_key=cert_config/'synthetic-readonly-key.pem'
+            readonly_key.write_bytes(b'SYNTHETIC READONLY PRIVATE BYTES\n');readonly_key.chmod(0o400)
             # Reproduce the precise mismatch: layout accepts Certbot's public
             # files, but the frozen final digest requires private permissions.
             own_backup.backup_layout(state,meta)
@@ -294,6 +296,8 @@ def main():
             with repair_permissions.tls_lock(state):
                 if repair_permissions.repair(state)!=8:raise ValueError('CERTBOT_REPAIR_COUNT_DIFFERS')
             if tree_digest(state/'control')!=frozen_before:raise ValueError('CERTBOT_REPAIR_CHANGED_CONTROL')
+            if readonly_key.stat().st_mode&0o777!=0o400 or storage.digest_file(readonly_key)!=(hashlib.sha256(b'SYNTHETIC READONLY PRIVATE BYTES\n').hexdigest(),len(b'SYNTHETIC READONLY PRIVATE BYTES\n')):
+                raise ValueError('CERTBOT_READONLY_KEY_CHANGED')
             for path in cert_files:
                 if storage.digest_file(path)!=(hashlib.sha256(b'SYNTHETIC CERTBOT PUBLIC BYTES\n').hexdigest(),len(b'SYNTHETIC CERTBOT PUBLIC BYTES\n')):
                     raise ValueError('CERTBOT_REPAIR_CHANGED_BYTES')

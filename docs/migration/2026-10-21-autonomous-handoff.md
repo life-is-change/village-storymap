@@ -223,7 +223,7 @@ python3 linux/scripts/install-autonomous-workers.py \
 
 若 `RUNTIME=OK`、`TASKS_IDLE=OK`、公网尚未切换，备份已导出但 `backup.json` 未生成，且诊断为 `DIGEST_REJECTED_GROUP=certbot-production mode=0o644`，不要清理备份或重做数据库导入。Certbot 的公开证书/说明文件可为0644，旧备份最后的摘要检查则要求0600。
 
-拉取当前 main 后执行 `python3 linux/scripts/repair-autonomous-certbot-permissions.py`。它先验证全部 Certbot 文件为当前用户拥有的普通单硬链接文件，以及仅有固定证书目录的规范 live 链接，再将0644收紧为0600并核对内容摘要。冻结控制器和发布元数据保持原样。
+拉取当前 main 后执行 `python3 linux/scripts/repair-autonomous-certbot-permissions.py`。它先验证全部 Certbot 文件为当前用户拥有的普通单硬链接文件，以及仅有固定证书目录的规范 live 链接，再将0644收紧为0600并核对内容摘要。0400只读私钥等已私有文件保留原权限，不增加所有者写权限，也不移除私有续期钩子的执行位；组/其他用户可写、特殊位、公开可执行文件仍会被拒绝。冻结控制器和发布元数据保持原样。
 
 工具还安装两个独立 systemd drop-in：证书续期服务成功后、备份服务开始前运行同一份按内容摘要命名的私有权限检查器。检查器只使用标准库、共享 TLS 锁，不依赖日后变化的 Git 工作区；不替换主服务、不启动或重启容器。已有未知主服务或同名 drop-in 会拒绝覆盖。续期与备份恰好冲突时保留锁和备份重试机制。维修程序可重复运行；更换检查器版本需要另行核对旧维护配置。手动续期后、手动备份前也可再次运行该工具。
 

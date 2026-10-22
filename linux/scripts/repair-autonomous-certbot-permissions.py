@@ -29,6 +29,16 @@ def digest_fd(fd):
     return h.hexdigest()
 
 
+def private_mode(mode):
+    # Match the frozen backup's privacy requirement without granting an owner
+    # write permission or removing an existing private hook's execute bit.
+    if mode & 0o7022 or not mode & 0o400 or mode & 0o011:
+        error = ValueError('CERTBOT_FILE_MODE_REQUIRED')
+        error.mode = mode
+        raise error
+    return mode & 0o700
+
+
 def repair(state):
     """Caller holds the TLS lock. Validate the full set before restricting modes."""
     state = owned(state, directory=True, private=True)
@@ -50,8 +60,8 @@ def repair(state):
         owned(path, directory=directory)
         if not directory:
             st = path.stat()
-            if st.st_size > 32*1024**2 or os.name == 'posix' and stat.S_IMODE(st.st_mode) not in (0o600, 0o644):
-                raise ValueError('CERTBOT_FILE_MODE_REQUIRED')
+            if st.st_size > 32*1024**2: raise ValueError('CERTBOT_FILE_SIZE_LIMIT')
+            if os.name == 'posix': private_mode(stat.S_IMODE(st.st_mode))
             files.append((path, st))
     changed = 0
     for path, before in files:
@@ -63,9 +73,10 @@ def repair(state):
                     before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_mode, before.st_nlink):
                 raise ValueError('CERTBOT_FILE_REPLACED')
             digest = digest_fd(fd)
-            if stat.S_IMODE(before.st_mode) != 0o600:
-                if os.name == 'posix': os.fchmod(fd, 0o600)
-                else: path.chmod(0o600)
+            target_mode = private_mode(stat.S_IMODE(before.st_mode)) if os.name == 'posix' else 0o600
+            if stat.S_IMODE(before.st_mode) != target_mode:
+                if os.name == 'posix': os.fchmod(fd, target_mode)
+                else: path.chmod(target_mode)
                 changed += 1
             if digest_fd(fd) != digest: raise ValueError('CERTBOT_FILE_CONTENT_CHANGED')
         finally: os.close(fd)
@@ -152,8 +163,12 @@ def main():
             with operation_lock(state): install_hooks(state, pwd.getpwuid(os.geteuid()).pw_name)
         print('CERTBOT_PRIVATE_MODES_VERIFIED' if args.guard else 'CERTBOT_PRIVATE_MODES_AND_MAINTENANCE_HOOKS_VERIFIED')
         return 0
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-        print('STOP: CERTBOT_PERMISSION_REPAIR_FAILED. Keep state and partial backups; no public switch was attempted.')
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        value = str(error)
+        code = value if re.fullmatch('[A-Z_]{1,100}', value) else type(error).__name__
+        detail = f' mode={oct(error.mode)}' if isinstance(getattr(error, 'mode', None), int) else ''
+        if isinstance(error, OSError): detail += f' errno={error.errno}'
+        print('STOP: CERTBOT_PERMISSION_REPAIR_FAILED category=' + code + detail + '. Keep state and partial backups; no public switch was attempted.')
         return 1
 
 
