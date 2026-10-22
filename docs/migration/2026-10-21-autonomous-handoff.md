@@ -219,6 +219,18 @@ python3 linux/scripts/install-autonomous-workers.py \
 
 ## 备份和恢复边界
 
+### 已有 f4 发布的 Certbot 权限兼容修复
+
+若 `RUNTIME=OK`、`TASKS_IDLE=OK`、公网尚未切换，备份已导出但 `backup.json` 未生成，且诊断为 `DIGEST_REJECTED_GROUP=certbot-production mode=0o644`，不要清理备份或重做数据库导入。Certbot 的公开证书/说明文件可为0644，旧备份最后的摘要检查则要求0600。
+
+拉取当前 main 后执行 `python3 linux/scripts/repair-autonomous-certbot-permissions.py`。它先验证全部 Certbot 文件为当前用户拥有的普通单硬链接文件，以及仅有固定证书目录的规范 live 链接，再将0644收紧为0600并核对内容摘要。冻结控制器和发布元数据保持原样。
+
+工具还安装两个独立 systemd drop-in：证书续期服务成功后、备份服务开始前运行同一份按内容摘要命名的私有权限检查器。检查器只使用标准库、共享 TLS 锁，不依赖日后变化的 Git 工作区；不替换主服务、不启动或重启容器。已有未知主服务或同名 drop-in 会拒绝覆盖。续期与备份恰好冲突时保留锁和备份重试机制。维修程序可重复运行；更换检查器版本需要另行核对旧维护配置。手动续期后、手动备份前也可再次运行该工具。
+
+成功标记为 `CERTBOT_PRIVATE_MODES_AND_MAINTENANCE_HOOKS_VERIFIED`。随后运行 `python3 linux/scripts/probe-autonomous.py && python3 linux/scripts/deploy-autonomous.py --apply`：内部验收超过30分钟会过期，所以继续保留原有真实登录验收门槛。无需重新上传镜像，也无需重新运行证书签发或数据库恢复。
+
+这个维护检查器位于 `~/village-autonomous/certbot-permission-maintenance/`，systemd drop-in 位于 `/etc/systemd/system/village-autonomous-{tls,backup}.service.d/10-village-certbot-private.conf`。旧冻结备份范围不包括维护脚本本身，恢复到新机器后需从受控 Git 版本重新安装这些维护钩子。
+
 每日04:15上海时间备份，繁忙任务时跳过并以15分钟间隔有限重试；证书每6小时检查续期。旧备份保留，空间不足停止并报告，不会自动删除。备份包含自己的数据库、文件、认证/Worker私钥、配置和证书，位于 `/home/admin/village-autonomous-backups/`；应另存受保护的离机副本。
 
 可手动运行一次：`python3 ~/village-autonomous/control/backup-autonomous.py`。常规备份标记只证明完整归档和离线解码，不能替代实际恢复演练；发布CI另在全新临时数据库验证了合成快照的恢复路径后才会记录证明。禁止把阿里云新数据自动回灌旧Supabase，或以旧Supabase基线覆盖已经产生新数据的阿里云。

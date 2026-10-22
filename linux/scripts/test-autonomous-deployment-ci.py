@@ -277,6 +277,27 @@ def main():
             if full.get('restart_persistence') is not True:raise ValueError('FIXTURE_BUSINESS_RESTART_FAILED')
             storage.write_private_json(state/'acceptance.json',{'status':'local_auth_business_verified_not_cut_over','releaseId':meta['releaseId'],
                 'accepted_at':time.time(),**core,'business_restart':True,'fixture_only':True})
+            phase='certbot-public-file-permissions'
+            cert_config=state/'certbot-production/config'
+            cert_files=[]
+            for index in range(8):
+                path=cert_config/('synthetic-certbot-'+str(index)+'.pem')
+                path.write_bytes(b'SYNTHETIC CERTBOT PUBLIC BYTES\n');path.chmod(0o644);cert_files.append(path)
+            # Reproduce the precise mismatch: layout accepts Certbot's public
+            # files, but the frozen final digest requires private permissions.
+            own_backup.backup_layout(state,meta)
+            try:storage.digest_file(cert_files[0])
+            except ValueError:pass
+            else:raise ValueError('CERTBOT_PRIVATE_DIGEST_FAILURE_NOT_REPRODUCED')
+            repair_permissions=load('repair-autonomous-certbot-permissions')
+            frozen_before=tree_digest(state/'control')
+            with repair_permissions.tls_lock(state):
+                if repair_permissions.repair(state)!=8:raise ValueError('CERTBOT_REPAIR_COUNT_DIFFERS')
+            if tree_digest(state/'control')!=frozen_before:raise ValueError('CERTBOT_REPAIR_CHANGED_CONTROL')
+            for path in cert_files:
+                if storage.digest_file(path)!=(hashlib.sha256(b'SYNTHETIC CERTBOT PUBLIC BYTES\n').hexdigest(),len(b'SYNTHETIC CERTBOT PUBLIC BYTES\n')):
+                    raise ValueError('CERTBOT_REPAIR_CHANGED_BYTES')
+            print('CERTBOT_PUBLIC_FILE_PRIVATE_BACKUP_COMPATIBILITY_VERIFIED',flush=True)
             phase='public-listener-and-backup';public=deploy.apply(meta,state)
             if public['status']!='autonomous_public_https_core_requires_browser_and_gpu_acceptance':raise ValueError('FIXTURE_PUBLIC_STATUS_DIFFERS')
             phase='own-backup-restore';receipt=storage.read_private_json(state/'pre-apply-backup.json');own=Path(receipt['path'])
