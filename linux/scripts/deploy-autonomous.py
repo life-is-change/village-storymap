@@ -17,7 +17,7 @@ import autonomous_schema as schema
 from autonomous_bundle import load_script,validate_fresh_snapshot
 from autonomous_compose import compose_document
 from autonomous_extract import extract_release,tree_digest
-from autonomous_operator import Docker,Checkpoints,stop_receipt,matches_stop_receipt,OLD_CANDIDATES,PG,API,AUTH,WEB,PROJECT,DATABASE,ADMIN,audit_auth_triggers,AUTH_TRIGGER_SQL,verified_runtime,operation_lock,resolve_image
+from autonomous_operator import Docker,Checkpoints,stop_receipt,matches_stop_receipt,OLD_CANDIDATES,PG,API,AUTH,WEB,PROJECT,DATABASE,ADMIN,audit_auth_triggers,AUTH_TRIGGER_SQL,verified_runtime,operation_lock,resolve_image,clean_environment
 
 ROOT=storage.source_checkout()
 STATE=Path.home()/'village-autonomous'

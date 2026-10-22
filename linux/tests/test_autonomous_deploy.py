@@ -15,6 +15,26 @@ def module():
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 
 
+def test_source_cli_reexecs_frozen_controller_with_bytecode_disabled(tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    m=module();state=tmp_path/'state';state.mkdir(mode=0o700)
+    control=state/'control';control.mkdir(mode=0o700)
+    (control/'deploy-autonomous.py').write_text('# immutable fixture\n')
+    m.storage.write_private_json(state/'release.json',{'kind':'autonomous','control_sha256':m.tree_digest(control)})
+    calls=[]
+    def execute(executable,argv,env):
+        calls.append((executable,argv,env));raise SystemExit(0)
+    monkeypatch.setattr(m,'STATE',state)
+    monkeypatch.setattr(sys,'argv',['deploy-autonomous.py','--apply'])
+    monkeypatch.setattr(m,'sys',SimpleNamespace(executable=sys.executable,argv=['deploy-autonomous.py','--apply']))
+    monkeypatch.setattr(m,'os',SimpleNamespace(name='posix',geteuid=lambda:1000,umask=lambda mode:None,execve=execute))
+    with pytest.raises(SystemExit) as stopped:m.main()
+    assert stopped.value.code==0 and len(calls)==1
+    executable,argv,env=calls[0]
+    assert argv==[sys.executable,'-B',str(control/'deploy-autonomous.py'),'--apply']
+    assert env['PYTHONDONTWRITEBYTECODE']=='1'
+
+
 def test_candidate_stop_checks_entire_receipt_set_before_stopping_anything():
     m=module();calls=[]
     from test_autonomous_operator import baseline

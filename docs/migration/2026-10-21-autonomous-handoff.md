@@ -8,7 +8,19 @@
 
 发布镜像与整套隔离验收已就绪，运行提交 `f4b6f39521f0`；[发布证明](2026-10-21-autonomous-release-proof.md)记录了精确摘要与成功 CI。实际阿里云 CA 申请、原账号密码验证、真实浏览器及4090输出质量尚未验收。当前运行网站及原 Supabase 均未由本次本地开发切换。
 
-## 当前停在测试基线修复之前：冻结目录生成了Python缓存
+## 当前：内部验收已通过，继续公开切换
+
+2026-10-22实际目标机已打印 `AUTONOMOUS_CORE_INTERNAL_VALIDATED_NOT_PUBLIC_OR_GPU_ACCEPTED`，重启和1/5/10/20并发均无失败。随后切换入口因漏导入 `clean_environment` 在进入冻结脚本之前抛出NameError；未执行公开切换。已补齐导入，并用真正调用源CLI主函数、核对冻结重执行参数及环境的回归测试覆盖此分支。
+
+```bash
+cd ~/village-deploy/source &&
+git pull --ff-only origin main &&
+python3 linux/scripts/deploy-autonomous.py --apply
+```
+
+不需要重做缓存或基线修复。验收凭据要求30分钟内有效；若已超时，先运行 `python3 linux/scripts/probe-autonomous.py`，按提示输入两组网站账号密码，成功后再执行上述 `--apply`。不放宽有效期，也不把内部测试通过当作公开HTTPS或真实GPU验收完成。
+
+## 已完成的冻结目录缓存修复（历史记录）
 
 2026-10-22目标机只读检查确认 `CONTROL_HASH_MATCH=False`、`CONTROL_PYC_COUNT=9`、`FROZEN_CONTROL_CHANGED`。旧控制脚本从冻结目录导入Python模块后会生成 `__pycache__`，而完整目录摘要把缓存也算进去了。
 
