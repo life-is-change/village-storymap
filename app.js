@@ -659,7 +659,13 @@ function loadSpacesFromStorage() {
       viewMode: s.viewMode || "2d",
       courseId: String(s?.courseId || ""),
       courseGroupId: String(s?.courseGroupId || ""),
-      spaceType: String(s?.spaceType || "")
+      spaceType: String(s?.spaceType || ""),
+      actualSpaceId: s.actualSpaceId || null,
+      personalLayerVersionSpace: s.personalLayerVersionSpace === true,
+      teachingProjectId: s.teachingProjectId || "",
+      villageId: s.villageId || "",
+      villageRole: s.villageRole || "",
+      ownerId: s.ownerId || null
     };
     });
 
@@ -786,7 +792,10 @@ async function deleteSpaceFromSupabase(spaceId) {
 }
 
 async function syncSpacesFromSupabase() {
+  const scopeKey = () => JSON.stringify([getAccountStorageKey("workspace-account"), activeVillageContext?.teachingProjectId, activeVillageContext?.villageId]);
+  const started = scopeKey();
   const remoteSpaces = await loadSpacesFromSupabase();
+  if (started !== scopeKey() || hasUnsavedGeometryEdits()) return;
   if (!remoteSpaces) return;
 
   const authUser = window.VillageAuth?.getCurrentUser?.() || {};
@@ -814,7 +823,12 @@ async function syncSpacesFromSupabase() {
     ));
     merged = window.VillageModelModule
       .filterSpacesForContext({ spaces: contextSpaces, context, actor })
-      .map((space) => mapContextSpaceToWorkspace(space));
+      .map((space) => mapContextSpaceToWorkspace(space, context.villageRole));
+    const resultSpace = spaces.find((space) => space.personalLayerVersionSpace === true
+      && String(space.id) === String(coursePersonalSpace?.id)
+      && space.teachingProjectId === context.teachingProjectId && space.villageId === context.villageId
+      && coursePersonalSpace?.owner_id === actor.userId);
+    if (resultSpace && !merged.some(space => space.id === resultSpace.id)) merged.push(resultSpace);
   } else {
     // 兼容尚未绑定村庄项目的旧课程小组空间；迁移归档空间不进入日常选择器。
     merged = window.CourseWorkspaceAdapterModule.mergeWorkspaceSpaces({
@@ -826,7 +840,7 @@ async function syncSpacesFromSupabase() {
       activeGroupId
     });
   }
-  if (!merged.some((space) => space.id === BASE_SPACE_ID)) {
+  if (!hasVillageContext && !merged.some((space) => space.id === BASE_SPACE_ID)) {
     merged.unshift(getDefaultSpaces()[0]);
   }
 
@@ -835,13 +849,12 @@ async function syncSpacesFromSupabase() {
     localStorage.setItem(getAccountStorageKey(SPACE_STORAGE_KEY), JSON.stringify(spaces));
   } catch (e) {}
 
-  renderSpaceList();
-
-  // 如果当前选中的空间在合并后不存在了，切换到现状空间
+  // Only select a space returned by the authorized catalog (or this owned result space).
   if (!getSpaceById(currentSpaceId)) {
-    currentSpaceId = BASE_SPACE_ID;
+    currentSpaceId = getValidSpaceId(BASE_SPACE_ID, spaces[0]?.id);
     saveAppState();
   }
+  renderSpaceList();
 }
 
   function saveAppState() {
@@ -1857,6 +1870,7 @@ function mapContextSpaceToWorkspace(space, role) {
     || (isShared ? getSpaceById(BASE_SPACE_ID) : null);
   return {
     ...(existing || {}),
+    personalLayerVersionSpace: false,
     id: isShared ? BASE_SPACE_ID : space.id,
     actualSpaceId: space.id,
     title: space.spaceType === "group_plan"
@@ -2171,7 +2185,7 @@ async function initializeCourseGroupSpaceData(spaceId) {
 
 async function openCoursePlanningWorkspace(viewMode, group) {
   if (!group) {
-    const baseSpace = getSpaceById(BASE_SPACE_ID);
+    const baseSpace = getSpaceById(BASE_SPACE_ID) || getCurrentSpace();
     if (!baseSpace) {
       showToast("原有规划空间不存在", "error");
       return;
@@ -6284,7 +6298,7 @@ function getFirstMatchingField(obj, fields = []) {
 function getFeatureCode(feature, layerKey) {
   const config = layerConfigs[layerKey];
   const props = getFeatureProperties(feature);
-  return getFirstMatchingField(props, config?.codeFields || []);
+  return String(getFirstMatchingField(props, config?.codeFields || []) ?? "").trim();
 }
 
 function getRowCode(row, layerKey) {
@@ -6789,11 +6803,17 @@ async function refresh2DOverlay(options = {}) {
   if (!overlayRefreshController) {
     const renderer = getOverlayRendererModule();
     overlayRefreshController = renderer.createLatestOverlayRefreshController({
-      render: (request) => renderer.refresh2DOverlay(
-        buildOverlayRendererDeps(),
-        request,
-        request.payload || {}
-      )
+      render: (request) => {
+        const account = getAccountStorageKey("workspace-account");
+        const context = activeVillageContext;
+        return renderer.refresh2DOverlay(buildOverlayRendererDeps(), {
+          ...request,
+          isCurrent: () => request.isCurrent()
+            && account === getAccountStorageKey("workspace-account")
+            && context === activeVillageContext
+            && (!request.payload?.preserveGeometryDraft || !hasUnsavedGeometryEdits())
+        }, request.payload || {});
+      }
     });
   }
   const result = await overlayRefreshController.request(options);
@@ -8635,6 +8655,13 @@ let groupPlanRealtimeKey = "";
 let businessEventClient = null;
 let businessEventContextKey = "";
 
+function hasUnsavedGeometryEdits() {
+  return Boolean(buildingEditState.isSaving || buildingEditState.isDrawingActive
+    || buildingEditState.mode !== "idle" && buildingEditState.mode
+    || buildingEditState.dirtyCodes.size || buildingEditState.pendingAddedFeatures?.length
+    || buildingEditState.pendingDeletedFeatures.length || buildingEditState.originalGeoms?.size);
+}
+
 async function syncBusinessEventSubscription() {
   const services = window.VillageBusinessServices;
   if (!services?.events) return;
@@ -8645,21 +8672,35 @@ async function syncBusinessEventSubscription() {
   businessEventContextKey = key;
   await businessEventClient?.stop();
   if (Object.values(context).some(value => !value)) return;
+  const accountKey = getAccountStorageKey("workspace-account");
+  const isCurrent = () => businessEventContextKey === key
+    && getAccountStorageKey("workspace-account") === accountKey
+    && JSON.stringify({teachingProjectId:activeVillageContext?.teachingProjectId,villageId:activeVillageContext?.villageId,spaceId:getCurrentSpace()?.actualSpaceId || getCurrentSpace()?.id}) === key;
+  let catalogChanged = false;
   businessEventClient = services.events.createClient({
     onConnectionChange: setSurveyRealtimeState,
-    onInvalidate() {
+    onInvalidate(event = {}) {
+      catalogChanged ||= event.kind === 'catalog';
       scheduleRealtimeRefresh(async () => {
+        const safe = () => isCurrent() && !hasUnsavedGeometryEdits();
+        if (!safe()) return;
+        if (catalogChanged) {
+          await syncSpacesFromSupabase();
+          if (!safe()) return;
+          catalogChanged = false;
+        }
         invalidateBuildingDbCache(); invalidateRoadDbCache(); invalidateCroplandDbCache(); invalidateOpenSpaceDbCache(); invalidateWaterDbCache();
         invalidateCommunityTaskCache(currentSpaceId);
-        await syncSpacesFromSupabase(); renderSpaceList();
-        await refreshCommunityTasksOnMapAsync(); await refreshCommunityScoreBadge(); await refreshCommunityMessageBoard();
+        await refreshCommunityTasksOnMapAsync();
+        if (!safe()) return;
+        await refreshCommunityScoreBadge(); await refreshCommunityMessageBoard();
+        if (!safe()) return;
         await refreshSurveyReviewState();
-        if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
-          showToast("其他成员已保存修改；请先保存或放弃当前草稿后再刷新图层。", "info"); return;
-        }
+        if (!safe()) return;
         if (getCurrentSpace()?.spaceType === 'group_plan') await refreshActiveGroupPlan();
         else {
-          if (plan2dView?.classList.contains('active')) await refresh2DOverlay({forceFullRebuild:true});
+          if (plan2dView?.classList.contains('active')) await refresh2DOverlay({forceFullRebuild:true,preserveGeometryDraft:true});
+          if (!safe()) return;
           if (model3dView?.classList.contains('active')) await window.Village3D?.reload?.();
         }
       });
@@ -8683,15 +8724,13 @@ function scheduleGroupPlanRealtimeRefresh(refreshFn) {
 async function refreshActiveGroupPlan() {
   const space = getCurrentSpace();
   if (space?.spaceType !== "group_plan") return;
+  if (hasUnsavedGeometryEdits()) return;
   const actualSpaceId = space.actualSpaceId || space.id;
   groupPlanLoader?.invalidate(actualSpaceId);
-  if (buildingEditState.dirtyCodes.size || buildingEditState.pendingDeletedFeatures.length) {
-    showToast("小组成员已保存新修改；请先保存或放弃当前草稿后再刷新。", "info");
-    return;
-  }
   if (plan2dView?.classList.contains("active")) {
-    await refresh2DOverlay({ forceFullRebuild: true });
+    await refresh2DOverlay({ forceFullRebuild: true, preserveGeometryDraft: true });
   }
+  if (space !== getCurrentSpace() || hasUnsavedGeometryEdits()) return;
   if (model3dView?.classList.contains("active") && window.Village3D?.reload) {
     await window.Village3D.reload();
   }

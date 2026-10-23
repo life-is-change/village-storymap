@@ -671,6 +671,7 @@
       }
       if (!deps.isEditableGeometryLayer(layerKey)) return { success: false, reason: "invalid_layer" };
       const layerLabel = deps.getLayerLabel(layerKey);
+      if (state.isSaving) return { success: false, reason: "save_in_progress" };
 
       if (state.mode === "draw" && state.isDrawingActive) {
         deps.showToast(`请先完成当前${layerKey === "road" ? "道路" : layerLabel}的绘制`, "info");
@@ -692,6 +693,7 @@
         return { success: false, reason: "no_changes" };
       }
 
+      state.isSaving = true;
       try {
         const codeField = deps.getLayerCodeField(layerKey);
         const nameField = deps.getLayerNameField(layerKey);
@@ -737,7 +739,7 @@
             beforeProps: addedFeatures.has(feature) ? null : deps.cloneJson(baseRow || {}),
             afterProps: props,
             expectedRevision: Number(baseRow.__featureRevision || feature.get("featureRevision") || 0),
-            lockToken: deps.getFeatureEditLockToken?.(layerKey, code) || null,
+            ...(deps.getFeatureEditLockToken?.(layerKey, code) ? { lockToken: deps.getFeatureEditLockToken(layerKey, code) } : {}),
             ...deps.getSurveyGeometryEvidence?.(layerKey, code, action)
           }, feature));
         }
@@ -756,7 +758,7 @@
               beforeProps: deps.cloneJson(feature.get("baseRow") || {}),
               afterProps: null,
               expectedRevision: Number((feature.get("baseRow") || {}).__featureRevision || feature.get("featureRevision") || 0),
-              lockToken: deps.getFeatureEditLockToken?.(layerKey, code) || null,
+              ...(deps.getFeatureEditLockToken?.(layerKey, code) ? { lockToken: deps.getFeatureEditLockToken(layerKey, code) } : {}),
               ...deps.getSurveyGeometryEvidence?.(layerKey, code, "delete")
             }, feature));
           }
@@ -784,23 +786,26 @@
         state.pendingAddedFeatures = [];
         state.originalGeoms.clear();
 
-        await deps.refresh2DOverlay();
-        await deps.refreshSurveyReviewState?.();
-
-        deps.sync2DSpaceStateTo3D();
-
-        const village3D = deps.getVillage3D();
-        if (village3D && typeof village3D.reload === "function") {
-          await village3D.reload();
+        try {
+          await deps.refresh2DOverlay();
+          await deps.refreshSurveyReviewState?.();
+          deps.sync2DSpaceStateTo3D();
+          const village3D = deps.getVillage3D();
+          if (village3D && typeof village3D.reload === "function") await village3D.reload();
+          deps.showToast(`${summary.text}，已保存并同步`, "success");
+        } catch (error) {
+          console.warn("编辑已保存，刷新视图失败：", error);
+          deps.showToast(`${summary.text}已保存；视图刷新失败，请稍后刷新。`, "info");
         }
-
-        deps.showToast(`${summary.text}，已保存并同步`, "success");
-        await deps.releaseAllFeatureEditLocks?.();
+        try { await deps.releaseAllFeatureEditLocks?.(); }
+        catch (error) { console.warn("编辑已保存，释放租约暂未完成：", error); }
         return saveResult;
       } catch (error) {
         console.error(error);
         deps.showToast(`${layerLabel}保存失败，请查看控制台`, "error");
         return { success: false, reason: "save_failed", error };
+      } finally {
+        state.isSaving = false;
       }
     }
   };

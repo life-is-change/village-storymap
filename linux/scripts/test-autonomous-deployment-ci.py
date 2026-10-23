@@ -403,10 +403,27 @@ def main():
             else:raise ValueError('FOREIGN_H001_BASELINE_WAS_ACCEPTED')
             if d.sql("SELECT count(1) FROM public.survey_feature_reviews WHERE object_code='H001';").strip()!='0':raise ValueError('H001_PREFLIGHT_WROTE_ROWS')
             browser_repair.load_script=load
-            browser_repair.repair(state,repo,docker=d)
-            result=browser_repair.repair(state,repo,apply=True,docker=d)
+            # Preserve the exact previously shipped web bytes for all old repair
+            # steps. New workspace repair must accept the actual deployed chain.
+            historical_repo=root/'historical-browser-source';historical_repo.mkdir(mode=0o700)
+            legacy_fixture=json.loads((repo/'linux/tests/workspace-legacy-web.json').read_text())['files']
+            old_inputs=browser_repair.inputs(repo)
+            for name in ('features/data/data-service.js','features/data/unified-api-client.js','features/map-editing/geometry-editor.js','linux/sql/legacy-h001-review-repair.sql'):
+                old_inputs[name]=(repo/name).read_bytes().replace(b'\r\n',b'\n')
+            for name,changes in legacy_fixture.items():
+                text=old_inputs[name].decode()
+                for change in reversed(changes):
+                    if text.count(change['new'])!=1:raise ValueError('LEGACY_WORKSPACE_FIXTURE_CHANGED')
+                    text=text.replace(change['new'],change['old'],1)
+                old_inputs[name]=text.encode()
+            for name,value in old_inputs.items():
+                target=historical_repo/name;target.parent.mkdir(mode=0o700,parents=True,exist_ok=True);target.write_bytes(value);target.chmod(0o600)
+            (previous_root/'web/features/map-editing/geometry-editor.js').write_bytes(old_inputs['features/map-editing/geometry-editor.js'])
+            storage.write_private_json(previous_root/'overlay-proof.json',{'tree_sha256':tree_digest(previous_root/'web')})
+            browser_repair.repair(state,historical_repo,docker=d)
+            result=browser_repair.repair(state,historical_repo,apply=True,docker=d)
             if result['status']!='h001_review_and_local_comments_repaired_browser_check_required':raise ValueError('BROWSER_REPAIR_STATUS_DIFFERS')
-            browser_repair.repair(state,repo,apply=True,docker=d)
+            browser_repair.repair(state,historical_repo,apply=True,docker=d)
             if before_legacy!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.planning_features f;"):raise ValueError('LEGACY_GEOMETRY_CHANGED_DURING_REPAIR')
             if before_history!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]')::text) FROM public.feature_versions f;"):raise ValueError('LEGACY_HISTORY_CHANGED_DURING_REPAIR')
             h001={'teachingProjectId':'00000000-0000-4000-8000-000000000003','villageId':'00000000-0000-4000-8000-000000000001',
@@ -425,7 +442,7 @@ def main():
             lease=local_call('planning.acquireLock',h001)
             local_call('planning.saveBatch',{**save,'changes':[{**change,'lockToken':lease['lockToken']}],'summary':'TEST H001 delete','note':'TEST','requestId':str(uuid.uuid4())})
             local_call('planning.releaseLock',{**h001,'lockToken':lease['lockToken']})
-            browser_repair.repair(state,repo,apply=True,docker=d)
+            browser_repair.repair(state,historical_repo,apply=True,docker=d)
             review=local_call('survey.getReview',h001)
             if (review['geometry_status'],review['geometry_revision'],review['is_deleted'])!=('deleted',1,True):raise ValueError('H001_DELETE_WAS_RESET')
             if d.sql("SELECT count(1) FROM public.feature_versions WHERE space_id='practice-shared-00000000-0000-4000-8000-000000000003' AND layer_key='building' AND object_code='H001' AND action='delete';").strip()!='1':raise ValueError('H001_DELETE_HISTORY_REQUIRED')
@@ -469,7 +486,7 @@ def main():
             # this guarded disposable fixture rewrites its synthetic receipt.
             prior_web=state/'files'/browser_repair.PATCH/'web'
             prior_receipt_path=prior_web.parent/'receipt.json'
-            legacy_app=(repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
+            legacy_app=(historical_repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
                 b'script.onerror = () => {\n      script.remove();\n      reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));\n    };',
                 b'script.onerror = () => reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));').replace(
                 b'})().catch((error) => {\n    village3DLoadPromise = null;\n    throw error;\n  });',b'})();').replace(
@@ -496,10 +513,10 @@ def main():
             body=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+first[0]+'('+first[1]+")'::regprocedure;")
             if first[2] not in body or first[3] in body:raise ValueError('GEO_FUNCTION_REPAIR_NOT_ATOMIC')
             d.sql(legacy_definition)
-            geo_repair.repair(state,repo,docker=d)
-            result=geo_repair.repair(state,repo,apply=True,docker=d)
+            geo_repair.repair(state,historical_repo,docker=d)
+            result=geo_repair.repair(state,historical_repo,apply=True,docker=d)
             if result.get('status')!='geo_results_and_3d_retry_repaired_real_task_check_required':raise ValueError('GEO_REPAIR_STATUS_DIFFERS')
-            geo_repair.repair(state,repo,apply=True,docker=d)
+            geo_repair.repair(state,historical_repo,apply=True,docker=d)
             for name,signature,old,new in geo_repair.REPLACEMENTS:
                 definition=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+name+'('+signature+")'::regprocedure;")
                 if new not in definition or old in definition:raise ValueError('GEO_MAPPING_NOT_REPAIRED')
@@ -510,7 +527,7 @@ def main():
             lock_repair=load('repair-autonomous-task-locks');lock_repair.load_script=load
             import task_lock_order
             geo_root=state/'files'/geo_repair.PATCH;geo_web=geo_root/'web'
-            previous_geo_app=(repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
+            previous_geo_app=(historical_repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
                 b'geojsonUrl: "data/water.geojson",\n    tableUrl: null,',b'geojsonUrl: "data/water.geojson",\n    tableUrl: "data/water.csv",')
             if geo_repair.digest(previous_geo_app)!=lock_repair.GEO_APP:raise ValueError('PREVIOUS_GEO_APP_FIXTURE_REQUIRED')
             (geo_web/'app.js').write_bytes(previous_geo_app)
@@ -534,10 +551,10 @@ def main():
             old,_=task_lock_order.body_pair((release/'schema/local-tasks.sql').read_text(),'local_worker_call')
             if actual.strip()!=old.strip():raise ValueError('TASK_LOCK_REPAIR_NOT_ATOMIC')
             d.sql(definition)
-            lock_repair.repair(state,repo,docker=d)
-            result=lock_repair.repair(state,repo,apply=True,docker=d)
+            lock_repair.repair(state,historical_repo,docker=d)
+            result=lock_repair.repair(state,historical_repo,apply=True,docker=d)
             if result.get('status')!='task_locks_and_space_switch_repaired_real_task_check_required':raise ValueError('TASK_LOCK_REPAIR_STATUS_DIFFERS')
-            lock_repair.repair(state,repo,apply=True,docker=d)
+            lock_repair.repair(state,historical_repo,apply=True,docker=d)
             for name,file in [('local_worker_call','local-tasks.sql'),('local_worker_file','local-task-files.sql')]:
                 _,after=task_lock_order.body_pair((release/'schema'/file).read_text(),name)
                 actual=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+name+'('+task_lock_order.SIGNATURES[name]+")'::regprocedure;")
@@ -565,7 +582,7 @@ def main():
             previous_trees={patch:tree_digest(state/'files'/patch/'web') for patch in (browser_repair.PATCH,geo_repair.PATCH,lock_repair.PATCH)}
             function_hash_sql="SELECT md5(string_agg(pg_get_functiondef(oid),'' ORDER BY oid)) FROM pg_proc WHERE pronamespace='api_private'::regnamespace AND prokind='f';"
             functions_before=d.sql(function_hash_sql)
-            entry_repair.repair(state,repo,docker=d)
+            entry_repair.repair(state,historical_repo,docker=d)
             if (state/'files'/entry_repair.PATCH).exists():raise ValueError('ACCOUNT_ENTRY_PREFLIGHT_WROTE_STATE')
             original_run=d.run
             for interruption in ('stop','remove'):
@@ -576,17 +593,20 @@ def main():
                     return original_run(*args,**kwargs)
                 d.run=interrupt_web_switch
                 try:
-                    try:entry_repair.repair(state,repo,apply=True,docker=d)
+                    try:entry_repair.repair(state,historical_repo,apply=True,docker=d)
                     except RuntimeError as error:
                         if str(error)!='SYNTHETIC_ACCOUNT_WEB_SWITCH_INTERRUPTION':raise
                     else:raise ValueError('ACCOUNT_WEB_INTERRUPTION_FIXTURE_REQUIRED')
                 finally:d.run=original_run
-            result=entry_repair.repair(state,repo,apply=True,docker=d)
+            result=entry_repair.repair(state,historical_repo,apply=True,docker=d)
             if result.get('status')!='account_entry_and_3d_repaired_browser_check_required':raise ValueError('ACCOUNT_ENTRY_REPAIR_STATUS_DIFFERS')
-            entry_repair.repair(state,repo,apply=True,docker=d)
+            entry_repair.repair(state,historical_repo,apply=True,docker=d)
             if functions_before!=d.sql(function_hash_sql):raise ValueError('WEB_ONLY_REPAIR_CHANGED_DATABASE_FUNCTIONS')
             if previous_trees!={patch:tree_digest(state/'files'/patch/'web') for patch in previous_trees}:raise ValueError('ACCOUNT_REPAIR_CHANGED_OLD_OVERLAYS')
             print('ACCOUNT_ENTRY_LEGACY_3D_OVERLAY_RECOVERY_AND_REPEAT_VERIFIED',flush=True)
+            phase='workspace-edit-consistency-repair'
+            from workspace_native_fixture import verify_workspace_repair
+            verify_workspace_repair(state,repo,d,load,api,actor,local_call,original_run)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

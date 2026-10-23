@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "sourceCommit": "89ab797",
+  "files": {
+    "app.js": "ef01c4cdf4b690c4a003809f66ae2f1e65f5942244e1b8018d1ee2b6deae3e92",
+    "app-3d.js": "07fe62d791d27579175af0876f020e9723ddee0c2fcc98b943303ce2a58a624e",
+    "features/data/unified-api-client.js": "d758141a24f793bfef739203b0781c19687dde1b5b44745a6ea54082d2c39e76",
+    "features/data/data-service.js": "ac02833165702c3d1b8dec470ae36884c1aef3a2ac57e1689f45173fcd2c7f3a",
+    "features/data/personal-space-client.js": "2908a05664e49cca178bcc12abd5ca559121e8c1e2a7aeb65cbd2cebeb7a5666",
+    "features/map-editing/geometry-editor.js": "72ecf7c13fad4393cc619357575631cfc1520a4916c2316743d7b46323da68e5"
+  }
+}
