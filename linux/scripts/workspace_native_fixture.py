@@ -71,6 +71,7 @@ def verify_workspace_repair(state,repo,d,load,api,actor,local_call,original_run)
     d.sql(green)
     # Real authenticated HTTP: ordinary experience geometry uses planning, not
     # personal_layer_versions, and does not send a null optional UUID.
+    d.sql("UPDATE public.village_datasets SET status='published',published_at=now() WHERE id='b9000000-0000-4000-8000-000000000001';")
     context={'teachingProjectId':PROJECT,'villageId':VILLAGE}
     own=local_call('catalog.ensureSpace',{**context,'spaceType':'formal_personal','requestId':str(uuid.uuid4())})
     context['spaceId']=own['id']
