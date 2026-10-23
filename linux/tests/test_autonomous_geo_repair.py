@@ -27,7 +27,7 @@ def test_known_prior_browser_overlay_is_attested_before_copying_and_never_modifi
     m=module();old=m.browser;source=S.parents[1];data=old.inputs(source)
     root=tmp_path/'files'/old.PATCH;web=root/'web';web.mkdir(parents=True,mode=0o700)
     for name,value in data.items():
-        path=web/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(value)
+        path=web/name;path.parent.mkdir(parents=True,mode=0o700,exist_ok=True);path.write_bytes(value);path.chmod(0o600)
     meta={'releaseId':'fixture'};manifest={k:m.digest(v) for k,v in data.items()}
     old.storage.write_private_json(root/'receipt.json',{'releaseId':'fixture','files':manifest,'sql_sha256':'a'*64,'phase':'served_verified_browser_login_pending'})
     old.storage.write_private_json(root/'overlay-proof.json',{'tree_sha256':old.tree_digest(web)})

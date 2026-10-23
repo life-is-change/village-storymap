@@ -35,3 +35,5 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 linux/sc
 本机：3D脚本首次失败后重试的两个用例先失败、修复后通过，并发请求复用保持通过；全部1079项平台JS和409项Linux部署测试通过，7项Windows/POSIX差异跳过。模型驻留与实际app-3d集成回归覆盖远景低清、选中建筑优先、迟滞防抖及刷新持久路径，未修改这些行为。
 
 新增原生集成使用真实任务API、五种私有GeoJSON上传、缺一项拒绝完成、全部完成后导入建筑/道路/水体/等高线四图层，以及建筑专用任务的越权上传拒绝。完整部署夹具还会重现精确旧v3网页和两处旧函数，验证未知函数体拒绝时事务整体回滚、预检只读、两次修复、原网页覆盖层保留及HTTPS字节。原生CI结果另行记录，不能将本机测试视为真实GPU验收。
+
+源码9a5aa7a的[原生CI 39890713157](https://github.com/life-is-change/village-storymap/actions/runs/39890713157)全部成功；任务120209538209通过五输出/四图层的新增原生集成，并实际返回 GEO_LEGACY_SQL_AND_3D_RETRY_OVERLAY_REPAIR_REPEAT_VERIFIED，保留自身114表恢复、原有浏览器/H001、校园身份和并发验证。未调用真实CA、提供商或GPU。同提交的网页JS与Pages成功。Python单测中一个新夹具未给复制文件设置0600，Linux严格权限检查正确拒绝；后续仅补齐测试夹具权限，不放宽生产校验。
