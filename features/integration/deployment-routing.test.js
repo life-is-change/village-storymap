@@ -28,3 +28,23 @@ test('local building rename uses fixed atomic operation with both feature leases
  const rename=vm.runInNewContext(source.slice(start,end)+';renameBuildingCodeInDb',{window:{VillageBusinessServices:services},activeVillageContext:{teachingProjectId:'p',villageId:'v'},crypto:{randomUUID:()=> 'request'},supabaseClient:{from(){throw Error('SOURCE_QUERY');}}});
  await rename('s','old','new');const call=calls.find(c=>c[0]==='planning.renameBuilding');assert.equal(call[1].expectedRevision,2);assert.equal(call[1].lockToken,'old-lease');assert.equal(call[1].newLockToken,'new-lease');
 });
+
+
+test('first map reads survive background personal result space initialization',async()=>{
+ const context={userId:'u1',teachingProjectId:'p',villageId:'mibu',courseId:'course',spaceId:'shared',personalSpaceId:undefined};
+ let finish;const api=createUnifiedApiClient({deployment:config,origin:'https://local.example',authClient:auth(),contextProvider:()=>context,fetchImpl:()=>new Promise(resolve=>finish=resolve)});
+ try{
+  const read=api.execute('planning.listFeatures',{teachingProjectId:'p',villageId:'mibu',spaceId:'shared',layerKey:'building'});
+  await new Promise(resolve=>setImmediate(resolve));context.personalSpaceId='new-result-space';
+  finish(Response.json({data:[{object_code:'H001'}]}));
+  assert.deepEqual(await read,[{object_code:'H001'}]);
+ }finally{api.dispose();}
+});
+
+for(const field of ['userId','teachingProjectId','villageId','courseId','spaceId']){
+ test(`map reads still reject a real ${field} change`,async()=>{
+  const context={userId:'u1',teachingProjectId:'p',villageId:'mibu',courseId:'course',spaceId:'shared'};
+  let finish;const api=createUnifiedApiClient({deployment:config,origin:'https://local.example',authClient:auth(),contextProvider:()=>context,fetchImpl:()=>new Promise(resolve=>finish=resolve)});
+  try{const read=api.execute('planning.listFeatures',{});await new Promise(resolve=>setImmediate(resolve));context[field]='changed';finish(Response.json({data:[]}));await assert.rejects(read,{code:'CONTEXT_CHANGED'});}finally{api.dispose();}
+ });
+}

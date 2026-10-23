@@ -544,6 +544,49 @@ def main():
                 if actual.strip()!=after.strip():raise ValueError('TASK_LOCK_BODY_NOT_REPAIRED')
             if tree_digest(geo_web)!=geo_tree or tree_digest(prior_web)!=prior_tree:raise ValueError('EARLIER_OVERLAY_CHANGED')
             print('TASK_PARENT_LOCK_ORDER_AND_SPACE_SWITCH_REPAIR_REPEAT_VERIFIED',flush=True)
+            phase='account-entry-web-repair'
+            entry_repair=load('repair-autonomous-account-entry');entry_repair.load_script=load
+            lock_web=state/'files'/lock_repair.PATCH/'web'
+            # Reproduce the exact deployed pre-routing 3D file in all previous
+            # immutable overlays, rather than only testing same-source fixtures.
+            legacy_3d=(repo/'app-3d.js').read_bytes().replace(b'\r\n',b'\n').replace(entry_repair.NEW_3D_ROUTE,entry_repair.OLD_3D_ROUTE)
+            if entry_repair.digest(legacy_3d)!=entry_repair.LEGACY_3D:raise ValueError('LEGACY_3D_ROUTE_FIXTURE_REQUIRED')
+            legacy_api=(repo/'features/data/unified-api-client.js').read_bytes().replace(b'\r\n',b'\n').replace(
+                b'  // Preparing a separate result space does not change the active workspace.\n  const scope=()=>{const {personalSpaceId,...active}=contextProvider()||{};return JSON.stringify(active);};',
+                b'  const scope=()=>JSON.stringify(contextProvider());')
+            if entry_repair.digest(legacy_api)!='9c89ee0331e45d701fb7d2a4fb8db0ed48fb0c0c62444eb6e8e08aff99ca63bc':raise ValueError('LEGACY_API_SCOPE_FIXTURE_REQUIRED')
+            for patch in (browser_repair.PATCH,geo_repair.PATCH,lock_repair.PATCH):
+                patch_root=state/'files'/patch;(patch_root/'web/app-3d.js').write_bytes(legacy_3d)
+                (patch_root/'web/features/data/unified-api-client.js').write_bytes(legacy_api)
+                storage.write_private_json(patch_root/'overlay-proof.json',{'tree_sha256':tree_digest(patch_root/'web')})
+                if patch==browser_repair.PATCH:
+                    receipt=storage.read_private_json(patch_root/'receipt.json');receipt['files']['app-3d.js']=entry_repair.LEGACY_3D
+                    storage.write_private_json(patch_root/'receipt.json',receipt)
+            previous_trees={patch:tree_digest(state/'files'/patch/'web') for patch in (browser_repair.PATCH,geo_repair.PATCH,lock_repair.PATCH)}
+            function_hash_sql="SELECT md5(string_agg(pg_get_functiondef(oid),'' ORDER BY oid)) FROM pg_proc WHERE pronamespace='api_private'::regnamespace AND prokind='f';"
+            functions_before=d.sql(function_hash_sql)
+            entry_repair.repair(state,repo,docker=d)
+            if (state/'files'/entry_repair.PATCH).exists():raise ValueError('ACCOUNT_ENTRY_PREFLIGHT_WROTE_STATE')
+            original_run=d.run
+            for interruption in ('stop','remove'):
+                def interrupt_web_switch(*args,**kwargs):
+                    if args[0]=='compose' and 'up' in args:
+                        original_run('stop',WEB) if interruption=='stop' else original_run('rm',WEB)
+                        raise RuntimeError('SYNTHETIC_ACCOUNT_WEB_SWITCH_INTERRUPTION')
+                    return original_run(*args,**kwargs)
+                d.run=interrupt_web_switch
+                try:
+                    try:entry_repair.repair(state,repo,apply=True,docker=d)
+                    except RuntimeError as error:
+                        if str(error)!='SYNTHETIC_ACCOUNT_WEB_SWITCH_INTERRUPTION':raise
+                    else:raise ValueError('ACCOUNT_WEB_INTERRUPTION_FIXTURE_REQUIRED')
+                finally:d.run=original_run
+            result=entry_repair.repair(state,repo,apply=True,docker=d)
+            if result.get('status')!='account_entry_and_3d_repaired_browser_check_required':raise ValueError('ACCOUNT_ENTRY_REPAIR_STATUS_DIFFERS')
+            entry_repair.repair(state,repo,apply=True,docker=d)
+            if functions_before!=d.sql(function_hash_sql):raise ValueError('WEB_ONLY_REPAIR_CHANGED_DATABASE_FUNCTIONS')
+            if previous_trees!={patch:tree_digest(state/'files'/patch/'web') for patch in previous_trees}:raise ValueError('ACCOUNT_REPAIR_CHANGED_OLD_OVERLAYS')
+            print('ACCOUNT_ENTRY_LEGACY_3D_OVERLAY_RECOVERY_AND_REPEAT_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

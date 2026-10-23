@@ -3222,7 +3222,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const linkedSpace = getLinked2DSpaceFor3D();
     const mainResources = getMain3DResources();
     const buildingUrl = mainResources.buildingUrl || GEOJSON_URL;
-    const personalSpace = ["course_personal", "practice_personal", "formal_personal"].includes(linkedSpace?.spaceType);
+    // Ordinary personal experience spaces use planning_features, just as in 2D.
+    const personalSpace = linkedSpace?.personalLayerVersionSpace === true
+      || linkedSpace?.spaceType === "course_personal";
     const [, geojsonText, scopedBuildingRows] = await Promise.all([
       loadCSVRows(mainResources.buildingUrl ? null : CSV_URL),
       loadText(buildingUrl),

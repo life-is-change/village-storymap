@@ -3,7 +3,8 @@
  function createUnifiedApiClient({deployment,origin=globalThis.location?.origin,authClient,contextProvider=()=>null,fetchImpl=globalThis.fetch,onIdentityChange}){
   const config=mode.resolveDeployment(deployment,origin);if(config.mode!=='aliyun')throw fault('LOCAL_API_REQUIRED');
   let disposed=false,epoch=0,userId=null,token=null,authRevision=0;const controllers=new Set();
-  const scope=()=>JSON.stringify(contextProvider());
+  // Preparing a separate result space does not change the active workspace.
+  const scope=()=>{const {personalSpaceId,...active}=contextProvider()||{};return JSON.stringify(active);};
   function invalidate(){epoch++;for(const c of controllers)c.abort();controllers.clear();}
   function update(session){const next=session?.user?.id??null;token=session?.access_token??null;if(next!==userId){userId=next;invalidate();onIdentityChange?.(next);}}
   const subscription=authClient?.auth?.onAuthStateChange?.((_event,session)=>{authRevision++;update(session);})?.data?.subscription;
