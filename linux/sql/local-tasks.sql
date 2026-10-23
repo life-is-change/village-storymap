@@ -81,7 +81,7 @@ AS $$ DECLARE needed text[];step text;BEGIN
  ELSIF r.phase='geo' THEN
   needed:=ARRAY[]::text[];
   FOR step IN SELECT jsonb_array_elements_text(r.input->'requestedSteps') LOOP
-   needed:=needed||CASE step WHEN 'water' THEN ARRAY['waterways','water_areas'] ELSE ARRAY[step] END;
+   needed:=needed||CASE step WHEN 'roads_water' THEN ARRAY['roads','waterways','water_areas'] ELSE ARRAY[step] END;
   END LOOP;
  ELSE RETURN false;END IF;
  RETURN cardinality(needed)>0 AND NOT EXISTS(SELECT 1 FROM unnest(needed) AS required(artifact_type) WHERE NOT EXISTS(

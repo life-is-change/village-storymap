@@ -463,6 +463,48 @@ def main():
             except ValueError:pass
             else:raise ValueError('CAMPUS_PUBLIC_REGISTRATION_CHANGED_IDENTITY')
             print('CAMPUS_LOCAL_KEYS_PUBLIC_DIGEST_REGISTRATION_VERIFIED',flush=True)
+            phase='geo-results-browser-repair'
+            geo_repair=load('repair-autonomous-geo-results');geo_repair.load_script=load
+            # Reproduce the deployed v3 web overlay before the retry fix. Only
+            # this guarded disposable fixture rewrites its synthetic receipt.
+            prior_web=state/'files'/browser_repair.PATCH/'web'
+            prior_receipt_path=prior_web.parent/'receipt.json'
+            legacy_app=(repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
+                b'script.onerror = () => {\n      script.remove();\n      reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));\n    };',
+                b'script.onerror = () => reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));').replace(
+                b'})().catch((error) => {\n    village3DLoadPromise = null;\n    throw error;\n  });',b'})();')
+            if geo_repair.digest(legacy_app)!=geo_repair.LEGACY_APP:raise ValueError('LEGACY_3D_LOADER_FIXTURE_REQUIRED')
+            (prior_web/'app.js').write_bytes(legacy_app)
+            prior_receipt=storage.read_private_json(prior_receipt_path);prior_receipt['files']['app.js']=geo_repair.LEGACY_APP
+            storage.write_private_json(prior_receipt_path,prior_receipt)
+            prior_tree=tree_digest(prior_web);storage.write_private_json(prior_web.parent/'overlay-proof.json',{'tree_sha256':prior_tree})
+            # Put both original buggy function bodies into the real native DB;
+            # the production repair must attest and atomically replace them.
+            for name,signature,old,new in geo_repair.REPLACEMENTS:
+                definition=d.sql("SELECT pg_get_functiondef('api_private."+name+'('+signature+")'::regprocedure);")
+                if definition.count(new)!=1:raise ValueError('FRESH_GEO_MAPPING_FIXTURE_REQUIRED')
+                d.sql(definition.replace(new,old))
+            name,signature,old,new=geo_repair.REPLACEMENTS[1]
+            legacy_definition=d.sql("SELECT pg_get_functiondef('api_private."+name+'('+signature+")'::regprocedure);")
+            d.sql(legacy_definition.replace(old,old+' /* unexpected fixture change */'))
+            repair_sql=geo_repair.patch_sql((release/'schema/local-tasks.sql').read_text(),(release/'schema/local-task-files.sql').read_text())
+            try:d.sql(repair_sql)
+            except RuntimeError:pass
+            else:raise ValueError('UNATTESTED_GEO_FUNCTION_WAS_REPLACED')
+            first=geo_repair.REPLACEMENTS[0]
+            body=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+first[0]+'('+first[1]+")'::regprocedure;")
+            if first[2] not in body or first[3] in body:raise ValueError('GEO_FUNCTION_REPAIR_NOT_ATOMIC')
+            d.sql(legacy_definition)
+            geo_repair.repair(state,repo,docker=d)
+            result=geo_repair.repair(state,repo,apply=True,docker=d)
+            if result.get('status')!='geo_results_and_3d_retry_repaired_real_task_check_required':raise ValueError('GEO_REPAIR_STATUS_DIFFERS')
+            geo_repair.repair(state,repo,apply=True,docker=d)
+            for name,signature,old,new in geo_repair.REPLACEMENTS:
+                definition=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+name+'('+signature+")'::regprocedure;")
+                if new not in definition or old in definition:raise ValueError('GEO_MAPPING_NOT_REPAIRED')
+            if tree_digest(prior_web)!=prior_tree:raise ValueError('PREVIOUS_BROWSER_OVERLAY_CHANGED')
+            if old_workers!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(w) ORDER BY w.id),'[]')::text) FROM api_private.local_gpu_workers w WHERE name IN ('campus-geo','campus-facade');"):raise ValueError('GEO_REPAIR_CHANGED_WORKER_IDENTITIES')
+            print('GEO_LEGACY_SQL_AND_3D_RETRY_OVERLAY_REPAIR_REPEAT_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

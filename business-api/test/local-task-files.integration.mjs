@@ -52,6 +52,26 @@ test('native resumable Geo result above 50MiB is immutable, lease-gated and impo
  });
 });
 
+test('native default Geo steps authorize all five outputs, require the full set and import four layers',async()=>{
+ await fixture(async({setup,queue,tasks,worker,claim,upload})=>{
+  const actor=await worker(),input={...context,requestId:randomUUID(),requestedSteps:['buildings','roads_water','contours'],aoi:{type:'Polygon',coordinates:[[[113,23],[113.0001,23],[113.0001,23.0001],[113,23]]]},parameters:{}};
+  await tasks.execute(testIdentity(),'tasks.submitGeo',input);await tasks.tick();const job=await claim(actor);
+  const result=type=>Buffer.from(JSON.stringify({type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:['roads','waterways','contours'].includes(type)?{type:'LineString',coordinates:[[113,23],[113.0001,23.0001]]}:input.aoi}]}));
+  for(const type of ['buildings','roads','waterways','water_areas'])await upload(actor,job,type,result(type),'application/geo+json','geojson');
+  await assert.rejects(queue.workerCall(actor,'complete',job.run.id,job.leaseToken,{}),{code:'FILES_NOT_READY'});
+  await upload(actor,job,'contours',result('contours'),'application/geo+json','geojson');
+  await queue.workerCall(actor,'complete',job.run.id,job.leaseToken,{});
+  await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await tasks.tick();
+  assert.equal((await tasks.execute(testIdentity(),'tasks.get',{requestId:input.requestId})).state,'completed');
+  await tasks.execute(testIdentity(),'tasks.importResult',{taskId:input.requestId,spaceId:context.teachingProjectId,requestId:randomUUID()});await tasks.tick();
+  assert.deepEqual((await setup.query('SELECT layer_key,sum(feature_count)::int AS n FROM personal_layer_versions WHERE local_task_id IS NOT NULL GROUP BY layer_key ORDER BY layer_key')).rows,
+   [{layer_key:'building',n:1},{layer_key:'contours',n:1},{layer_key:'road',n:1},{layer_key:'water',n:2}]);
+  // A task requesting only buildings cannot upload roads or water outputs.
+  await tasks.execute(testIdentity(),'tasks.submitGeo',{...input,requestId:randomUUID(),requestedSteps:['buildings']});await tasks.tick();const buildingOnly=await claim(actor);
+  for(const type of ['roads','waterways','water_areas'])await assert.rejects(upload(actor,buildingOnly,type,result(type),'application/geo+json','geojson'),{code:'FORBIDDEN'});
+ });
+});
+
 test('native facade retains original photo identity and approved rectification across generation; old leases cannot upload',async()=>{
  await fixture(async({setup,db,store,queue,tasks,files,taskFiles,worker,claim,upload})=>{
   const userFiles=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3}),session=await userFiles.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:'A'},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});await userFiles.put(testIdentity(),session.id,'photo',Readable.from([png]));const photo=await userFiles.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});

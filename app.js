@@ -3000,7 +3000,10 @@ function loadScriptOnce(src, id) {
       script.dataset.loaded = "1";
       resolve();
     };
-    script.onerror = () => reject(new Error(`脚本加载失败：${src}`));
+    script.onerror = () => {
+      script.remove();
+      reject(new Error(`脚本加载失败：${src}`));
+    };
     document.body.appendChild(script);
   });
 }
@@ -3039,7 +3042,10 @@ async function ensureVillage3DLoaded() {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
     }
     return window.Village3D;
-  })();
+  })().catch((error) => {
+    village3DLoadPromise = null;
+    throw error;
+  });
 
   return village3DLoadPromise;
 }

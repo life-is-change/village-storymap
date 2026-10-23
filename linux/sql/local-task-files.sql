@@ -49,7 +49,7 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;u api
  IF action='begin' THEN
   k:=p->>'artifactType';
   IF r.kind='geo' AND r.phase='geo' AND k IN('buildings','roads','waterways','water_areas','contours') AND p->>'mime'='application/geo+json' AND p->>'extension'='geojson' THEN
-   IF NOT (r.input->'requestedSteps' ? CASE WHEN k IN('waterways','water_areas') THEN 'water' ELSE k END) THEN RETURN jsonb_build_object('error','FORBIDDEN');END IF;lim:=536870912;
+   IF NOT (r.input->'requestedSteps' ? CASE WHEN k IN('roads','waterways','water_areas') THEN 'roads_water' ELSE k END) THEN RETURN jsonb_build_object('error','FORBIDDEN');END IF;lim:=536870912;
   ELSIF r.kind='facade' AND r.phase='rectification' AND k='diagnostics' AND p->>'mime'='application/json' AND p->>'extension'='json' THEN lim:=2097152;
   ELSIF r.kind='facade' AND r.phase='rectification' AND k IN('rectified_preview','rectified_source','building_mask') AND ((p->>'mime'='image/png' AND p->>'extension'='png') OR (p->>'mime'='image/jpeg' AND p->>'extension' IN('jpg','jpeg'))) THEN lim:=10485760;
   ELSIF r.kind='facade' AND r.phase='generation' AND k='building_glb' AND p->>'mime'='model/gltf-binary' AND p->>'extension'='glb' THEN lim:=52428800;
