@@ -37,3 +37,5 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 linux/sc
 新增原生集成使用真实任务API、五种私有GeoJSON上传、缺一项拒绝完成、全部完成后导入建筑/道路/水体/等高线四图层，以及建筑专用任务的越权上传拒绝。完整部署夹具还会重现精确旧v3网页和两处旧函数，验证未知函数体拒绝时事务整体回滚、预检只读、两次修复、原网页覆盖层保留及HTTPS字节。原生CI结果另行记录，不能将本机测试视为真实GPU验收。
 
 源码9a5aa7a的[原生CI 39890713157](https://github.com/life-is-change/village-storymap/actions/runs/39890713157)全部成功；任务120209538209通过五输出/四图层的新增原生集成，并实际返回 GEO_LEGACY_SQL_AND_3D_RETRY_OVERLAY_REPAIR_REPEAT_VERIFIED，保留自身114表恢复、原有浏览器/H001、校园身份和并发验证。未调用真实CA、提供商或GPU。同提交的网页JS与Pages成功。Python单测中一个新夹具未给复制文件设置0600，Linux严格权限检查正确拒绝；后续仅补齐测试夹具权限，不放宽生产校验。
+
+最终c72bf84同时补齐夹具目录0700与文件0600：[平台回归39891525722](https://github.com/life-is-change/village-storymap/actions/runs/39891525722)的Python和JavaScript均成功；[原生39891525736](https://github.com/life-is-change/village-storymap/actions/runs/39891525736)的native-database任务120212170145和autonomous-proxy任务120212170329均成功；Pages39891525794成功。真实阿里云应用修复和新图底任务复测仍需用户执行，不能将上述测试标记为真实GPU任务成功。
