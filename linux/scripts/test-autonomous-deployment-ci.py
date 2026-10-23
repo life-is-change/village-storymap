@@ -493,6 +493,9 @@ def main():
                 b'geojsonUrl: "data/water.geojson",\n    tableUrl: null,',b'geojsonUrl: "data/water.geojson",\n    tableUrl: "data/water.csv",')
             if geo_repair.digest(legacy_app)!=geo_repair.LEGACY_APP:raise ValueError('LEGACY_3D_LOADER_FIXTURE_REQUIRED')
             (prior_web/'app.js').write_bytes(legacy_app)
+            # Browser v3 rebuilds from the frozen release, so its untouched
+            # editor must also be put back to the real deployed legacy bytes.
+            (prior_web/'features/map-editing/geometry-editor.js').write_bytes(old_inputs['features/map-editing/geometry-editor.js'])
             prior_receipt=storage.read_private_json(prior_receipt_path);prior_receipt['files']['app.js']=geo_repair.LEGACY_APP
             storage.write_private_json(prior_receipt_path,prior_receipt)
             prior_tree=tree_digest(prior_web);storage.write_private_json(prior_web.parent/'overlay-proof.json',{'tree_sha256':prior_tree})
