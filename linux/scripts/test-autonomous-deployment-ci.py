@@ -472,7 +472,8 @@ def main():
             legacy_app=(repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
                 b'script.onerror = () => {\n      script.remove();\n      reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));\n    };',
                 b'script.onerror = () => reject(new Error(`\xe8\x84\x9a\xe6\x9c\xac\xe5\x8a\xa0\xe8\xbd\xbd\xe5\xa4\xb1\xe8\xb4\xa5\xef\xbc\x9a${src}`));').replace(
-                b'})().catch((error) => {\n    village3DLoadPromise = null;\n    throw error;\n  });',b'})();')
+                b'})().catch((error) => {\n    village3DLoadPromise = null;\n    throw error;\n  });',b'})();').replace(
+                b'geojsonUrl: "data/water.geojson",\n    tableUrl: null,',b'geojsonUrl: "data/water.geojson",\n    tableUrl: "data/water.csv",')
             if geo_repair.digest(legacy_app)!=geo_repair.LEGACY_APP:raise ValueError('LEGACY_3D_LOADER_FIXTURE_REQUIRED')
             (prior_web/'app.js').write_bytes(legacy_app)
             prior_receipt=storage.read_private_json(prior_receipt_path);prior_receipt['files']['app.js']=geo_repair.LEGACY_APP
@@ -505,6 +506,44 @@ def main():
             if tree_digest(prior_web)!=prior_tree:raise ValueError('PREVIOUS_BROWSER_OVERLAY_CHANGED')
             if old_workers!=d.sql("SELECT md5(coalesce(jsonb_agg(to_jsonb(w) ORDER BY w.id),'[]')::text) FROM api_private.local_gpu_workers w WHERE name IN ('campus-geo','campus-facade');"):raise ValueError('GEO_REPAIR_CHANGED_WORKER_IDENTITIES')
             print('GEO_LEGACY_SQL_AND_3D_RETRY_OVERLAY_REPAIR_REPEAT_VERIFIED',flush=True)
+            phase='task-lock-order-repair'
+            lock_repair=load('repair-autonomous-task-locks');lock_repair.load_script=load
+            import task_lock_order
+            geo_root=state/'files'/geo_repair.PATCH;geo_web=geo_root/'web'
+            previous_geo_app=(repo/'app.js').read_bytes().replace(b'\r\n',b'\n').replace(
+                b'geojsonUrl: "data/water.geojson",\n    tableUrl: null,',b'geojsonUrl: "data/water.geojson",\n    tableUrl: "data/water.csv",')
+            if geo_repair.digest(previous_geo_app)!=lock_repair.GEO_APP:raise ValueError('PREVIOUS_GEO_APP_FIXTURE_REQUIRED')
+            (geo_web/'app.js').write_bytes(previous_geo_app)
+            geo_receipt=storage.read_private_json(geo_root/'receipt.json');geo_receipt['files']['app.js']=lock_repair.GEO_APP
+            storage.write_private_json(geo_root/'receipt.json',geo_receipt)
+            geo_tree=tree_digest(geo_web);storage.write_private_json(geo_root/'overlay-proof.json',{'tree_sha256':geo_tree})
+            for name,file in [('local_worker_call','local-tasks.sql'),('local_worker_file','local-task-files.sql')]:
+                before,after=task_lock_order.body_pair((release/'schema'/file).read_text(),name)
+                definition=d.sql("SELECT pg_get_functiondef('api_private."+name+'('+task_lock_order.SIGNATURES[name]+")'::regprocedure);")
+                if after not in definition:raise ValueError('FRESH_TASK_LOCK_FIXTURE_REQUIRED')
+                d.sql(definition.replace(after,before))
+            name='local_worker_file';signature=task_lock_order.SIGNATURES[name]
+            definition=d.sql("SELECT pg_get_functiondef('api_private."+name+'('+signature+")'::regprocedure);")
+            before,_=task_lock_order.body_pair((release/'schema/local-task-files.sql').read_text(),name)
+            d.sql(definition.replace(before,before+'\n-- unexpected synthetic function change\n'))
+            fixed_sql=task_lock_order.patch_sql((release/'schema/local-tasks.sql').read_text(),(release/'schema/local-task-files.sql').read_text())
+            try:d.sql(fixed_sql)
+            except RuntimeError:pass
+            else:raise ValueError('UNATTESTED_TASK_LOCK_FUNCTION_WAS_REPLACED')
+            actual=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private.local_worker_call(uuid,text,text,text,uuid,uuid,jsonb)'::regprocedure;")
+            old,_=task_lock_order.body_pair((release/'schema/local-tasks.sql').read_text(),'local_worker_call')
+            if actual.strip()!=old.strip():raise ValueError('TASK_LOCK_REPAIR_NOT_ATOMIC')
+            d.sql(definition)
+            lock_repair.repair(state,repo,docker=d)
+            result=lock_repair.repair(state,repo,apply=True,docker=d)
+            if result.get('status')!='task_locks_and_space_switch_repaired_real_task_check_required':raise ValueError('TASK_LOCK_REPAIR_STATUS_DIFFERS')
+            lock_repair.repair(state,repo,apply=True,docker=d)
+            for name,file in [('local_worker_call','local-tasks.sql'),('local_worker_file','local-task-files.sql')]:
+                _,after=task_lock_order.body_pair((release/'schema'/file).read_text(),name)
+                actual=d.sql("SELECT prosrc FROM pg_proc WHERE oid='api_private."+name+'('+task_lock_order.SIGNATURES[name]+")'::regprocedure;")
+                if actual.strip()!=after.strip():raise ValueError('TASK_LOCK_BODY_NOT_REPAIRED')
+            if tree_digest(geo_web)!=geo_tree or tree_digest(prior_web)!=prior_tree:raise ValueError('EARLIER_OVERLAY_CHANGED')
+            print('TASK_PARENT_LOCK_ORDER_AND_SPACE_SWITCH_REPAIR_REPEAT_VERIFIED',flush=True)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

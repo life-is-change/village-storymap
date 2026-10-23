@@ -126,15 +126,19 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;recei
    RETURN jsonb_build_object('error','STALE_CLAIM');
   END IF;
   -- Bound reaping work. Never scan or consume the restored source queues.
-  FOR r IN SELECT * FROM api_private.local_gpu_runs WHERE instance_id=instance AND kind=w.kind AND lease_until<=now() AND status IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating','cancel_requested') ORDER BY lease_until LIMIT 20 FOR UPDATE SKIP LOCKED LOOP
+  FOR r IN SELECT g.* FROM api_private.task_requests t JOIN api_private.local_gpu_runs g ON g.id=t.id WHERE t.instance_id=instance AND g.instance_id=instance AND g.kind=w.kind AND g.lease_until<=now() AND g.status IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating','cancel_requested') ORDER BY g.lease_until LIMIT 20 FOR UPDATE OF t SKIP LOCKED LOOP
+   SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=r.id AND instance_id=instance AND kind=w.kind AND lease_until<=now() AND status IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating','cancel_requested') FOR UPDATE;
+   IF NOT FOUND THEN CONTINUE;END IF;
    UPDATE api_private.local_gpu_runs SET status=CASE WHEN status='cancel_requested' THEN 'canceled' WHEN attempts>=5 THEN 'failed' WHEN phase='geo' THEN 'queued' WHEN phase='rectification' THEN 'queued_rectification' ELSE 'queued_generation' END,
      error_code=CASE WHEN attempts>=5 THEN 'LEASE_ATTEMPTS_EXHAUSTED' ELSE error_code END,progress=CASE WHEN phase='generation' THEN 40 ELSE 0 END,lease_until=NULL,worker_id=NULL,lease_token=NULL,next_at=now()+make_interval(secs=>least(30,power(2,attempts)::integer)),updated_at=now() WHERE id=r.id;
    PERFORM api_private.local_gpu_sync(r.id);
   END LOOP;
   IF EXISTS(SELECT 1 FROM api_private.local_gpu_runs WHERE worker_id=wid AND lease_until>now() AND status IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating','cancel_requested')) THEN RETURN jsonb_build_object('run',NULL,'busy',true);END IF;
   LOOP
-   SELECT * INTO r FROM api_private.local_gpu_runs WHERE instance_id=instance AND kind=w.kind AND status IN('queued','queued_rectification','queued_generation') AND next_at<=now() AND attempts<5 ORDER BY next_at,created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED;
+   SELECT g.* INTO r FROM api_private.task_requests t JOIN api_private.local_gpu_runs g ON g.id=t.id WHERE t.instance_id=instance AND g.instance_id=instance AND g.kind=w.kind AND g.status IN('queued','queued_rectification','queued_generation') AND g.next_at<=now() AND g.attempts<5 ORDER BY g.next_at,g.created_at,g.id LIMIT 1 FOR UPDATE OF t SKIP LOCKED;
    IF NOT FOUND THEN RETURN jsonb_build_object('run',NULL);END IF;
+   SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=r.id AND instance_id=instance AND kind=w.kind AND status IN('queued','queued_rectification','queued_generation') AND next_at<=now() AND attempts<5 FOR UPDATE;
+   IF NOT FOUND THEN CONTINUE;END IF;
    IF api_private.local_gpu_guard(r) THEN EXIT;END IF;
    UPDATE api_private.local_gpu_runs SET status='canceled',error_code='FORBIDDEN',updated_at=now() WHERE id=r.id;
    UPDATE api_private.task_requests SET state='revoked',error_code='FORBIDDEN',updated_at=now() WHERE id=r.id;
@@ -145,6 +149,10 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;recei
   INSERT INTO api_private.local_gpu_claim_receipts(worker_id,request_id,run_id,lease_token) VALUES(wid,(p->>'requestId')::uuid,r.id,r.lease_token);
   PERFORM api_private.local_gpu_sync(r.id);RETURN api_private.local_gpu_worker_view(r);
  END IF;
+ -- Match local_task_control: parent task before child run. Holding the run
+ -- first while local_gpu_sync waits for the task can deadlock status polling.
+ PERFORM 1 FROM api_private.task_requests WHERE id=rid AND instance_id=instance AND kind=w.kind FOR UPDATE;
+ IF NOT FOUND THEN RETURN jsonb_build_object('error','LEASE_LOST');END IF;
  SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=rid AND instance_id=instance AND kind=w.kind FOR UPDATE;
  IF NOT FOUND OR r.worker_id IS DISTINCT FROM wid OR r.lease_token IS DISTINCT FROM token OR NOT api_private.local_gpu_guard(r) THEN RETURN jsonb_build_object('error','LEASE_LOST');END IF;
  IF action='complete' AND r.status='completed' OR action='publish-rectification' AND r.status='awaiting_crop' OR action='cancel' AND r.status='canceled' THEN RETURN jsonb_build_object('ok',true,'status',r.status);END IF;

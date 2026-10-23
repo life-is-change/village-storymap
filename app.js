@@ -378,7 +378,7 @@ const layerConfigs = {
     label: "水体",
     objectType: "water",
     geojsonUrl: "data/water.geojson",
-    tableUrl: "data/water.csv",
+    tableUrl: null,
     codeFields: ["水体编码", "编码", "CODE", "code", "Code", "ID", "id"],
     nameFields: ["水体名称", "名称", "name", "NAME"],
     photoFields: ["照片", "图片", "photo", "PHOTO"]

@@ -7,6 +7,17 @@ const { createCourseWorkbench } = require('./course-workbench.js');
 const app = fs.readFileSync(path.join(__dirname, '../../app.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+test('static water loads its GeoJSON without requesting a nonexistent attribute CSV',async()=>{
+ const requests=[],features=[{type:'Feature',properties:{name:'water'},geometry:{type:'LineString',coordinates:[[113,23],[113.001,23]]}}];
+ const layerConfigs=vm.runInNewContext(app.slice(app.indexOf('const layerConfigs = {'),app.indexOf('\nconst BASEMAP_GEOREF ='))+';layerConfigs');
+ const body=app.slice(app.indexOf('async function ensureLayerLoaded('),app.indexOf('\nasync function ensureSelectedLayersLoaded()'));
+ const sandbox={window:{},layerConfigs,layerDataActorId:'',layerDataGeneration:0,layerDataCache:{},layerDataLoadPromises:{},activeVillageContext:null,
+  loadDatasetText:async url=>{requests.push(url);return JSON.stringify({type:'FeatureCollection',features});},getGeoJSONFeatures:g=>g.features,
+  parseCSV:()=>[],buildRowIndex:()=>new Map()};
+ const result=await vm.runInNewContext(body+';ensureLayerLoaded',sandbox)('water');
+ assert.deepEqual(requests,['data/water.geojson']);assert.equal(result.features.length,1);
+});
+
 test('Cesium runtime, widgets and workers share pinned local base', () => {
   const body = app.slice(app.indexOf('async function ensureVillage3DLoaded()'), app.indexOf('\nfunction getSceneStudioActiveView()'));
   assert.match(body, /CESIUM_BASE_URL\s*=\s*["']assets\/vendor\/cesium-1\.118\.0\/["']/);

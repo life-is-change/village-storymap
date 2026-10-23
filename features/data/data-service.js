@@ -148,6 +148,9 @@
     },
 
     async acquireSpaceEditLock(deps, spaceId, editorName) {
+      // Aliyun saves use server-enforced planning feature leases. The old
+      // whole-space attribute record is only a source deployment convention.
+      if (deps.services?.mode === 'aliyun') return { success: true };
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !spaceId || !editorName) return { success: true };
@@ -209,6 +212,7 @@
     },
 
     async releaseSpaceEditLock(deps, spaceId) {
+      if (deps.services?.mode === 'aliyun') return;
       const context = requireContext(deps);
       const supabaseClient = deps.getSupabaseClient();
       if (!supabaseClient || !spaceId) return;

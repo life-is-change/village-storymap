@@ -31,6 +31,8 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;u api
  -- cannot race the metadata publication transaction.
  SELECT * INTO w FROM api_private.local_gpu_workers WHERE id=wid AND token_digest=digest AND instance_id=instance AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) FOR UPDATE;
  IF NOT FOUND THEN RETURN jsonb_build_object('error','UNAUTHORIZED');END IF;
+ PERFORM 1 FROM api_private.task_requests WHERE id=rid AND instance_id=instance AND kind=w.kind FOR UPDATE;
+ IF NOT FOUND THEN RETURN jsonb_build_object('error','LEASE_LOST');END IF;
  SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=rid AND instance_id=instance FOR UPDATE;
  IF NOT FOUND OR r.worker_id IS DISTINCT FROM wid OR r.lease_token IS DISTINCT FROM token OR r.lease_until IS NULL OR r.lease_until<=now()
   OR r.status NOT IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating') OR r.kind<>w.kind

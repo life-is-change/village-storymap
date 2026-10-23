@@ -1,0 +1,9 @@
+# 任务进度与状态读取死锁
+
+用户已成功应用图底roads_water修复，返回geo_results_and_3d_retry_repaired_real_task_check_required。新任务b31b8edf-7f46-4a11-8765-094cd2a04cfa在0%失败。4090日志确认set_running/set_stage收到HTTP503，旧上传403与新进度503是不同故障。阿里云Postgres最近2小时日志有1个deadlock detected块，涉及local_worker_call、local_task_control、local_gpu_sync、task_requests。
+
+Worker原先先锁local_gpu_runs，再由local_gpu_sync更新task_requests；网站状态读取先锁task_requests，再锁local_gpu_runs。必须统一为父task_requests在前、子local_gpu_runs在后。领取和过期租约回收也遵循此顺序，锁住其他事务持有的父记录时跳过，而非占着子记录等待。Worker身份验证仍在前，保留撤销、租约、权限、终态和输出完整性检查；不通过重试或取消死锁检测来掩盖问题。
+
+网页截图另有SOURCE_BUSINESS_DISABLED，来自离开共享空间时旧releaseSpaceEditLock调用Supabase。Aliyun编辑已经通过planning.acquireLock/saveBatch/releaseLock执行对象级原生租约；旧全空间属性表锁仅用于source部署，Aliyun路径不调用该旧API，不减少原生保存校验。CONTEXT_CHANGED是跨空间过期请求拒绝；保留该保护。water.csv未在源目录中，GeoJSON包含水体属性，移除水体配置的不存在附加CSV请求，不生成伪造业务文件。
+
+实施要求：在原项目main上修改；不改校园镜像、模型服务、私钥或旧目录，不reset数据库。新云端工具验证已安装geo-browser-v1回执和树、冻结release/control、原函数体；先自身备份，单事务更新2个队列/上传函数，复制现有网页到新覆盖层，仅更新app.js/data-service.js；保留所有旧网页和结果数据。只更新web，验证API/Auth/Postgres实例ID不变。只读预检及重复执行均需测试。

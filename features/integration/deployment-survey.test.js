@@ -29,3 +29,16 @@ test('local survey admin uses contextual restore revision instead of source tabl
  await client.restoreVersion({...context,layerKey:'building',objectCode:'B1',featureVersionId:'version',expectedRevision:4});await client.loadHistory({...context,layerKey:'building',objectCode:'B1'});
  assert.equal(calls[0][0],'survey.restoreVersion');assert.equal(calls[0][1].revision,4);assert.equal(calls[1][0],'survey.history');
 });
+test('Aliyun shared-space transitions never touch legacy Supabase space locks',async()=>{
+ const window={};vm.runInNewContext(fs.readFileSync('features/data/data-service.js','utf8'),{window,console});const service=window.DataServiceModule;
+ const deps={getContext:()=>context,services:{mode:'aliyun',planning:{execute(){throw Error('Unexpected synthetic lock operation');}}},getSupabaseClient(){throw Error('SOURCE_BUSINESS_DISABLED');}};
+ await service.releaseSpaceEditLock(deps,'shared');
+ assert.equal((await service.acquireSpaceEditLock(deps,'shared','admin')).success,true);
+});
+
+test('source deployments retain their legacy whole-space lock release',async()=>{
+ const window={};vm.runInNewContext(fs.readFileSync('features/data/data-service.js','utf8'),{window,console});const calls=[];
+ const query={delete(){calls.push('delete');return this;},eq(k,v){calls.push([k,v]);return this;}};
+ await window.DataServiceModule.releaseSpaceEditLock({getContext:()=>context,OBJECT_EDITS_TABLE:'attributes',getSupabaseClient:()=>({from:()=>query})},'s');
+ assert.equal(calls[0],'delete');assert.ok(calls.some(v=>Array.isArray(v)&&v[0]==='object_type'&&v[1]==='space_lock'));
+});

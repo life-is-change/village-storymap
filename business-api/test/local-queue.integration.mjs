@@ -96,3 +96,52 @@ test('real Worker identity proves both credential kinds read-only and rejects re
   }}finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
  });
 });
+
+test('status polling and Worker progress serialize on the parent task without deadlocking',async()=>{
+ await fixture(async({setup,queue,tasks,worker,submit,claim})=>{
+  const actor=await worker(),p=await submit(),job=await claim(actor);
+  let progressValue=0;
+  async function overlap(){
+   await setup.query("SET deadlock_timeout='100ms';BEGIN");
+   await setup.query('SELECT id FROM api_private.task_requests WHERE id=$1 FOR UPDATE',[job.run.id]);
+   const progress=queue.workerCall(actor,'progress',job.run.id,job.leaseToken,{state:'running',stage:'starting',progress:++progressValue}).then(value=>({value}),error=>({error:error.code}));
+   let statusError;
+   try{
+    let blocked=false;
+    for(let n=0;n<150;n++){
+     blocked=(await setup.query("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND usename='village_unified_login' AND wait_event_type='Lock' AND pg_backend_pid()=ANY(pg_blocking_pids(pid))) AS blocked")).rows[0].blocked;
+     if(blocked)break;await new Promise(r=>setTimeout(r,10));
+    }
+    assert.equal(blocked,true,'Worker must actually overlap the held parent lock');
+    try{await setup.query("SELECT api_private.local_task_control('status','aliyun-test',$1::jsonb)",[JSON.stringify({ownerId:USERS.student,requestId:p.requestId})]);}
+    catch(error){statusError=error.code;}
+   }finally{await setup.query('ROLLBACK');}
+   return {statusError,progressError:(await progress).error};
+  }
+  const good=await overlap();assert.deepEqual(good,{statusError:undefined,progressError:undefined});
+  // A deterministic RED replay of the original function in this disposable
+  // cluster proves the overlap test really detects the reported lock cycle.
+  const {spawnSync}=await import('node:child_process');
+  const child=spawnSync('python3',['-B','-c',"import sys,json;from pathlib import Path;sys.path.insert(0,'linux/scripts');from task_lock_order import body_pair;print(json.dumps(body_pair(Path('linux/sql/local-tasks.sql').read_text(),'local_worker_call')))"],{encoding:'utf8',timeout:10000});
+  assert.equal(child.status,0);const [before,after]=JSON.parse(child.stdout);
+  const definition=(await setup.query("SELECT pg_get_functiondef('api_private.local_worker_call(uuid,text,text,text,uuid,uuid,jsonb)'::regprocedure) AS body")).rows[0].body;
+  assert.ok(definition.includes(after));await setup.query(definition.replace(after,before));
+  let legacy;
+  try{legacy=await overlap();}finally{await setup.query(definition);}
+  assert.ok(legacy.statusError==='40P01'||legacy.progressError==='DB_UNAVAILABLE','legacy lock inversion must actually reproduce a deadlock');
+  assert.deepEqual(await overlap(),{statusError:undefined,progressError:undefined});
+  assert.equal((await tasks.execute(testIdentity(),'tasks.get',{requestId:p.requestId})).state,'running');
+ });
+});
+
+test('claim skips a locked parent task instead of holding its child while waiting',async()=>{
+ await fixture(async({setup,worker,submit,claim})=>{
+  const actor=await worker(),first=await submit(),second=await submit();
+  await setup.query('BEGIN');await setup.query('SELECT id FROM api_private.task_requests WHERE request_id=$1 FOR UPDATE',[first.requestId]);
+  const pending=claim(actor).then(value=>({value}),error=>({error}));let result;
+  try{result=await Promise.race([pending,new Promise(resolve=>setTimeout(()=>resolve({blocked:true}),700))]);}
+  finally{await setup.query('ROLLBACK');await pending;}
+  assert.notEqual(result.blocked,true,'claim must finish before the parent lock is released');assert.equal(result.error,undefined);
+  assert.equal((await setup.query('SELECT request_id FROM api_private.task_requests WHERE id=$1',[result.value.run.id])).rows[0].request_id,second.requestId);
+ });
+});
