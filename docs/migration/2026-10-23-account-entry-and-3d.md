@@ -28,3 +28,6 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 linux/sc
 ## 验证记录
 
 本机1093项JS全部通过，417项Python通过、7项Windows/POSIX差异跳过。首次公共地图读取的CONTEXT_CHANGED和两种普通个人3D的FORBIDDEN先复现3项失败，再通过针对测试；实际user/project/village/course/space变化仍拒绝结果，版本空间真实403不吞掉。独立整体验证审查发现停止/移除web后恢复缺口，已补充先失败后通过的恢复测试，并扩展原生夹具在真实停止/移除后恢复。云端实际浏览器验收待用户执行。
+
+
+源码 `40e8688` 的[原生CI39914467813](https://github.com/life-is-change/village-storymap/actions/runs/39914467813)全部成功：native-database任务120284761875、autonomous-proxy任务120284762205均成功。完整部署夹具先在三层历史覆盖层还原精确旧app-3d与旧API客户端，校验其摘要后预检；真实停止web、随后移除web时分别制造Compose中断，再恢复并重复apply，实际返回 `ACCOUNT_ENTRY_LEGACY_3D_OVERLAY_RECOVERY_AND_REPEAT_VERIFIED`。已有task-lock验证、全部api_private函数摘要不变、历史网页树不变、自身114表恢复、4认证账户、重启及1/5/10/20并发继续通过；无真实CA、提供商或GPU调用。[平台回归39914467716](https://github.com/life-is-change/village-storymap/actions/runs/39914467716)的Python/JavaScript以及Pages39914467392均成功。本次仅交付待用户执行的修复，没有在用户阿里云或4090上代为执行操作。
