@@ -39,7 +39,9 @@ Files: app.js; features/ui/workspace-consistency.test.js; geometry-editor.js; re
 
 Files: linux/sql/workspace-personal-context.sql; linux/scripts/repair-autonomous-workspace.py; linux/workspace-repair-baseline.json; linux/tests/test_autonomous_workspace_repair.py; native coordinator fixture.
 
-- [ ] 精确兼容旧5参数ensure函数，发布村类型/项目绑定校验，保留所有者和冲突保护；原生RED/GREEN。
-- [ ] 校验旧覆盖层与固定基准摘要、自身备份、单事务函数替换、只更新网页并核对其他ID。
-- [ ] 隔离原生测试成员/非成员、第二练习村、正式村拒绝、原生个人增删保存、历史函数/网页兼容与重复修复。
-- [ ] 全Python/CI/独立审查完成后记录证据，推送并交付一条云端命令。
+- [x] 精确兼容旧5参数ensure函数，发布村类型/项目绑定校验，保留所有者和冲突保护；原生RED/GREEN。
+- [x] 校验旧覆盖层与固定基准摘要、自身备份、单事务函数替换、只更新网页并核对其他ID。
+- [x] 隔离原生测试成员/非成员、第二练习村、正式村拒绝、原生个人增删保存、历史函数/网页兼容与重复修复。
+- [x] 全Python/CI/独立审查完成后记录证据，推送并交付一条云端命令。
+
+完成证据：本地1106 JS/420 Python（7 skip）；最终独立审查无阻塞；源码1b23077 native39953502534 attempt2、platform39953502509、Pages39953502934成功。实际阿里云浏览器待用户验收。

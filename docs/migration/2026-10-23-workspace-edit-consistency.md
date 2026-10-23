@@ -21,7 +21,7 @@
 
 ## 验证记录
 
-本地13项新增JS回归先复现失败再修复，覆盖普通/小组await期间绘制竞态、错误保存保留、已保存后刷新失败、数值编号、空UUID、假共享入口、图底列表保留。独立审查3项意见均已修正并复测，最终无阻塞意见。完整本地及原生CI证据在发布前补充；实际阿里云浏览器待用户验收。
+本地13项新增JS回归先复现失败再修复，覆盖普通/小组await期间绘制竞态、错误保存保留、已保存后刷新失败、数值编号、空UUID、假共享入口、图底列表保留。独立审查3项意见均已修正并复测，最终无阻塞意见。本地完整测试1106项JS通过，420项Python通过、7项平台差异跳过；实际阿里云浏览器待用户验收。
 
 ## 阿里云执行（发布验证通过后）
 
@@ -33,3 +33,17 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 完成标记：`workspace_edit_consistency_repaired_browser_check_required`。
 
 见STOP则保留备份/日志及当前业务数据，不reset、不要重跑初始安装。浏览器强制刷新后验证：未入组账号首次进入米埗村；图底/体验切换后列表保持；体验空间新增、删除建筑并刷新确认；绘制过程中等待事件刷新不丢草稿。共享空间仍按原成员权限控制。此前已成功的account-entry修复不用重跑。
+
+## 已完成的发布验证
+
+生产代码提交`aae750d`，隔离夹具完善至`1b23077`（`a28a52b`补齐真实旧编辑器字节；`1b23077`补齐原有ensure_context_space RPC及已发布数据集，以实际HTTP测试新用户空间创建）。阿里云公开app.js、app-3d.js及geometry-editor.js的HTTPS字节均匹配89ab797固定基准。
+
+`1b23077`的[原生CI39953502534](https://github.com/life-is-change/village-storymap/actions/runs/39953502534)第二次执行成功：native-database任务120417191922、autonomous-proxy任务120417195274。第一次在既有重启后的认证初探遇到502（四容器运行且无OOM），原样重跑后完整通过，没有改变生产认证逻辑或放宽成功条件。实际日志标记：
+
+- `WORKSPACE_LEGACY_PERSONAL_CONTEXT_FAILURE_REPRODUCED`
+- `WORKSPACE_PERSONAL_CONTEXT_OWNER_SCOPE_HTTP_GEOMETRY_RECOVERY_AND_REPEAT_VERIFIED`
+- `AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED`
+
+覆盖：精确旧函数/旧网页版本；未知函数拒绝；只改目标函数且owner/ACL/search_path及其他函数不变；第二已发布练习村ensure；未发布/关闭正式/正式村错误绑定拒绝；所有者隔离/同项目重试/跨项目冲突；真实HTTPS创建体验空间、无空UUID新增、获取租约后删除及释放；web停止/移除中断恢复；重复apply；历史覆盖层不变。保留4认证用户、114表自身恢复、业务重启及1/5/10/20并发成功，无真实CA、提供商或GPU调用。
+
+同一源码的[平台回归39953502509](https://github.com/life-is-change/village-storymap/actions/runs/39953502509)（含真实浏览器装配/网络路由测试）及[Pages39953502934](https://github.com/life-is-change/village-storymap/actions/runs/39953502934)均成功。新补丁尚未在用户阿里云代为执行；真实账号浏览器验收待运行上述命令后进行。4090 Worker和模型服务未修改。
