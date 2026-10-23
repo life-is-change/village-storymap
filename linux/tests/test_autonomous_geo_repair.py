@@ -25,7 +25,8 @@ def test_geo_patch_attests_only_two_existing_function_bodies_and_retains_permiss
 
 def test_known_prior_browser_overlay_is_attested_before_copying_and_never_modified(tmp_path):
     m=module();old=m.browser;source=S.parents[1];data=old.inputs(source)
-    root=tmp_path/'files'/old.PATCH;web=root/'web';web.mkdir(parents=True,mode=0o700)
+    root=tmp_path/'files'/old.PATCH;root.mkdir(parents=True,mode=0o700)
+    web=root/'web';web.mkdir(mode=0o700)
     for name,value in data.items():
         path=web/name;path.parent.mkdir(parents=True,mode=0o700,exist_ok=True);path.write_bytes(value);path.chmod(0o600)
     meta={'releaseId':'fixture'};manifest={k:m.digest(v) for k,v in data.items()}
