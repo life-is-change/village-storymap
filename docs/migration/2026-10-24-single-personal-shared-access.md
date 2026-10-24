@@ -53,3 +53,11 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 - fresh 独立审查通过；其中历史回执摘要取错问题由原生 CI 拦截，在写数据前停止，修正并重新验证成功。
 
 阿里云当前已确认应用的是上一轮 workspace-edit 覆盖层；本轮单空间/权限修复仍须执行上方命令。代码与隔离验证通过不代表阿里云已更新，也不代表真实浏览器验收通过。
+
+## 实际部署反馈：旧函数 CRLF 表示
+
+用户首次执行本轮脚本，停于只读预检 `SINGLE_PERSONAL_FUNCTION_CHANGED`，`PATCH_RECEIPT_EXISTS=False`。七个目标函数中，六个与已知原函数精确一致，仅 `public.set_personal_layer_version(uuid,text,uuid)` 的数据库函数体保留 CRLF 换行。
+
+用户返回的函数体摘要为 `ef3ff2da00e768f054f0b0ff8036ef7b670456ed3ad2b9bd50d6b28822a68144`，与本地已知原函数 LF→CRLF 转换后摘要完全一致。兼容修正仅接受该函数的这两种精确旧表示；不对任意 SQL 做空白折叠。更新时按实际匹配的完整原函数体替换，保留函数所有者、授权和安全属性。
+
+新增隔离回归重现 CRLF 预检拒绝原因，验证 CRLF 带额外未知改动仍被拒绝、合法 CRLF 可升级，之后继续完整权限、成果应用与恢复测试。最初执行停在 `--apply` 前，因此没有本轮更新回执或部分写入需要清理；无需重新打包或安装平台。

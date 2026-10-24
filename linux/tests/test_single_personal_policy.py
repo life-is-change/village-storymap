@@ -33,3 +33,21 @@ def test_previous_workspace_receipt_uses_post_repair_geometry_digest():
     expected={'app.js':repair.BASELINE['app.js'],'features/map-editing/geometry-editor.js':hashlib.sha256((ROOT/'features/map-editing/geometry-editor.js').read_bytes().replace(b'\r\n',b'\n')).hexdigest()}
     assert repair.PREVIOUS_WORKSPACE_FILES==expected
     assert expected['features/map-editing/geometry-editor.js']!=repair.workspace.BASELINE['features/map-editing/geometry-editor.js']
+
+
+def test_only_confirmed_legacy_selection_crlf_body_is_accepted_exactly():
+    import hashlib
+    from single_personal_policy import original_bodies,replacements,patch_sql
+    selection='public.set_personal_layer_version(uuid,text,uuid)'
+    for signature,before,after in replacements(ROOT):
+        accepted=original_bodies(signature,before)
+        assert before in accepted
+        if signature==selection:
+            legacy=before.replace('\n','\r\n')
+            assert hashlib.sha256(legacy.encode()).hexdigest()=='ef3ff2da00e768f054f0b0ff8036ef7b670456ed3ad2b9bd50d6b28822a68144'
+            assert accepted==(before,legacy)
+            assert legacy+'\r\n-- unknown' not in accepted
+            for apply in (False,True):
+                assert "'"+legacy.replace("'","''")+"'" in patch_sql(ROOT,apply=apply)
+        else:
+            assert accepted==(before,)

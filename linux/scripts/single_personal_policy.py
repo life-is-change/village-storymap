@@ -17,6 +17,15 @@ def function_body(definition):
     return match[1]
 
 
+def original_bodies(signature,before):
+    # The imported Supabase selection function has confirmed CRLF bytes.
+    # Accept that exact representation only for this known function; do not
+    # normalize arbitrary SQL whitespace or accept other altered bodies.
+    if signature=='public.set_personal_layer_version(uuid,text,uuid)':
+        return (before,before.replace('\n','\r\n'))
+    return (before,)
+
+
 def replacements(root,catalog=None):
     repair=(root/'supabase_SQL/Multi-Village Dual-Track Repair.sql').read_text(encoding='utf8')
     access=function_body(public_definition(repair,'context_space_accessible'))
@@ -97,8 +106,9 @@ def patch_sql(root,*,apply=True,catalog=None):
 END$columns$;""")
     if apply:parts.extend(["ALTER TABLE public.course_personal_spaces ADD COLUMN IF NOT EXISTS experience_space_id text REFERENCES public.planning_spaces(id);", "ALTER TABLE public.planning_spaces ADD COLUMN IF NOT EXISTS applied_result_versions jsonb NOT NULL DEFAULT '{}';"])
     for signature,before,after in replacements(root,catalog):
-        change='IF actual=original THEN EXECUTE replace(definition,original,patched);END IF;' if apply else ''
-        parts.append('DO $cas$DECLARE original text:='+quote(before)+';patched text:='+quote(after)+";actual text;definition text;BEGIN SELECT prosrc,pg_get_functiondef(oid) INTO actual,definition FROM pg_proc WHERE oid="+quote(signature)+"::regprocedure;IF actual IS NULL OR actual NOT IN(original,patched) THEN RAISE EXCEPTION 'SINGLE_PERSONAL_FUNCTION_CHANGED';END IF;"+change+'END$cas$;')
+        accepted='original,patched'+''.join(','+quote(v) for v in original_bodies(signature,before)[1:])
+        change='IF actual<>patched THEN EXECUTE replace(definition,actual,patched);END IF;' if apply else ''
+        parts.append('DO $cas$DECLARE original text:='+quote(before)+';patched text:='+quote(after)+";actual text;definition text;BEGIN SELECT prosrc,pg_get_functiondef(oid) INTO actual,definition FROM pg_proc WHERE oid="+quote(signature)+"::regprocedure;IF actual IS NULL OR actual NOT IN("+accepted+") THEN RAISE EXCEPTION 'SINGLE_PERSONAL_FUNCTION_CHANGED';END IF;"+change+'END$cas$;')
     definition=(root/'linux/sql/single-personal-apply.sql').read_text(encoding='utf8')
     body=function_body(definition)
     create='IF actual IS NULL THEN EXECUTE '+quote(definition)+';END IF;' if apply else ''

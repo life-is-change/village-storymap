@@ -24,6 +24,24 @@ def wait_auth(api):
 def verify_single_personal(state,repo,d,load,api,original_run):
     if os.environ.get('GITHUB_ACTIONS')!='true' or os.environ.get('VILLAGE_TEST_AUTONOMOUS_RUNTIME')!='1':raise ValueError('DISPOSABLE_SINGLE_PERSONAL_REQUIRED')
     repair=load('repair-autonomous-single-personal');repair.load_script=load
+    # Reproduce the exact imported CRLF function found on the real server.
+    selection='public.set_personal_layer_version(uuid,text,uuid)'
+    before=dict((name,old) for name,old,_ in replacements(repo))[selection]
+    selection_definition=d.sql("SELECT pg_get_functiondef('"+selection+"'::regprocedure);")
+    if selection_definition.count(before)!=1:raise ValueError('KNOWN_SELECTION_FIXTURE_REQUIRED')
+    legacy_definition=selection_definition.replace(before,before.replace('\n','\r\n'))
+    d.sql(legacy_definition)
+    quote=lambda s:"'"+s.replace("'","''")+"'"
+    if d.sql("SELECT prosrc="+quote(before)+" FROM pg_proc WHERE oid='"+selection+"'::regprocedure;").strip()!='f':raise ValueError('LEGACY_CRLF_MISMATCH_NOT_REPRODUCED')
+    print('SINGLE_PERSONAL_LEGACY_CRLF_BODY_MISMATCH_REPRODUCED',flush=True)
+    d.sql(legacy_definition.replace(before.replace('\n','\r\n'),before.replace('\n','\r\n')+'\r\n-- unknown fixture\r\n'))
+    try:
+        try:d.sql(patch_sql(repo,apply=False))
+        except RuntimeError:pass
+        else:raise ValueError('UNKNOWN_CRLF_SELECTION_BODY_ACCEPTED')
+    finally:d.sql(legacy_definition)
+    selection_authority="SELECT md5(row(proowner,proacl,prosecdef,proconfig)::text) FROM pg_proc WHERE oid='"+selection+"'::regprocedure;"
+    authority_before=d.sql(selection_authority)
     d.sql("BEGIN;SELECT set_config('request.jwt.claim.sub','"+UID+"',true);DELETE FROM public.group_memberships WHERE student_key=public.current_profile_student_key();DO $$BEGIN IF public.context_space_accessible('"+PID+"','"+VID+"','A') THEN RAISE EXCEPTION 'LEGACY_READ_REJECTION_NOT_REPRODUCED';END IF;END$$;COMMIT;")
     print('SINGLE_PERSONAL_LEGACY_UNGROUPED_READ_REJECTION_REPRODUCED',flush=True)
     signature='public.context_space_mutable(uuid,uuid,text)'
@@ -55,6 +73,7 @@ def verify_single_personal(state,repo,d,load,api,original_run):
     result=repair.repair(state,repo,apply=True,docker=d)
     if result['status']!='single_personal_and_shared_access_repaired_browser_check_required':raise ValueError('SINGLE_PERSONAL_STATUS_DIFFERS')
     repair.repair(state,repo,apply=True,docker=d)
+    if d.sql(selection_authority)!=authority_before:raise ValueError('CRLF_REPAIR_CHANGED_FUNCTION_AUTHORITY')
     if old_trees!={p:tree_digest(state/'files'/p/'web') for p in old_trees}:raise ValueError('SINGLE_PERSONAL_CHANGED_OLD_OVERLAYS')
     wait_auth(api)
     other=api.login(('other','synthetic-ci-password-0001'));admin=api.login(('332','synthetic-ci-password-0001'))
