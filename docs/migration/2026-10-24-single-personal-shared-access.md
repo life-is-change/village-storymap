@@ -52,7 +52,7 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 - [平台回归 40062927996](https://github.com/life-is-change/village-storymap/actions/runs/40062927996) 通过：前端1114项，Linux环境Python429项通过、1项有条件跳过，另有80项服务端测试通过。[备用 Pages 发布 40062927817](https://github.com/life-is-change/village-storymap/actions/runs/40062927817) 通过。
 - fresh 独立审查通过；其中历史回执摘要取错问题由原生 CI 拦截，在写数据前停止，修正并重新验证成功。
 
-阿里云当前已确认应用的是上一轮 workspace-edit 覆盖层；本轮单空间/权限修复仍须执行上方命令。代码与隔离验证通过不代表阿里云已更新，也不代表真实浏览器验收通过。
+上述CI通过时，阿里云仍为上一轮workspace-edit覆盖层。后续实际部署反馈记录如下；隔离验证与服务端部署成功均不代替真实浏览器验收。
 
 ## 实际部署反馈：旧函数 CRLF 表示
 
@@ -62,4 +62,17 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 
 新增隔离回归重现 CRLF 预检拒绝原因，验证 CRLF 带额外未知改动仍被拒绝、合法 CRLF 可升级，之后继续完整权限、成果应用与恢复测试。最初执行停在 `--apply` 前，因此没有本轮更新回执或部分写入需要清理；无需重新打包或安装平台。
 
-兼容代码提交 `4f0e9aceae152cee3467b4afbe00f2bf85106f21`。本地Python全量424项通过、7项有条件跳过，策略/历史兼容专项13项通过，独立审查批准。[原生验证40075679677](https://github.com/life-is-change/village-storymap/actions/runs/40075679677) 通过，job `120818380659` 输出 `SINGLE_PERSONAL_LEGACY_CRLF_BODY_MISMATCH_REPRODUCED` 及完整权限/成果/恢复通过标记；再次验证4个账号、114张自有恢复表和重启持久化。[平台回归40075679706](https://github.com/life-is-change/village-storymap/actions/runs/40075679706) 与 [备用Pages40075679535](https://github.com/life-is-change/village-storymap/actions/runs/40075679535) 通过。拉取最新main后重跑原命令，等待真实阿里云及浏览器反馈。
+兼容代码提交 `4f0e9aceae152cee3467b4afbe00f2bf85106f21`。本地Python全量424项通过、7项有条件跳过，策略/历史兼容专项13项通过，独立审查批准。[原生验证40075679677](https://github.com/life-is-change/village-storymap/actions/runs/40075679677) 通过，job `120818380659` 输出 `SINGLE_PERSONAL_LEGACY_CRLF_BODY_MISMATCH_REPRODUCED` 及完整权限/成果/恢复通过标记；再次验证4个账号、114张自有恢复表和重启持久化。[平台回归40075679706](https://github.com/life-is-change/village-storymap/actions/runs/40075679706) 与 [备用Pages40075679535](https://github.com/life-is-change/village-storymap/actions/runs/40075679535) 通过。实际部署结果见下节。
+
+## 阿里云已执行成功，浏览器待验收
+
+2026-10-24用户回传真实阿里云输出：
+
+```json
+{"status":"single_personal_and_shared_access_preflight_passed_no_changes"}
+{"status":"single_personal_and_shared_access_repaired_browser_check_required","workers_replaced":false,"other_services_retained":true}
+```
+
+据此确认本轮受控数据库更新和Web覆盖层部署已完成，脚本保留其他服务、未替换Worker。无需重复安装或重新操作4090。此为用户提供的执行回执，尚未独立连接服务器复核。
+
+待用户强制刷新浏览器后检查：个人图底空间入口消失；未入组普通账号共享可读不可写；本课程入组后可写；管理员免入组可写；个人图底成果的预览、清除与显式应用路径。未收到浏览器验收反馈前不宣称这些实际界面问题全部解决。
