@@ -24,3 +24,12 @@ def test_fixed_shared_access_expression_keeps_balanced_grouping():
     for name,_,body in replacements(ROOT):
         clean=re.sub("'([^']|'')*'",'',body)
         assert clean.count('(')==clean.count(')'),name
+
+
+def test_previous_workspace_receipt_uses_post_repair_geometry_digest():
+    import hashlib,json
+    from autonomous_bundle import load_script
+    repair=load_script('repair-autonomous-single-personal')
+    expected={'app.js':repair.BASELINE['app.js'],'features/map-editing/geometry-editor.js':hashlib.sha256((ROOT/'features/map-editing/geometry-editor.js').read_bytes().replace(b'\r\n',b'\n')).hexdigest()}
+    assert repair.PREVIOUS_WORKSPACE_FILES==expected
+    assert expected['features/map-editing/geometry-editor.js']!=repair.workspace.BASELINE['features/map-editing/geometry-editor.js']

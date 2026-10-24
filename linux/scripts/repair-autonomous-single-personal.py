@@ -23,6 +23,9 @@ from single_personal_policy import patch_sql
 workspace=load_script('repair-autonomous-workspace')
 PATCH='single-personal-20261024-v1'
 BASELINE=json.loads((Path(__file__).resolve().parents[1]/'single-personal-baseline.json').read_text(encoding='utf8'))['files']
+# Receipt records bytes installed by the workspace repair, whereas its own
+# BASELINE describes the older account-entry overlay it replaced.
+PREVIOUS_WORKSPACE_FILES={'app.js':BASELINE['app.js'],'features/map-editing/geometry-editor.js':'f2a3430327388af1934588af2d9a0136aa03bf1bcfe7c10181fa954eece121da'}
 
 
 def digest(value):return hashlib.sha256(value).hexdigest()
@@ -55,7 +58,7 @@ def verify_previous(state,meta,data,hashes,path,source):
     receipt=storage.read_private_json(root/'receipt.json')
     legacy=(source/'linux/sql/autonomous-personal-context-compat.sql').read_text(encoding='utf8')
     fixed=(source/'linux/sql/workspace-personal-context.sql').read_text(encoding='utf8')
-    expected_files={'app.js':BASELINE['app.js'],'features/map-editing/geometry-editor.js':workspace.BASELINE['features/map-editing/geometry-editor.js']}
+    expected_files=PREVIOUS_WORKSPACE_FILES
     if (receipt.get('releaseId')!=meta['releaseId'] or receipt.get('files')!=expected_files
             or receipt.get('source_web')!=str(previous) or receipt.get('sql_sha256')!=digest(previous_workspace_sql(legacy,fixed).encode())
             or receipt.get('phase')!='served_verified_browser_login_pending'
