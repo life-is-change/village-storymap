@@ -199,6 +199,7 @@ test("submitting after an asynchronous status check does not reread the expired 
       courseId: "course-1",
       teachingProjectId: "project-1",
       villageId: "village-1",
+      spaceId: "canonical-personal-experience",
       sourceStatus: { state: "ready" }
     });
     panel.mount();
@@ -209,6 +210,7 @@ test("submitting after an asynchronous status check does not reread the expired 
     await pending;
     assert.equal(requests.length, 1);
     assert.deepEqual(requests[0].requestedSteps, ["buildings"]);
+    assert.equal(requests[0].spaceId,"canonical-personal-experience");
     assert.match(message.textContent, /任务已进入队列/);
   } finally {
     globalThis.FormData = originalFormData;

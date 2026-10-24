@@ -43,6 +43,8 @@
       ownerId: row.owner_id || row.ownerId || null,
       groupId: row.group_id || row.groupId || null,
       title: row.title || "",
+      appliedResultLayers: Object.keys(row.applied_result_versions || {}),
+      appliedResultVersions: {...row.applied_result_versions},
       readonly: Boolean(row.readonly)
     };
   }

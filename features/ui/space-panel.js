@@ -73,6 +73,7 @@
 
       const visibleSpaceGroups = spaceGroups.filter((group) => group.items.length > 0);
       const getSpaceOptionDisplayText = (space) => {
+        if (sharedTypes.has(space.spaceType) && space.readonly) return `${space.title || '全班共享现状空间'} · 只读`;
         if (groupTypes.has(space.spaceType)) {
           const baseSnapshotLabel = String(space.baseSnapshotLabel || "").trim();
           return `${space.title || "本小组方案空间"} · 组内共享${baseSnapshotLabel ? ` · 基线 ${baseSnapshotLabel}` : ""}`;
@@ -303,7 +304,7 @@
               <div class="menu-indent">
                 ${isPersonalSpace ? `
                   <div class="version-manager-actions personal-version-help">
-                    <span>切换当前版本、叠加旧版本或删除不再需要的旧版本。</span>
+                    <span>${window.VillageBusinessServices?.mode === 'aliyun' ? '查看图底成果历史，选择成果应用到个人体验空间。' : '切换当前版本、叠加旧版本或删除不再需要的旧版本。'}</span>
                   </div>
                 ` : `
                   <div class="version-manager-actions">

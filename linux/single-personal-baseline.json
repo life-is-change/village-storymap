@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "sourceCommit": "60c9640",
+  "files": {
+    "app.js": "6762ce51e1335efc7f62087527f0d2c807beb00c94f047e7298371d4d00d2521",
+    "app-3d.js": "07fe62d791d27579175af0876f020e9723ddee0c2fcc98b943303ce2a58a624e",
+    "features/villages/village-client.js": "7b7a6222435a16e380833ba8378e8632f9423843a55ac07ce6979998424893a5",
+    "features/geoprocessing/geoprocessing-panel.js": "1efbbfb2ef78bf5f26458d876d79c97fa6c5605376f8e36af1ccfd5a600f1162",
+    "features/map-editing/overlay-renderer.js": "a4b638a499b5395f425ec1324b5154162148e6c4d6f598548025d6277afefe04",
+    "features/ui/space-panel.js": "c7cdda31d51d5ae6abb16f074882ada1ced25554d0bda3cc2c40615823c9bcf7",
+    "features/ui/personal-layer-versions.js": "539adced07785cca5d6fa63efbb72571c107628692f6081b8a19aecfae2958ef"
+  }
+}

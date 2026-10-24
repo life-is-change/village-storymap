@@ -11,6 +11,13 @@ const {
   createPersonalVersionCompare
 } = require("./personal-layer-versions.js");
 
+test('canonical personal workspace exposes saved bundle history and keeps unfinished bundles disabled',()=>{
+ const {renderPersonalResultHistory}=require('./personal-layer-versions.js');
+ assert.equal(typeof renderPersonalResultHistory,'function');
+ const html=renderPersonalResultHistory([{bundle_id:'old-bundle',layer_key:'building',version_number:1,feature_count:3,created_at:'old',applicable:true},{bundle_id:'pending',layer_key:'road',version_number:2,feature_count:0,applicable:false}],{});
+ assert.match(html,/data-personal-bundle-apply="old-bundle"/);assert.match(html,/建筑/);assert.match(html,/data-personal-bundle-apply="pending"[^>]*disabled/);
+});
+
 test("selections resolve one current version for each imported layer", () => {
   assert.deepEqual(resolveCurrentVersions([
     { layer_key: "building", current_version_id: "b-v2" },

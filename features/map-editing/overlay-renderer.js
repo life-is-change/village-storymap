@@ -184,7 +184,7 @@
       const layerKeysToBuild = incrementalPlan.layerKeysToBuild.filter(key => !retained.has(key));
 
       const staticLayersReady = ensureStaticLayersLoaded({
-        layerKeys: layerKeysToBuild,
+        layerKeys: layerKeysToBuild.filter(key => !deps.isAppliedResultLayer?.(key)),
         isPersonalSpace: deps.isCurrentSpacePersonal(),
         ensureLayerLoaded: deps.ensureLayerLoaded
       }).then(() => null, error => ({ error }));
@@ -303,6 +303,19 @@
         try {
           const sharedRows = sharedRowsByLayer.get(layerKey);
           if (sharedRows?.error) throw sharedRows.error;
+          if (deps.isAppliedResultLayer?.(layerKey)) {
+            const rows = sharedRows ? sharedRows.rows : await deps.listAppliedPersonalLayerFeatures(currentSpaceId,layerKey);
+            for (const row of rows || []) {
+              const raw = deps.buildRawFeatureFromPersonalRow(row);
+              if (!deps.isRenderableGeometry(raw?.geometry)) continue;
+              const feature = format.readFeature(raw,{dataProjection:'EPSG:4326',featureProjection:'EPSG:4326'});
+              feature.set('layerKey',layerKey);feature.set('sourceCode',row.object_code);
+              feature.set('displayName',row.object_name || row.object_code);feature.set('rawFeature',raw);
+              feature.set('baseRow',{...row.props,__featureRevision:Number(row.feature_revision || 0)});
+              nextVectorSource.addFeature(feature);
+            }
+            continue;
+          }
           if (deps.isCurrentSpacePersonal()) {
             const rows = personalRowsByLayer?.get(layerKey) || [];
             (Array.isArray(rows) ? rows : []).forEach((row) => {

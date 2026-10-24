@@ -1,0 +1,19 @@
+"""Reconstruct the fixed pre-change browser bytes for disposable historical tests."""
+import hashlib
+import json
+
+
+def previous_source_bytes(root,name):
+    value=(root/name).read_bytes()
+    if name.endswith('.pdf'):return value
+    value=value.replace(b'\r\n',b'\n')
+    fixture=json.loads((root/'linux/tests/single-personal-legacy-web.json').read_text(encoding='utf8'))
+    if name not in fixture['files']:return value
+    text=value.decode('utf8')
+    for change in reversed(fixture['files'][name]):
+        if text.count(change['new'])!=1:raise ValueError('PREVIOUS_PERSONAL_SOURCE_FIXTURE_CHANGED')
+        text=text.replace(change['new'],change['old'],1)
+    value=text.encode('utf8')
+    expected=json.loads((root/'linux/single-personal-baseline.json').read_text())['files'][name]
+    if hashlib.sha256(value).hexdigest()!=expected:raise ValueError('PREVIOUS_PERSONAL_SOURCE_DIGEST_DIFFERS')
+    return value

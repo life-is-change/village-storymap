@@ -208,7 +208,8 @@ test("map application wires completed artifacts into a temporary preview layer",
   assert.match(app, /onPreview:\s*async\s*\(artifacts\)/);
   assert.match(app, /createArtifactUrl\(artifact\.storage_path\)/);
   assert.match(app, /geoprocessingResultPreview\.syncVisibleLayers\(getSelectedLayersForCurrentSpace\(\)\)/);
-  assert.match(app, /onImported:[\s\S]*?geoprocessingResultPreview\.clear\(\)/);
+  assert.match(app, /onImported:\s*applyImportedPersonalResults/);
+  assert.match(app, /function applyImportedPersonalResults[\s\S]*?geoprocessingResultPreview\.clear\(\)/);
 });
 
 test("course entry ensures one personal figure-ground space without mirroring it to legacy planning spaces", () => {
@@ -227,7 +228,7 @@ test("workspace initialization waits for auth and reloads account-scoped state a
   assert.match(app, /await window\.VillageAuth\?\.ready/);
   assert.match(app, /buildAccountStorageKey/);
   assert.match(app, /reloadWorkspaceForAuthenticatedAccount/);
-  assert.match(app, /personalSpaceClient\.listSelections\(coursePersonalSpace\.id\)/);
+  assert.match(app, /resultClient\.listSelections\(resultSpace\.id\)/);
 });
 
 test("remote space sync treats an empty server result as authoritative and preserves personal workspaces", () => {

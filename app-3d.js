@@ -3089,7 +3089,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
       const mergedFeatures = [...dbFeatures, ...mergedLocal];
 
-      if (hasAnyDbRows || dbRows.length) {
+      if (getLinked2DSpaceFor3D()?.appliedResultLayers?.includes('road')) {
+        featureCollection = {type:'FeatureCollection',features:dbFeatures};
+      } else if (hasAnyDbRows || dbRows.length) {
         featureCollection = {
           type: "FeatureCollection",
           features: mergedFeatures
@@ -3251,7 +3253,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     } else {
       const dbRows = scopedBuildingRows;
       featureCollection = resolver.resolveEffectiveBuildingFeatureCollection({
-        baseFeatures: baseCollection.features,
+        baseFeatures: linkedSpace?.appliedResultLayers?.includes('building') ? [] : baseCollection.features,
         dbRows,
         getBaseCode: (feature) => {
           const props = feature?.properties || {};

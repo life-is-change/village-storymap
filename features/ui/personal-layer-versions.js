@@ -121,6 +121,22 @@
     };
   }
 
+  function renderPersonalResultHistory(versions = [], applied = {}) {
+    const bundles = new Map();
+    for (const version of versions || []) {
+      if (!version.bundle_id || !LAYER_KEYS.includes(version.layer_key)) continue;
+      if (!bundles.has(version.bundle_id)) bundles.set(version.bundle_id,[]);
+      bundles.get(version.bundle_id).push(version);
+    }
+    if (!bundles.size) return '<div class="version-manager-empty">尚无已保存的图底成果。生成后可预览并应用到此空间。</div>';
+    return '<strong>图底成果历史</strong><p>应用仅替换该成果包含的图层，其他图层保留。</p>' + [...bundles].map(([id,items]) => {
+      const pending = items.some(item => item.applicable === false);
+      const current = items.every(item => applied[item.layer_key] === item.id);
+      const layers = items.map(item => `${LAYER_LABELS[item.layer_key]} V${Number(item.version_number) || 1} · ${Number(item.feature_count) || 0} 个要素`).join('；');
+      return `<div class="version-record-card"><span>${escapeHtml(layers)}</span><button type="button" data-personal-bundle-apply="${escapeHtml(id)}" ${pending || current ? 'disabled' : ''}>${pending ? '成果尚未完整保存' : current ? '已应用' : '应用到个人体验空间'}</button></div>`;
+    }).join('');
+  }
+
   return {
     LAYER_KEYS,
     resolveCurrentVersions,
@@ -130,6 +146,7 @@
     groupVersionsByLayer,
     buildRawFeatureFromPersonalRow,
     renderPersonalVersionManager,
+    renderPersonalResultHistory,
     createPersonalVersionCompare
   };
 });

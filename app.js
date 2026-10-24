@@ -634,7 +634,8 @@ function loadSpacesFromStorage() {
       });
     }
 
-    const loadedSpaces = parsed.map((s) => {
+    const loadedSpaces = parsed.filter(s => window.VillageBusinessServices?.mode !== 'aliyun'
+      || !(s?.personalLayerVersionSpace === true || s?.spaceType === 'course_personal')).map((s) => {
       const rawTitle = String(s?.title || "");
       const normalizedTitle =
         s.id === BASE_SPACE_ID
@@ -662,6 +663,7 @@ function loadSpacesFromStorage() {
       spaceType: String(s?.spaceType || ""),
       actualSpaceId: s.actualSpaceId || null,
       personalLayerVersionSpace: s.personalLayerVersionSpace === true,
+      appliedResultLayers: Array.isArray(s.appliedResultLayers) ? [...s.appliedResultLayers] : [],
       teachingProjectId: s.teachingProjectId || "",
       villageId: s.villageId || "",
       villageRole: s.villageRole || "",
@@ -716,7 +718,9 @@ async function loadSpacesFromSupabase() {
       spaceType: row.space_type || "",
       teachingProjectId: row.teaching_project_id || "",
       villageId: row.village_id || "",
-      ownerId: row.owner_id || null
+      ownerId: row.owner_id || null,
+      appliedResultLayers: Object.keys(row.applied_result_versions || {}),
+      appliedResultVersions: {...row.applied_result_versions}
     }));
   } catch (err) {
     console.warn("从 Supabase 加载空间列表异常：", err);
@@ -791,11 +795,11 @@ async function deleteSpaceFromSupabase(spaceId) {
   }
 }
 
-async function syncSpacesFromSupabase() {
+async function syncSpacesFromSupabase({application = false} = {}) {
   const scopeKey = () => JSON.stringify([getAccountStorageKey("workspace-account"), activeVillageContext?.teachingProjectId, activeVillageContext?.villageId]);
   const started = scopeKey();
   const remoteSpaces = await loadSpacesFromSupabase();
-  if (started !== scopeKey() || hasUnsavedGeometryEdits()) return;
+  if (started !== scopeKey() || hasUnsavedGeometryEdits({ignoreApplication:application})) return;
   if (!remoteSpaces) return;
 
   const authUser = window.VillageAuth?.getCurrentUser?.() || {};
@@ -824,7 +828,7 @@ async function syncSpacesFromSupabase() {
     merged = window.VillageModelModule
       .filterSpacesForContext({ spaces: contextSpaces, context, actor })
       .map((space) => mapContextSpaceToWorkspace(space, context.villageRole));
-    const resultSpace = spaces.find((space) => space.personalLayerVersionSpace === true
+    const resultSpace = window.VillageBusinessServices?.mode !== 'aliyun' && spaces.find((space) => space.personalLayerVersionSpace === true
       && String(space.id) === String(coursePersonalSpace?.id)
       && space.teachingProjectId === context.teachingProjectId && space.villageId === context.villageId
       && coursePersonalSpace?.owner_id === actor.userId);
@@ -1861,7 +1865,7 @@ function isDualTrackPersonalSpace(space) {
 function isPersonalLayerVersionSpace(space) {
   return space?.personalLayerVersionSpace === true
     || space?.spaceType === "course_personal"
-    || (coursePersonalSpace?.id != null && String(space?.id) === String(coursePersonalSpace.id));
+    || (window.VillageBusinessServices?.mode !== 'aliyun' && coursePersonalSpace?.id != null && String(space?.id) === String(coursePersonalSpace.id));
 }
 
 function mapContextSpaceToWorkspace(space, role) {
@@ -1871,6 +1875,8 @@ function mapContextSpaceToWorkspace(space, role) {
   return {
     ...(existing || {}),
     personalLayerVersionSpace: false,
+    appliedResultLayers: Array.isArray(space.appliedResultLayers) ? [...space.appliedResultLayers] : [],
+    appliedResultVersions: {...space.appliedResultVersions},
     id: isShared ? BASE_SPACE_ID : space.id,
     actualSpaceId: space.id,
     title: space.spaceType === "group_plan"
@@ -2236,6 +2242,17 @@ async function initializeCoursePersonalSpace() {
   if (token !== coursePersonalSpaceInitToken) return null;
   personalSpaceClient = client;
   coursePersonalSpace = personalSpace;
+  if (window.VillageBusinessServices?.mode === 'aliyun') {
+    // Version storage is internal; the canonical planning space is the only UI entry.
+    const legacyIds = new Set(spaces.filter(isPersonalLayerVersionSpace).map(space => space.id));
+    spaces = spaces.filter(space => !legacyIds.has(space.id));
+    if (legacyIds.has(currentSpaceId)) {
+      currentSpaceId = getSpaceById(personalSpace.experience_space_id)?.id || spaces[0]?.id;
+    }
+    saveSpacesToStorage({syncRemote:false});
+    renderSpaceList();
+    return personalSpace;
+  }
   const workspaceSpace = window.CourseWorkspaceAdapterModule.buildPersonalPlanningSpace({
     personalSpace,
     user,
@@ -2252,6 +2269,47 @@ async function initializeCoursePersonalSpace() {
   saveSpacesToStorage({ syncRemote: false });
   renderSpaceList();
   return personalSpace;
+}
+
+function beginPersonalResultApplication() {
+  if (hasUnsavedGeometryEdits()) {
+    showToast("请先保存或放弃当前编辑，再应用生成结果。", "info");
+    return false;
+  }
+  buildingEditState.isApplyingResults = true;
+  renderSpaceList();
+  return () => { buildingEditState.isApplyingResults = false; renderSpaceList(); };
+}
+
+async function applyImportedPersonalResults(bundle) {
+  const resultSpace = coursePersonalSpace, resultClient = personalSpaceClient;
+  const scope = activeVillageContext;
+  const current = () => scope === activeVillageContext && resultSpace === coursePersonalSpace && resultClient === personalSpaceClient;
+  if (!resultSpace || !resultClient) throw new Error('PERSONAL_SPACE_NOT_READY');
+  if (resultSpace && resultClient) {
+    resultClient.invalidateCache({ spaceId: resultSpace.id });
+    const unified = window.VillageBusinessServices?.mode === 'aliyun';
+    if (unified) {
+      const bundleId = typeof bundle === 'string' ? bundle : bundle?.bundleId || bundle?.id;
+      if (!bundleId) throw new Error('RESULT_BUNDLE_REQUIRED');
+      await resultClient.setCurrentVersion(resultSpace.id,'bundle',bundleId);
+      if (!current()) throw new Error('CONTEXT_CHANGED');
+      await syncSpacesFromSupabase({application:true});
+    }
+    if (!current()) throw new Error('CONTEXT_CHANGED');
+    const selections = await resultClient.listSelections(resultSpace.id);
+    if (!current()) throw new Error('CONTEXT_CHANGED');
+    geoprocessingResultPreview.clear();
+    const personalWorkspace = getSpaceById(String(unified ? resultSpace.experience_space_id : resultSpace.id));
+    if (personalWorkspace) {
+      personalWorkspace.selectedLayers = [...new Set([...(unified ? personalWorkspace.selectedLayers || [] : []),...(selections || []).map((item) => item.layer_key)])];
+      setCurrentSpaceIdAndRemember(personalWorkspace.id);
+      saveSpacesToStorage();
+      renderSpaceList();
+      await handleSpaceSelect(personalWorkspace.id);
+    }
+  }
+  showToast("成果已应用到个人体验空间", "success");
 }
 
 async function ensureCourseWorkbenchInitialized() {
@@ -2374,6 +2432,7 @@ async function ensureCourseWorkbenchInitialized() {
         courseId: window.CourseModelModule.DEFAULT_COURSE.id,
         teachingProjectId: processingContext.teachingProjectId,
         villageId: processingContext.villageId || window.CourseModelModule.DEFAULT_COURSE.practiceVillageId,
+        spaceId: coursePersonalSpace?.experience_space_id || null,
         datasetId: processingContext.datasetId,
         availability,
         sourceStatus,
@@ -2396,27 +2455,14 @@ async function ensureCourseWorkbenchInitialized() {
           if (sourceStatus?.bounds) geoprocessingAoiController.setVillageBounds(sourceStatus.bounds);
         },
         onCompleted: () => showToast("个人图底生产完成，可加载成果预览", "success"),
+        onBeforeImport: beginPersonalResultApplication,
+        onDiscard: () => geoprocessingResultPreview.clear(),
         onPreview: async (artifacts) => {
           await geoprocessingResultPreview.show(artifacts);
           geoprocessingResultPreview.syncVisibleLayers(getSelectedLayersForCurrentSpace());
           showToast("成果已临时加载到地图", "success");
         },
-        onImported: async () => {
-          geoprocessingResultPreview.clear();
-          if (coursePersonalSpace && personalSpaceClient) {
-            personalSpaceClient.invalidateCache({ spaceId: coursePersonalSpace.id });
-            const selections = await personalSpaceClient.listSelections(coursePersonalSpace.id);
-            const personalWorkspace = getSpaceById(String(coursePersonalSpace.id));
-            if (personalWorkspace) {
-              personalWorkspace.selectedLayers = (selections || []).map((item) => item.layer_key);
-              setCurrentSpaceIdAndRemember(personalWorkspace.id);
-              saveSpacesToStorage();
-              renderSpaceList();
-              await handleSpaceSelect(personalWorkspace.id);
-            }
-          }
-          showToast("成果已保存到个人空间", "success");
-        }
+        onImported: applyImportedPersonalResults
       });
       geoprocessingPanel.mount();
     },
@@ -2491,6 +2537,7 @@ function getSpaceCreatorName(spaceOrId) {
 }
 
 function canManageSpace(spaceOrId, actorName = currentUserName) {
+  if (buildingEditState.isApplyingResults) return false;
   const space = typeof spaceOrId === "string" ? getSpaceById(spaceOrId) : spaceOrId;
   if (!space) return false;
   if (space.spaceType === "formal_shared" && surveyRealtimeState !== "connected") return false;
@@ -4057,6 +4104,34 @@ async function refreshVersionManagerPanel(options = {}) {
   const statusEl = document.getElementById("versionManagerStatus");
   if (!statusEl) return;
   const currentSpace = getCurrentSpace();
+  if (window.VillageBusinessServices?.mode === 'aliyun'
+      && ['practice_personal','formal_personal'].includes(currentSpace?.spaceType)) {
+    const source = coursePersonalSpace, client = personalSpaceClient;
+    if (!source || !client || source.experience_space_id !== (currentSpace.actualSpaceId || currentSpace.id)) {
+      statusEl.textContent = "个人成果服务尚在初始化。";
+      return;
+    }
+    const current = () => getCurrentSpace() === currentSpace && source === coursePersonalSpace && client === personalSpaceClient;
+    try {
+      const versions = await client.listVersions(source.id);
+      if (!current()) return;
+      const applied = currentSpace.appliedResultVersions || {};
+      statusEl.innerHTML = window.PersonalLayerVersionsModule.renderPersonalResultHistory(versions,applied);
+      statusEl.querySelectorAll('[data-personal-bundle-apply]').forEach(button => {
+        button.addEventListener('click',async () => {
+          if (!current()) return;
+          const release = beginPersonalResultApplication();
+          if (!release) return;
+          try { await applyImportedPersonalResults(button.dataset.personalBundleApply); }
+          catch (error) { showToast("成果应用未完成，请稍后重试。", "error"); }
+          finally { release(); }
+        });
+      });
+    } catch (error) {
+      if (current()) statusEl.textContent = "成果历史暂时无法读取，请稍后重试。";
+    }
+    return;
+  }
   if (isPersonalLayerVersionSpace(currentSpace)) {
     if (!supabaseClient || !personalSpaceClient || !window.PersonalLayerVersionsModule) {
       statusEl.textContent = "个人图层版本服务尚未初始化。";
@@ -4569,6 +4644,13 @@ function buildOverlayRendererDeps() {
       window.PersonalLayerVersionsModule.resolveFigureGroundLayerKeys()
     ),
     listCurrentPersonalLayerFeatures,
+    isAppliedResultLayer: key => window.VillageBusinessServices?.mode === 'aliyun'
+      && ['practice_personal','formal_personal'].includes(getCurrentSpace()?.spaceType)
+      && getCurrentSpace()?.appliedResultLayers?.includes(key),
+    listAppliedPersonalLayerFeatures: async (spaceId,layerKey) => window.VillageBusinessServices.planning.execute('planning.listFeatures',{
+      teachingProjectId:activeVillageContext.teachingProjectId,villageId:activeVillageContext.villageId,
+      spaceId:getSpaceById(spaceId)?.actualSpaceId || spaceId,layerKey
+    }),
     buildRawFeatureFromPersonalRow: (row) => (
       window.PersonalLayerVersionsModule.buildRawFeatureFromPersonalRow(row)
     ),
@@ -8655,8 +8737,8 @@ let groupPlanRealtimeKey = "";
 let businessEventClient = null;
 let businessEventContextKey = "";
 
-function hasUnsavedGeometryEdits() {
-  return Boolean(buildingEditState.isSaving || buildingEditState.isDrawingActive
+function hasUnsavedGeometryEdits({ignoreApplication = false} = {}) {
+  return Boolean(!ignoreApplication && buildingEditState.isApplyingResults || buildingEditState.isSaving || buildingEditState.isDrawingActive
     || buildingEditState.mode !== "idle" && buildingEditState.mode
     || buildingEditState.dirtyCodes.size || buildingEditState.pendingAddedFeatures?.length
     || buildingEditState.pendingDeletedFeatures.length || buildingEditState.originalGeoms?.size);

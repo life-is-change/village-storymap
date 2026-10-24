@@ -10,7 +10,7 @@ def module():
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 
 def previous(m,tmp_path):
-    data=m.browser.inputs(S.parents[1]);meta={'releaseId':'fixture'}
+    data=m.browser.inputs(S.parents[1]);from baseline_web_fixture import previous_source_bytes;data={k:previous_source_bytes(S.parents[1],k) for k in data};meta={'releaseId':'fixture'}
     hashes={m.browser.PATCH:'a'*64,m.locks.geo.PATCH:'b'*64,m.locks.PATCH:'c'*64}
     v3=tmp_path/'files'/m.browser.PATCH;v3.mkdir(parents=True,mode=0o700);web=v3/'web';web.mkdir(mode=0o700)
     for name,value in data.items():

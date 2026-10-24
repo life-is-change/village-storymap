@@ -48,7 +48,7 @@ test("managed village context uses semantic space labels and hides manual space 
 
 test("realtime space sync reapplies the active village context", () => {
   const syncFunction = appSource.match(
-    /async function syncSpacesFromSupabase\(\)[\s\S]*?(?=\n\s*function saveAppState)/
+    /async function syncSpacesFromSupabase\([^\n]*\)[\s\S]*?(?=\n\s*function saveAppState)/
   )?.[0] || "";
   assert.match(syncFunction, /activeVillageContext\?\.teachingProjectId/);
   assert.match(syncFunction, /filterSpacesForContext\(\{\s*spaces:/);

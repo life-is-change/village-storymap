@@ -84,7 +84,7 @@
     </div>`;
   }
 
-  function renderRunStatus(run) {
+  function renderRunStatus(run, {personalExperience = false} = {}) {
     const progress = Number(run?.progress || 0);
     const failed = run?.status === "failed";
     const stage = failed ? "处理失败" : (run?.current_stage || "等待领取");
@@ -99,7 +99,9 @@
         <div class="geoprocessing-result-actions">
           <button type="button" data-preview-run>在地图中预览</button>
           <button type="button" data-refresh-artifacts>刷新下载链接</button>
-          ${run?.imported
+          ${personalExperience
+            ? '<button type="button" data-save-run>应用到个人体验空间</button><button type="button" data-discard-preview>不应用，清除预览</button><p>应用会替换本次生成的对应图层，其他图层保留。</p>'
+            : run?.imported
             ? '<button type="button" data-run-saved disabled>已保存到个人空间</button>'
             : '<button type="button" data-save-run>保存到我的个人空间</button>'}
         </div>` : ""}
@@ -151,13 +153,14 @@
 
   function createGeoprocessingPanel({
     container, client, aoiController, courseId, teachingProjectId = null,
-    villageId, datasetId = null, availability = "offline", sourceStatus = null,
-    onCompleted, onPreview, onImported, onStartAoi
+    villageId, spaceId = null, datasetId = null, availability = "offline", sourceStatus = null,
+    onCompleted, onPreview, onImported, onStartAoi, onBeforeImport, onDiscard
   }) {
     let run = null;
     let unsubscribe = null;
     let artifacts = [];
     let destroyed = false;
+    let applying = false;
     let runMarkup = null;
     let artifactHtml = null;
     let artifactRevision = 0;
@@ -227,7 +230,7 @@
       }
       run = previous?.id === next.id ? { ...next, imported: previous.imported || next.imported } : next;
       const old = container.querySelector("[data-geoprocessing-run-slot]");
-      const markup = renderRunStatus(run);
+      const markup = renderRunStatus(run, {personalExperience: client.deploymentMode === 'aliyun'});
       if (old && markup !== runMarkup) {
         old.innerHTML = markup;
         runMarkup = markup;
@@ -281,6 +284,7 @@
       try {
         const submission = await submissionGuard.run(() => client.submit({
           courseId, teachingProjectId, villageId, datasetId,
+          ...(spaceId ? {spaceId} : {}),
           aoi: validation.geometry, requestedSteps: steps,
           parameters: {
             building_score_threshold: Number(data.get("buildingThreshold")),
@@ -330,15 +334,32 @@
         }
       }
       if (event.target.closest("[data-save-run]") && run?.id) {
+        if (applying) return;
+        const selectedRun = run;
+        applying = true;
+        let releaseApplication;
         try {
-          const bundle = await client.importRun(run.id);
+          const permission = await onBeforeImport?.();
+          if (permission === false) return;
+          if (typeof permission === 'function') releaseApplication = permission;
+          if (destroyed || run?.id !== selectedRun.id) return;
+          const bundle = await client.importRun(selectedRun.id);
+          if (destroyed || run?.id !== selectedRun.id) return;
           updateRun({ ...run, imported: true });
-          showMessage("成果已保存到我的个人空间，并保留为新的图层版本。");
           await onImported?.(bundle, run);
+          if (!destroyed && run?.id === selectedRun.id) showMessage(client.deploymentMode === 'aliyun' ? '成果已应用到个人体验空间。' : '成果已保存到我的个人空间，并保留为新的图层版本。');
         } catch (_) {
-          showMessage("保存失败，个人空间未发生改变，请稍后重试。");
+          if (!destroyed && run?.id === selectedRun.id) showMessage("应用未完成，请稍后重试；已保存的成果会保留。");
+        } finally {
+          applying = false;
+          releaseApplication?.();
         }
       }
+        if (event.target.closest("[data-discard-preview]")) {
+          if (applying) return;
+          await onDiscard?.();
+          showMessage("预览已清除，个人体验空间未改变。");
+        }
     }
     return {
       mount() {

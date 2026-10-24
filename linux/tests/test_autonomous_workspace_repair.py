@@ -30,7 +30,8 @@ def test_native_history_fixture_reconstructs_exact_deployed_files():
     baseline=json.loads((ROOT/'linux/workspace-repair-baseline.json').read_text())
     assert fixture['baselineCommit']==baseline['sourceCommit']
     for name,changes in fixture['files'].items():
-        text=(ROOT/name).read_text(encoding='utf8')
+        from baseline_web_fixture import previous_source_bytes
+        text=previous_source_bytes(ROOT,name).decode('utf8')
         for change in reversed(changes):
             assert text.count(change['new'])==1
             text=text.replace(change['new'],change['old'],1)
@@ -44,7 +45,8 @@ def test_new_overlay_requires_all_deployed_baseline_files_without_printing_conte
     values=m.browser.inputs(ROOT)
     fixture=json.loads((ROOT/'linux/tests/workspace-legacy-web.json').read_text(encoding='utf8'))['files']
     for name in m.BASELINE:
-        value=(ROOT/name).read_text(encoding='utf8')
+        from baseline_web_fixture import previous_source_bytes
+        value=previous_source_bytes(ROOT,name).decode('utf8')
         for change in reversed(fixture.get(name,[])):value=value.replace(change['new'],change['old'],1)
         patch=m.entry.PATCH if name in ('app-3d.js','features/data/unified-api-client.js') else m.locks.PATCH
         path=tmp_path/'files'/patch/'web'/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(value.encode())

@@ -276,6 +276,8 @@ def main():
                 print('FIXTURE_LOAD_REPORT '+json.dumps(rows),flush=True)
                 return rows
             api.load_probe=traced_load
+            from single_personal_native_fixture import wait_auth
+            wait_auth(api)
             core=probe.auth_probe(api,('332','synthetic-ci-password-0001'))
             phase='legacy-test-baseline'
             try:
@@ -349,6 +351,11 @@ def main():
             rd.compare_snapshot(expected,rd.actual_snapshot(Restored(),expected))
             for name,record in storage.read_private_json(own/'backup.json')['files'].items():
                 if storage.digest_file(own/name)!=(record['sha256'],record['bytes']):raise ValueError('OWN_BACKUP_FILE_DIGEST_DIFFERS')
+            from baseline_web_fixture import previous_source_bytes
+            previous_source=root/'previous-browser-source';previous_source.mkdir(mode=0o700)
+            names=[*browser_repair.inputs(repo),'features/data/data-service.js','features/data/unified-api-client.js','features/map-editing/geometry-editor.js','linux/sql/legacy-h001-review-repair.sql','linux/sql/autonomous-personal-context-compat.sql','linux/sql/workspace-personal-context.sql']
+            for name in names:
+                target=previous_source/name;target.parent.mkdir(parents=True,exist_ok=True,mode=0o700);target.write_bytes(previous_source_bytes(repo,name));target.chmod(0o600)
             phase='public-browser-compatibility'
             d.sql('ALTER TABLE public.object_photos DROP COLUMN created_at;')
             api.port=443
@@ -365,7 +372,7 @@ def main():
             previous_root.mkdir(mode=0o700)
             shutil.copytree(release/'web',previous_root/'web',copy_function=shutil.copyfile)
             for p in [previous_root/'web',*(previous_root/'web').rglob('*')]:p.chmod(0o700 if p.is_dir() else 0o600)
-            previous_files=browser_repair.previous_manifest(browser_repair.inputs(repo),browser_repair.PREVIOUS_PATCH)
+            previous_files=browser_repair.previous_manifest(browser_repair.inputs(previous_source),browser_repair.PREVIOUS_PATCH)
             for name,value in previous_files.items():
                 p=previous_root/'web'/name;p.parent.mkdir(parents=True,mode=0o700,exist_ok=True);p.write_bytes(value);p.chmod(0o600)
             previous_sql=browser_repair.photo_sql((release/'schema/catalog.sql').read_text(),(release/'schema/survey.sql').read_text())
@@ -407,9 +414,9 @@ def main():
             # steps. New workspace repair must accept the actual deployed chain.
             historical_repo=root/'historical-browser-source';historical_repo.mkdir(mode=0o700)
             legacy_fixture=json.loads((repo/'linux/tests/workspace-legacy-web.json').read_text())['files']
-            old_inputs=browser_repair.inputs(repo)
+            old_inputs=browser_repair.inputs(previous_source)
             for name in ('features/data/data-service.js','features/data/unified-api-client.js','features/map-editing/geometry-editor.js','linux/sql/legacy-h001-review-repair.sql'):
-                old_inputs[name]=(repo/name).read_bytes().replace(b'\r\n',b'\n')
+                old_inputs[name]=previous_source_bytes(repo,name)
             for name,changes in legacy_fixture.items():
                 text=old_inputs[name].decode()
                 for change in reversed(changes):
@@ -496,6 +503,9 @@ def main():
             # Browser v3 rebuilds from the frozen release, so its untouched
             # editor must also be put back to the real deployed legacy bytes.
             (prior_web/'features/map-editing/geometry-editor.js').write_bytes(old_inputs['features/map-editing/geometry-editor.js'])
+            for name in json.loads((repo/'linux/single-personal-baseline.json').read_text())['files']:
+                if name!='app.js':(prior_web/name).write_bytes(previous_source_bytes(repo,name))
+
             prior_receipt=storage.read_private_json(prior_receipt_path);prior_receipt['files']['app.js']=geo_repair.LEGACY_APP
             storage.write_private_json(prior_receipt_path,prior_receipt)
             prior_tree=tree_digest(prior_web);storage.write_private_json(prior_web.parent/'overlay-proof.json',{'tree_sha256':prior_tree})
@@ -569,9 +579,9 @@ def main():
             lock_web=state/'files'/lock_repair.PATCH/'web'
             # Reproduce the exact deployed pre-routing 3D file in all previous
             # immutable overlays, rather than only testing same-source fixtures.
-            legacy_3d=(repo/'app-3d.js').read_bytes().replace(b'\r\n',b'\n').replace(entry_repair.NEW_3D_ROUTE,entry_repair.OLD_3D_ROUTE)
+            legacy_3d=(previous_source/'app-3d.js').read_bytes().replace(b'\r\n',b'\n').replace(entry_repair.NEW_3D_ROUTE,entry_repair.OLD_3D_ROUTE)
             if entry_repair.digest(legacy_3d)!=entry_repair.LEGACY_3D:raise ValueError('LEGACY_3D_ROUTE_FIXTURE_REQUIRED')
-            legacy_api=(repo/'features/data/unified-api-client.js').read_bytes().replace(b'\r\n',b'\n').replace(
+            legacy_api=(previous_source/'features/data/unified-api-client.js').read_bytes().replace(b'\r\n',b'\n').replace(
                 b'  // Preparing a separate result space does not change the active workspace.\n  const scope=()=>{const {personalSpaceId,...active}=contextProvider()||{};return JSON.stringify(active);};',
                 b'  const scope=()=>JSON.stringify(contextProvider());')
             if entry_repair.digest(legacy_api)!='9c89ee0331e45d701fb7d2a4fb8db0ed48fb0c0c62444eb6e8e08aff99ca63bc':raise ValueError('LEGACY_API_SCOPE_FIXTURE_REQUIRED')
@@ -609,7 +619,10 @@ def main():
             print('ACCOUNT_ENTRY_LEGACY_3D_OVERLAY_RECOVERY_AND_REPEAT_VERIFIED',flush=True)
             phase='workspace-edit-consistency-repair'
             from workspace_native_fixture import verify_workspace_repair
-            verify_workspace_repair(state,repo,d,load,api,actor,local_call,original_run)
+            verify_workspace_repair(state,previous_source,d,load,api,actor,local_call,original_run)
+            phase='single-personal-shared-access'
+            from single_personal_native_fixture import verify_single_personal
+            verify_single_personal(state,repo,d,load,api,original_run)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

@@ -17,8 +17,8 @@ function spaceSync({result=false}={}){
 test('authorized personal-only catalog never manufactures an inaccessible shared BASE space',async()=>{
  const f=spaceSync();await f.run();assert.deepEqual(f.s.spaces.map(x=>x.id),['own']);assert.equal(f.s.currentSpaceId,'own');
 });
-test('catalog refresh retains the authenticated result-version space and current selection',async()=>{
- const f=spaceSync({result:true});await f.run();assert.equal(f.s.spaces.find(x=>x.id==='result')?.personalLayerVersionSpace,true);assert.equal(f.s.currentSpaceId,'result');
+test('Aliyun catalog refresh replaces the retired result workspace selection with the authorized experience space',async()=>{
+ const f=spaceSync({result:true});await f.run();assert.equal(f.s.spaces.find(x=>x.id==='result'),undefined);assert.equal(f.s.currentSpaceId,'own');
 });
 test('a user without a shared catalog space enters their authorized experience space',async()=>{
  const selected=[],own={id:'own',spaceType:'practice_personal'};

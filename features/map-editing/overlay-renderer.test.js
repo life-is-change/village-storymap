@@ -70,6 +70,19 @@ test("shared overlay starts independent layer reads before waiting for the first
   assert.deepEqual(beforeRelease.sort(),["building","road","water"]);
 });
 
+test('applied experience layers replace the baseline, including empty results and contours',async t=>{
+ const f=overlayFixture(t),loaded=[];
+ f.deps.getSelectedLayersForCurrentSpace=()=>['building','contours'];
+ f.deps.isAppliedResultLayer=()=>true;
+ f.deps.ensureLayerLoaded=async k=>loaded.push(k);
+ f.deps.listBuildingFeaturesFromDbCached=async()=>[];
+ f.deps.listAppliedPersonalLayerFeatures=async()=>[{object_code:'C1',layer_key:'contours',geom:{type:'LineString',coordinates:[[113,23],[114,24]]},props:{}}];
+ f.deps.buildRawFeatureFromPersonalRow=r=>({type:'Feature',geometry:r.geom,properties:r.props});
+ await refresh2DOverlay(f.deps,null,{forceFullRebuild:true});
+ assert.deepEqual(loaded,[]);assert.deepEqual(f.features().map(x=>x.get('sourceCode')),['C1']);
+ assert.equal(f.features()[0].get('personalLayerVersionId'),undefined);
+});
+
 test("cold vector file and scoped database reads overlap without rendering unchecked static rows", async t => {
  const f=overlayFixture(t), started=[];
  let release;const gate=new Promise(r=>release=r);
