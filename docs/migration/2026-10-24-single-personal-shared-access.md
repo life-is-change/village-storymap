@@ -44,4 +44,12 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 
 ## 验证记录
 
-待本次检查与 CI 完成后补充。代码与隔离验证通过不代表阿里云已更新，也不代表真实浏览器验收通过。
+- 代码提交 `2dcb8cc`；历史回执摘要修正 `147794351700ec1c8c3edb52dd15b68ecfd49468`。后者为下列 CI 的实际测试代码。
+- 本地前端全量 1114 项通过；Python 全量 422 项通过、7 项有条件跳过；新增回执摘要回归及相关策略/历史兼容专项 12 项通过。
+- [原生数据库与自主部署验证 40062927994](https://github.com/life-is-change/village-storymap/actions/runs/40062927994) 通过：native-database job `120780098316`、autonomous-proxy job `120780098076`。
+- 原生标记 `SINGLE_PERSONAL_SHARED_READ_MEMBER_WRITE_ADMIN_SCOPE_EXPLICIT_APPLY_AND_RECOVERY_VERIFIED`；重现旧未入组读取拒绝后，验证共享正反权限、他人个人空间隔离、显式应用、历史切换、空图层标记、未包含层保留、同版本不覆写手改、未提交编辑锁冲突、失败事务回滚与 Web 中断恢复。
+- 整体部署协调器通过：4 个导入账号、114 张自有恢复表、重启持久化、1/5/10/20 并发；未调用真实 CA、外部模型服务或 GPU。
+- [平台回归 40062927996](https://github.com/life-is-change/village-storymap/actions/runs/40062927996) 通过：前端1114项，Linux环境Python429项通过、1项有条件跳过，另有80项服务端测试通过。[备用 Pages 发布 40062927817](https://github.com/life-is-change/village-storymap/actions/runs/40062927817) 通过。
+- fresh 独立审查通过；其中历史回执摘要取错问题由原生 CI 拦截，在写数据前停止，修正并重新验证成功。
+
+阿里云当前已确认应用的是上一轮 workspace-edit 覆盖层；本轮单空间/权限修复仍须执行上方命令。代码与隔离验证通过不代表阿里云已更新，也不代表真实浏览器验收通过。
