@@ -61,3 +61,5 @@ cd ~/village-deploy/source && git pull --ff-only origin main && python3 -B linux
 用户返回的函数体摘要为 `ef3ff2da00e768f054f0b0ff8036ef7b670456ed3ad2b9bd50d6b28822a68144`，与本地已知原函数 LF→CRLF 转换后摘要完全一致。兼容修正仅接受该函数的这两种精确旧表示；不对任意 SQL 做空白折叠。更新时按实际匹配的完整原函数体替换，保留函数所有者、授权和安全属性。
 
 新增隔离回归重现 CRLF 预检拒绝原因，验证 CRLF 带额外未知改动仍被拒绝、合法 CRLF 可升级，之后继续完整权限、成果应用与恢复测试。最初执行停在 `--apply` 前，因此没有本轮更新回执或部分写入需要清理；无需重新打包或安装平台。
+
+兼容代码提交 `4f0e9aceae152cee3467b4afbe00f2bf85106f21`。本地Python全量424项通过、7项有条件跳过，策略/历史兼容专项13项通过，独立审查批准。[原生验证40075679677](https://github.com/life-is-change/village-storymap/actions/runs/40075679677) 通过，job `120818380659` 输出 `SINGLE_PERSONAL_LEGACY_CRLF_BODY_MISMATCH_REPRODUCED` 及完整权限/成果/恢复通过标记；再次验证4个账号、114张自有恢复表和重启持久化。[平台回归40075679706](https://github.com/life-is-change/village-storymap/actions/runs/40075679706) 与 [备用Pages40075679535](https://github.com/life-is-change/village-storymap/actions/runs/40075679535) 通过。拉取最新main后重跑原命令，等待真实阿里云及浏览器反馈。
