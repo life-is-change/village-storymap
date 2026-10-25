@@ -3,12 +3,12 @@
   "kind": "component-rollout",
   "delivery": "standalone-operator-with-verified-r6-payload",
   "operator": {
-    "source_commit": "bd09e6c20a7df7fcf750d710e31e1e33b713e9a3",
+    "source_commit": "3dda6afb2870c73843cecb9155f322fcb1464b67",
     "path": "linux/scripts/component_rollout.py",
-    "filename": "component-rollout-bd09e6c20a7d.py",
-    "blob_sha": "e93c76892ce1a781ae5adfb681b04a6bfea708fc",
-    "bytes": 29823,
-    "sha256": "77bc373ee99d62c54a91354dc5552302ed42b31bb7c186aab43abc0c5782d6ea"
+    "filename": "component-rollout-3dda6afb2870.py",
+    "blob_sha": "dce6aeb4e62fca698492de7e5cf80e4a13e974bf",
+    "bytes": 30745,
+    "sha256": "702096d70a39d9129bc496a8e14e6137536ac252d79e0863a8b315f70ad97fe3"
   },
   "payload": {
     "source_commit": "af39f0411ac638d360d10e2c4d57e5d8c56ed929",
@@ -30,12 +30,12 @@
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
   "aliyun_operator": "admin; existing sudo -n docker only, no sudo -v or root Python",
-  "real_deployment": "worker preflight passed using r6 and in-memory DNS equivalence; cloud preflight pending; no apply executed",
+  "real_deployment": "worker preflight passed; cloud stopped at one idle awaiting-crop task; compatible legacy checkpoint preservation tested; new cloud preflight pending; no apply executed",
   "ci": {
-    "source_commit": "bd09e6c20a7df7fcf750d710e31e1e33b713e9a3",
-    "native_run": 40199208178,
+    "source_commit": "3dda6afb2870c73843cecb9155f322fcb1464b67",
+    "native_run": 40203360729,
     "native_status": "success",
-    "platform_run": 40199208118,
+    "platform_run": 40203360731,
     "platform_status": "success"
   }
 }

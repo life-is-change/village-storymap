@@ -88,6 +88,16 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 精确源码bd09e6c的Linux CI为475通过/1项条件跳过，Worker兼容82通过；Native40199208178数据库/proxy两项亦成功，包括完整历史部署及自身备份恢复验证。用户仍先在阿里云运行cloud --check，不以此确认生产部署完成。
 
+### 等待裁剪的旧贴图任务保留（当前操作器）
+
+真实阿里云审计确认唯一未结束任务为facade/rectification/awaiting_crop，约54小时未更新、无有效租约、Worker idle。部署器先前将它与运行中任务一起拦截。现在仅对旧texture流程的这种人工确认检查点允许保留；不取消任务、不修改照片/矫正产物。其他非终态及带有效租约的任务仍阻止部署。停止API后再用同一查询检查一次，中途确认裁剪使任务进入排队时会恢复旧API并中止更新。
+
+当前操作器源码`3dda6afb2870c73843cecb9155f322fcb1464b67`，文件`component-rollout-3dda6afb2870.py`，blob `dce6aeb4e62fca698492de7e5cf80e4a13e974bf`；30,745字节、SHA256 `702096d70a39d9129bc496a8e14e6137536ac252d79e0863a8b315f70ad97fe3`。已实际从官方GitHub API下载并核验摘要/语法。继续复用完整r6源包，不改变其230文件和清单，也不重下大制品。
+
+Platform40203360731成功（Linux484通过/1项条件跳过、Worker82通过）；Native40203360729数据库/proxy成功。真实一次性PostGIS测试使用精确旧八函数创建等待裁剪任务，迁移两次后记录及产物完全不变，v2 Worker能在确认裁剪后继续旧贴图流程并读取测试GLB；实际部署查询也覆盖状态/种类/阶段/租约/组件模式的拦截矩阵。整套历史部署/自身备份恢复亦通过。这些测试不等于生产已升级，更不等于4090真实照片效果验收。
+
+在阿里云以原admin身份直接运行（不用`sudo -v`）：`python3 -B "$HOME/village-component-releases/operators/component-rollout-3dda6afb2870.py" cloud --source-root "$HOME/village-component-releases/village-components-af39f0411ac6" --check`。无其他变化时预期`component_cloud_preflight_passed`、`preserved_awaiting_crop: 1`。两端apply及真实照片验收仍待执行；4090镜像仍由原DockerRootDir管理，其存储边界需在构建前明确。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
