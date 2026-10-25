@@ -56,3 +56,9 @@ r4本地441通过/9跳过，Linux CI449通过/1跳过（真实Compose CLI契约�
 r5源码ed75686，本地451通过/9跳过，Platform40181622446成功；实际解包230个源文件、逐文件摘要与CLI帮助校验通过。7,882,641字节，SHAfaac921650ce9c3495ea2edec2986038f6a274e59a96951952bfb3f6d1fa79ca；真实两端更新继续待执行，不改写r4预检失败的历史记录。
 
 Native40181622517的数据库及proxy两项亦成功，包含完整历史部署/自身备份恢复；r5只修正比较表示并补诊断，没有部署到真实4090或阿里云。
+
+## r5真实权限失败：普通用户stat了root保护配置
+
+用户Permission诊断定位compose_config第219行，路径 `/etc/village-platform/compose-mount.yaml`、errno13。此前普通用户Path.is_file()过早检查了受保护路径；后续sudo Docker Compose尚未获得执行机会。修正仅校验实际容器标签提供的路径为非空绝对路径，存在性/读取交由原有sudo Compose config命令校验。不复制配置、不修改原权限、不让整个Python部署器以root运行。
+
+回归先复现PermissionError；另覆盖缺失/相对路径拒绝。新增仅限一次性Linux CI的真实权限用例：临时目录下构造root:root/0700的合成配置目录，证明普通用户stat被拒绝，实际sudo Compose可读取并渲染，且受保护目录权限保持不变；只恢复该临时夹具的所有者以便CI清理。该权限操作不会在真实4090运行。

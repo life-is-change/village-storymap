@@ -108,6 +108,67 @@ def test_compose_image_hint_is_an_explicit_file_not_an_environment_lost_by_sudo(
     assert m.compose_config(Docker(),row)=={}
 
 
+def test_root_protected_compose_is_forwarded_to_privileged_client_without_local_stat(tmp_path,monkeypatch):
+    m=rollout();protected=tmp_path/'protected-compose.yaml';protected.write_text('keep-private')
+    original=Path.is_file
+    def restricted(path):
+        if path==protected:raise PermissionError(13,'Permission denied',str(path))
+        return original(path)
+    monkeypatch.setattr(Path,'is_file',restricted)
+    row={'Name':'/village-platform-facade-ml-1','Config':{'Image':'ml:existing','Labels':{
+        'com.docker.compose.project.config_files':str(protected),
+        'com.docker.compose.project.working_dir':str(tmp_path)}}}
+    class Docker:
+        state=tmp_path
+        def run(self,*args):
+            assert args[-3:]==('config','--format','json')
+            assert args[args.index('-f')+1]==str(protected)
+            return '{"services": {"facade-ml": {"image": "ml:existing"}}}'
+    result=m.compose_config(Docker(),row)
+    assert result['services']['facade-ml']['image']=='ml:existing'
+    assert protected.read_text()=='keep-private'
+
+
+@pytest.mark.parametrize('path',['','relative-compose.yaml'])
+def test_missing_or_relative_original_compose_path_is_rejected_before_client_call(tmp_path,path):
+    m=rollout();row={'Name':'/village-platform-facade-ml-1','Config':{'Image':'ml:existing','Labels':{
+        'com.docker.compose.project.config_files':path,
+        'com.docker.compose.project.working_dir':str(tmp_path)}}}
+    class Docker:
+        state=tmp_path
+        def run(self,*args):pytest.fail('Invalid source path must not reach Docker')
+    with pytest.raises(ValueError,match='ORIGINAL_COMPOSE_FILES_REQUIRED'):
+        m.compose_config(Docker(),row)
+
+
+def test_real_sudo_compose_can_render_private_root_owned_fixture_in_disposable_ci(tmp_path):
+    import json
+    import os
+    import subprocess
+    if sys.platform!='linux' or os.environ.get('GITHUB_ACTIONS')!='true':
+        pytest.skip('Root-protected fixture is restricted to disposable Linux CI')
+    assert os.geteuid()!=0
+    m=rollout();private=tmp_path/'synthetic-root-private';private.mkdir(mode=0o700)
+    compose=private/'compose.json'
+    document={'services':{'facade-ml':{'image':'fixture:never-pulled','environment':{'SYNTHETIC_MARKER':'fixture-only'}}}}
+    contents=json.dumps(document);compose.write_text(contents)
+    assert private.resolve().parent==tmp_path.resolve() and not private.is_symlink()
+    from autonomous_operator import Docker
+    state=tmp_path/'state';state.mkdir(mode=0o700);docker=Docker(state)
+    try:
+        subprocess.run(['sudo','-n','chown','root:root',str(private)],check=True)
+        with pytest.raises(PermissionError):compose.stat()
+        row={'Name':'/village-platform-facade-ml-1','Config':{'Image':'ml:existing','Labels':{
+            'com.docker.compose.project.config_files':str(compose),
+            'com.docker.compose.project.working_dir':str(tmp_path)}}}
+        result=m.compose_config(docker,row)
+        assert result['services']['facade-ml']['environment']['SYNTHETIC_MARKER']=='fixture-only'
+        assert private.stat().st_uid==0 and private.stat().st_mode&0o777==0o700
+    finally:
+        subprocess.run(['sudo','-n','chown',str(os.geteuid())+':'+str(os.getegid()),str(private)],check=True)
+    assert compose.read_text()==contents
+
+
 def test_health_wait_uses_configured_cold_start_grace(monkeypatch):
     m=rollout();calls=[]
     class Docker:

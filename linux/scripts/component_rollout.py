@@ -216,7 +216,11 @@ def wait_healthy(docker,name):
 def compose_config(docker,row):
     labels=row['Config'].get('Labels',{});files=labels.get('com.docker.compose.project.config_files','').split(',')
     directory=labels.get('com.docker.compose.project.working_dir')
-    if not directory or not files or any(not Path(p).is_file() for p in files):raise ValueError('ORIGINAL_COMPOSE_FILES_REQUIRED')
+    # Paths come from the running container's Compose labels. The sudo Docker
+    # client below must validate/read root-protected configs; a local stat by
+    # the unprivileged operator can fail before Compose gets the file.
+    if not directory or not Path(directory).is_absolute() or not files or any(not p or not Path(p).is_absolute() for p in files):
+        raise ValueError('ORIGINAL_COMPOSE_FILES_REQUIRED')
     args=['compose','--project-name','village-platform','--project-directory',directory]
     env_files=labels.get('com.docker.compose.project.environment_file','')
     if env_files:
