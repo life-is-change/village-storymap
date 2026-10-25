@@ -90,3 +90,5 @@ r7源码2a466a5及CI已公开，但完整制品发布提交621dec1尚未推送�
 用户定位validate_rendered第71行缺少name。原cloud()把未经Compose展开的原始compose.json直接送入已展开配置的校验器；autonomous_compose.compose_document本来就只保存网络逻辑名和internal属性，不写实际name。修正先通过原sudo Docker compose config生成单独的rendered副本用于两个检查容器；原始document仍用于备份及后续API/Web挂载更新，不把Auth的env_file展开内容写回原配置。
 
 Ruling: 分离小部署操作器与已验证r6业务/素材包，新增显式--source-root参数，先验证完整原包再加载其辅助模块。操作器独立SHA256进入输出、回执及可恢复脚本副本，verify拒绝不同操作器；不再重下8MB素材。当前唯一未推送的621dec1仅为本任务生成制品的提交，远端main已核实仍为2a466a5；保留本地tar与其SHA，只修订此未公开提交移除大二进制，不重写任何已推送历史、不强推、不切分支，也不改其他任务文件。
+
+本地验证465通过/11项环境差异跳过；新增集成测试先重现原始网络缺name的相同KeyError，修正后两个校验容器均使用展开配置，原compose与Auth引用不改；原包篡改/相对路径/操作器篡改均拒绝。真实已解包r6的230源文件验证、单文件操作器及r6辅助模块导入亦通过。独立复核未发现重要阻塞，确认r6与当前的辅助模块、Worker Dockerfile及component-baseline无差异；没有远程apply。

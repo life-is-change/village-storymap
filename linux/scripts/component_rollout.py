@@ -190,6 +190,27 @@ def check_source():
     return doc['commit']
 
 
+def source_context(path=None):
+    global ROOT
+    if path is not None:
+        path=Path(path)
+        if not path.is_absolute():raise ValueError('ABSOLUTE_VERIFIED_SOURCE_ROOT_REQUIRED')
+        ROOT=path
+    commit=check_source()
+    # A separately checksum-pinned operator can reuse a verified payload; its
+    # helpers and build inputs still come only from that complete payload.
+    sys.path.insert(0,str(ROOT/'linux/scripts'))
+    return commit
+
+
+def operator_digest():return sha(Path(__file__).read_bytes())
+
+
+def render_cloud_compose(docker,runtime):
+    return json.loads(docker.run('compose','--project-name','village-autonomous',
+        '--project-directory',runtime,'-f',runtime/'compose.json','config','--format','json'))
+
+
 def read_functions(docker,names):
     values=','.join("'"+n+"'" for n in names)
     rows=json.loads(docker.sql("SELECT coalesce(json_agg(json_build_object('name',proname,'body',prosrc,'definition',pg_get_functiondef(oid))),'[]') FROM pg_proc WHERE pronamespace='api_private'::regnamespace AND proname IN("+values+");").strip())
@@ -280,6 +301,7 @@ def worker(state,source,commit,*,apply,docker):
         storage.write_private_json(state/(service+'.json'),worker_document(docs[name],service,image['Id']))
     if before!=all_other(docker,names):raise ValueError('OTHER_SERVICES_CHANGED')
     receipt['images']=images
+    write_public(state,'operator.py',Path(__file__).read_bytes());receipt['operator_sha256']=operator_digest()
     storage.write_private_json(state/'receipt.json',receipt)
     for name in reversed(names):
         service='facade-worker' if name.endswith('worker-1') else 'facade-ml'
@@ -313,9 +335,10 @@ def cloud(state,source,commit,*,apply,docker):
     proof=storage.read_private_json(original.parent/'overlay-proof.json')
     if tree_digest(original)!=proof['tree_sha256']:raise ValueError('CURRENT_WEB_OVERLAY_CHANGED')
     document=storage.read_private_json(runtime/'compose.json')
+    rendered=render_cloud_compose(docker,runtime)
     for name,service in [(API,'api'),(WEB,'web')]:
         image=json.loads(docker.run('image','inspect',rows[name]['Image']))[0]
-        validate_rendered(rows[name],document,service,image);validate_candidate(docker,rows[name],document,service)
+        validate_rendered(rows[name],rendered,service,image);validate_candidate(docker,rows[name],rendered,service)
     if document['services']['web']['volumes'] and not any(v.get('source')==str(original) and v.get('target')=='/srv/village-web' for v in document['services']['web']['volumes']):raise ValueError('CURRENT_CLOUD_COMPOSE_CHANGED')
     baseline=json.loads((source/'linux/component-baseline.json').read_text())
     definitions=read_functions(docker,baseline['functions'])
@@ -330,6 +353,7 @@ def cloud(state,source,commit,*,apply,docker):
     if not apply:return {'status':'component_cloud_preflight_passed','current_web_preserved':True,'api_files':len(api_files),'functions':len(changes),'active_tasks':0}
     backup=load_script('backup-autonomous').backup(runtime,Path.home()/'village-autonomous-backups')
     receipt={'phase':'prepared','commit':commit,'kind':'cloud','backup':str(backup),'before':rows}
+    write_public(state,'operator.py',Path(__file__).read_bytes());receipt['operator_sha256']=operator_digest()
     storage.write_private_json(state/'receipt.json',receipt);storage.write_private_json(state/'original-compose.json',document)
     write_public(state,'rollback-functions.sql',('\n'.join(r['definition'] for r in definitions.values())).encode())
     updated=copy.deepcopy(document)
@@ -371,6 +395,7 @@ def verify(state,docker,commit,role):
     import business_storage_copy as storage
     receipt=storage.read_private_json(state/'receipt.json')
     if receipt.get('phase')!='complete' or receipt.get('commit')!=commit or receipt.get('kind')!=role:raise ValueError('INCOMPLETE_ROLLOUT_REQUIRES_INSPECTION')
+    if receipt.get('operator_sha256')!=operator_digest():raise ValueError('ROLLOUT_OPERATOR_CHANGED')
     for name,identifier in receipt['after'].items():
         row=wait_healthy(docker,name)
         if row['Id']!=identifier or not row['State']['Running']:raise ValueError('UPDATED_CONTAINER_CHANGED')
@@ -390,12 +415,13 @@ def verify(state,docker,commit,role):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('role',choices=['cloud','worker'])
+    parser.add_argument('--source-root',type=Path,help='Reuse an already verified component payload without changing its files')
     action=parser.add_mutually_exclusive_group(required=True)
     for name in ('check','apply','verify'):action.add_argument('--'+name,action='store_true')
     args=parser.parse_args()
     try:
         if sys.platform!='linux' or os.geteuid()==0:raise ValueError('LINUX_NON_ROOT_OPERATOR_REQUIRED')
-        sys.dont_write_bytecode=True;os.umask(0o077);commit=check_source()
+        sys.dont_write_bytecode=True;os.umask(0o077);commit=source_context(args.source_root)
         import business_storage_copy as storage
         from autonomous_operator import Docker,operation_lock
         paths=worker_paths(ROOT,commit,Path.home()) if args.role=='worker' else None
@@ -413,6 +439,7 @@ def main():
             if args.verify or (state/'receipt.json').exists():result=verify(state,docker,commit,args.role)
             else:result=(cloud if args.role=='cloud' else worker)(state,ROOT,commit,apply=args.apply,docker=docker)
             if location:result['storage']=location
+        result.update(payload_commit=commit,operator_sha256=operator_digest())
         print(json.dumps(result));return 0
     except (OSError,ValueError,RuntimeError,KeyError,TypeError,subprocess.SubprocessError) as error:
         code=str(error) if re.fullmatch('[A-Z_]{1,100}',str(error)) else type(error).__name__

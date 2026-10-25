@@ -399,3 +399,116 @@ def test_central_temporary_environment_reaches_command_after_sudo(tmp_path,monke
     assert command[3:6]==[name+'='+str(temporary) for name in ('TMPDIR','TMP','TEMP')]
     assert command[6:]==['docker','--context','default','info','--format','{{.DockerRootDir}}']
     assert operator.docker_command()==['sudo','-n','docker','--context','default']
+
+
+def test_cloud_checks_rendered_networks_and_keeps_original_compose_for_updates(tmp_path,monkeypatch):
+    import json
+    import autonomous_operator as operator
+    import business_storage_copy as storage
+    from autonomous_extract import tree_digest
+    m=rollout();runtime=tmp_path/'village-autonomous';runtime.mkdir(mode=0o700)
+    root=runtime/'files/single-personal-20261024-v1';root.mkdir(parents=True,mode=0o700)
+    webdir=root/'web';webdir.mkdir(mode=0o700);(webdir/'index.html').write_text('existing-web')
+    storage.write_private_json(root/'overlay-proof.json',{'tree_sha256':tree_digest(webdir)})
+    api,rendered,image=fixture('api');web,webdoc,_=fixture('web')
+    binding={'type':'bind','source':str(webdir),'target':'/srv/village-web','read_only':True}
+    webdoc['services']['web']['volumes'].append(binding)
+    web['Mounts'].append({'Type':'bind','Source':str(webdir),'Destination':'/srv/village-web','RW':False})
+    rendered['name']='village-autonomous'
+    rendered['services']['web']=webdoc['services']['web']
+    rendered['services']['auth']={'image':'fixture:auth','environment':{'SYNTHETIC_PRIVATE':'never-persist-inline'}}
+    rendered['networks']['internal']['name']='village-autonomous_internal'
+    rows={operator.API:api,operator.WEB:web,operator.PG:copy.deepcopy(api)}
+    for name,row in rows.items():
+        row.update(Name='/'+name,Image=m.OBSERVED[name],State={'Running':True,'Status':'running'})
+        row['NetworkSettings']['Networks']={'village-autonomous_internal':{}}
+    raw=copy.deepcopy(rendered);raw['networks']['internal'].pop('name')
+    raw['services']['auth']={'image':'fixture:auth','env_file':['/private/auth.env']}
+    storage.write_private_json(runtime/'compose.json',raw)
+    original=(runtime/'compose.json').read_bytes()
+    source=tmp_path/'payload';(source/'linux').mkdir(parents=True)
+    (source/'linux/component-baseline.json').write_text('{"functions": {}}')
+    state=tmp_path/'state';state.mkdir(mode=0o700);calls=[];candidates={}
+    monkeypatch.setattr(Path,'home',classmethod(lambda cls:tmp_path))
+    monkeypatch.setattr(operator,'verified_runtime',lambda docker,path:({},None))
+    class ResourceChecksFinished(Exception):pass
+    def finished(*args):raise ResourceChecksFinished()
+    monkeypatch.setattr(m,'read_functions',finished)
+    class Docker:
+        def __init__(self):self.state=state
+        def inspect(self,name):return copy.deepcopy(rows.get(name) or candidates[name])
+        def run(self,*args):
+            calls.append(args)
+            if args[:2]==('image','inspect'):return json.dumps([image])
+            if args[-3:]==('config','--format','json'):
+                assert args[args.index('--project-name')+1]=='village-autonomous'
+                assert Path(args[args.index('-f')+1])==runtime/'compose.json'
+                assert (runtime/'compose.json').read_bytes()==original
+                return json.dumps(rendered)
+            if 'create' in args:
+                spec=json.loads(Path(args[args.index('-f')+1]).read_text())
+                service=args[-1];assert set(spec['services'])=={service}
+                assert 'never-persist-inline' not in json.dumps(spec)
+                row=copy.deepcopy(rows[operator.API if service=='api' else operator.WEB])
+                row['Config']['Labels']={'village.component.probe':'true'};row['Id']='c'*64
+                candidates[spec['services'][service]['container_name']]=row
+            return ''
+    with pytest.raises(ResourceChecksFinished):m.cloud(state,source,'a'*40,apply=False,docker=Docker())
+    assert (runtime/'compose.json').read_bytes()==original
+    assert sum('create' in args for args in calls)==2
+    assert not any(value in args for args in calls for value in ('up','start','stop','build'))
+
+
+def test_real_cloud_renderer_expands_implicit_names_without_rewriting_auth_env_file(tmp_path):
+    import json
+    import os
+    if sys.platform!='linux' or os.environ.get('GITHUB_ACTIONS')!='true':
+        pytest.skip('Real sudo Compose renderer is restricted to disposable Linux CI')
+    from autonomous_operator import Docker
+    m=rollout();runtime=tmp_path/'runtime';runtime.mkdir(mode=0o700)
+    env=runtime/'auth.env';env.write_text('SYNTHETIC_PRIVATE=fixture-only\n');env.chmod(0o600)
+    raw={'name':'village-autonomous','services':{
+        'api':{'image':'fixture:never-pulled','networks':{'dbnet':{}}},
+        'auth':{'image':'fixture:never-pulled','networks':{'dbnet':{}},'env_file':[str(env)]}},
+        'networks':{'dbnet':{'internal':True}}}
+    contents=json.dumps(raw);(runtime/'compose.json').write_text(contents)
+    state=tmp_path/'state';state.mkdir(mode=0o700)
+    result=m.render_cloud_compose(Docker(state),runtime)
+    assert result['networks']['dbnet']['name']=='village-autonomous_dbnet'
+    assert result['services']['auth']['environment']['SYNTHETIC_PRIVATE']=='fixture-only'
+    assert (runtime/'compose.json').read_text()==contents
+    assert env.read_text()=='SYNTHETIC_PRIVATE=fixture-only\n'
+
+
+def test_standalone_operator_verifies_reused_payload_before_loading_dependencies(tmp_path,monkeypatch):
+    import hashlib,json
+    m=rollout();payload=tmp_path/'payload';dependency=payload/'linux/scripts/dependency.py'
+    dependency.parent.mkdir(parents=True);dependency.write_bytes(b'VALID=True\n')
+    manifest={'kind':'component-rollout','commit':'a'*40,'files':{
+        'linux/scripts/dependency.py':hashlib.sha256(dependency.read_bytes()).hexdigest()}}
+    (payload/'component-source.json').write_text(json.dumps(manifest))
+    monkeypatch.setattr(m,'ROOT',m.ROOT);monkeypatch.setattr(sys,'path',list(sys.path))
+    assert m.source_context(payload)=='a'*40
+    assert m.ROOT==payload and sys.path[0]==str(payload/'linux/scripts')
+    dependency.write_bytes(b'CHANGED=True\n')
+    with pytest.raises(ValueError,match='BUNDLE_SOURCE_CHANGED'):m.source_context(payload)
+    with pytest.raises(ValueError,match='ABSOLUTE_VERIFIED_SOURCE_ROOT_REQUIRED'):
+        m.source_context(Path('relative-payload'))
+
+
+def test_receipt_rejects_changed_standalone_operator_before_touching_services(tmp_path,monkeypatch):
+    import hashlib
+    import business_storage_copy as storage
+    m=rollout();operator=tmp_path/'standalone.py';operator.write_bytes(b'original-operator\n')
+    monkeypatch.setattr(m,'__file__',str(operator))
+    after={'village-platform-facade-worker-1':'a'*64,'village-platform-facade-ml-1':'b'*64}
+    storage.write_private_json(tmp_path/'receipt.json',{'phase':'complete','commit':'c'*40,'kind':'worker',
+        'operator_sha256':hashlib.sha256(operator.read_bytes()).hexdigest(),'after':after})
+    calls=[]
+    class Docker:
+        def inspect(self,name):calls.append(name);return {'Id':after[name],'Config':{},'State':{'Running':True}}
+        def run(self,*args):calls.append(args);return ''
+    assert m.verify(tmp_path,Docker(),'c'*40,'worker')['status'].startswith('component_worker_rollout_receipt_verified')
+    calls.clear();operator.write_bytes(b'changed-operator\n')
+    with pytest.raises(ValueError,match='ROLLOUT_OPERATOR_CHANGED'):m.verify(tmp_path,Docker(),'c'*40,'worker')
+    assert not calls
