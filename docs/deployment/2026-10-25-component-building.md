@@ -62,6 +62,12 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 同一源码Native40181622517的数据库/proxy两项亦成功，原生历史部署及完整自身备份恢复兼容检查通过。
 
+**r5真实预检随后发现root保护配置访问失败，改用r6：** 用户诊断精确定位 `/etc/village-platform/compose-mount.yaml`、compose_config第219行、errno13。Python普通用户的Path.is_file预检查早于原有sudo Compose执行。r6仅对实际容器标签提供的路径检查非空/绝对路径，存在性和读取由同一sudo Docker Compose config命令校验；不复制原配置、不改变其权限，也不将整个Python部署器改为root运行。
+
+当前交付 `linux/releases/village-components-20261025-r6.tar.gz`，源码af39f0411ac638d360d10e2c4d57e5d8c56ed929，7,882,865字节、230源文件，SHA256 `2626407916abe450a62a210797553cd6bac342a6a664c89364b065efcda6e3ff`。本地454通过/10项环境差异跳过；Linux CI463通过/1跳过、Worker兼容82项通过，Platform40191092459成功。真实Linux sudo权限回归已执行：只在一次性CI临时目录构造root:root/0700合成配置，普通用户stat报PermissionError，实际sudo Compose正常解析且权限不变；测试代码不进入交付包，不会在4090创建或修改这类夹具。实际解包/逐文件摘要/CLI帮助校验通过；真实4090修正后的worker --check仍待用户执行。
+
+同一源码Native40191092471的数据库/proxy两项亦成功，完整历史部署及自身备份恢复兼容检查通过。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
