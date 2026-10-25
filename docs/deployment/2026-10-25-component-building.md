@@ -76,6 +76,18 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 交付状态更正：完整r7制品未能推送（8MB HTTP POST被连接重置），不能把本地打包/CI通过当作已公开下载。原生成包保留在本机忽略目录，后续交付改为校验单独的小部署脚本，并通过--source-root复用已校验的r6完整素材/业务源码包；不修改原包。操作器指纹另写入回执，并保留用于恢复的脚本副本。
 
+## 当前交付：小操作器 + 已校验r6原包
+
+真实阿里云KeyError=name发生在网络校验：原compose.json未由Compose展开，网络没有显式name。源码bd09e6c先用sudo Docker Compose config生成rendered副本，仅用于环境/资源及停止候选容器检查；后续备份和API/Web挂载更新仍使用原document，保留Auth的env_file与其他配置，不把展开的Auth环境写回。阿里云admin没有密码，直接运行Python；内部沿用sudo -n docker，不加sudo -v、不放宽权限、不以root运行整个脚本。
+
+操作器仅29,823字节，公开blob为e93c76892ce1a781ae5adfb681b04a6bfea708fc，SHA256 `77bc373ee99d62c54a91354dc5552302ed42b31bb7c186aab43abc0c5782d6ea`，可由GitHub官方API raw媒体类型下载，实际响应字节/摘要/语法已核验。使用 `python3 -B <操作器文件> cloud --source-root <原r6解包目录绝对路径> --check`，不再下载大包、不修改原r6文件，不需要手工注入DNS或其他内存补丁。
+
+--source-root先验证原包完整文件集合及全部摘要，再导入原包辅助模块。输出区分payload_commit与operator_sha256；apply保存操作器副本与指纹，verify要求指纹一致，避免换脚本后误认历史回执。4090操作器必须放在集中根目录deploy/components/operators，state仍在集中目录；镜像仍由既有DockerRootDir管理，未迁移Docker全局存储。
+
+本地465通过/11项环境差异跳过；独立静态复核无重要阻塞，真实r6的230源文件验证及独立操作器/辅助模块导入验证通过。Platform40199208118成功，包含原始网络缺name的复现和修复、真正sudo Compose展开配置且原Auth文件不改的用例。小脚本已经公开，完整r7 archive依然未发布；真实阿里云预检及两端apply仍待执行。
+
+精确源码bd09e6c的Linux CI为475通过/1项条件跳过，Worker兼容82通过；Native40199208178数据库/proxy两项亦成功，包括完整历史部署及自身备份恢复验证。用户仍先在阿里云运行cloud --check，不以此确认生产部署完成。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。

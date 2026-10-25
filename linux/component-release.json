@@ -1,22 +1,41 @@
 {
-  "version": 1,
+  "version": 2,
   "kind": "component-rollout",
-  "source_commit": "2a466a5f2801c24af23f6aac8ef6ead095853c4f",
-  "directory": "village-components-2a466a5f2801",
-  "filename": "village-components-20261025-r7.tar.gz",
-  "bytes": 7882934,
-  "sha256": "e1cbb62d5c8d94410bca31b608cf9674b9d0024177251ac03fcbe71d6f732b96",
-  "files": 230,
-  "archive_published": false,
-  "delivery": "Reuse verified r6 payload with a separately checksum-pinned small operator; full r7 archive retained locally",
-  "campus_release_root": "/media/gpu332/newapply/village-platform/deploy/components/releases",
+  "delivery": "standalone-operator-with-verified-r6-payload",
+  "operator": {
+    "source_commit": "bd09e6c20a7df7fcf750d710e31e1e33b713e9a3",
+    "path": "linux/scripts/component_rollout.py",
+    "filename": "component-rollout-bd09e6c20a7d.py",
+    "blob_sha": "e93c76892ce1a781ae5adfb681b04a6bfea708fc",
+    "bytes": 29823,
+    "sha256": "77bc373ee99d62c54a91354dc5552302ed42b31bb7c186aab43abc0c5782d6ea"
+  },
+  "payload": {
+    "source_commit": "af39f0411ac638d360d10e2c4d57e5d8c56ed929",
+    "directory": "village-components-af39f0411ac6",
+    "filename": "village-components-20261025-r6.tar.gz",
+    "blob_sha": "3bd681049f14ea2d80743cd657918b4038f94a47",
+    "bytes": 7882865,
+    "files": 230,
+    "sha256": "2626407916abe450a62a210797553cd6bac342a6a664c89364b065efcda6e3ff"
+  },
+  "unpublished_archive": {
+    "filename": "village-components-20261025-r7.tar.gz",
+    "published": false,
+    "sha256": "e1cbb62d5c8d94410bca31b608cf9674b9d0024177251ac03fcbe71d6f732b96",
+    "retained_under_ignored_runtime_storage": true
+  },
+  "campus_operators_root": "/media/gpu332/newapply/village-platform/deploy/components/operators",
+  "campus_payload_root": "/media/gpu332/newapply/village-platform/deploy/components/releases",
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
-  "real_deployment": "pending user terminal check and apply",
+  "aliyun_operator": "admin; existing sudo -n docker only, no sudo -v or root Python",
+  "real_deployment": "worker preflight passed using r6 and in-memory DNS equivalence; cloud preflight pending; no apply executed",
   "ci": {
-    "native_run": 40193066880,
+    "source_commit": "bd09e6c20a7df7fcf750d710e31e1e33b713e9a3",
+    "native_run": 40199208178,
     "native_status": "success",
-    "platform_run": 40193066883,
+    "platform_run": 40199208118,
     "platform_status": "success"
   }
 }
