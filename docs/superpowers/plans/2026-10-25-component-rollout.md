@@ -31,8 +31,10 @@ Ruling: 保留已生效的bind mount与两套历史Compose，不覆盖任一旧c
 Ruling: 本次新增源码包、私有状态和操作临时文件只允许放在 `/media/gpu332/newapply/village-platform/deploy/components/`。继续取得既有campus操作锁以免与旧管理器并发；该旧锁不迁移，不向Home另建发布或日志目录。Docker镜像层由既有daemon存储，当前在/var；不得宣称改源码路径就能迁移镜像。
 
 - [x] Task 5：先补路径越界/旧目录不动/磁盘余量失败测试；实现集中目录约束及Docker真实落盘位置预检。
-- [ ] Task 6：本地回归、实际解包校验并更新交付说明。旧r2的Home部署命令撤回；只交付新包预检，真实apply与照片验收仍待两端执行。
+- [x] Task 6：本地回归、实际解包校验并更新交付说明。旧r2的Home部署命令撤回；只交付新包预检，真实apply与照片验收仍待两端执行。
 
 现场：canonical repo分支codex/local-basemap-facade-release、8c2719e、干净；另一checkout分支2026-0926、6f4bbcb且有大量本机修改。geo/facade Worker及本地web引用后者；building/ML/LaMa引用/opt兼容入口。/var剩余18G、newapply剩余134G，Docker Images报告95.99GB、Build Cache报告42.49GB（共享层不可直接相加）。其他容器含Open WebUI，禁止全局prune或随意重启Docker。
 
 路径修正本地验证：linux/tests 440通过、8项平台差异跳过（含新增POSIX symlink约束）。四项新增测试先因缺少路径规划/磁盘预检而失败，再通过。最终复核发现sudo默认清理TMP环境；追加实际Docker.run子进程边界失败测试后，Docker可选temporary参数通过sudo后的env命令显式传递三个临时路径，其他旧操作默认命令不变。未执行任何远程变更。
+
+r3发布：精确源码a81cde9，Platform40178892701与Native40178892707成功；实际解包230个文件摘要及CLI帮助通过。制品SHA68e5d893c775ebf63925ea5a5e15c0ad18d1bc76a0c0d835422c3be2ce391fe3，7,882,138字节。Task4真实两端预检/apply及真实照片验收继续待用户返回，不以本地路径修正替代远程部署。

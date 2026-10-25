@@ -48,6 +48,8 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 目录整改只完成本次新增材料的集中化；历史 `village-storymap` 与Home overlay尚在使用，后续归并需保存其独有修改并验证配置等价，不能声称已经全部清理完成。
 
+新版交付为 `linux/releases/village-components-20261025-r3.tar.gz`，源码a81cde9be1e1e13065acf0ef86311a151f23d5c6，7,882,138字节、230个源文件，SHA256 `68e5d893c775ebf63925ea5a5e15c0ad18d1bc76a0c0d835422c3be2ce391fe3`。本机实际解包及逐文件摘要校验通过；本地linux/tests 440通过/8跳过；精确源码Platform regression 40178892701及Unified native database tests 40178892707均成功（含原生队列/文件/完整历史部署及自身备份恢复）。下载解包必须在上述central releases中，使用非root用户执行 `python3 -B <解包目录>/linux/scripts/component_rollout.py worker --check`。此命令不更新运行服务，但会建立私有预检文件、临时创建并清理不启动的资源检查容器；远程仍待用户执行。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
