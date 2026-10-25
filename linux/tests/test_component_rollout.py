@@ -137,6 +137,52 @@ def test_resource_drift_is_rejected_in_a_stopped_candidate_before_replacement(tm
     assert calls[-1]==('rm','a'*64)
 
 
+@pytest.mark.parametrize('change',[None,'source','read_only','propagation','duplicate','gpu','memory','oom','other_default','other_missing'])
+def test_observed_mount_order_and_oom_default_equivalence_does_not_hide_real_changes(tmp_path,change,capsys):
+    m=rollout();row,doc,image=fixture();calls=[]
+    row['HostConfig'].update({
+        'Mounts':[
+            {'Type':'bind','Source':'/models','Target':'/models','ReadOnly':True,
+             'BindOptions':{'Propagation':'rprivate','CreateMountpoint':False}},
+            {'Type':'bind','Source':'/work','Target':'/work','ReadOnly':False},
+            {'Type':'bind','Source':'/etc/worker.key','Target':'/run/secrets/aliyun-worker-key','ReadOnly':True}],
+        'OomKillDisable':None,'Init':None,'Memory':6*1024**3,
+        'DeviceRequests':[{'Driver':'nvidia','Count':1,'DeviceIDs':None,'Capabilities':[['gpu']],'Options':{}}]})
+    candidate=copy.deepcopy(row);candidate['Id']='a'*64
+    candidate['Config']['Labels']={'village.component.probe':'true'}
+    candidate['HostConfig']['Mounts'].reverse();candidate['HostConfig']['OomKillDisable']=False
+    host=candidate['HostConfig'];mount=next(v for v in host['Mounts'] if v['Target']=='/models')
+    if change=='source':mount['Source']='/different-models'
+    elif change=='read_only':mount['ReadOnly']=False
+    elif change=='propagation':mount['BindOptions']['Propagation']='rshared'
+    elif change=='duplicate':host['Mounts'].append(copy.deepcopy(mount))
+    elif change=='gpu':host['DeviceRequests'][0]['Count']=2
+    elif change=='memory':host['Memory']=2*1024**3
+    elif change=='oom':host['OomKillDisable']=True
+    elif change=='other_default':host['Init']=False
+    elif change=='other_missing':host.pop('Init')
+    original=copy.deepcopy(row);planned=copy.deepcopy(candidate)
+    class Docker:
+        state=tmp_path
+        def run(self,*args):calls.append(args);return ''
+        def inspect(self,name):return candidate
+    if change is None:m.validate_candidate(Docker(),row,doc,'facade-worker')
+    else:
+        with pytest.raises(ValueError,match='PLANNED_CONTAINER_RESOURCES_DIFFER'):
+            m.validate_candidate(Docker(),row,doc,'facade-worker')
+    assert row==original and candidate==planned
+    assert not any('up' in args or 'start' in args for args in calls)
+    assert calls[-1]==('rm','a'*64)
+    output=capsys.readouterr().out
+    if change is None:assert not output
+    else:
+        import json
+        field={'gpu':'host.DeviceRequests','memory':'host.Memory','oom':'host.OomKillDisable',
+               'other_default':'host.Init','other_missing':'host.Init'}.get(change,'host.Mounts')
+        assert json.loads(output)=={'resource_difference_fields':[field]}
+        assert '/different-models' not in output and 'worker.key' not in output
+
+
 @pytest.mark.parametrize('installed_compose',[False,True])
 def test_candidate_create_checks_one_service_with_supported_cli_options(tmp_path,installed_compose):
     import json

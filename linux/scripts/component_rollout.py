@@ -129,6 +129,11 @@ def resource_snapshot(row):
     # Compare all execution/resource controls after update, including GPUs and log options.
     host=copy.deepcopy(row['HostConfig'])
     for key in ('NetworkMode','ContainerIDFile'):host.pop(key,None)
+    # Docker may serialize the same explicit mounts in a different order.
+    # Preserve complete mount entries, options and duplicates in comparison.
+    if isinstance(host.get('Mounts'),list):host['Mounts'].sort(key=lambda v:json.dumps(v,sort_keys=True))
+    # Moby adapts an unspecified OomKillDisable to false. True must still differ.
+    if host.get('OomKillDisable') is None:host['OomKillDisable']=False
     config={k:row['Config'].get(k) for k in ('Cmd','Entrypoint','User','Healthcheck','ExposedPorts','StopSignal')}
     return {'host':host,'config':config,'mounts':sorted((m['Type'],m['Source'],m['Destination'],m['RW']) for m in row['Mounts']),
             'networks':sorted(row['NetworkSettings']['Networks'])}
@@ -154,7 +159,16 @@ def validate_candidate(docker,row,document,service):
         # A stopped container may not yet have network endpoints. Network names
         # were already compared to the actual running container by validate_rendered.
         before.pop('networks');planned.pop('networks')
-        if before!=planned:raise ValueError('PLANNED_CONTAINER_RESOURCES_DIFFER')
+        if before!=planned:
+            fields=[]
+            for section in sorted(set(before)|set(planned)):
+                a,b=before.get(section),planned.get(section)
+                if isinstance(a,dict) and isinstance(b,dict):
+                    fields.extend(section+'.'+key for key in sorted(set(a)|set(b)) if key not in a or key not in b or a[key]!=b[key])
+                elif a!=b:fields.append(section)
+            # Print field names only; never commands, mount sources or env values.
+            print(json.dumps({'resource_difference_fields':fields}))
+            raise ValueError('PLANNED_CONTAINER_RESOURCES_DIFFER')
     finally:
         if candidate and candidate['Config'].get('Labels',{}).get('village.component.probe')=='true':docker.run('rm',candidate['Id'])
 

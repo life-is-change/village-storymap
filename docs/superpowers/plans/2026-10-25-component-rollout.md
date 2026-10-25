@@ -46,3 +46,9 @@ r3发布：精确源码a81cde9，Platform40178892701与Native40178892707成功�
 r4本地441通过/9跳过，Linux CI449通过/1跳过（真实Compose CLI契约未跳过），Worker兼容82项通过，Platform40180131306成功。源码c20cc67，包实际解压230源文件摘要及CLI帮助通过；7,882,282字节，SHA60237ab86e17e6ad7dd7ed047a4be2b4e22d6a6366bede65bd5a16fa5d100014。没有远程替换现有容器。
 
 同一源码Native40180131264的数据库与proxy两项亦成功，更新材料仅增加新的r4包，不覆盖r3或其真实失败状态。
+
+## r4真实资源差异：只修正已证明的等价表示
+
+用户诊断返回仅两处：HostConfig.Mounts三项完全相同但顺序不同；OomKillDisable为null/false。Moby v28.5.1 daemon/daemon_unix.go的adaptContainerSettings明确将未指定OomKillDisable设置为false。比较快照仅排序完整Mounts条目（保留权限、传播选项和重复项），将这个特定字段的null/缺省归一为false，不修改原配置或运行容器。
+
+新增真实预检入口回归先复现资源差异拒绝，再验证等价通过；源路径、只读权限、传播选项、重复挂载、GPU数量、内存、OOM=true、其他默认字段变更依然拒绝。差异拒绝时自动公开输出资源字段名，不输出字段值/命令/env，减少再次手动注入诊断的需要；未知字段的缺省/缺失差异仍严格保留。
