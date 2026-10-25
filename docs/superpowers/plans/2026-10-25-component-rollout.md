@@ -66,3 +66,9 @@ Native40181622517的数据库及proxy两项亦成功，包含完整历史部署/
 r6源码af39f04，本地454通过/10跳过；Linux CI463通过/1跳过（真实root保护权限回归已执行），Worker兼容82项通过，Platform40191092459成功。实际解包230源文件摘要/CLI帮助校验通过，7,882,865字节，SHA2626407916abe450a62a210797553cd6bac342a6a664c89364b065efcda6e3ff。生产预检/apply仍待用户，不把临时CI夹具的成功当成远程服务更新。
 
 Native40191092471的数据库与proxy两项亦成功，包含完整历史部署及自身备份恢复兼容验证。r6制品仍先交付真实worker --check，不执行远程apply。
+
+## r6真实ML预检DNS空值表示差异
+
+用户确认仅facade-ml的HostConfig.Dns/DnsOptions/DnsSearch为当前[]、候选null。Moby v28.5.1 daemon/container_operations.go buildSandboxOptions对三项均用len>0判断，否则沿用daemon默认配置。快照比较仅把这三项的null/缺省归一为空列表；不排序、不抹去任何非空DNS覆盖值，不泛化到其他字段。原运行配置和容器不修改。
+
+新增回归先完整复现三项拒绝，再覆盖默认等价通过、DNS地址/选项/搜索域更改及其列表顺序更改仍拒绝、其他字段null/空列表差异仍拒绝，确保不把实际解析配置变化静默放行。

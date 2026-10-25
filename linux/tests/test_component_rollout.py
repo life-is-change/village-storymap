@@ -286,6 +286,40 @@ def test_candidate_create_checks_one_service_with_supported_cli_options(tmp_path
     assert calls[-1]==('rm','a'*64)
 
 
+@pytest.mark.parametrize('change',[None,'Dns','DnsOptions','DnsSearch','dns_order','options_order','search_order','unrelated'])
+def test_only_empty_dns_lists_are_equivalent_and_configured_values_and_order_remain_checked(tmp_path,change,capsys):
+    import json
+    m=rollout();row,doc,image=fixture('facade-ml');calls=[]
+    row['HostConfig'].update({'Dns':[],'DnsOptions':[],'DnsSearch':[],'ExtraHosts':[]})
+    candidate=copy.deepcopy(row);candidate['Id']='a'*64
+    candidate['Config']['Labels']={'village.component.probe':'true'}
+    candidate['HostConfig'].update({'Dns':None,'DnsOptions':None,'DnsSearch':None})
+    field=change
+    if change in ('Dns','DnsOptions','DnsSearch'):
+        candidate['HostConfig'][change]={'Dns':['1.1.1.1'],'DnsOptions':['ndots:1'],'DnsSearch':['village.local']}[change]
+    elif change in ('dns_order','options_order','search_order'):
+        field,values={'dns_order':('Dns',['1.1.1.1','9.9.9.9']),
+                      'options_order':('DnsOptions',['timeout:1','attempts:2']),
+                      'search_order':('DnsSearch',['a.local','b.local'])}[change]
+        row['HostConfig'][field]=values;candidate['HostConfig'][field]=list(reversed(values))
+    elif change=='unrelated':field='ExtraHosts';candidate['HostConfig'][field]=None
+    old=copy.deepcopy(row);planned=copy.deepcopy(candidate)
+    class Docker:
+        state=tmp_path
+        def run(self,*args):calls.append(args);return ''
+        def inspect(self,name):return candidate
+    if change is None:
+        m.validate_candidate(Docker(),row,doc,'facade-ml')
+        assert not capsys.readouterr().out
+    else:
+        with pytest.raises(ValueError,match='PLANNED_CONTAINER_RESOURCES_DIFFER'):
+            m.validate_candidate(Docker(),row,doc,'facade-ml')
+        assert json.loads(capsys.readouterr().out)=={'resource_difference_fields':['host.'+field]}
+    assert row==old and candidate==planned
+    assert not any('up' in args or 'start' in args for args in calls)
+    assert calls[-1]==('rm','a'*64)
+
+
 def test_worker_paths_keep_new_state_under_central_root_and_old_sources_untouched(tmp_path):
     m=rollout();root=tmp_path/'village-platform';root.mkdir()
     old=root/'repo';old.mkdir();(old/'sentinel').write_text('old-code')

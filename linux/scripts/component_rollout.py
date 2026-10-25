@@ -134,6 +134,10 @@ def resource_snapshot(row):
     if isinstance(host.get('Mounts'),list):host['Mounts'].sort(key=lambda v:json.dumps(v,sort_keys=True))
     # Moby adapts an unspecified OomKillDisable to false. True must still differ.
     if host.get('OomKillDisable') is None:host['OomKillDisable']=False
+    # Moby uses len(...) > 0 for these three DNS overrides. Unset/empty both
+    # inherit daemon defaults; configured values and their order stay intact.
+    for key in ('Dns','DnsOptions','DnsSearch'):
+        if host.get(key) is None:host[key]=[]
     config={k:row['Config'].get(k) for k in ('Cmd','Entrypoint','User','Healthcheck','ExposedPorts','StopSignal')}
     return {'host':host,'config':config,'mounts':sorted((m['Type'],m['Source'],m['Destination'],m['RW']) for m in row['Mounts']),
             'networks':sorted(row['NetworkSettings']['Networks'])}
