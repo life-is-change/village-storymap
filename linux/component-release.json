@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "component-rollout",
+  "source_commit": "ad14814c5775131e65e625f1f52728009db65487",
+  "directory": "village-components-ad14814c5775",
+  "filename": "village-components-20261025-r2.tar.gz",
+  "bytes": 7880933,
+  "sha256": "55f4f9c7a03a17434bf66b6f724d84eba78fa3198e2bb7921bc0550ec1f4b70e",
+  "files": 229,
+  "real_deployment": "pending user terminal check and apply",
+  "ci": {
+    "native_run": 40174621254,
+    "native_status": "success",
+    "platform_run": 40174621374,
+    "platform_status": "success"
+  }
+}
