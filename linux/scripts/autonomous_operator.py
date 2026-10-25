@@ -35,6 +35,16 @@ def clean_environment():
     return {k:v for k,v in os.environ.items() if not k.startswith(('DOCKER_','COMPOSE_','PG'))}|{'PYTHONDONTWRITEBYTECODE':'1'}
 
 
+def docker_command(temporary=None):
+    prefix=['sudo','-n']
+    if temporary is not None:
+        temporary=storage.private_path(temporary,directory=True)
+        # sudo normally strips TMPDIR/TMP/TEMP. Pass only these non-secret
+        # paths explicitly to the privileged Docker/Compose client process.
+        prefix+=['env',*(name+'='+str(temporary) for name in ('TMPDIR','TMP','TEMP'))]
+    return [*prefix,'docker','--context','default']
+
+
 def resolve_image(docker,accepted):
     if not isinstance(accepted,list) or not 1<=len(accepted)<=16 or any(not re.fullmatch('sha256:[a-f0-9]{64}',v or '') for v in accepted):
         raise ValueError('ARCHIVE_DERIVED_IMAGE_IDENTITIES_REQUIRED')
@@ -48,10 +58,10 @@ def resolve_image(docker,accepted):
 
 
 class Docker:
-    def __init__(self,state):
+    def __init__(self,state,*,temporary=None):
         if sys.platform!='linux' or os.geteuid()==0:raise ValueError('LINUX_NON_ROOT_OPERATOR_REQUIRED')
         self.state=storage.private_path(state,directory=True)
-        self.env=clean_environment();self.prefix=['sudo','-n','docker','--context','default']
+        self.env=clean_environment();self.prefix=docker_command(temporary)
         try:
             endpoint=subprocess.run([*self.prefix,'context','inspect','default','--format','{{.Endpoints.docker.Host}}'],
                 env=self.env,check=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=10).stdout.decode().strip()

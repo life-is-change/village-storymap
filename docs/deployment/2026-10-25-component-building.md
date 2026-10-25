@@ -36,6 +36,18 @@
 
 这两端脚本仍需用户实际执行并返回结果。下文旧通用步骤作为实现背景保留，不应替代上述现场更新入口。
 
+### 4090目录审计与本次路径约束
+
+用户2026-10-25实际检查确认：`/opt/village-storymap` 是newapply/village-platform/repo的bind mount；`/srv/village-platform/{data,models}` 与 `/var/lib/village-platform/runtime` 也是同一集中根目录的bind mount。原有集中存储已成功，无需重复迁移。
+
+后续部署出现另一份独立代码 `/media/gpu332/newapply/village-storymap`：分支2026-0926、HEAD6f4bbcb，包含大量未提交Docker部署变更；原repo为codex/local-basemap-facade-release、HEAD8c2719e且干净。当前geo/facade Worker（10月23日）与本地web（10月8日）引用另一份代码的Compose，building/ML/LaMa（10月10日）引用原repo兼容路径的Compose。这是同一个Compose项目的混合历史部署，不是两套重复的数据或权重。任一checkout均不直接pull/reset/覆盖/删除。
+
+**旧r2的Home下载与状态目录命令撤回。** 新版worker入口只接受位于 `/media/gpu332/newapply/village-platform/deploy/components/releases/` 内的摘要固定包；私有状态、配置、回退材料、日志与操作临时目录位于 `deploy/components/state/<源码commit前12位>/`。不改两个旧checkout和既有bind mount。原 `~/village-campus-autonomous/.operator-operation.lock` 继续参与互斥，避免与旧管理工具同时更新；它是已存在的兼容入口，不另在Home创建代码或日志目录。
+
+Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/var分区（用户检查剩余18G），不随源码下载位置改变；newapply剩余134G。预检输出真实daemon目录及可用字节数，Docker不足8GiB或集中目录所在盘不足1GiB时拒绝继续。这是最低余量检查，不是构建峰值保证。新增镜像层仍由既有daemon管理；没有把Docker整体迁移到newapply，不做全局prune、重启或影响Open WebUI等其他服务。Images95.99GB和Build Cache42.49GB含共享层，不可直接相加推算迁移空间。
+
+目录整改只完成本次新增材料的集中化；历史 `village-storymap` 与Home overlay尚在使用，后续归并需保存其独有修改并验证配置等价，不能声称已经全部清理完成。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。

@@ -16,6 +16,7 @@ import secrets
 ROOT=Path(__file__).resolve().parents[2]
 PATCH='components-20261025-v1'
 BLENDER='/opt/blender-runtime/blender-3.6.23-linux-x64/blender'
+CAMPUS_ROOT=Path('/media/gpu332/newapply/village-platform')
 OBSERVED={
  'village-platform-facade-worker-1':'sha256:0cac700ae4a12c4808a95f98958547879b8ec311053bcb1cbe8ef75520610212',
  'village-platform-facade-ml-1':'sha256:623ffb0c4ba219f41865f32a80349226cd9095051a23266dedf471a09389f6d6',
@@ -27,6 +28,34 @@ OBSERVED={
 def sha(value):return hashlib.sha256(value).hexdigest()
 def environment(values):return dict(v.split('=',1) for v in values or [] if '=' in v)
 def public_snapshot(row):return {'name':row['Name'],'image':row['Image'],'status':row.get('State',{}).get('Status')}
+
+
+def worker_paths(source,commit,home,*,platform_root=CAMPUS_ROOT):
+    """Plan only new component files; keep both historic checkouts and lock."""
+    import business_storage_copy as storage
+    root=Path(platform_root)
+    if not root.is_dir() or root.is_symlink():raise ValueError('EXISTING_CENTRAL_PLATFORM_ROOT_REQUIRED')
+    root=storage.no_links(root);base=root/'deploy/components'
+    source=storage.no_links(source)
+    if not source.is_relative_to(base/'releases'):raise ValueError('SOURCE_MUST_BE_IN_CENTRAL_RELEASES')
+    if not re.fullmatch('[a-f0-9]{40}',commit):raise ValueError('INVALID_COMPONENT_BUNDLE')
+    lock=Path(home)/'village-campus-autonomous'
+    if not lock.is_dir() or lock.is_symlink():raise ValueError('EXISTING_CAMPUS_OPERATOR_LOCK_REQUIRED')
+    state=storage.no_links(base/'state'/commit[:12])
+    temporary=storage.no_links(state/'tmp')
+    return {'state':state,'temporary':temporary,'lock':lock}
+
+
+def worker_storage_report(docker,platform_root=CAMPUS_ROOT):
+    """Report the real daemon store, never relocate it or prune other projects."""
+    root=Path(platform_root);engine=Path(docker.run('info','--format','{{.DockerRootDir}}').strip())
+    if not engine.is_absolute() or not engine.is_dir():raise ValueError('EXISTING_DOCKER_STORAGE_REQUIRED')
+    project_free=shutil.disk_usage(root).free;engine_free=shutil.disk_usage(engine).free
+    if engine_free<8*1024**3:raise ValueError('DOCKER_FREE_SPACE_BELOW_COMPONENT_RESERVE')
+    if project_free<1024**3:raise ValueError('PROJECT_FREE_SPACE_BELOW_COMPONENT_RESERVE')
+    return {'project_root':str(root),'project_free_bytes':project_free,'docker_root':str(engine),
+            'docker_free_bytes':engine_free,'docker_images_inside_project_root':engine.resolve().is_relative_to(root.resolve()),
+            'global_docker_migration':False}
 
 
 def validate_rendered(row,doc,name,image):
@@ -345,13 +374,21 @@ def main():
         sys.dont_write_bytecode=True;os.umask(0o077);commit=check_source()
         import business_storage_copy as storage
         from autonomous_operator import Docker,operation_lock
-        state=(Path.home()/'village-autonomous/files'/PATCH if args.role=='cloud' else Path.home()/'village-component-worker')/commit[:12]
+        paths=worker_paths(ROOT,commit,Path.home()) if args.role=='worker' else None
+        state=paths['state'] if paths else Path.home()/'village-autonomous/files'/PATCH/commit[:12]
         state.mkdir(parents=True,exist_ok=True,mode=0o700)
-        lock_root=Path.home()/('village-autonomous' if args.role=='cloud' else 'village-campus-autonomous')
+        storage.private_path(state,directory=True)
+        if paths:
+            paths['temporary'].mkdir(mode=0o700,exist_ok=True)
+            storage.private_path(paths['temporary'],directory=True)
+            os.environ.update({name:str(paths['temporary']) for name in ('TMPDIR','TMP','TEMP')})
+        lock_root=paths['lock'] if paths else Path.home()/'village-autonomous'
         with operation_lock(lock_root):
-            docker=Docker(state)
+            docker=Docker(state,temporary=paths['temporary']) if paths else Docker(state)
+            location=worker_storage_report(docker) if paths else None
             if args.verify or (state/'receipt.json').exists():result=verify(state,docker,commit,args.role)
             else:result=(cloud if args.role=='cloud' else worker)(state,ROOT,commit,apply=args.apply,docker=docker)
+            if location:result['storage']=location
         print(json.dumps(result));return 0
     except (OSError,ValueError,RuntimeError,KeyError,TypeError,subprocess.SubprocessError) as error:
         code=str(error) if re.fullmatch('[A-Z_]{1,100}',str(error)) else type(error).__name__

@@ -135,3 +135,84 @@ def test_resource_drift_is_rejected_in_a_stopped_candidate_before_replacement(tm
     assert any('create' in args for args in calls)
     assert not any('up' in args or 'start' in args for args in calls)
     assert calls[-1]==('rm','a'*64)
+
+
+def test_worker_paths_keep_new_state_under_central_root_and_old_sources_untouched(tmp_path):
+    m=rollout();root=tmp_path/'village-platform';root.mkdir()
+    old=root/'repo';old.mkdir();(old/'sentinel').write_text('old-code')
+    source=root/'deploy/components/releases/village-components-aaaaaaaaaaaa';source.mkdir(parents=True)
+    home=tmp_path/'home';home.mkdir();lock=home/'village-campus-autonomous';lock.mkdir()
+    result=m.worker_paths(source,'a'*40,home,platform_root=root)
+    assert result['state']==root/'deploy/components/state/aaaaaaaaaaaa'
+    assert result['temporary']==root/'deploy/components/state/aaaaaaaaaaaa/tmp'
+    assert result['lock']==lock
+    assert sorted(p.name for p in home.iterdir())==['village-campus-autonomous']
+    assert (old/'sentinel').read_text()=='old-code'
+    assert not result['state'].exists()  # Planning must not create directories.
+
+
+def test_worker_paths_refuse_home_source_missing_root_or_missing_existing_lock(tmp_path):
+    m=rollout();root=tmp_path/'village-platform';root.mkdir();home=tmp_path/'home';home.mkdir()
+    lock=home/'village-campus-autonomous';lock.mkdir()
+    with pytest.raises(ValueError,match='SOURCE_MUST_BE_IN_CENTRAL_RELEASES'):
+        m.worker_paths(home,'a'*40,home,platform_root=root)
+    source=root/'deploy/components/releases/village-components-aaaaaaaaaaaa';source.mkdir(parents=True)
+    with pytest.raises(ValueError,match='EXISTING_CAMPUS_OPERATOR_LOCK_REQUIRED'):
+        m.worker_paths(source,'a'*40,tmp_path/'another-home',platform_root=root)
+    with pytest.raises(ValueError,match='EXISTING_CENTRAL_PLATFORM_ROOT_REQUIRED'):
+        m.worker_paths(source,'a'*40,home,platform_root=tmp_path/'missing')
+
+
+def test_worker_storage_reports_daemon_location_without_moving_or_pruning_it(tmp_path):
+    m=rollout();root=tmp_path/'village-platform';root.mkdir();engine=tmp_path/'docker';engine.mkdir()
+    class Docker:
+        def run(self,*args):
+            assert args==('info','--format','{{.DockerRootDir}}')
+            return str(engine)+'\n'
+    result=m.worker_storage_report(Docker(),root)
+    assert result['project_root']==str(root)
+    assert result['docker_root']==str(engine)
+    assert result['docker_images_inside_project_root'] is False
+    assert result['docker_free_bytes']>0
+    assert sorted(p.name for p in tmp_path.iterdir())==['docker','village-platform']
+
+
+def test_worker_disk_shortage_is_rejected_before_any_build_or_service_changes(tmp_path,monkeypatch):
+    m=rollout();root=tmp_path/'village-platform';root.mkdir();engine=tmp_path/'docker';engine.mkdir()
+    from collections import namedtuple
+    Usage=namedtuple('Usage','total used free')
+    monkeypatch.setattr(m.shutil,'disk_usage',lambda path:Usage(100*1024**3,98*1024**3,2*1024**3))
+    class Docker:
+        def run(self,*args):
+            assert args==('info','--format','{{.DockerRootDir}}')
+            return str(engine)
+    with pytest.raises(ValueError,match='DOCKER_FREE_SPACE_BELOW_COMPONENT_RESERVE'):
+        m.worker_storage_report(Docker(),root)
+
+
+@pytest.mark.skipif(sys.platform=='win32',reason='POSIX symlink deployment paths')
+def test_worker_state_symlink_cannot_escape_central_directory(tmp_path):
+    m=rollout();root=tmp_path/'village-platform';root.mkdir();home=tmp_path/'home';home.mkdir()
+    (home/'village-campus-autonomous').mkdir()
+    source=root/'deploy/components/releases/village-components-aaaaaaaaaaaa';source.mkdir(parents=True)
+    (root/'deploy/components/state').symlink_to(home,target_is_directory=True)
+    with pytest.raises(ValueError,match='Linked paths are not accepted'):
+        m.worker_paths(source,'a'*40,home,platform_root=root)
+    assert not (home/'aaaaaaaaaaaa').exists()
+
+
+def test_central_temporary_environment_reaches_command_after_sudo(tmp_path,monkeypatch):
+    import autonomous_operator as operator
+    import json
+    import subprocess
+    temporary=tmp_path/'tmp';temporary.mkdir(mode=0o700)
+    docker=operator.Docker.__new__(operator.Docker);docker.state=tmp_path
+    docker.env={};docker.prefix=operator.docker_command(temporary)
+    def run(command,**kwargs):
+        return subprocess.CompletedProcess(command,0,stdout=json.dumps(command).encode())
+    monkeypatch.setattr(operator.subprocess,'run',run)
+    command=json.loads(docker.run('info','--format','{{.DockerRootDir}}'))
+    assert command[:3]==['sudo','-n','env']
+    assert command[3:6]==[name+'='+str(temporary) for name in ('TMPDIR','TMP','TEMP')]
+    assert command[6:]==['docker','--context','default','info','--format','{{.DockerRootDir}}']
+    assert operator.docker_command()==['sudo','-n','docker','--context','default']
