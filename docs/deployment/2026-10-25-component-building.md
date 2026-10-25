@@ -56,6 +56,12 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 同一源码的Unified native database tests40180131264亦成功，保留原生队列/文件隔离、历史部署修复及完整自身备份恢复验证。
 
+**r4真实资源比较随后停在等价表示差异，改用r5：** 用户诊断只返回HostConfig.Mounts（三项相同但顺序不同）和OomKillDisable（null/false）。[Moby默认适配逻辑](https://github.com/moby/moby/blob/v28.5.1/daemon/daemon_unix.go#L351-L354)将未指定的OOM禁用开关设为false。r5只归一这两项，保留完整挂载内容、重复项、读写权限和传播选项，依然拒绝GPU、内存、OOM=true及其他未确认的差异。不更改真实容器参数；若还有差异，预检直接输出字段名（不含命令、环境变量或字段值），然后停止。
+
+当前交付为 `linux/releases/village-components-20261025-r5.tar.gz`，源码ed7568626df79acb4593e03506c5bb0558ee00c1，7,882,641字节、230源文件，SHA256 `faac921650ce9c3495ea2edec2986038f6a274e59a96951952bfb3f6d1fa79ca`。本地451通过/9项环境差异跳过，Platform40181622446成功；实际解包、逐文件摘要与CLI帮助已校验。仍要求用户在4090先运行worker --check，不把此项修正当作真实部署或照片建模成功。
+
+同一源码Native40181622517的数据库/proxy两项亦成功，原生历史部署及完整自身备份恢复兼容检查通过。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
