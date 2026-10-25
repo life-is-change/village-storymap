@@ -38,6 +38,59 @@ test('component tasks require a v2 Worker, freeze existing dimensions and publis
   await assert.rejects(taskFiles.readTaskArtifact(testIdentity(USERS.other),input.requestId,'model_manifest'),{code:'NOT_FOUND'});
  });
 });
+test('legacy awaiting-crop task and its artifacts survive component migration and resume as texture',async()=>{
+ await fixture(async({setup,db,store,queue,tasks,files,taskFiles,worker,claim,upload})=>{
+  const baseline=JSON.parse(await readFile(new URL('../../linux/component-baseline.json',import.meta.url),'utf8'));
+  for(const definition of Object.values(baseline.functions))await setup.query(definition.replace('CREATE FUNCTION','CREATE OR REPLACE FUNCTION'));
+  const operator=await readFile(new URL('../../linux/scripts/component_rollout.py',import.meta.url),'utf8');
+  const guard=operator.match(/LOCAL_TASKS_SNAPSHOT_SQL = """([\s\S]*?)"""/);assert.ok(guard,'Exercise the exact deployed quiescence query');
+  const snapshot=async()=>(await setup.query(guard[1])).rows[0].json_build_object;
+  const userFiles=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
+  const session=await userFiles.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:'A'},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});
+  await userFiles.put(testIdentity(),session.id,'photo',Readable.from([png]));
+  const photo=await userFiles.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
+  const input={...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID()},actor=await worker('facade');
+  await tasks.execute(testIdentity(),'tasks.submitFacade',input);await tasks.tick();const job=await claim(actor);
+  for(const type of ['rectified_preview','rectified_source','building_mask'])await upload(actor,job,type,png);
+  await queue.workerCall(actor,'publish-rectification',job.run.id,job.leaseToken,{});
+  const before=(await setup.query('SELECT to_jsonb(r) data FROM api_private.local_gpu_runs r WHERE id=$1',[job.run.id])).rows[0].data;
+  const outputs=async()=>(await setup.query('SELECT to_jsonb(o) data FROM api_private.local_gpu_outputs o WHERE run_id=$1 ORDER BY id',[job.run.id])).rows;
+  const originalOutputs=await outputs();assert.equal(before.status,'awaiting_crop');assert.equal(before.lease_until,null);
+  assert.deepEqual(await snapshot(),{blocking:0,preserved_awaiting_crop:1});
+  // Database state variations prove this is not a blanket nonterminal-task bypass.
+  await setup.query('BEGIN');
+  try{
+   for(const status of ['queued','claimed','running','queued_rectification','claimed_rectification','rectifying','queued_generation','claimed_generation','generating','cancel_requested']){
+    await setup.query('SAVEPOINT guard_case');
+    await setup.query('UPDATE api_private.local_gpu_runs SET status=$1 WHERE id=$2',[status,job.run.id]);
+    assert.deepEqual(await snapshot(),{blocking:1,preserved_awaiting_crop:0},status);
+    await setup.query('ROLLBACK TO SAVEPOINT guard_case');
+   }
+   for(const change of ["lease_until=now()+interval '1 minute'","phase='generation'","kind='geo'","kind='cloud-facade'","input=input||'{\"generationMethod\":\"components\"}'::jsonb"]){
+    await setup.query('SAVEPOINT guard_case');await setup.query('UPDATE api_private.local_gpu_runs SET '+change+' WHERE id=$1',[job.run.id]);
+    assert.deepEqual(await snapshot(),{blocking:1,preserved_awaiting_crop:0},change);
+    await setup.query('ROLLBACK TO SAVEPOINT guard_case');
+   }
+   await setup.query("UPDATE api_private.local_gpu_runs SET lease_until=now()-interval '1 minute' WHERE id=$1",[job.run.id]);
+   assert.deepEqual(await snapshot(),{blocking:0,preserved_awaiting_crop:1});
+  }finally{await setup.query('ROLLBACK');}
+  const migration=await readFile(new URL('../../linux/sql/component-building.sql',import.meta.url),'utf8');
+  await setup.query(migration);await setup.query(migration);
+  assert.deepEqual((await setup.query('SELECT to_jsonb(r) data FROM api_private.local_gpu_runs r WHERE id=$1',[job.run.id])).rows[0].data,before);
+  assert.deepEqual(await outputs(),originalOutputs);
+  await queue.workerCall(actor,'heartbeat',null,null,{state:'idle',protocol:'facade-aliyun-local-v2'});
+  assert.equal((await claim(actor)).run,null,'A Worker cannot claim the human crop checkpoint');
+  await tasks.execute(testIdentity(),'tasks.confirmCrop',{taskId:input.requestId,requestId:randomUUID(),cropTop:0.1,roofType:'hip',buildingWidth:12,buildingDepth:8});await tasks.tick();
+  assert.deepEqual(await snapshot(),{blocking:1,preserved_awaiting_crop:0},'Crop confirmation must block a concurrent rollout');
+  const gen=await claim(actor);assert.equal(gen.phase,'generation');assert.equal(gen.run.generation_method,'texture');
+  assert.equal(gen.run.photo.fileId,session.files[0].id);
+  const rect=await files.openArtifact(actor,gen.run.id,gen.leaseToken,{artifactType:'rectified_source'});assert.equal(rect.sha256,hash(png));await rect.close();
+  await upload(actor,gen,'building_glb',glb(),'model/gltf-binary','glb');await queue.workerCall(actor,'complete',gen.run.id,gen.leaseToken,{});
+  await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await tasks.tick();
+  const result=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'building_glb');assert.equal(result.sha256,hash(glb()));await result.close();
+  assert.deepEqual(await snapshot(),{blocking:0,preserved_awaiting_crop:0});
+ });
+});
 async function fixture(fn,provider={available:false}){await withUnifiedFixture(async({setup,install,config})=>{
  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','tasks'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
  for(const name of ['local-tasks','local-task-files','local-cloud'])await setup.query(await readFile(new URL('../../linux/sql/'+name+'.sql',import.meta.url),'utf8'));

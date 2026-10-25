@@ -75,6 +75,16 @@ def test_public_snapshot_never_contains_environment_or_private_paths():
     assert 'KEEP' not in str(public) and 'worker.key' not in str(public)
 
 
+@pytest.mark.parametrize('result',['null','[]','{}','{"blocking":false,"preserved_awaiting_crop":1}',
+    '{"blocking":0,"preserved_awaiting_crop":-1}','{"blocking":0,"preserved_awaiting_crop":1,"unexpected":0}'])
+def test_invalid_task_snapshot_cannot_bypass_cloud_quiescence(result):
+    m=rollout()
+    class Docker:
+        def sql(self,query):return result
+    with pytest.raises(ValueError,match='INVALID_LOCAL_TASK_SNAPSHOT'):
+        m.check_cloud_task_quiescence(Docker(),'EXISTING_LOCAL_TASKS_MUST_FINISH_OR_BE_CANCELED')
+
+
 def test_component_bundle_excludes_private_runtime_tests_and_weights():
     import build_component_bundle as m
     for path in ('linux/scripts/component_rollout.py','linux/component-baseline.json',
@@ -401,7 +411,8 @@ def test_central_temporary_environment_reaches_command_after_sudo(tmp_path,monke
     assert operator.docker_command()==['sudo','-n','docker','--context','default']
 
 
-def test_cloud_checks_rendered_networks_and_keeps_original_compose_for_updates(tmp_path,monkeypatch):
+@pytest.mark.parametrize('scenario',['resources','preserve_crop','busy','crop_confirmed_during_rollout'])
+def test_cloud_checks_rendered_networks_and_keeps_original_compose_for_updates(tmp_path,monkeypatch,scenario):
     import json
     import autonomous_operator as operator
     import business_storage_copy as storage
@@ -427,19 +438,26 @@ def test_cloud_checks_rendered_networks_and_keeps_original_compose_for_updates(t
     storage.write_private_json(runtime/'compose.json',raw)
     original=(runtime/'compose.json').read_bytes()
     source=tmp_path/'payload';(source/'linux').mkdir(parents=True)
-    (source/'linux/component-baseline.json').write_text('{"functions": {}}')
+    (source/'linux/component-baseline.json').write_text(json.dumps({'functions':{},'changes':{},'api_files':{},'web_files':[]}))
     state=tmp_path/'state';state.mkdir(mode=0o700);calls=[];candidates={}
     monkeypatch.setattr(Path,'home',classmethod(lambda cls:tmp_path))
     monkeypatch.setattr(operator,'verified_runtime',lambda docker,path:({},None))
     class ResourceChecksFinished(Exception):pass
-    def finished(*args):raise ResourceChecksFinished()
+    def finished(*args):
+        if scenario=='resources':raise ResourceChecksFinished()
+        return {}
     monkeypatch.setattr(m,'read_functions',finished)
+    import autonomous_bundle
+    from types import SimpleNamespace
+    monkeypatch.setattr(autonomous_bundle,'load_script',lambda name:SimpleNamespace(backup=lambda *args:tmp_path/'backup'))
+    monkeypatch.setattr(m,'all_other',lambda *args:{})
     class Docker:
         def __init__(self):self.state=state
         def inspect(self,name):return copy.deepcopy(rows.get(name) or candidates[name])
         def run(self,*args):
             calls.append(args)
             if args[:2]==('image','inspect'):return json.dumps([image])
+            if args[:3]==('exec',operator.API,'node'):return '{}'
             if args[-3:]==('config','--format','json'):
                 assert args[args.index('--project-name')+1]=='village-autonomous'
                 assert Path(args[args.index('-f')+1])==runtime/'compose.json'
@@ -453,10 +471,29 @@ def test_cloud_checks_rendered_networks_and_keeps_original_compose_for_updates(t
                 row['Config']['Labels']={'village.component.probe':'true'};row['Id']='c'*64
                 candidates[spec['services'][service]['container_name']]=row
             return ''
-    with pytest.raises(ResourceChecksFinished):m.cloud(state,source,'a'*40,apply=False,docker=Docker())
+        def sql(self,query):
+            if query.lstrip().startswith(('WITH pending','SELECT count(*)')):
+                busy=scenario=='busy' or scenario=='crop_confirmed_during_rollout' and any(a[0]=='stop' for a in calls)
+                return json.dumps({'blocking':int(busy),'preserved_awaiting_crop':0 if busy else 1})
+            return ''
+    if scenario=='resources':
+        with pytest.raises(ResourceChecksFinished):m.cloud(state,source,'a'*40,apply=False,docker=Docker())
+    elif scenario=='preserve_crop':
+        result=m.cloud(state,source,'a'*40,apply=False,docker=Docker())
+        assert result['active_tasks']==0 and result['preserved_awaiting_crop']==1
+    elif scenario=='busy':
+        with pytest.raises(ValueError,match='EXISTING_LOCAL_TASKS_MUST_FINISH_OR_BE_CANCELED'):
+            m.cloud(state,source,'a'*40,apply=False,docker=Docker())
+    else:
+        with pytest.raises(ValueError,match='TASK_SUBMITTED_DURING_ROLLOUT'):
+            m.cloud(state,source,'a'*40,apply=True,docker=Docker())
+        assert ('stop','--time','20',operator.API) in calls
+        assert calls[-1]==('start',operator.API),'Restore the old API when crop confirmation races deployment'
     assert (runtime/'compose.json').read_bytes()==original
     assert sum('create' in args for args in calls)==2
-    assert not any(value in args for args in calls for value in ('up','start','stop','build'))
+    if scenario!='crop_confirmed_during_rollout':
+        assert not any(value in args for args in calls for value in ('up','start','stop','build'))
+    assert not any('up' in args or 'build' in args for args in calls)
 
 
 def test_real_cloud_renderer_expands_implicit_names_without_rewriting_auth_env_file(tmp_path):

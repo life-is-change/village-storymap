@@ -24,10 +24,29 @@ OBSERVED={
  'village-autonomous-web':'sha256:35b34a15ae8b2c2cb9e12d733b9fc95312977bfec20c722cd2ba40eb7333452f',
  'village-autonomous-postgres':'sha256:291367a26b42e028341d7f19b91dffa818c10e9ada6fa9022796a87b57028631'}
 
+# Only the old texture workflow's human crop checkpoint is migration-compatible.
+# No Worker may own a live lease here. All other unfinished work must drain.
+LOCAL_TASKS_SNAPSHOT_SQL = """WITH pending AS (
+ SELECT (kind='facade' AND phase='rectification' AND status='awaiting_crop'
+         AND coalesce(input->>'generationMethod','texture')='texture'
+         AND (lease_until IS NULL OR lease_until<=now())) AS preserve
+ FROM api_private.local_gpu_runs WHERE status NOT IN('completed','failed','canceled')
+)
+SELECT json_build_object('blocking',count(*) FILTER (WHERE NOT preserve),
+ 'preserved_awaiting_crop',count(*) FILTER (WHERE preserve)) FROM pending;"""
+
 
 def sha(value):return hashlib.sha256(value).hexdigest()
 def environment(values):return dict(v.split('=',1) for v in values or [] if '=' in v)
 def public_snapshot(row):return {'name':row['Name'],'image':row['Image'],'status':row.get('State',{}).get('Status')}
+
+
+def check_cloud_task_quiescence(docker,error_code):
+    counts=json.loads(docker.sql(LOCAL_TASKS_SNAPSHOT_SQL))
+    if not isinstance(counts,dict) or set(counts)!={'blocking','preserved_awaiting_crop'} or any(type(v) is not int or v<0 for v in counts.values()):
+        raise ValueError('INVALID_LOCAL_TASK_SNAPSHOT')
+    if counts['blocking']:raise ValueError(error_code)
+    return counts['preserved_awaiting_crop']
 
 
 def worker_paths(source,commit,home,*,platform_root=CAMPUS_ROOT):
@@ -344,13 +363,12 @@ def cloud(state,source,commit,*,apply,docker):
     definitions=read_functions(docker,baseline['functions'])
     changes=baseline['changes'];bodies={n:r['body'] for n,r in definitions.items()}
     check_sql=sql_change(baseline['functions'],changes,bodies,apply=False);docker.sql(check_sql)
-    busy=docker.sql("SELECT count(*) FROM api_private.local_gpu_runs WHERE status NOT IN('completed','failed','canceled');").strip()
-    if busy!='0':raise ValueError('EXISTING_LOCAL_TASKS_MUST_FINISH_OR_BE_CANCELED')
+    preserved=check_cloud_task_quiescence(docker,'EXISTING_LOCAL_TASKS_MUST_FINISH_OR_BE_CANCELED')
     api_files=baseline['api_files'];query="const fs=require('fs'),c=require('crypto');const names="+json.dumps(list(api_files))+";console.log(JSON.stringify(Object.fromEntries(names.map(n=>[n,c.createHash('sha256').update(fs.readFileSync('/opt/village/'+n)).digest('hex')]))))"
     actual=json.loads(docker.run('exec',API,'node','-e',query))
     for name,expected in api_files.items():
         if actual.get(name) not in (expected,sha((source/name).read_bytes())):raise ValueError('API_CODE_BASELINE_DIFFERS')
-    if not apply:return {'status':'component_cloud_preflight_passed','current_web_preserved':True,'api_files':len(api_files),'functions':len(changes),'active_tasks':0}
+    if not apply:return {'status':'component_cloud_preflight_passed','current_web_preserved':True,'api_files':len(api_files),'functions':len(changes),'active_tasks':0,'preserved_awaiting_crop':preserved}
     backup=load_script('backup-autonomous').backup(runtime,Path.home()/'village-autonomous-backups')
     receipt={'phase':'prepared','commit':commit,'kind':'cloud','backup':str(backup),'before':rows}
     write_public(state,'operator.py',Path(__file__).read_bytes());receipt['operator_sha256']=operator_digest()
@@ -376,7 +394,7 @@ def cloud(state,source,commit,*,apply,docker):
     # PostgreSQL and all files stay in place. On failure retain the old service.
     docker.run('stop','--time','20',API)
     try:
-        if docker.sql("SELECT count(*) FROM api_private.local_gpu_runs WHERE status NOT IN('completed','failed','canceled');").strip()!='0':raise ValueError('TASK_SUBMITTED_DURING_ROLLOUT')
+        receipt['preserved_awaiting_crop']=check_cloud_task_quiescence(docker,'TASK_SUBMITTED_DURING_ROLLOUT')
         docker.sql(sql_change(baseline['functions'],changes,bodies))
     except Exception:
         docker.run('start',API);raise
