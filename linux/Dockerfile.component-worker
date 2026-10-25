@@ -3,6 +3,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 USER root
+RUN python3 -m pip install --no-cache-dir --no-deps Pillow==11.1.0
 ARG BLENDER_URL=https://download.blender.org/release/Blender3.6/blender-3.6.23-linux-x64.tar.xz
 ARG BLENDER_SHA256=0e9a18af4d0060b825e9617e24a775f759e0f9f67271c062f3d53a539030af00
 RUN BLENDER_URL="$BLENDER_URL" BLENDER_SHA256="$BLENDER_SHA256" python3 -c "import os,urllib.request,hashlib,tarfile,pathlib; p=pathlib.Path('/tmp/blender.tar.xz'); urllib.request.urlretrieve(os.environ['BLENDER_URL'],p); assert hashlib.sha256(p.read_bytes()).hexdigest()==os.environ['BLENDER_SHA256']; t=tarfile.open(p); t.extractall('/opt/blender-runtime'); t.close(); p.unlink()"

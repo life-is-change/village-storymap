@@ -13,14 +13,15 @@ def module():
 def test_lock_patch_only_accepts_exact_bodies_and_retains_previous_geo_mapping():
     from task_lock_order import body_pair,patch_sql,browser
     root=S.parents[1]
+    from baseline_web_fixture import previous_component_sql
     for name,file in [('local_worker_call','local-tasks.sql'),('local_worker_file','local-task-files.sql')]:
-        source=(root/'linux/sql'/file).read_text(encoding='utf8');before,after=body_pair(source,name)
+        source=previous_component_sql(root,(root/'linux/sql'/file).read_text(encoding='utf8'));before,after=body_pair(source,name)
         assert after==browser.function_body(source,name)
         legacy=source.replace(after,before)
         assert body_pair(legacy,name)==(before,after)
         assert after.index('PERFORM 1 FROM api_private.task_requests WHERE id=rid')<after.index('SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=rid')
         if name=='local_worker_file':assert "THEN 'roads_water'" in before and "THEN 'roads_water'" in after
-    queue=(root/'linux/sql/local-tasks.sql').read_text();files=(root/'linux/sql/local-task-files.sql').read_text()
+    queue=previous_component_sql(root,(root/'linux/sql/local-tasks.sql').read_text());files=previous_component_sql(root,(root/'linux/sql/local-task-files.sql').read_text())
     sql=patch_sql(queue,files);assert 'TASK_LOCK_FUNCTION_CHANGED' in sql and 'GRANT ' not in sql
     assert 'EXECUTE' not in patch_sql(queue,files,apply=False)
 

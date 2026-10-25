@@ -1,12 +1,27 @@
 """Reconstruct the fixed pre-change browser bytes for disposable historical tests."""
 import hashlib
 import json
+from pathlib import Path
+
+
+def previous_component_sql(root,value):
+    """Freeze a disposable historical release before the component migration."""
+    baseline=json.loads((Path(root)/'linux/component-baseline.json').read_text(encoding='utf8'))
+    for name,after in baseline['changes'].items():
+        if after in value:value=value.replace(after,baseline['functions'][name],1)
+    return value
 
 
 def previous_source_bytes(root,name):
     value=(root/name).read_bytes()
     if name.endswith('.pdf'):return value
     value=value.replace(b'\r\n',b'\n')
+    component=json.loads((root/'linux/tests/component-legacy-web.json').read_text(encoding='utf8'))
+    text=value.decode('utf8')
+    for change in reversed(component['files'].get(name,[])):
+        if text.count(change['new'])!=1:raise ValueError('PREVIOUS_COMPONENT_WEB_CHANGED')
+        text=text.replace(change['new'],change['old'],1)
+    value=text.encode('utf8')
     fixture=json.loads((root/'linux/tests/single-personal-legacy-web.json').read_text(encoding='utf8'))
     if name not in fixture['files']:return value
     text=value.decode('utf8')

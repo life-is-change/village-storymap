@@ -116,6 +116,8 @@ def main():
         original_schema_bundle=assembler.schema_bundle
         def legacy_browser_schema(root_path):
             values=original_schema_bundle(root_path)
+            from baseline_web_fixture import previous_component_sql
+            values={name:previous_component_sql(repo,value) for name,value in values.items()}
             for key in ('catalog.sql','survey.sql'):
                 values[key]=values[key].replace(browser_repair.TIMESTAMP,'x.created_at').replace("(to_jsonb(profiles)->>'created_at') AS created_at,disabled_at",'disabled_at')
             values['files.sql']=values['files.sql'].replace(browser_repair.ADMIN_PHOTO_GATE,browser_repair.LEGACY_PHOTO_GATE).replace(browser_repair.ADMIN_LOCAL_GATE,browser_repair.LEGACY_LOCAL_GATE)

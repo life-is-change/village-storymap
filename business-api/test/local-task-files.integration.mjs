@@ -7,6 +7,12 @@ const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageI
 
 test('component tasks require a v2 Worker, freeze existing dimensions and publish an owned model manifest',async()=>{
  await fixture(async({setup,db,store,queue,tasks,taskFiles,worker,claim,upload})=>{
+  // Upgrade an installed pre-component queue in place, rather than only
+  // exercising a freshly created current schema. Applying twice is harmless.
+  const baseline=JSON.parse(await readFile(new URL('../../linux/component-baseline.json',import.meta.url),'utf8'));
+  for(const definition of Object.values(baseline.functions))await setup.query(definition.replace('CREATE FUNCTION','CREATE OR REPLACE FUNCTION'));
+  const migration=await readFile(new URL('../../linux/sql/component-building.sql',import.meta.url),'utf8');
+  await setup.query(migration);await setup.query(migration);
   const userFiles=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
   const session=await userFiles.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:'A'},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});
   await userFiles.put(testIdentity(),session.id,'photo',Readable.from([png]));
