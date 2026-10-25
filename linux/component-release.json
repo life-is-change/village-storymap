@@ -1,20 +1,20 @@
 {
   "version": 1,
   "kind": "component-rollout",
-  "source_commit": "a81cde9be1e1e13065acf0ef86311a151f23d5c6",
-  "directory": "village-components-a81cde9be1e1",
-  "filename": "village-components-20261025-r3.tar.gz",
-  "bytes": 7882138,
-  "sha256": "68e5d893c775ebf63925ea5a5e15c0ad18d1bc76a0c0d835422c3be2ce391fe3",
+  "source_commit": "c20cc67aa4560a3cb154e833732697c5b8f51b17",
+  "directory": "village-components-c20cc67aa456",
+  "filename": "village-components-20261025-r4.tar.gz",
+  "bytes": 7882282,
+  "sha256": "60237ab86e17e6ad7dd7ed047a4be2b4e22d6a6366bede65bd5a16fa5d100014",
   "files": 230,
   "campus_release_root": "/media/gpu332/newapply/village-platform/deploy/components/releases",
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
   "real_deployment": "pending user terminal check and apply",
   "ci": {
-    "native_run": 40178892707,
+    "native_run": 40180131264,
     "native_status": "success",
-    "platform_run": 40178892701,
+    "platform_run": 40180131306,
     "platform_status": "success"
   }
 }

@@ -50,6 +50,12 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 新版交付为 `linux/releases/village-components-20261025-r3.tar.gz`，源码a81cde9be1e1e13065acf0ef86311a151f23d5c6，7,882,138字节、230个源文件，SHA256 `68e5d893c775ebf63925ea5a5e15c0ad18d1bc76a0c0d835422c3be2ce391fe3`。本机实际解包及逐文件摘要校验通过；本地linux/tests 440通过/8跳过；精确源码Platform regression 40178892701及Unified native database tests 40178892707均成功（含原生队列/文件/完整历史部署及自身备份恢复）。下载解包必须在上述central releases中，使用非root用户执行 `python3 -B <解包目录>/linux/scripts/component_rollout.py worker --check`。此命令不更新运行服务，但会建立私有预检文件、临时创建并清理不启动的资源检查容器；远程仍待用户执行。
 
+**r3真实预检随后失败，改用r4：** 用户日志为 `unknown flag: --no-deps`；部署脚本错误地将up选项用于create，不是服务器需要升级Docker。r4只删除create中的该参数，保留单服务临时文档、移除依赖/构建、固定旧镜像及不启动容器的资源检查。正式up更新仍保留合法的--no-deps。r3文件及失败日志保留，不要求用户手动改包内源码或重跑旧安装器。
+
+当前交付 `linux/releases/village-components-20261025-r4.tar.gz`，源码c20cc67aa4560a3cb154e833732697c5b8f51b17，7,882,282字节/230源文件，SHA256 `60237ab86e17e6ad7dd7ed047a4be2b4e22d6a6366bede65bd5a16fa5d100014`。本地441通过/9项环境差异跳过；Linux CI 449通过/1跳过，并额外82项Worker/网关兼容测试通过，实际安装的Compose帮助参数契约已执行。Platform40180131306成功。真实4090修正后的预检仍待用户执行，不能据CI宣称部署完成。
+
+同一源码的Unified native database tests40180131264亦成功，保留原生队列/文件隔离、历史部署修复及完整自身备份恢复验证。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
