@@ -68,6 +68,14 @@ Docker daemon的 `DockerRootDir` 仍为 `/var/lib/docker`，实际位于NVMe的/
 
 同一源码Native40191092471的数据库/proxy两项亦成功，完整历史部署及自身备份恢复兼容检查通过。
 
+**r6真实ML预检只剩DNS空值表示差异，改用r7：** 用户确认facade-ml的Dns/DnsOptions/DnsSearch当前均为[]、候选均为null。[Moby DNS默认处理](https://github.com/moby/moby/blob/v28.5.1/daemon/container_operations.go#L63-L76)对这三项均按列表长度判断，无显式值时沿用daemon默认。r7只归一这三项的空值，不排序非空列表、不忽略配置值，也不泛化到其他字段。既有配置/容器不修改。
+
+当前交付 `linux/releases/village-components-20261025-r7.tar.gz`，源码2a466a5f2801c24af23f6aac8ef6ead095853c4f，7,882,934字节、230源文件，SHA256 `e1cbb62d5c8d94410bca31b608cf9674b9d0024177251ac03fcbe71d6f732b96`。本地462通过/10项环境差异跳过；Linux CI471通过/1跳过、Worker兼容82项通过，Platform40193066883成功，包含真实Compose参数及root保护配置sudo读取测试。实际解包/全部文件摘要/CLI帮助校验通过。仍先交付真实worker --check，未执行阿里云或4090更新。
+
+同一源码Native40193066880的数据库/proxy两项亦成功，完整历史部署及自身备份恢复兼容检查通过。
+
+交付状态更正：完整r7制品未能推送（8MB HTTP POST被连接重置），不能把本地打包/CI通过当作已公开下载。原生成包保留在本机忽略目录，后续交付改为校验单独的小部署脚本，并通过--source-root复用已校验的r6完整素材/业务源码包；不修改原包。操作器指纹另写入回执，并保留用于恢复的脚本副本。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。

@@ -1,20 +1,22 @@
 {
   "version": 1,
   "kind": "component-rollout",
-  "source_commit": "af39f0411ac638d360d10e2c4d57e5d8c56ed929",
-  "directory": "village-components-af39f0411ac6",
-  "filename": "village-components-20261025-r6.tar.gz",
-  "bytes": 7882865,
-  "sha256": "2626407916abe450a62a210797553cd6bac342a6a664c89364b065efcda6e3ff",
+  "source_commit": "2a466a5f2801c24af23f6aac8ef6ead095853c4f",
+  "directory": "village-components-2a466a5f2801",
+  "filename": "village-components-20261025-r7.tar.gz",
+  "bytes": 7882934,
+  "sha256": "e1cbb62d5c8d94410bca31b608cf9674b9d0024177251ac03fcbe71d6f732b96",
   "files": 230,
+  "archive_published": false,
+  "delivery": "Reuse verified r6 payload with a separately checksum-pinned small operator; full r7 archive retained locally",
   "campus_release_root": "/media/gpu332/newapply/village-platform/deploy/components/releases",
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
   "real_deployment": "pending user terminal check and apply",
   "ci": {
-    "native_run": 40191092471,
+    "native_run": 40193066880,
     "native_status": "success",
-    "platform_run": 40191092459,
+    "platform_run": 40193066883,
     "platform_status": "success"
   }
 }

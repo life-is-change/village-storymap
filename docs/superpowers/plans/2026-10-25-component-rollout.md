@@ -72,3 +72,21 @@ Native40191092471的数据库与proxy两项亦成功，包含完整历史部署�
 用户确认仅facade-ml的HostConfig.Dns/DnsOptions/DnsSearch为当前[]、候选null。Moby v28.5.1 daemon/container_operations.go buildSandboxOptions对三项均用len>0判断，否则沿用daemon默认配置。快照比较仅把这三项的null/缺省归一为空列表；不排序、不抹去任何非空DNS覆盖值，不泛化到其他字段。原运行配置和容器不修改。
 
 新增回归先完整复现三项拒绝，再覆盖默认等价通过、DNS地址/选项/搜索域更改及其列表顺序更改仍拒绝、其他字段null/空列表差异仍拒绝，确保不把实际解析配置变化静默放行。
+
+r7源码2a466a5，本地462通过/10跳过；Linux CI471通过/1跳过、Worker兼容82项通过，Platform40193066883成功。实际解包230源文件摘要/CLI帮助验证通过；7,882,934字节，SHAe1cbb62d5c8d94410bca31b608cf9674b9d0024177251ac03fcbe71d6f732b96。额外核对旧2670bc1 Worker的LocalTaskHTTP构造/身份方法签名与共享GPU锁路径，未改变这些调用。真实预检/apply继续待用户，不以CI通过代替生产部署。
+
+同一源码Native40193066880的数据库/proxy两项亦成功，包含完整历史部署及自身备份恢复兼容验证。保留r6及其失败日志，r7仍先进行实际4090预检。
+
+## 4090真实预检已通过，阿里云仍待检查
+
+用户在4090使用已校验r6（af39f04）及进程内DNS空值归一化后，返回component_worker_preflight_passed、separate_compose_configs=true。原Worker0cac700及ML623ffb0均running，原配置/鉴权/共享GPU锁检查通过；没有实际构建或替换服务。集中目录可用141143511040字节；现有DockerRootDir=/var/lib/docker、可用19396202496字节，仍在集中目录之外；没有迁移Docker全局目录。
+
+r7源码2a466a5及CI已公开，但完整制品发布提交621dec1尚未推送成功：HTTPS POST在7887522字节请求上被连接重置；分块/非分块的有限重试均失败。不能给用户不可下载的r7制品URL。下一步继续复用已公开校验的r6包及同一进程内DNS等价比较进行cloud --check；这是预检，不执行SQL更新、备份停机或4090构建。正式更新前需要完成阿里云预检并处理4090镜像仍落在/var这一存储边界。
+
+阿里云操作身份约束再次确认：用户admin未设置密码；不要在阿里云命令前加sudo -v，也不要建议设置密码、放宽sudoers或以root运行整个Python。2026-10-24-single-personal-shared-access.md已明确不需要sudo -v，既有Docker操作器内部沿用非交互sudo -n docker。此前手工额外添加的sudo -v导致密码提示，须取消并直接以admin运行原Python预检；若sudo -n docker权限本身不足，会立即停止，再基于具体输出诊断，不能预先扩大权限。
+
+## 阿里云真实KeyError与小操作器交付
+
+用户定位validate_rendered第71行缺少name。原cloud()把未经Compose展开的原始compose.json直接送入已展开配置的校验器；autonomous_compose.compose_document本来就只保存网络逻辑名和internal属性，不写实际name。修正先通过原sudo Docker compose config生成单独的rendered副本用于两个检查容器；原始document仍用于备份及后续API/Web挂载更新，不把Auth的env_file展开内容写回原配置。
+
+Ruling: 分离小部署操作器与已验证r6业务/素材包，新增显式--source-root参数，先验证完整原包再加载其辅助模块。操作器独立SHA256进入输出、回执及可恢复脚本副本，verify拒绝不同操作器；不再重下8MB素材。当前唯一未推送的621dec1仅为本任务生成制品的提交，远端main已核实仍为2a466a5；保留本地tar与其SHA，只修订此未公开提交移除大二进制，不重写任何已推送历史、不强推、不切分支，也不改其他任务文件。
