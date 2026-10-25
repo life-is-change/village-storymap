@@ -38,3 +38,7 @@ Ruling: 本次新增源码包、私有状态和操作临时文件只允许放在
 路径修正本地验证：linux/tests 440通过、8项平台差异跳过（含新增POSIX symlink约束）。四项新增测试先因缺少路径规划/磁盘预检而失败，再通过。最终复核发现sudo默认清理TMP环境；追加实际Docker.run子进程边界失败测试后，Docker可选temporary参数通过sudo后的env命令显式传递三个临时路径，其他旧操作默认命令不变。未执行任何远程变更。
 
 r3发布：精确源码a81cde9，Platform40178892701与Native40178892707成功；实际解包230个文件摘要及CLI帮助通过。制品SHA68e5d893c775ebf63925ea5a5e15c0ad18d1bc76a0c0d835422c3be2ce391fe3，7,882,138字节。Task4真实两端预检/apply及真实照片验收继续待用户返回，不以本地路径修正替代远程部署。
+
+## 真实r3预检失败：Compose create选项
+
+用户返回唯一非空日志 `unknown flag: --no-deps`。原因是预检create命令错误使用up的选项；非用户服务器故障，不要求升级Docker。只删除create中的该选项：临时文档原本就只保留一个服务、移除depends_on/build、固定现有image并复用外部网络，依然不启动或重建业务服务。新增回归先复现同一报错；另在有Docker CLI的环境读取真实create --help验证生成命令的选项，CI必须执行，Windows无CLI可跳过。

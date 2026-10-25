@@ -145,7 +145,9 @@ def validate_candidate(docker,row,document,service):
     file=docker.state/(probe+'.json');storage.write_private_json(file,doc)
     candidate=None
     try:
-        docker.run('compose','--project-name',probe,'-f',file,'create','--no-deps','--no-build','--pull','never',service)
+        # create has no --no-deps option. The isolated document above already
+        # contains only this service, with depends_on/build removed.
+        docker.run('compose','--project-name',probe,'-f',file,'create','--no-build','--pull','never',service)
         candidate=docker.inspect(probe)
         if candidate['Config'].get('Labels',{}).get('village.component.probe')!='true':raise ValueError('PROBE_CONTAINER_IDENTITY_DIFFERS')
         before=resource_snapshot(row);planned=resource_snapshot(candidate)

@@ -137,6 +137,48 @@ def test_resource_drift_is_rejected_in_a_stopped_candidate_before_replacement(tm
     assert calls[-1]==('rm','a'*64)
 
 
+@pytest.mark.parametrize('installed_compose',[False,True])
+def test_candidate_create_checks_one_service_with_supported_cli_options(tmp_path,installed_compose):
+    import json
+    import os
+    import re
+    import shutil
+    import subprocess
+    supported={'--no-build','--pull'}
+    if installed_compose:
+        if not shutil.which('docker'):
+            if os.environ.get('GITHUB_ACTIONS')=='true':pytest.fail('CI Docker CLI required')
+            pytest.skip('Local Docker Compose CLI unavailable')
+        help_result=subprocess.run(['docker','compose','create','--help'],capture_output=True,text=True)
+        assert help_result.returncode==0,help_result.stderr
+        supported=set(re.findall(r'--[a-z][a-z-]+',help_result.stdout))
+    m=rollout();row,doc,image=fixture();original=copy.deepcopy(doc);calls=[]
+    doc['services']['facade-worker']['depends_on']={'unrelated':{'condition':'service_started'}}
+    doc['services']['facade-worker']['build']={'context':'must-not-build'}
+    class Docker:
+        state=tmp_path
+        def run(self,*args):
+            calls.append(args)
+            if 'create' in args:
+                flags={a for a in args[args.index('create')+1:] if str(a).startswith('--')}
+                unsupported=flags-supported
+                if unsupported:raise RuntimeError('unknown flag: '+sorted(unsupported)[0])
+                prepared=json.loads(Path(args[args.index('-f')+1]).read_text())
+                assert set(prepared['services'])=={'facade-worker'}
+                spec=prepared['services']['facade-worker']
+                assert spec['image']=='sha256:old'
+                assert 'depends_on' not in spec and 'build' not in spec
+            return ''
+        def inspect(self,name):
+            candidate=copy.deepcopy(row);candidate['Id']='a'*64
+            candidate['Config']['Labels']={'village.component.probe':'true'}
+            return candidate
+    m.validate_candidate(Docker(),row,doc,'facade-worker')
+    assert doc['services']['unrelated']==original['services']['unrelated']
+    assert not any('up' in args or 'start' in args for args in calls)
+    assert calls[-1]==('rm','a'*64)
+
+
 def test_worker_paths_keep_new_state_under_central_root_and_old_sources_untouched(tmp_path):
     m=rollout();root=tmp_path/'village-platform';root.mkdir()
     old=root/'repo';old.mkdir();(old/'sentinel').write_text('old-code')
