@@ -50,7 +50,8 @@ class FacadePipeline:
         self.gateway.download_photo(run, input_path)
         self._check_canceled(run)
         started = time.monotonic()
-        artifacts = self.processor.rectify(input_path, job_dir)
+        artifacts = self.processor.rectify(input_path, job_dir,
+            **({'use_original': True} if run.generation_method == 'components' and run.model_purpose == 'design' else {}))
         LOGGER.info(
             "Facade rectification %s processing completed in %.2fs",
             run.run_id, time.monotonic() - started,
@@ -95,6 +96,10 @@ class FacadePipeline:
         return artifacts
 
     def generate(self, run: FacadeRun):
+        if run.generation_method == 'components':
+            return self.generate_components(run)
+        if run.generation_method != 'texture':
+            raise ValueError('UNSUPPORTED_GENERATION_METHOD')
         if (
             run.crop_top is None
             or run.roof_type is None
@@ -164,4 +169,22 @@ class FacadePipeline:
                 "building": generated.building,
             },
         )
+        return generated
+
+    def generate_components(self, run: FacadeRun):
+        job_dir = self.work_dir(run)
+        artifact_dir = job_dir / 'artifacts'
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        image = artifact_dir / 'rectified_source.png'
+        self.gateway.set_state(run.run_id, self.worker_id, 'generating', stage='component_detection', progress=56)
+        self._check_canceled(run)
+        if not image.is_file():
+            self.gateway.download_artifact(run, 'rectified_source', image)
+        generated = self.processor.generate_components(image, job_dir, run.component_options or {},
+            check_canceled=lambda: self._check_canceled(run))
+        self._check_canceled(run)
+        self.gateway.upload_artifact(run, self.worker_id, 'generation', 'model_manifest', generated.manifest,
+                                     'application/json', {'phase': 'generation'})
+        self.gateway.complete_generation(run, self.worker_id, generated.glb,
+            {'phase': 'generation', 'generation_revision': run.generation_revision, 'building': generated.building})
         return generated

@@ -26,7 +26,7 @@
   }
   return {getAccessToken,getIdentityKey,invalidate,
    async execute(action,input={}){const route=Object.hasOwn(routes.ROUTES,action)&&routes.ROUTES[action];if(!route)throw fault('UNKNOWN_OPERATION');return request(route.path,{method:route.method,input:route.method==='GET'?undefined:input,identityOnly:action.startsWith('identity.')});},
-   readTaskArtifact(id,type,{sha256}={}){if(!/^[a-f0-9-]{36}$/.test(id)||!['buildings','roads','waterways','water_areas','contours','rectified_preview','rectified_source','building_mask','building_glb','standard_facade'].includes(type)||sha256!==undefined&&!/^[a-f0-9]{64}$/.test(sha256))throw fault('INVALID_INPUT');return request('/api/v1/tasks/'+id+'/artifacts/'+type+(sha256?'?sha256='+sha256:''),{binary:true});},
+   readTaskArtifact(id,type,{sha256}={}){if(!/^[a-f0-9-]{36}$/.test(id)||!['buildings','roads','waterways','water_areas','contours','rectified_preview','rectified_source','building_mask','building_glb','model_manifest','standard_facade'].includes(type)||sha256!==undefined&&!/^[a-f0-9]{64}$/.test(sha256))throw fault('INVALID_INPUT');return request('/api/v1/tasks/'+id+'/artifacts/'+type+(sha256?'?sha256='+sha256:''),{binary:true});},
    dispose(){disposed=true;invalidate();subscription?.unsubscribe();token=null;userId=null;}
   };
  }

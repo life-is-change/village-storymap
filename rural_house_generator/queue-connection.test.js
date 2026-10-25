@@ -4,6 +4,20 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const source = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+test('late completed-task restoration cannot undo an explicit generation-mode choice',async()=>{
+ let restored=0;
+ const queue={getWorkerAvailability:async()=>({available:true}),findActiveRun:async()=>null,
+  findLatestRun:async()=>({id:'old',status:'completed'})};
+ const s={state:{targetCode:'H1',targetSpace:'S1',generationModeEdited:true},
+  window:{location:{origin:'https://platform.test'},opener:{location:{origin:'https://platform.test'},VillageSupabaseClient:{}}},
+  FacadeQueueClient:{createFacadeQueueClient:()=>queue},FacadeCloudClient:{createFacadeCloudClient:()=>({})},
+  PhotoWorkflow:{shouldRestoreFacadeRun:()=>true},refreshCloudCapability:async()=>{},renderPhotoServiceState(){},setStatus(){},
+  attachFacadeRun:async()=>{restored++;},console};
+ const start=source.indexOf('async function initializeFacadeQueue('),end=source.indexOf('async function handleUploadedPhotoRecord(',start);
+ await vm.runInNewContext(source.slice(start,end)+';initializeFacadeQueue',s)({sourceCode:'H1',courseId:'C1',hasAuthenticatedSession:true});
+ assert.equal(restored,0);
+});
+
 test('optional cloud capability cannot block the local 4090 availability check', async () => {
   let release, checked = 0;
   const cloud = new Promise(resolve => release = resolve);
@@ -48,7 +62,7 @@ test('late cloud capability updates upload controls without resetting the active
     FacadeSourceMode: require('./facade-source-mode'),
     els: { cloudCapabilityLabel: {}, cloudSourceMessage: {}, sourceButtons: [], sourcePanels: [],
       photoUploadHint: {}, photoInput: { disabled: true }, generateBtn: {}, configHint: {}, activeLabel: {} },
-    setStatus: () => changed++, renderPhotoServiceState() {}, console };
+    setStatus: () => changed++, renderPhotoServiceState() {}, renderGenerationMode() {}, console };
   const start = source.indexOf('function setFacadeSource('), end = source.indexOf('async function submitCloudFacade(', start);
   await vm.runInNewContext(source.slice(start, end) + ';refreshCloudCapability', s)();
   assert.equal(changed, 0);

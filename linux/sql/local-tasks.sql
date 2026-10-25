@@ -63,12 +63,12 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,api_private,pg_temp
 AS $$ DECLARE r api_private.local_gpu_runs;s text;info jsonb;BEGIN
  SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=rid;
  s:=CASE WHEN r.status='completed' THEN 'completed' WHEN r.status IN('failed','canceled') THEN r.status WHEN r.status IN('queued','queued_rectification','queued_generation') THEN 'queued' ELSE 'running' END;
- info:=jsonb_build_object('generation_revision',r.generation_revision,'crop_top',r.crop->'cropTop','roof_type',r.crop->'roofType','building_width',r.crop->'buildingWidth','building_depth',r.crop->'buildingDepth','attempt_count',r.attempts,'rectification_attempt_count',r.rectification_attempts,'generation_attempt_count',r.generation_attempts);
+ info:=jsonb_build_object('generation_revision',r.generation_revision,'crop_top',r.crop->'cropTop','roof_type',r.crop->'roofType','building_width',r.crop->'buildingWidth','building_depth',r.crop->'buildingDepth','component_floors',r.crop->'floors','component_roofs',r.crop->'roofCount','generation_method',coalesce(r.input->>'generationMethod','texture'),'model_purpose',coalesce(r.input->>'modelPurpose','existing'),'attempt_count',r.attempts,'rectification_attempt_count',r.rectification_attempts,'generation_attempt_count',r.generation_attempts);
  UPDATE api_private.task_requests SET source_run_id=r.id,state=s,remote_status=r.status,progress=r.progress,error_code=r.error_code,remote_info=info,updated_at=now()
  WHERE id=r.id AND state<>'revoked' AND (source_run_id,state,remote_status,progress,error_code,remote_info) IS DISTINCT FROM (r.id,s,r.status,r.progress,r.error_code,info);
 END $$;
 CREATE FUNCTION api_private.local_gpu_public(r api_private.local_gpu_runs) RETURNS jsonb
-LANGUAGE sql IMMUTABLE AS $$ SELECT jsonb_build_object('id',r.id,'status',r.status,'progress',r.progress,'stage',r.stage,'error_code',r.error_code,'generation_revision',r.generation_revision,'crop_top',r.crop->'cropTop','roof_type',r.crop->'roofType','building_width',r.crop->'buildingWidth','building_depth',r.crop->'buildingDepth','attempt_count',r.attempts,'rectification_attempt_count',r.rectification_attempts,'generation_attempt_count',r.generation_attempts) $$;
+LANGUAGE sql IMMUTABLE AS $$ SELECT jsonb_build_object('id',r.id,'status',r.status,'progress',r.progress,'stage',r.stage,'error_code',r.error_code,'generation_revision',r.generation_revision,'crop_top',r.crop->'cropTop','roof_type',r.crop->'roofType','building_width',r.crop->'buildingWidth','building_depth',r.crop->'buildingDepth','component_floors',r.crop->'floors','component_roofs',r.crop->'roofCount','generation_method',coalesce(r.input->>'generationMethod','texture'),'model_purpose',coalesce(r.input->>'modelPurpose','existing'),'attempt_count',r.attempts,'rectification_attempt_count',r.rectification_attempts,'generation_attempt_count',r.generation_attempts) $$;
 CREATE FUNCTION api_private.local_gpu_worker_view(r api_private.local_gpu_runs) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,api_private,pg_temp
 AS $$ SELECT jsonb_build_object('leaseToken',r.lease_token,'leaseUntil',r.lease_until,'kind',r.kind,'phase',r.phase,
@@ -102,7 +102,7 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;recei
  SELECT * INTO w FROM api_private.local_gpu_workers WHERE id=wid AND token_digest=digest AND instance_id=instance AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) FOR UPDATE;
  IF NOT FOUND THEN RETURN jsonb_build_object('error','UNAUTHORIZED');END IF;
  IF action='heartbeat' THEN
-  IF p->>'protocol' IS DISTINCT FROM w.kind||'-aliyun-local-v1' OR p->>'state' NOT IN('idle','busy','error','starting') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  IF (p->>'protocol' IS DISTINCT FROM w.kind||'-aliyun-local-v1' AND NOT (w.kind='facade' AND p->>'protocol'='facade-aliyun-local-v2')) OR p->>'state' NOT IN('idle','busy','error','starting') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   UPDATE api_private.local_gpu_workers SET protocol=p->>'protocol',state=p->>'state',last_seen_at=now() WHERE id=wid;
   RETURN jsonb_build_object('ok',true);
  END IF;
@@ -118,7 +118,7 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;recei
   RETURN jsonb_build_object('ok',true);
  END IF;
  IF action='claim' THEN
-  IF w.protocol IS DISTINCT FROM w.kind||'-aliyun-local-v1' OR w.last_seen_at IS NULL OR w.last_seen_at<now()-interval '2 minutes' THEN RETURN jsonb_build_object('error','WORKER_OFFLINE');END IF;
+  IF (w.protocol IS DISTINCT FROM w.kind||'-aliyun-local-v1' AND NOT (w.kind='facade' AND w.protocol='facade-aliyun-local-v2')) OR w.last_seen_at IS NULL OR w.last_seen_at<now()-interval '2 minutes' THEN RETURN jsonb_build_object('error','WORKER_OFFLINE');END IF;
   SELECT * INTO receipt FROM api_private.local_gpu_claim_receipts WHERE worker_id=wid AND request_id=(p->>'requestId')::uuid;
   IF FOUND THEN
    SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=receipt.run_id;
@@ -135,7 +135,7 @@ AS $$ DECLARE w api_private.local_gpu_workers;r api_private.local_gpu_runs;recei
   END LOOP;
   IF EXISTS(SELECT 1 FROM api_private.local_gpu_runs WHERE worker_id=wid AND lease_until>now() AND status IN('claimed','running','claimed_rectification','rectifying','claimed_generation','generating','cancel_requested')) THEN RETURN jsonb_build_object('run',NULL,'busy',true);END IF;
   LOOP
-   SELECT g.* INTO r FROM api_private.task_requests t JOIN api_private.local_gpu_runs g ON g.id=t.id WHERE t.instance_id=instance AND g.instance_id=instance AND g.kind=w.kind AND g.status IN('queued','queued_rectification','queued_generation') AND g.next_at<=now() AND g.attempts<5 ORDER BY g.next_at,g.created_at,g.id LIMIT 1 FOR UPDATE OF t SKIP LOCKED;
+   SELECT g.* INTO r FROM api_private.task_requests t JOIN api_private.local_gpu_runs g ON g.id=t.id WHERE t.instance_id=instance AND g.instance_id=instance AND g.kind=w.kind AND (coalesce(g.input->>'generationMethod','texture')<>'components' OR w.protocol='facade-aliyun-local-v2') AND g.status IN('queued','queued_rectification','queued_generation') AND g.next_at<=now() AND g.attempts<5 ORDER BY g.next_at,g.created_at,g.id LIMIT 1 FOR UPDATE OF t SKIP LOCKED;
    IF NOT FOUND THEN RETURN jsonb_build_object('run',NULL);END IF;
    SELECT * INTO r FROM api_private.local_gpu_runs WHERE id=r.id AND instance_id=instance AND kind=w.kind AND status IN('queued','queued_rectification','queued_generation') AND next_at<=now() AND attempts<5 FOR UPDATE;
    IF NOT FOUND THEN CONTINUE;END IF;
@@ -186,8 +186,8 @@ AS $$ DECLARE t api_private.task_requests;r api_private.local_gpu_runs;available
  IF instance!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
  IF action='availability' THEN
   SELECT count(*)>0,bool_or(state='busy') INTO available,busy FROM api_private.local_gpu_workers
-   WHERE instance_id=instance AND kind=CASE p->>'kind' WHEN 'geoprocessing' THEN 'geo' ELSE p->>'kind' END AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND last_seen_at>now()-interval '2 minutes' AND protocol=kind||'-aliyun-local-v1';
-  RETURN jsonb_build_object('instanceId',instance,'data',jsonb_build_object('available',available,'compatible',available,'state',CASE WHEN NOT available THEN 'offline' WHEN busy THEN 'busy' ELSE 'available' END));
+   WHERE instance_id=instance AND kind=CASE p->>'kind' WHEN 'geoprocessing' THEN 'geo' ELSE p->>'kind' END AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND last_seen_at>now()-interval '2 minutes' AND (protocol=kind||'-aliyun-local-v1' OR (kind='facade' AND protocol='facade-aliyun-local-v2'));
+  RETURN jsonb_build_object('instanceId',instance,'data',jsonb_build_object('available',available,'compatible',available,'componentAvailable',EXISTS(SELECT 1 FROM api_private.local_gpu_workers WHERE instance_id=instance AND kind='facade' AND protocol='facade-aliyun-local-v2' AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) AND last_seen_at>now()-interval '2 minutes'),'state',CASE WHEN NOT available THEN 'offline' WHEN busy THEN 'busy' ELSE 'available' END));
  END IF;
  IF action='sourceStatus' THEN
   SELECT jsonb_build_object('state',CASE WHEN bool_or(s.ready) THEN 'ready' ELSE 'missing' END,'ready',coalesce(bool_or(s.ready),false),'bounds',(jsonb_agg(s.bounds) FILTER(WHERE s.ready))->0) INTO bound FROM api_private.local_gpu_sources s JOIN api_private.task_worker_villages m ON m.local_village_id=s.local_village_id JOIN api_private.local_gpu_workers w ON w.id=s.worker_id
@@ -230,6 +230,7 @@ AS $$ DECLARE t api_private.task_requests;r api_private.local_gpu_runs;available
   IF r.kind<>'facade' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   bound:=p-'ownerId'-'requestId';
   IF r.status='awaiting_crop' THEN
+   IF r.input->>'generationMethod'='components' AND coalesce(r.input->>'modelPurpose','existing')='existing' AND ((bound->>'buildingWidth')::numeric IS DISTINCT FROM (r.input->>'buildingWidth')::numeric OR (bound->>'buildingDepth')::numeric IS DISTINCT FROM (r.input->>'buildingDepth')::numeric) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
    IF (bound->>'cropTop')::numeric NOT BETWEEN 0 AND 0.65 OR bound->>'roofType' NOT IN('hip','gable','flat') OR (bound->>'buildingWidth')::numeric NOT BETWEEN 0.01 AND 500 OR (bound->>'buildingDepth')::numeric NOT BETWEEN 0.01 AND 500 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
    UPDATE api_private.local_gpu_runs SET crop=bound,phase='generation',status='queued_generation',generation_revision=generation_revision+1,worker_id=NULL,lease_token=NULL,lease_until=NULL,next_at=now(),updated_at=now() WHERE id=r.id RETURNING * INTO r;PERFORM api_private.local_gpu_sync(r.id);
   ELSIF r.crop IS DISTINCT FROM bound THEN RETURN jsonb_build_object('error','REVISION_CONFLICT');END IF;

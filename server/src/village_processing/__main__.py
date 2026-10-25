@@ -83,6 +83,9 @@ def run_facade_worker() -> None:
         ),
     )
     pipeline = FacadePipeline(gateway, processor, work_root, worker_id)
+    if backend() == 'aliyun':
+        from rural_house_generator.backend.component_building.capability import compatible
+        gateway.component_probe = lambda: compatible(processor.blender)
     asyncio.run(FacadeWorker(gateway, pipeline, worker_id).run_forever())
 
 

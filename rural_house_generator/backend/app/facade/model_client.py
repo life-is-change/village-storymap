@@ -52,6 +52,13 @@ class LocalModelClient:
             diagnostics=dict(payload.get("diagnostics") or {}),
         )
 
+    def analyze_components(self, source_path: Path, output_dir: Path) -> dict:
+        payload = self._request('POST', '/components', {
+            'source_path': str(source_path.resolve()), 'output_dir': str(output_dir.resolve())})
+        if not payload.get('ok') or not isinstance(payload.get('analysis'), dict):
+            raise ModelWorkerError('构件识别失败；请核对4090构件识别服务版本。')
+        return payload['analysis']
+
     def _request(self, method: str, path: str, payload: dict[str, object] | None = None) -> dict[str, object]:
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         request = Request(

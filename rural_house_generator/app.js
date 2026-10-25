@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
@@ -8,7 +9,17 @@ const FacadeQueueClient = window.FacadeQueueClient;
 const FacadeSourceMode = window.FacadeSourceMode;
 const FacadeCloudClient = window.FacadeCloudClient;
 
+const GenerationMode = window.BuildingGenerationMode;
 const els = {
+  generationMethod: document.getElementById('generationMethod'),
+  modelPurpose: document.getElementById('modelPurpose'),
+  componentParameters: document.getElementById('componentParameters'),
+  componentFloors: document.getElementById('componentFloors'),
+  componentRoofs: document.getElementById('componentRoofs'),
+  generationModeHint: document.getElementById('generationModeHint'),
+  photoPipelineHint: document.getElementById('photoPipelineHint'),
+  cropHint: document.getElementById('cropHint'),
+
   sourceButtons: document.querySelectorAll('[data-facade-source]'),
   sourcePanels: document.querySelectorAll('[data-source-panel]'),
   cloudCapabilityLabel: document.getElementById('cloudCapabilityLabel'),
@@ -65,6 +76,9 @@ const state = {
   currentUrl: null,
   currentModelInfo: null,
   facadeSource: 'local_worker',
+  generationMethod: 'texture',
+  modelPurpose: 'existing',
+  footprintRectangularity: 0,
   photoFile: null,
   photoUrl: null,
   rectifiedUrl: null,
@@ -125,6 +139,7 @@ async function init() {
   setFacadeSource(FacadeSourceMode.sourceFromParams(new URLSearchParams(window.location.search)));
   els.lengthInput.value = formatInputDimension(state.targetDimensions?.length || 10);
   els.widthInput.value = formatInputDimension(state.targetDimensions?.depth || 7);
+  renderGenerationMode();
   requestExistingPhotoMaterials();
 }
 
@@ -134,9 +149,18 @@ function parseTargetParams() {
   state.targetSpace = String(params.get('targetSpace') || 'current').trim() || 'current';
   state.targetName = String(params.get('targetName') || '').trim();
   state.targetDimensions = PhotoWorkflow.readTargetDimensions(params);
+  state.footprintRectangularity = Number(params.get('footprintRectangularity') || 0);
 }
 
 function bindEvents() {
+  document.getElementById('cancelGenerationTask').addEventListener('click', async()=>{
+    const run=state.currentFacadeRun;
+    if (!run?.id || !state.facadeQueue) return;
+    try {await state.facadeQueue.cancel(run.id);setStatus('取消已提交，等待工作站结束当前任务。');scheduleFacadePoll(0);}
+    catch(error){setStatus(`取消失败：${error.message}`,true);}
+  });
+  els.generationMethod.addEventListener('change', changeGenerationMode);
+  els.modelPurpose.addEventListener('change', changeGenerationMode);
   els.sourceButtons.forEach((button) => button.addEventListener('click', () => {
     setFacadeSource(button.dataset.facadeSource);
   }));
@@ -171,6 +195,71 @@ function bindEvents() {
     state.facadeUnsubscribe?.();
     state.facadeUnsubscribe = null;
   });
+}
+
+function componentSubmissionOptions() {
+  const size = GenerationMode.dimensions(state.modelPurpose, state.targetDimensions,
+    {length:Number(els.lengthInput.value),depth:Number(els.widthInput.value)});
+  return {generationMethod:'components',modelPurpose:state.modelPurpose,buildingWidth:size.length,
+    buildingDepth:size.depth,footprintRectangularity:state.footprintRectangularity};
+}
+
+function restoreGenerationMode(run) {
+  const key=`${run.id}:${run.generation_revision||0}`;
+  if (state.restoredGenerationKey===key) return;
+  state.restoredGenerationKey=key;
+  const restored=GenerationMode.fromRun(run);
+  state.generationMethod=restored.method;state.modelPurpose=restored.purpose;
+  els.generationMethod.value=restored.method;els.modelPurpose.value=restored.purpose;
+  if (run.building_width) els.lengthInput.value=run.building_width;
+  if (run.building_depth) els.widthInput.value=run.building_depth;
+  if (run.component_floors) els.componentFloors.value=run.component_floors;
+  if (run.component_roofs) els.componentRoofs.value=run.component_roofs;
+  renderGenerationMode();
+}
+
+function changeGenerationMode() {
+  if (state.currentFacadeRun && !['completed','failed','canceled','revoked'].includes(state.currentFacadeRun.status)) {
+    els.generationMethod.value=state.generationMethod;els.modelPurpose.value=state.modelPurpose;
+    setStatus('当前照片任务尚未结束，请先完成任务或取消后再切换方式。',true);return;
+  }
+  state.generationMethod=els.generationMethod.value;state.modelPurpose=els.modelPurpose.value;
+  state.generationModeEdited=true;
+  state.photoJobId='';state.currentFacadeRun=null;state.facadeRunRevision+=1;
+  state.facadeUnsubscribe?.();clearFacadePollTimer();clearCurrentUrl();
+  els.downloadBtn.disabled=true;els.sendBtn.disabled=true;renderGenerationMode();
+  setStatus('已切换生成方式；请重新选择上方照片或上传照片，开始新任务。');
+}
+
+function renderGenerationMode() {
+  const components=state.generationMethod==='components', existing=state.modelPurpose==='existing';
+  const active=state.currentFacadeRun&&!['completed','failed','canceled','revoked'].includes(state.currentFacadeRun.status);
+  document.getElementById('cancelGenerationTask').hidden=!active;
+  els.componentParameters.hidden=!components;
+  els.lengthInput.readOnly=components&&existing;els.widthInput.readOnly=components&&existing;
+  if (components&&existing&&state.targetDimensions) {
+    els.lengthInput.value=String(state.targetDimensions.length);
+    els.widthInput.value=String(state.targetDimensions.depth);
+  }
+  els.sourceButtons.forEach(button=>{button.hidden=components&&button.dataset.facadeSource!=='local_worker';});
+  if (components) {
+    state.facadeSource='local_worker';
+    els.sourcePanels.forEach(panel=>{panel.hidden=panel.dataset.sourcePanel!=='local_worker';});
+    els.photoInput.disabled=false;
+  }
+  els.generationModeHint.textContent=components
+    ? existing?'保留原白模占地和朝向；实拍图清理、矫正后保留完整屋顶。':'上传标准正立面；跳过清理与透视矫正，尺寸继承白模并可修改。'
+    :'照片贴到白模墙面，保留现有处理流程。';
+  els.photoPipelineHint.textContent=components?'保留完整屋顶 → 构件识别 → Blender建模':'先正立面化，再裁屋顶并生成模型';
+  els.cropHint.textContent=components?'本方式不裁掉屋顶；清理时保护空调、栏杆和檐口。':'正立面预处理完成后，拖动分界线切掉屋顶。';
+  els.roofAdvanced.hidden=components;
+  if(components){els.roofCropShade.hidden=true;els.roofCropHandle.hidden=true;}
+  els.generateBtn.textContent=components?'生成构件建筑':'生成正立面贴图建筑';
+  els.photoGenerateBtn.textContent=components?'识别完整建筑并生成构件模型':'按当前主体范围生成模型';
+  els.configHint.textContent=components?'墙体高度按正面长度与图中墙身比例计算，不使用白模默认9m。':'填写白模正面长度与进深；墙体高度按正立面比例计算。';
+  const cropStep=els.photoSteps?.querySelector('[data-step="crop"]');
+  if(cropStep)cropStep.textContent=components?'4. 确认建模参数':'4. 裁剪屋顶';
+  renderRoofAnalysis();
 }
 
 function requestExistingPhotoMaterials() {
@@ -362,8 +451,9 @@ async function initializeFacadeQueueConnection(context, openerClient, services) 
       spaceId: facadeContext.spaceId,
       objectCode: state.targetCode
     };
-    const latest = await queue.findActiveRun(query) || await queue.findLatestRun(query);
-    if (state.facadeQueue === queue && !state.photoJobId && PhotoWorkflow.shouldRestoreFacadeRun(latest)) {
+    const active = await queue.findActiveRun(query);
+    const latest = active || await queue.findLatestRun(query);
+    if (state.facadeQueue === queue && !state.photoJobId && (active || !state.generationModeEdited) && PhotoWorkflow.shouldRestoreFacadeRun(latest)) {
       await attachFacadeRun(latest);
     }
   } catch (error) {
@@ -420,6 +510,11 @@ async function performFacadePhotoSubmission(photo) {
     throw new Error('平台登录上下文尚未就绪');
   }
   const queue = state.facadeQueue;
+  if (state.generationMethod === 'components') {
+    if (queue.deploymentMode !== 'aliyun') throw new Error('构件建模需使用阿里云平台及新版4090 Worker。');
+    const available = await queue.getWorkerAvailability();
+    if (!available.componentAvailable) throw new Error('4090构件建模Worker尚未更新或未上线；原有照片贴图仍可使用。');
+  }
   const query = { spaceId: state.facadeContext.spaceId, objectCode: state.targetCode };
   async function restoreActiveRun() {
     const existing = await queue.findActiveRun(query);
@@ -437,7 +532,8 @@ async function performFacadePhotoSubmission(photo) {
     courseId: state.facadeContext.courseId,
     spaceId: state.facadeContext.spaceId,
     objectCode: state.targetCode,
-    photoId: Number(photo.id)
+    photoId: Number(photo.id),
+    ...(state.generationMethod === 'components' ? componentSubmissionOptions() : {})
     });
   } catch (error) {
     if (!String(error?.message || '').includes('TOO_MANY_ACTIVE_FACADE_RUNS')) throw error;
@@ -510,6 +606,7 @@ async function applyFacadeRun(run) {
   if (state.currentFacadeRun?.status === 'completed' && run.status !== 'completed'
       && Number(run.generation_revision || 0) === Number(state.currentFacadeRun.generation_revision || 0)) return;
   state.currentFacadeRun = run;
+  restoreGenerationMode(run);
   state.facadeResultPending = PhotoWorkflow.canConfirmCrop(run);
   state.photoWorkflowState = String(run?.status || 'idle');
   const presentation = PhotoWorkflow.facadeStatusPresentation(run, state.photoServiceStatus);
@@ -557,8 +654,8 @@ async function loadRectifiedPreview(run, queue = state.facadeQueue, revision = s
   els.photoPreview.src = url;
   els.photoPreview.hidden = false;
   els.photoPreviewEmpty.hidden = true;
-  els.roofCropShade.hidden = false;
-  els.roofCropHandle.hidden = false;
+  els.roofCropShade.hidden = state.generationMethod === 'components';
+  els.roofCropHandle.hidden = state.generationMethod === 'components';
   els.photoFallbackActions.hidden = true;
   updateCropOverlay();
   state.roofAnalysisStatus = 'fallback';
@@ -571,7 +668,8 @@ async function loadRectifiedPreview(run, queue = state.facadeQueue, revision = s
     warnings: ['请确认屋顶线']
   });
   renderRoofAnalysis();
-  els.activeLabel.textContent = '规范正立面：等待确认屋顶线';
+  els.activeLabel.textContent = state.generationMethod === 'components' ? '完整建筑立面：保留屋顶，等待构件建模' : '规范正立面：等待确认屋顶线';
+  renderGenerationMode();
 }
 
 async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision = state.facadeRunRevision) {
@@ -599,7 +697,17 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   frameModel(group);
   state.currentBlob = blob;
   state.currentUrl = URL.createObjectURL(blob);
-  const building = artifact.source?.building || {
+  let generatedBuilding;
+  if (run.generation_method === 'components') {
+    const metadata = await facadeArtifact(run.id, 'model_manifest', queue);
+    if (!metadata) throw new Error('构件任务缺少尺寸清单，请核对Worker版本。');
+    const response = await fetch(await queue.createArtifactUrl(metadata.storage_path));
+    if (!response.ok) throw new Error('模型尺寸清单读取失败');
+    generatedBuilding = (await response.json()).building;
+    if (!isCurrentFacadeResult(run, queue, revision)) return;
+  }
+  const componentCenter=new THREE.Box3().setFromObject(group).getCenter(new THREE.Vector3());
+  const building = generatedBuilding || artifact.source?.building || {
     wall_height: Number(els.lengthInput.value),
     roof_height: 0,
     width: Number(els.lengthInput.value),
@@ -607,7 +715,9 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   };
   state.currentModelInfo = {
     id: `photo-${run.id}`,
-    metrics: PhotoWorkflow.photoModelMetrics(building)
+    metrics: PhotoWorkflow.photoModelMetrics(building),
+    generationMethod: run.generation_method || 'texture', modelPurpose: run.model_purpose || 'existing',
+    sourceCenter: componentCenter
   };
   els.downloadBtn.disabled = false;
   els.sendBtn.disabled = false;
@@ -617,7 +727,10 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   link.textContent = '下载标准正立面贴图建筑 GLB';
   els.downloadLink.replaceChildren(link);
   setProgress(100, '标准正立面贴图建筑生成完成');
-  setStatus(buildGenerateCompleteMessage('标准正立面贴图模型'));
+  setStatus(buildGenerateCompleteMessage(state.generationMethod === 'components' ? '本地构件模型' : '标准正立面贴图模型'));
+  renderGenerationMode();
+  els.photoHeightSummary.hidden = false;
+  els.photoHeightSummary.querySelector('strong').textContent = PhotoWorkflow.photoHeightSummary(building);
 }
 
 function setFacadeSource(source, { preserveStatus = false } = {}) {
@@ -644,6 +757,7 @@ function setFacadeSource(source, { preserveStatus = false } = {}) {
   els.configHint.textContent = '填写白模正面长度与进深；墙体高度将在裁掉屋顶后按正立面比例自动计算。';
   els.activeLabel.textContent = FacadeSourceMode.SOURCES[state.facadeSource].label;
   if (!preserveStatus) setStatus(messages[state.facadeSource]);
+  renderGenerationMode();
   renderPhotoServiceState();
 }
 
@@ -804,6 +918,11 @@ function resetRoofAnalysis() {
 }
 
 function renderRoofAnalysis() {
+  if (state.generationMethod === 'components') {
+    els.roofAnalysisSummary.textContent = '完整屋顶交给本地识别；墙高按立面比例估算，不使用默认9m。';
+    els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun);
+    return;
+  }
   const presentations = {
     idle: ['idle', '拖动屋顶线后自动匹配屋顶'],
     pending: ['pending', '正在匹配屋顶…'],
@@ -987,7 +1106,7 @@ async function generatePhotoModel() {
     setStatus('请先等待原始照片完成正立面预处理。', true);
     return;
   }
-  if (!['ready', 'fallback'].includes(state.roofAnalysisStatus)) {
+  if (state.generationMethod !== 'components' && !['ready', 'fallback'].includes(state.roofAnalysisStatus)) {
     setStatus('请等待系统完成屋顶自动匹配。', true);
     return;
   }
@@ -1007,11 +1126,12 @@ async function generatePhotoModel() {
       cropTop: state.cropTop,
       roofType: els.roofTypeInput.value,
       buildingWidth: Number(els.lengthInput.value),
-      buildingDepth: Number(els.widthInput.value)
+      buildingDepth: Number(els.widthInput.value),
+      ...(state.generationMethod === 'components' ? {floors:Number(els.componentFloors.value), ...(els.componentRoofs.value ? {roofCount:Number(els.componentRoofs.value)} : {})} : {})
     });
     if (state.facadeQueue !== queue || state.photoJobId !== runId) return;
     state.photoWorkflowState = 'queued_generation';
-    setProgress(55, '已确认屋顶线，等待 4090 生成模型…');
+    setProgress(55, state.generationMethod === 'components' ? '等待4090识别构件并调用Blender生成…' : '已确认屋顶线，等待 4090 生成模型…');
     const run = await queue.getRun(runId);
     if (state.facadeQueue !== queue || state.photoJobId !== runId) return;
     await attachFacadeRun(run);
@@ -1030,8 +1150,11 @@ async function generatePhotoModel() {
 
 function parseGlb(arrayBuffer) {
   const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('./vendor/draco/');
+  loader.setDRACOLoader(draco);
   return new Promise((resolve, reject) => {
-    loader.parse(arrayBuffer, '', (gltf) => resolve(gltf.scene), reject);
+    loader.parse(arrayBuffer, '', (gltf) => {draco.dispose();resolve(gltf.scene);}, error=>{draco.dispose();reject(error);});
   });
 }
 
@@ -1283,6 +1406,14 @@ async function replaceOriginalBuilding() {
       metrics: state.currentModelInfo.metrics
     });
     message.payload.requestId = crypto.randomUUID();
+    message.payload.generationMethod = state.currentModelInfo.generationMethod;
+    message.payload.modelPurpose = state.currentModelInfo.modelPurpose;
+    if(state.currentModelInfo.generationMethod==='components') {
+      const p=new URLSearchParams(window.location.search);
+      const placement=GenerationMode.placement(state.currentModelInfo.sourceCenter,Number(p.get('footprintHeading')||0),Number(p.get('entityAutoHeading')||0));
+      message.payload.modelHeading=placement.heading;
+      message.payload.modelOffsetX=placement.offsetX;message.payload.modelOffsetY=placement.offsetY;
+    }
     await sendModelAndWaitForSave(message, glbBuffer);
 
     setStatus('模型已保存，正在返回 3D 模块...');

@@ -1,0 +1,70 @@
+{
+  "source": "用户授权的 E:/Blender生成模型Demo 本地构件路线；不包含模型权重、照片、数据库、API模块",
+  "files": [
+    {
+      "path": "app/facade.py",
+      "source_sha256": "3b31136ae0c1fa30bcd68987b0a2234ffe6257b799a31b8b74fe2f2109d19d8f"
+    },
+    {
+      "path": "app/completion.py",
+      "source_sha256": "af5bcc7669149c7eaa8e4dbe5fa380d7e69b4929dc2ad5e0caa9f282a30d5b90"
+    },
+    {
+      "path": "app/structure.py",
+      "source_sha256": "0d0604aad6ef48af03182b00bdd0b8968e0fea7e9e9651505a91797c5f5d958b"
+    },
+    {
+      "path": "app/entrance.py",
+      "source_sha256": "71abafe84ccf7cd257619bfd1741a7a166098aa37109f6aff29b49a50d1c655a"
+    },
+    {
+      "path": "vision/facade.py",
+      "source_sha256": "4d54d4bdea2e943455c0d431fae78d5bf5a299c9d591ba8c22af8ed9fd0f70c4"
+    },
+    {
+      "path": "vision/facade_calibration.py",
+      "source_sha256": "6ab8d7cd7731d0c01837275199cd80fde44ee249ecb8969341ad0bd28ee4d705"
+    },
+    {
+      "path": "vision/facade_features.py",
+      "source_sha256": "22476b4bf58cafcf45ce1bcdebe7ced4a32b880f2d55aabe98f8ab9535fbac79"
+    },
+    {
+      "path": "vision/structure_graph.py",
+      "source_sha256": "c77fa59f843187490c3f4edbf676fdab4aad11048e001661c76802927edcd5ca"
+    },
+    {
+      "path": "modeling/generate_facade.py",
+      "source_sha256": "191e80bc0d3641080150673517f555368afb0fa8f2c50e69db484af396f56609"
+    },
+    {
+      "path": "modeling/v3_parts.py",
+      "source_sha256": "954cc566d94f6455a9ffe893ebb9135d2a6d1063b909b24aa9eb29fe6803bd43"
+    },
+    {
+      "path": "modeling/v3_parts.json",
+      "source_sha256": "a367cc16399d9f561e1896603e6a99345b3710975f46775ffefe114240e86281"
+    },
+    {
+      "path": "modeling/component_geometry.py",
+      "source_sha256": "11c8cd3f4e9958c8bd709d1dd233d126e2bc4380c7252018ec9febc930a7b1d2"
+    },
+    {
+      "path": "modeling/roof_shell.py",
+      "source_sha256": "0b5992ba787ca0e47279851abe261ae2b1fb534ef8a3a2e9b997f6ce43c307cc"
+    },
+    {
+      "path": "modeling/natural_materials.py",
+      "source_sha256": "1162f9ba6d269f2d6170909a6384ee4f1fcb679b58dbfbffe02fd0ebf884144c"
+    },
+    {
+      "path": "modeling/realistic_materials.py",
+      "source_sha256": "2b270e26627db0b45acb29ba623c43945dbb7df7df6069969163bdd36fc38393"
+    },
+    {
+      "path": "assets.py",
+      "source_path": "app/model_assets.py",
+      "source_sha256": "830f91686e788960bb021686e41f50fc0b08d55ed12f860500c159a486844a47"
+    }
+  ]
+}

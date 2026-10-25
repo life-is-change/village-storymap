@@ -4,6 +4,34 @@ import {createUnifiedDatabase} from '../unified/database.mjs';import {createTask
 import {createLocalQueueService} from '../local-tasks/service.mjs';import {createLocalTaskTransport} from '../local-tasks/transport.mjs';import {createTaskChunkStore} from '../local-tasks/chunks.mjs';import {createLocalTaskFiles} from '../local-tasks/files.mjs';
 import {createCloudRepository} from '../local-tasks/cloud-repository.mjs';import {createLocalCloudFacade} from '../local-tasks/cloud.mjs';import {createCloudFiles} from '../local-tasks/cloud-files.mjs';
 const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A',courseId:'course'},hash=b=>createHash('sha256').update(b).digest('hex');
+
+test('component tasks require a v2 Worker, freeze existing dimensions and publish an owned model manifest',async()=>{
+ await fixture(async({setup,db,store,queue,tasks,taskFiles,worker,claim,upload})=>{
+  const userFiles=createBusinessFilesService({database:db,store,spaceAvailable:async()=>10*1024**3});
+  const session=await userFiles.begin(testIdentity(),{purpose:'photo',requestId:randomUUID(),context:{teachingProjectId:context.teachingProjectId,villageId:context.villageId,spaceId:'A'},files:[{role:'photo',size:png.length,mime:'image/png',extension:'png'}]});
+  await userFiles.put(testIdentity(),session.id,'photo',Readable.from([png]));
+  const photo=await userFiles.commit(testIdentity(),session.id,{objectCode:'B1',objectType:'building'});
+  const input={...context,kind:'facade',photoId:Number(photo.id),objectCode:'B1',requestId:randomUUID(),generationMethod:'components',modelPurpose:'existing',buildingWidth:12,buildingDepth:8,footprintRectangularity:1};
+  const old=await worker('facade');await tasks.execute(testIdentity(),'tasks.submitFacade',input);await tasks.tick();
+  assert.equal((await claim(old)).run,null,'v1 must never execute a component job as texture');
+  await queue.workerCall(old,'heartbeat',null,null,{state:'idle',protocol:'facade-aliyun-local-v2'});
+  const job=await claim(old);assert.equal(job.run.input.generationMethod,'components');
+  for(const type of ['rectified_preview','rectified_source','building_mask'])await upload(old,job,type,png);
+  await queue.workerCall(old,'publish-rectification',job.run.id,job.leaseToken,{});
+  const crop={ownerId:USERS.student,requestId:input.requestId,cropTop:0,roofType:'hip',buildingWidth:13,buildingDepth:8,floors:3,roofCount:2};
+  await assert.rejects(queue.control('confirmCrop',crop),{code:'INVALID_INPUT'});
+  await queue.control('confirmCrop',{...crop,buildingWidth:12});
+  const gen=await claim(old);assert.equal(gen.run.crop.floors,3);
+  const manifest=Buffer.from(JSON.stringify({building:{width:12,depth:8,wall_height:10.2,roof_height:1.5}}));
+  await upload(old,gen,'model_manifest',manifest,'application/json','json');
+  await upload(old,gen,'building_glb',glb(),'model/gltf-binary','glb');
+  await queue.workerCall(old,'complete',gen.run.id,gen.leaseToken,{});
+  await setup.query("UPDATE api_private.task_outbox SET next_at=now() WHERE operation='poll'");await tasks.tick();
+  const opened=await taskFiles.readTaskArtifact(testIdentity(),input.requestId,'model_manifest');
+  assert.equal(opened.sha256,hash(manifest));await opened.close();
+  await assert.rejects(taskFiles.readTaskArtifact(testIdentity(USERS.other),input.requestId,'model_manifest'),{code:'NOT_FOUND'});
+ });
+});
 async function fixture(fn,provider={available:false}){await withUnifiedFixture(async({setup,install,config})=>{
  await prepareFiles(setup);await install();for(const name of ['catalog','survey','planning','files','tasks'])await setup.query(await readFile(new URL('../../linux/sql/unified/'+name+'.sql',import.meta.url),'utf8'));
  for(const name of ['local-tasks','local-task-files','local-cloud'])await setup.query(await readFile(new URL('../../linux/sql/'+name+'.sql',import.meta.url),'utf8'));

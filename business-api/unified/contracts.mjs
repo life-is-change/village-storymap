@@ -141,13 +141,13 @@ for(const [name,fields,readOnly,source] of [
  ['availability',{kind:choice('geoprocessing','facade','cloud-facade')},true,'get_worker_availability;get_facade_worker_availability;facade-cloud:capability'],
  ['sourceStatus',{villageId:uuid},true,'get_geoprocessing_source_status'],
  ['submitGeo',{...context,courseId:id,requestedSteps:list(choice('buildings','roads_water','contours'),3,1),aoi:json,parameters:json,...replay},false,'submit_geoprocessing_run'],
- ['submitFacade',{...context,courseId:id,objectCode:str(200),photoId:integer(1),kind:choice('facade','cloud-facade'),...replay},false,'submit_facade_run;facade-cloud:submit'],
+ ['submitFacade',{...context,courseId:id,objectCode:str(200),photoId:integer(1),kind:choice('facade','cloud-facade'),generationMethod:optional(choice('texture','components')),modelPurpose:optional(choice('existing','design')),buildingWidth:optional(field(v=>Number.isFinite(v)&&v>=3&&v<=40,12)),buildingDepth:optional(field(v=>Number.isFinite(v)&&v>=2&&v<=30,8)),footprintRectangularity:optional(field(v=>Number.isFinite(v)&&v>=0&&v<=1,1)),...replay},false,'submit_facade_run;facade-cloud:submit'],
  ['get',{requestId:uuid},true,'geoprocessing_runs;facade_generation_runs;cloud_facade_runs'],
  ['list',{villageId:uuid},true,'geoprocessing_runs;facade_generation_runs;cloud_facade_runs'],
  ['artifacts',{requestId:uuid},true,'geoprocessing_artifacts;facade_generation_artifacts'],
  ['cancel',{taskId:uuid,...replay},false,'request_geoprocessing_cancel;request_facade_cancel'],
  ['retry',{taskId:uuid,...replay},false,'retry_failed_facade_run'],
- ['confirmCrop',{taskId:uuid,cropTop:field(v=>Number.isFinite(v)&&v>=0&&v<=0.65,0.1),roofType:choice('hip','gable','flat'),buildingWidth:field(v=>Number.isFinite(v)&&v>0&&v<=500,10),buildingDepth:field(v=>Number.isFinite(v)&&v>0&&v<=500,10),...replay},false,'confirm_facade_crop'],
+ ['confirmCrop',{taskId:uuid,cropTop:field(v=>Number.isFinite(v)&&v>=0&&v<=0.65,0.1),roofType:choice('hip','gable','flat'),buildingWidth:field(v=>Number.isFinite(v)&&v>0&&v<=500,10),buildingDepth:field(v=>Number.isFinite(v)&&v>0&&v<=500,10),floors:optional(integer(1,6)),roofCount:optional(integer(1,2)),...replay},false,'confirm_facade_crop'],
  ['importResult',{taskId:uuid,spaceId:id,...replay},false,'import_geoprocessing_result'],
  ['isImported',{taskId:uuid,spaceId:id},true,'personal_result_bundles']
 ]) add('tasks.'+name,fields,readOnly,'features/geoprocessing/geoprocessing-client.js;rural_house_generator/facade-queue-client.js;facade-cloud-client.js -> '+source);
@@ -174,5 +174,7 @@ export function parseOperation(action,input) {
   if(Buffer.byteLength(JSON.stringify(input),'utf8')>MAX_JSON_BYTES)throw fault('PAYLOAD_TOO_LARGE');
   if(Object.keys(input).some(key=>!Object.hasOwn(d.fields,key)))invalid();
   for(const [key,f] of Object.entries(d.fields))if(Object.hasOwn(input,key)?!f.check(input[key]):f.required)invalid();
+  if(action==='tasks.submitFacade'&&input.generationMethod==='components'&&
+     (input.kind!=='facade'||!['buildingWidth','buildingDepth','footprintRectangularity'].every(key=>Object.hasOwn(input,key))))invalid();
   return {action,input:structuredClone(input),readOnly:d.readOnly};
 }

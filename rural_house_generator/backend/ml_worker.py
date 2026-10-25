@@ -184,6 +184,7 @@ class FacadeMLRuntime:
         with gpu_lock(lock_path):
             self._load()
             envelope, building, occ_boxes, labels, masks, detected_labels = self._infer_masks(rgb)
+            protected = self._protected_components(rgb)
         building = cv2.morphologyEx(building, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
         expanded = cv2.dilate(building, np.ones((31, 31), np.uint8)) > 0
         accepted = []
@@ -223,6 +224,8 @@ class FacadeMLRuntime:
         occlusion = np.any(accepted, axis=0).astype(np.uint8) * 255 if accepted else np.zeros(rgb.shape[:2], np.uint8)
         if np.any(occlusion):
             occlusion = cv2.dilate(occlusion, np.ones((9, 9), np.uint8))
+        from .component_building.detection import subtract_protected
+        occlusion = subtract_protected(occlusion, protected)
 
         if scale < 1:
             size = (original_shape[1], original_shape[0])
@@ -268,6 +271,31 @@ class FacadeMLRuntime:
             "diagnostics": diagnostics,
         }
 
+    def _protected_components(self, rgb):
+        boxes, _, _ = self._detect(rgb, 'air conditioner. railing. balustrade. eave. column.', .25, .18)
+        protected = np.zeros(rgb.shape[:2], dtype='uint8')
+        if len(boxes):
+            masks, _, _ = self.sam.predict(box=boxes[:40].astype(np.float32), multimask_output=False)
+            masks = np.asarray(masks).reshape(-1, *rgb.shape[:2])
+            protected[np.any(masks, axis=0)] = 255
+            protected = cv2.dilate(protected, np.ones((5, 5), np.uint8))
+        return protected
+
+    def components(self, source_path, output_dir):
+        from .component_building.detection import detect_components
+        source = _read(source_path)
+        scale = min(1, 1400/max(source.shape[:2]))
+        if scale < 1:
+            source = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        rgb = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
+        with gpu_lock(Path(os.environ.get('PLATFORM_GPU_LOCK_PATH') or default_gpu_lock_path())):
+            self._load()
+            with torch.inference_mode():
+                analysis = detect_components(self, rgb)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir/'analysis.json').write_text(json.dumps(analysis, ensure_ascii=False), encoding='utf8')
+        return {'ok': True, 'analysis': analysis}
+
 
 def build_handler(runtime: FacadeMLRuntime):
     class Handler(BaseHTTPRequestHandler):
@@ -281,7 +309,7 @@ def build_handler(runtime: FacadeMLRuntime):
 
         def do_GET(self):
             if self.path == "/health":
-                self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device})
+                self._json(200, {"status": "ok", "service": "rural-facade-ml", "loaded": runtime.dino is not None, "device": runtime.device, 'components_version': 1})
             elif self.path == "/ready":
                 try:
                     self._json(200, runtime.ready())
@@ -291,13 +319,14 @@ def build_handler(runtime: FacadeMLRuntime):
                 self._json(404, {"error": "not found"})
 
         def do_POST(self):
-            if self.path != "/process":
+            if self.path not in ("/process", "/components"):
                 self._json(404, {"error": "not found"})
                 return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
-                self._json(200, runtime.process(Path(payload["source_path"]), Path(payload["output_dir"])))
+                method = runtime.components if self.path == '/components' else runtime.process
+                self._json(200, method(Path(payload["source_path"]), Path(payload["output_dir"])))
             except Exception as exc:
                 self._json(422, {"ok": False, "error": str(exc)})
 

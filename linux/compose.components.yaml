@@ -1,0 +1,19 @@
+# Add to the existing campus Compose invocation, preserving its environment,
+# credentials, locks, models, networks and all unrelated services.
+services:
+  facade-worker:
+    image: village-component-worker:${COMPONENT_RELEASE:?set reviewed release}
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.component-worker
+      args:
+        BASE_IMAGE: ${COMPONENT_WORKER_BASE:?set existing worker image id}
+    environment:
+      BLENDER_EXECUTABLE: /opt/blender-runtime/blender-3.6.23-linux-x64/blender
+  facade-ml:
+    image: village-component-ml:${COMPONENT_RELEASE:?set reviewed release}
+    build:
+      context: ..
+      dockerfile: linux/Dockerfile.component-ml
+      args:
+        BASE_IMAGE: ${COMPONENT_ML_BASE:?set existing ML image id}

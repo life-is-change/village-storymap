@@ -1,10 +1,14 @@
 from ..local_task_gateway import LocalGateway
 from .models import FacadeRun
+import time
 
 
 class LocalFacadeGateway(LocalGateway):
     def __init__(self, http):
         super().__init__(http, 'facade')
+        self.component_probe = lambda: False
+        self._component_check = 0
+        self._component_ready = False
 
     def claim(self, worker_id):
         row = self._claim(worker_id)
@@ -16,7 +20,19 @@ class LocalFacadeGateway(LocalGateway):
         return FacadeRun.from_row({**row, 'photo_id': value.get('photoId'), 'object_code': value['objectCode'], 'space_id': value['spaceId'],
                                   'source_photo_path': photo['fileId'], 'source_photo_url': None, 'source_photo_bucket': 'local',
                                   'origin_instance_id': 'aliyun-local', 'source_photo_sha256': photo['sha256'], 'source_photo_size': photo['size'], 'source_photo_mime': photo['mime'],
-                                  'crop_top': crop.get('cropTop'), 'roof_type': crop.get('roofType'), 'building_width': crop.get('buildingWidth'), 'building_depth': crop.get('buildingDepth')})
+                                  'crop_top': crop.get('cropTop'), 'roof_type': crop.get('roofType'), 'building_width': crop.get('buildingWidth'), 'building_depth': crop.get('buildingDepth'),
+                                  'generation_method': value.get('generationMethod', 'texture'), 'model_purpose': value.get('modelPurpose', 'existing'),
+                                  'component_options': {**value, **crop, 'sourceBuildingWidth': value.get('buildingWidth'), 'sourceBuildingDepth': value.get('buildingDepth')}})
+
+    def heartbeat(self, worker_id, state, version):
+        self._worker(worker_id)
+        mapped = {'available': 'idle', 'idle': 'idle', 'busy': 'busy', 'error': 'error', 'starting': 'starting'}.get(state)
+        if mapped is None:
+            raise ValueError('INVALID_WORKER_STATE')
+        if time.monotonic() >= self._component_check:
+            self._component_ready = bool(self.component_probe())
+            self._component_check = time.monotonic()+60
+        self.http.call('heartbeat', {'protocol': 'facade-aliyun-local-v2' if self._component_ready else 'facade-aliyun-local-v1', 'state': mapped})
 
     def set_state(self, run_id, worker_id, status, *, stage=None, progress=None, error_code=None, error_message=None):
         self._worker(worker_id)

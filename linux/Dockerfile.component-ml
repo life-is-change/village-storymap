@@ -1,0 +1,6 @@
+# Reuses the existing verified CUDA/DINO/SAM2 environment and cached weights.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY rural_house_generator/backend /opt/village-components/rural_house_generator/backend
+ENV PYTHONPATH=/opt/village-components:${PYTHONPATH}
+WORKDIR /opt/village-components

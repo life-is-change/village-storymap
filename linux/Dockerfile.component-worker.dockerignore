@@ -1,0 +1,17 @@
+**
+!server/
+!server/src/
+!server/src/village_processing/
+!server/src/village_processing/**
+!rural_house_generator/
+!rural_house_generator/backend/
+!rural_house_generator/backend/**
+**/__pycache__
+**/.pytest_cache
+**/tests
+**/.env
+**/.env.*
+**/*.pyc
+**/*.pt
+**/*.pth
+**/*.ckpt

@@ -9,7 +9,7 @@ export function workerCommand(kind,action,runId,leaseToken,payload){
  if(!['geo','facade'].includes(kind)||!Object.hasOwn(fields,action)||!plain(payload)||Object.keys(payload).some(k=>!fields[action].includes(k))||Buffer.byteLength(JSON.stringify(payload))>8192)throw taskFault('INVALID_INPUT');
  const noRun=['heartbeat','claim','sources','source-status'].includes(action);
  if(noRun?(runId!==null||leaseToken!==null):(!uuid(runId)||!uuid(leaseToken)))throw taskFault('INVALID_INPUT');
- if(action==='heartbeat'&&(payload.protocol!==kind+'-aliyun-local-v1'||!['idle','busy','error','starting'].includes(payload.state)))throw taskFault('INVALID_INPUT');
+ if(action==='heartbeat'&&(![kind+'-aliyun-local-v1',...(kind==='facade'?['facade-aliyun-local-v2']:[])].includes(payload.protocol)||!['idle','busy','error','starting'].includes(payload.state)))throw taskFault('INVALID_INPUT');
  if(action==='claim'&&!uuid(payload.requestId))throw taskFault('INVALID_INPUT');
  if(action==='progress'&&(!['running','rectifying','generating'].includes(payload.state)||!Number.isInteger(payload.progress)||payload.progress<1||payload.progress>99||typeof payload.stage!=='string'||!/^[a-z0-9_-]{1,80}$/.test(payload.stage)))throw taskFault('INVALID_INPUT');
  if(['fail','retry-failure'].includes(action)&&!code(payload.errorCode))throw taskFault('INVALID_INPUT');

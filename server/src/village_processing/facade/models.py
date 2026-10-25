@@ -21,6 +21,9 @@ class FacadeRun:
     source_photo_sha256: str | None = None
     source_photo_size: int | None = None
     source_photo_mime: str | None = None
+    generation_method: str = 'texture'
+    model_purpose: str = 'existing'
+    component_options: dict | None = None
 
     @classmethod
     def from_row(cls, row: dict) -> "FacadeRun":
@@ -43,6 +46,9 @@ class FacadeRun:
             source_photo_sha256=row.get("source_photo_sha256"),
             source_photo_size=int(row["source_photo_size"]) if row.get("source_photo_size") is not None else None,
             source_photo_mime=row.get("source_photo_mime"),
+            generation_method=str(row.get('generation_method') or 'texture'),
+            model_purpose=str(row.get('model_purpose') or 'existing'),
+            component_options=row.get('component_options') or {},
         )
 
     @property

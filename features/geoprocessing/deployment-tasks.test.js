@@ -1,4 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict');
+test('component submission and confirmation retain method, purpose, dimensions and roof count through the real task client',async()=>{
+ const {createBusinessTaskClient}=require('../data/business-task-client.js'),calls=[];
+ const id='c0000000-0000-4000-8000-000000000001';
+ const tasks=createBusinessTaskClient({contextProvider:()=>({teachingProjectId:id,villageId:id,spaceId:'A',courseId:'course'}),uuid:()=>id,
+  api:{async execute(action,input){calls.push([action,input]);return {requestId:id};}}});
+ await tasks.facade.submit({objectCode:'B1',photoId:46,generationMethod:'components',modelPurpose:'design',buildingWidth:12,buildingDepth:8,footprintRectangularity:1});
+ await tasks.facade.confirmCrop(id,{cropTop:0,roofType:'hip',buildingWidth:14,buildingDepth:9,floors:2,roofCount:2});
+ assert.equal(calls[0][0],'tasks.submitFacade');assert.equal(calls[0][1].generationMethod,'components');assert.equal(calls[0][1].modelPurpose,'design');
+ assert.equal(calls[1][1].floors,2);assert.equal(calls[1][1].buildingWidth,14);assert.equal(calls[1][1].roofCount,2);tasks.dispose();
+});
 test('all three task factories accept local services without touching source database, Storage or channels',()=>{
  const source=new Proxy({}, {get(){throw Error('SOURCE_ACCESS_FORBIDDEN');}}),services={tasks:{geoprocessing:{mode:'geo'},facade:{mode:'facade'},cloud:{mode:'cloud'}}};
  assert.equal(require('./geoprocessing-client.js').createGeoprocessingClient({supabaseClient:source,services}),services.tasks.geoprocessing);

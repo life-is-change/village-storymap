@@ -308,19 +308,27 @@
 
   function facadeStatusPresentation(run, workerAvailability = 'online') {
     const normalized = normalizeFacadeRun(run);
+    const components = run?.generation_method === 'components';
+    const errors = {
+      COMPONENT_FOOTPRINT_UNSUPPORTED: '当前构件生成器无法精确保持此占地，请使用原有贴图方式或改建设计。',
+      COMPONENT_SCALE_INVALID: '按照片比例估算的层高不合理，请检查层数、正面长度和主体识别范围。',
+      COMPONENT_DETECTION_FAILED: '未得到可建模的完整构件布局，请检查照片主体或更换标准正立面。',
+      COMPONENT_GEOMETRY_INVALID: '构件几何检查未通过，未应用失败模型。',
+      COMPONENT_BLENDER_FAILED: '工作站 Blender 构件生成失败，请联系管理员核对版本和任务日志。'
+    };
     const messages = {
       pending: '任务已保存，等待计算服务接收。',
       queued_rectification: '正立面预处理已排队，等待 4090 工作站。',
       claimed_rectification: '4090 工作站已领取任务，正在准备模型。',
       rectifying: '正在识别、清理并生成规范正立面。',
-      awaiting_crop: '正立面已完成，请拖动屋顶线后生成。',
+      awaiting_crop: components ? '完整立面已就绪，确认楼层和屋顶数量后生成构件模型。' : '正立面已完成，请拖动屋顶线后生成。',
       queued_generation: '模型生成已排队。',
       claimed_generation: '4090 工作站已领取生成任务。',
-      generating: 'Blender 正在生成贴图建筑。',
-      completed: '标准正立面贴图建筑已生成。',
+      generating: components ? '4090 工作站正在识别构件并调用 Blender 建模。' : 'Blender 正在生成贴图建筑。',
+      completed: components ? '本地构件建筑已生成，请预览后应用。' : '标准正立面贴图建筑已生成。',
       cancel_requested: '正在取消任务。',
       canceled: '任务已取消。',
-      failed: normalized.errorMessage || '处理失败，请重新提交。'
+      failed: errors[normalized.errorCode] || normalized.errorMessage || '处理失败，请重新提交。'
     };
     const offline = workerAvailability === 'offline' && !['completed', 'failed', 'canceled'].includes(normalized.status);
     return {

@@ -27,7 +27,7 @@ export function createLocalQueueService({database,instanceId}){
    return result(await database.withMaintenance(c=>one(c,'SELECT api_private.local_worker_file($1,$2,$3,$4,$5,$6,$7::jsonb) AS data',[proof.workerId,proof.tokenDigest,instanceId,action,runId,leaseToken,JSON.stringify(payload)])));
   },
   async artifact(input,type){
-   if(!uuid(input?.ownerId)||!uuid(input?.requestId)||!['buildings','roads','waterways','water_areas','contours','rectified_preview','rectified_source','building_mask','building_glb','standard_facade'].includes(type))throw taskFault('INVALID_INPUT');
+   if(!uuid(input?.ownerId)||!uuid(input?.requestId)||!['buildings','roads','waterways','water_areas','contours','rectified_preview','rectified_source','building_mask','building_glb','model_manifest','standard_facade'].includes(type))throw taskFault('INVALID_INPUT');
    return result(await database.withMaintenance(c=>one(c,'SELECT api_private.local_task_artifact($1,$2,$3,$4) AS data',[input.ownerId,input.requestId,instanceId,type])));
   }
  };

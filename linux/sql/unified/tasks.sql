@@ -43,7 +43,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$BEGIN
  IF t.photo_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.object_photos p WHERE p.id=t.photo_id AND p.teaching_project_id=(t.context->>'teachingProjectId')::uuid AND p.village_id=(t.context->>'villageId')::uuid AND p.space_id=t.context->>'spaceId' AND p.object_code=t.input->>'objectCode' AND p.file_id IS NOT NULL) THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
 END$$;
 CREATE FUNCTION api_private.task_public(t api_private.task_requests) RETURNS jsonb LANGUAGE sql IMMUTABLE AS $$
- SELECT t.remote_info||jsonb_build_object('requestId',t.request_id,'state',t.state,'sourceRunId',t.source_run_id,'kind',t.kind,'status',coalesce(t.remote_status,t.state),'progress',t.progress,'errorCode',t.error_code,'importedBundle',t.imported_bundle,'context',t.context,'photoId',t.photo_id,'objectCode',t.input->>'objectCode','createdAt',t.created_at,'updatedAt',t.updated_at)
+ SELECT t.remote_info||jsonb_build_object('requestId',t.request_id,'state',t.state,'sourceRunId',t.source_run_id,'kind',t.kind,'status',coalesce(t.remote_status,t.state),'progress',t.progress,'errorCode',t.error_code,'importedBundle',t.imported_bundle,'context',t.context,'photoId',t.photo_id,'generation_method',coalesce(t.input->>'generationMethod','texture'),'model_purpose',coalesce(t.input->>'modelPurpose','existing'),'building_width',coalesce((t.remote_info->>'building_width')::numeric,(t.input->>'buildingWidth')::numeric),'building_depth',coalesce((t.remote_info->>'building_depth')::numeric,(t.input->>'buildingDepth')::numeric),'objectCode',t.input->>'objectCode','createdAt',t.created_at,'updatedAt',t.updated_at)
 $$;
 CREATE FUNCTION api_private.task_execute(a text,p jsonb,instance text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_private.task_requests;ctx jsonb;result jsonb;cached jsonb;k text;op text;rid uuid;photo public.object_photos;BEGIN
@@ -140,7 +140,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE o api_pr
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR (result->>'runId')::uuid IS DISTINCT FROM t.source_run_id THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   s:=result->'run'->>'status';IF s NOT IN('queued','claimed','running','completed','failed','canceled','cancel_requested','queued_rectification','claimed_rectification','rectifying','awaiting_crop','queued_generation','claimed_generation','generating','submitting','succeeded') THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   UPDATE api_private.task_requests SET remote_status=s,state=CASE WHEN s IN('completed','succeeded') THEN 'completed' WHEN s IN('failed','canceled') THEN s ELSE 'running' END,progress=greatest(0,least(100,coalesce((result->'run'->>'progress')::integer,0))),
-   remote_info=coalesce((SELECT jsonb_object_agg(e.key,e.value) FROM jsonb_each(result->'run') e WHERE e.key IN('generation_revision','crop_top','roof_type','building_width','building_depth','attempt_count','rectification_attempt_count','generation_attempt_count')),'{}'),
+   remote_info=coalesce((SELECT jsonb_object_agg(e.key,e.value) FROM jsonb_each(result->'run') e WHERE e.key IN('generation_revision','crop_top','roof_type','building_width','building_depth','attempt_count','rectification_attempt_count','generation_attempt_count','generation_method','model_purpose','component_floors','component_roofs')),'{}'),
    error_code=CASE WHEN result->'run'->>'error_code'~'^[A-Z0-9_]{1,80}$' THEN result->'run'->>'error_code' END,updated_at=now() WHERE id=t.id;
  ELSIF o.operation='cancel' THEN
   IF result->>'instanceId' IS DISTINCT FROM t.instance_id OR result->>'canceled' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
@@ -191,6 +191,7 @@ SET search_path=pg_catalog,api_private,pg_temp AS $$DECLARE t api_private.task_r
  IF action='reserve' THEN
   IF NOT coalesce(p->>'sha256'~'^[a-f0-9]{64}$' AND p->>'size'~'^[0-9]{1,9}$' AND (p->>'size')::bigint BETWEEN 1 AND CASE WHEN t.kind='geo' AND to_regclass('api_private.local_gpu_uploads') IS NOT NULL THEN 536870912 ELSE 52428800 END,false) THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   IF t.kind='geo' THEN IF layer IS NULL OR p->>'mime'<>'application/geo+json' OR p->>'extension'<>'geojson' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
+  ELSIF k='model_manifest' THEN IF p->>'mime'<>'application/json' OR p->>'extension'<>'json' OR (p->>'size')::bigint>2097152 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   ELSIF k='building_glb' THEN IF p->>'mime'<>'model/gltf-binary' OR p->>'extension'<>'glb' THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   ELSIF k NOT IN('rectified_preview','rectified_source','building_mask','standard_facade') OR p->>'mime' NOT IN('image/png','image/jpeg') OR p->>'extension' IS DISTINCT FROM (CASE WHEN p->>'mime'='image/png' THEN 'png' ELSE 'jpg' END) OR (p->>'size')::bigint>10485760 THEN RAISE EXCEPTION 'INVALID_INPUT';END IF;
   INSERT INTO api_private.task_artifacts(task_id,artifact_type,file_id,sha256,size,mime,extension,layer_key)

@@ -1,0 +1,112 @@
+[
+  {
+    "asset": "painted_plaster_wall",
+    "kind": "Diffuse",
+    "file": "painted_plaster_wall_diff_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_diff_1k.jpg",
+    "bytes": 686726,
+    "sha256": "440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/painted_plaster_wall",
+    "tile_m": 2.0
+  },
+  {
+    "asset": "painted_plaster_wall",
+    "kind": "nor_gl",
+    "file": "painted_plaster_wall_nor_gl_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_nor_gl_1k.jpg",
+    "bytes": 900461,
+    "sha256": "8eb01647d126eb5341e2c325821ad48c8ca11349dbef53447c95422c5d91cc9d",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/painted_plaster_wall",
+    "tile_m": 2.0
+  },
+  {
+    "asset": "painted_plaster_wall",
+    "kind": "arm",
+    "file": "painted_plaster_wall_arm_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_arm_1k.jpg",
+    "bytes": 511105,
+    "sha256": "2f13ed444e3e8f13087bca0890969d30795ed074bcfb11737d1ad6f5f0b53992",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/painted_plaster_wall",
+    "tile_m": 2.0
+  },
+  {
+    "asset": "clay_roof_tiles_02",
+    "kind": "Diffuse",
+    "file": "clay_roof_tiles_02_diff_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_diff_1k.jpg",
+    "bytes": 903929,
+    "sha256": "227a062b38b170e02c27eaa513dae45dc8bc893a62cbd8d0c08e2c32b381fc25",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/clay_roof_tiles_02",
+    "tile_m": 2.5
+  },
+  {
+    "asset": "clay_roof_tiles_02",
+    "kind": "nor_gl",
+    "file": "clay_roof_tiles_02_nor_gl_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_1k.jpg",
+    "bytes": 990101,
+    "sha256": "1548d3ebce335a4590d9e421556c4189a7b63852c793a568c71b9e533f8b62d5",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/clay_roof_tiles_02",
+    "tile_m": 2.5
+  },
+  {
+    "asset": "clay_roof_tiles_02",
+    "kind": "arm",
+    "file": "clay_roof_tiles_02_arm_1k.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/clay_roof_tiles_02/clay_roof_tiles_02_arm_1k.jpg",
+    "bytes": 564611,
+    "sha256": "da94d4ce78607c4cb0450c669e8ca5d18852eb284def75445663f959cc1af63b",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/clay_roof_tiles_02",
+    "tile_m": 2.5
+  },
+  {
+    "asset": "overcast_soil",
+    "kind": "hdri",
+    "file": "overcast_soil_1k.hdr",
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/overcast_soil_1k.hdr",
+    "bytes": 1650749,
+    "sha256": "8e1db1441e64b3b44c21ebcbbbafe607eb3c52c04508e4f3c21180f6f2cef619",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/overcast_soil",
+    "tile_m": 2.0
+  },
+  {
+    "asset": "white_plaster_02",
+    "kind": "Diffuse",
+    "file": "white_plaster_02_diff_1k.jpg",
+    "bytes": 527219,
+    "sha256": "a1ebbe091bd1ae93d2abd5de8d69f9003a8d0ee6532bcf9a87c2492c97051f23",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_diff_1k.jpg",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "tile_m": 1
+  },
+  {
+    "asset": "white_plaster_02",
+    "kind": "nor_gl",
+    "file": "white_plaster_02_nor_gl_1k.jpg",
+    "bytes": 652310,
+    "sha256": "eb572ca3630d5bfde72e2601b1f02412da23ca005cd19384dced8690be4cb783",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_nor_gl_1k.jpg",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "tile_m": 1
+  },
+  {
+    "asset": "white_plaster_02",
+    "kind": "arm",
+    "file": "white_plaster_02_arm_1k.jpg",
+    "bytes": 191017,
+    "sha256": "2bb1115821715dfd8bbd1c5a294a5bb43b97d5c46b1aa8aa8f744bcaf5eeeb10",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_plaster_02/white_plaster_02_arm_1k.jpg",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/white_plaster_02",
+    "tile_m": 1
+  }
+]

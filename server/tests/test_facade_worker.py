@@ -29,6 +29,34 @@ def facade_run(status="claimed_rectification", revision=0):
     })
 
 
+def test_component_design_skips_rectification_but_publishes_complete_elevation(tmp_path):
+    from dataclasses import replace
+    run = replace(facade_run(), generation_method='components', model_purpose='design')
+    class Processor(FakeProcessor):
+        def rectify(self, source, job_dir, **kwargs):
+            assert kwargs == {'use_original': True}
+            return super().rectify(source, job_dir)
+    gateway = FakeGateway(run)
+    FacadePipeline(gateway, Processor(), tmp_path, 'worker').rectify(run)
+    assert 'download_photo' in gateway.events
+
+
+def test_component_generation_uses_full_image_and_never_prepares_a_wall_texture(tmp_path):
+    from dataclasses import replace
+    run = replace(facade_run('claimed_generation', 1), generation_method='components',
+                  component_options={'buildingWidth': 12, 'buildingDepth': 8})
+    class Processor(FakeProcessor):
+        def generate_components(self, image, job_dir, options, *, check_canceled):
+            assert image.name == 'rectified_source.png'
+            assert options['buildingWidth'] == 12
+            check_canceled()
+            return self.generate_prepared(image, job_dir, {'width': 12})
+    processor = Processor()
+    gateway = FakeGateway(run)
+    FacadePipeline(gateway, processor, tmp_path, 'worker').generate(run)
+    assert processor.events == ['blender']
+
+
 @dataclass(frozen=True)
 class Rectified:
     source: Path

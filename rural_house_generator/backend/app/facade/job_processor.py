@@ -75,12 +75,18 @@ class FacadeJobProcessor:
             raise ValueError("RECTIFIED_PREVIEW_WRITE_FAILED")
 
         building_mask = artifact_dir / "building_mask_rectified.png"
+        if use_original:
+            write_image(building_mask, np.full(result.image.shape[:2], 255, dtype=np.uint8), '.png')
         diagnostics = artifact_dir / "rectification_diagnostics.json"
         diagnostics.write_text(
             json.dumps(result.diagnostics, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return RectificationArtifacts(source, preview, building_mask, diagnostics)
+
+    def generate_components(self, image_path, job_dir, options, *, check_canceled=lambda: None):
+        from ...component_building.service import generate_components
+        return generate_components(image_path, job_dir, options, self.blender, check_canceled=check_canceled)
 
     def prepare_texture(
         self,

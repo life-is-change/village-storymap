@@ -40,15 +40,15 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
   async prepareTaskArtifacts(job,artifacts,bridge){
    const prepared=[];
    for(const a of artifacts){
-    const type=a.artifact_type;if(!geo[type]&&!images.has(type)&&type!=='building_glb')continue;
+    const type=a.artifact_type;if(!geo[type]&&!images.has(type)&&type!=='building_glb'&&type!=='model_manifest')continue;
     if(!/^[a-f0-9]{64}$/.test(a.sha256??''))throw fault('INVALID_FILE');
     let descriptor=await manage(job,'lookup',{artifactType:type,sha256:a.sha256});
     if(descriptor?.state==='ready'){const h=await store.open(descriptor.file_id,{size:Number(descriptor.size),sha256:descriptor.sha256});await h.close();prepared.push(descriptor);continue;}
     const response=await bridge.downloadArtifact({ownerId:job.ownerId,requestId:job.requestId},type);
     try{
     if(response.sha256!==a.sha256){await response.stream.cancel?.();throw fault('INVALID_FILE');}
-    const extension=geo[type]?'geojson':type==='building_glb'?'glb':response.mime==='image/png'?'png':response.mime==='image/jpeg'?'jpg':null;
-    const mime=geo[type]?'application/geo+json':type==='building_glb'?'model/gltf-binary':response.mime;
+    const extension=geo[type]?'geojson':type==='building_glb'?'glb':type==='model_manifest'?'json':response.mime==='image/png'?'png':response.mime==='image/jpeg'?'jpg':null;
+    const mime=geo[type]?'application/geo+json':type==='building_glb'?'model/gltf-binary':type==='model_manifest'?'application/json':response.mime;
     if(!extension||geo[type]&&!['application/json','application/geo+json'].includes(response.mime)||type==='building_glb'&&!['model/gltf-binary','application/octet-stream'].includes(response.mime)){await response.stream.cancel?.();throw fault('INVALID_FILE');}
     const fid=taskFileId(`${instanceId}/${job.sourceRunId}/${type}/${a.sha256}`),spec={artifactType:type,fileId:fid,sha256:a.sha256,size:response.size,mime,extension};
     descriptor=await manage(job,'reserve',spec);let validation;
@@ -60,7 +60,7 @@ export function createTaskFiles({database,store,legacyReader,instanceId}){
      // The deterministic ID is reserved for this task/digest. Only its private,
      // unpublished pending file can be retried after an interrupted stream.
      await store.discard(fid);
-     const staged=await store.stage({fileId:fid,role:geo[type]?.[0]??(extension==='glb'?'display':'photo'),size:response.size,mime,extension,stream:response.stream});
+     const staged=await store.stage({fileId:fid,role:geo[type]?.[0]??(extension==='glb'?'display':extension==='json'?'task:model_manifest.json':'photo'),size:response.size,mime,extension,stream:response.stream});
      if(staged.sha256!==a.sha256){await store.discard(fid);throw fault('INVALID_FILE');}validation=staged.validation;await store.persist(fid);
     }
     if(geo[type]&&validation?.featureCount==null){const h=await store.open(fid,{size:response.size,sha256:a.sha256});let count=0;try{for await(const _f of geoJSONFeatures(h.stream({start:0,end:h.size-1})))count++;}finally{await h.close();}validation={featureCount:count};}

@@ -1739,9 +1739,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return null;
     }
 
+    const area=Math.abs(alignedPoints.reduce((sum,p,i)=>{const q=alignedPoints[(i+1)%alignedPoints.length];return sum+p.x*q.y-q.x*p.y;},0))/2;
     return {
       sizeX,
-      sizeY
+      sizeY,
+      rectangularity: hierarchy.holes?.length ? 0 : Math.min(1,area/((maxX-minX)*(maxY-minY)))
     };
   }
 
@@ -3414,8 +3416,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     if (linkedSpaceId) generatorUrl.searchParams.set("targetSpace", linkedSpaceId);
     if (sourceName) generatorUrl.searchParams.set("targetName", sourceName);
     const footprintHeadingDeg = estimateEntityFootprintHeadingDeg(entity);
-    const footprint = getEntityFootprintSizeMeters(entity, footprintHeadingDeg);
+    const footprint = getEntityFootprintSizeMeters(entity, -footprintHeadingDeg);
     if (footprint) {
+      generatorUrl.searchParams.set("footprintRectangularity", String(footprint.rectangularity || 0));
+      generatorUrl.searchParams.set("footprintHeading", String(footprintHeadingDeg));
+      generatorUrl.searchParams.set("entityAutoHeading", String(getEntityAutoHeading(entity)));
       generatorUrl.searchParams.set("targetLength", footprint.sizeX.toFixed(3));
       generatorUrl.searchParams.set("targetDepth", footprint.sizeY.toFixed(3));
     }
@@ -3470,7 +3475,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const scope = getCurrentModelLibraryScope();
       const library = getGroupModelLibrary();
       if (scope.spaceId !== targetSpaceId) throw new Error('模型库与目标空间不一致，请重新打开生成器。');
-      const modelName = `正立面建筑-${sourceCode}-${String(payload.presetId || 'generated').slice(0, 60)}`;
+      const modelPrefix = payload.generationMethod === 'components' ? (payload.modelPurpose === 'design' ? '改建构件建筑' : '现状构件建筑') : '正立面建筑';
+      const modelName = `${modelPrefix}-${sourceCode}-${String(payload.presetId || 'generated').slice(0, 60)}`;
       const file = new File([glbBuffer], `${modelName}.glb`, { type: 'model/gltf-binary' });
       const transform = {
         scale, heading, heightOffset, offsetX, offsetY, stretchX, stretchY, snapToBase: true
