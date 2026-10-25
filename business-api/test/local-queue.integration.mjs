@@ -122,7 +122,7 @@ test('status polling and Worker progress serialize on the parent task without de
   // A deterministic RED replay of the original function in this disposable
   // cluster proves the overlap test really detects the reported lock cycle.
   const {spawnSync}=await import('node:child_process');
-  const child=spawnSync('python3',['-B','-c',"import sys,json;from pathlib import Path;sys.path.insert(0,'linux/scripts');from task_lock_order import body_pair;print(json.dumps(body_pair(Path('linux/sql/local-tasks.sql').read_text(),'local_worker_call')))"],{encoding:'utf8',timeout:10000});
+  const child=spawnSync('python3',['-B','-c',"import sys,json;sys.path.insert(0,'linux/scripts');from task_lock_order import REPLACEMENTS;print(json.dumps(REPLACEMENTS['local_worker_call'][-1]))"],{encoding:'utf8',timeout:10000});
   assert.equal(child.status,0);const [before,after]=JSON.parse(child.stdout);
   const definition=(await setup.query("SELECT pg_get_functiondef('api_private.local_worker_call(uuid,text,text,text,uuid,uuid,jsonb)'::regprocedure) AS body")).rows[0].body;
   assert.ok(definition.includes(after));await setup.query(definition.replace(after,before));
