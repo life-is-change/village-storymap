@@ -30,7 +30,7 @@
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
   "aliyun_operator": "admin; existing sudo -n docker only, no sudo -v or root Python",
-  "real_deployment": "worker preflight passed; cloud stopped at one idle awaiting-crop task; compatible legacy checkpoint preservation tested; new cloud preflight pending; no apply executed",
+  "real_deployment": "2026-10-26 user confirmed cloud apply and receipt verification passed with this operator/payload; worker previously preflight passed but not applied; Docker storage placement and real photo acceptance pending",
   "ci": {
     "source_commit": "3dda6afb2870c73843cecb9155f322fcb1464b67",
     "native_run": 40203360729,

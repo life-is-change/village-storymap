@@ -98,6 +98,8 @@ Platform40203360731成功（Linux484通过/1项条件跳过、Worker82通过）�
 
 在阿里云以原admin身份直接运行（不用`sudo -v`）：`python3 -B "$HOME/village-component-releases/operators/component-rollout-3dda6afb2870.py" cloud --source-root "$HOME/village-component-releases/village-components-af39f0411ac6" --check`。无其他变化时预期`component_cloud_preflight_passed`、`preserved_awaiting_crop: 1`。两端apply及真实照片验收仍待执行；4090镜像仍由原DockerRootDir管理，其存储边界需在构建前明确。
 
+2026-10-26实际进度：用户返回上述云端预检成功，随后同一脚本及r6源包cloud --apply与--verify均成功，API/Web更新及数据库保留状态已通过回执检查。4090仍未apply，真实照片/旧贴图回归尚未验收。其新代码/日志/临时文件继续集中在newapply/village-platform；镜像库仍在/var/lib/docker，按用户集中存储要求先只读审计迁移体量与其他容器影响，不能默许新镜像继续写系统盘或未经批准全局迁移Docker。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
