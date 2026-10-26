@@ -88,6 +88,8 @@ def test_private_worker_context_uses_verified_r6_code_and_local_archive(tmp_path
     assert (context/'server/src/village_processing/example.py').read_bytes()==files['server/src/village_processing/example.py']
     text=dockerfile.read_text()
     assert 'ADD '+m.BLENDER_ARCHIVE_NAME+' /opt/blender-runtime/' in text
+    assert 'apt-get install' in text and 'libsm6' in text and 'libice6' in text
+    assert text.index('ADD '+m.BLENDER_ARCHIVE_NAME)<text.index('apt-get install')<text.index('COPY --chown')
     assert 'COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator' in text
     assert (context/'rural_house_generator/__init__.py').is_file()
     assert 'urlretrieve' not in text and 'BLENDER_URL' not in text
@@ -120,6 +122,34 @@ def test_import_smoke_checks_new_module_location_not_only_symbol():
         code=m.component_import_smoke(service)
         assert '/opt/village-components/' in code and '__file__' in code
         assert 'build_spec' in code if service=='facade-worker' else 'FacadeMLRuntime' in code
+
+
+def test_missing_shared_libraries_are_reported_before_starting_blender(tmp_path,capsys):
+    m=importlib.import_module('component_rollout');calls=[]
+    class Docker:
+        state=tmp_path
+        def run(self,*args,**kwargs):
+            calls.append(args)
+            return '\tlibSM.so.6 => not found\n\tlibICE.so.6 => not found\n'
+    with pytest.raises(ValueError,match='BLENDER_SYSTEM_LIBRARIES_MISSING'):
+        m.verify_blender_runtime(Docker(),'sha256:fixture','10001:10001')
+    assert len(calls)==1 and 'ldd' in calls[0]
+    out=capsys.readouterr().out
+    assert 'libSM.so.6' in out and 'libICE.so.6' in out
+
+
+def test_docker_failure_identifies_stage_and_log_without_dumping_private_values(tmp_path,capsys):
+    m=importlib.import_module('component_rollout')
+    class Docker:
+        state=tmp_path
+        def run(self,*args,**kwargs):
+            (tmp_path/'operator-000000000000000000000000.log').write_text('SYNTHETIC_PRIVATE_DO_NOT_PRINT')
+            raise RuntimeError('DOCKER_OPERATION_FAILED')
+    with pytest.raises(RuntimeError,match='DOCKER_OPERATION_FAILED'):
+        m.docker_step(Docker(),'blender_runtime_smoke','run')
+    out=capsys.readouterr().out
+    assert 'blender_runtime_smoke' in out and 'operator-000000000000000000000000.log' in out
+    assert 'SYNTHETIC_PRIVATE_DO_NOT_PRINT' not in out
 
 
 def test_real_docker_add_expands_local_xz_without_network(tmp_path):
@@ -170,6 +200,11 @@ def test_real_private_context_imports_as_uid_10001_and_does_not_load_inherited_p
     blob=data.getvalue();monkeypatch.setattr(m,'BLENDER_ARCHIVE_SIZE',len(blob));monkeypatch.setattr(m,'BLENDER_ARCHIVE_SHA256',hashlib.sha256(blob).hexdigest())
     downloads=state/'downloads';downloads.mkdir(mode=0o700);archive=downloads/m.BLENDER_ARCHIVE_NAME;archive.write_bytes(blob);archive.chmod(0o600)
     context,dockerfile=m.prepare_worker_build(state,source)
+    # This fixture tests imports only; the full official Blender test below
+    # executes the production dependency install and exporter/render smoke.
+    import_file=state/'import-fixture.Dockerfile'
+    import_file.write_text(dockerfile.read_text().replace(m.BLENDER_SYSTEM_LIBRARIES_RUN+'\n',''))
+    dockerfile=import_file
     for p in context.rglob('*'):
         if p.is_dir():p.chmod(0o700)  # Same private umask as the production operator.
     prefix=['sudo','-n','docker','--context','default'];images=[];tag='village-component-import-fixture:'+secrets.token_hex(8)
@@ -206,5 +241,45 @@ def test_real_private_context_imports_as_uid_10001_and_does_not_load_inherited_p
             result=run(image,service)
             assert result.returncode==0,result.stderr
         assert all((source/name).read_text()==text for name,text in files.items())
+    finally:
+        for image in reversed(images):subprocess.run([*prefix,'image','rm',image],check=True,capture_output=True)
+
+
+def test_real_official_blender_dependencies_export_and_render_as_nonroot(tmp_path):
+    import os,subprocess,secrets
+    if sys.platform!='linux' or os.environ.get('GITHUB_ACTIONS')!='true':
+        pytest.skip('Full pinned Linux Blender runtime is restricted to disposable CI')
+    m=importlib.import_module('component_rollout');state=tmp_path/'state';state.mkdir(mode=0o700)
+    archive=m.cached_blender_archive(state)
+    context=tmp_path/'context';context.mkdir(mode=0o700)
+    # Same verified local ADD and dependency instruction used by the operator.
+    import shutil
+    shutil.copyfile(archive,context/m.BLENDER_ARCHIVE_NAME)
+    common=('FROM ubuntu:22.04\nADD '+m.BLENDER_ARCHIVE_NAME+' /opt/blender-runtime/\n')
+    suffix='ENV HOME=/tmp/village-home XDG_CACHE_HOME=/tmp/village-cache\nUSER 10001:10001\n'
+    (context/'broken.Dockerfile').write_text(common+suffix)
+    (context/'fixed.Dockerfile').write_text(common+m.BLENDER_SYSTEM_LIBRARIES_RUN+'\n'+suffix)
+    prefix=['sudo','-n','docker','--context','default'];images=[];label=secrets.token_hex(10)
+    class Docker:
+        def __init__(self):self.state=state
+        def run(self,*args,timeout=300):
+            p=subprocess.run([*prefix,*map(str,args)],capture_output=True,text=True,timeout=timeout)
+            assert p.returncode==0,(p.stdout+p.stderr)[-12000:]
+            return p.stdout
+    docker=Docker()
+    try:
+        def build(name):
+            image=docker.run('build','--pull=false','-q','--label','village.component.blender-fixture='+label,
+                             '-f',context/(name+'.Dockerfile'),context,timeout=300).strip()
+            images.append(image);return image
+        broken=build('broken')
+        result=subprocess.run([*prefix,'run','--rm','--network=none','--read-only','--user','10001:10001',
+                               '--entrypoint',m.BLENDER,broken,'--version'],capture_output=True,text=True,timeout=30)
+        assert result.returncode==127 and 'shared libraries' in result.stderr,result.stderr
+        fixed=build('fixed')
+        report=m.verify_blender_runtime(docker,fixed,'10001:10001')
+        assert report['version']==[3,6,23] and report['view_transform']=='Filmic'
+        assert report['glb_bytes']>100 and report['png_bytes']>100
+        assert report['render_engine']=='CYCLES'
     finally:
         for image in reversed(images):subprocess.run([*prefix,'image','rm',image],check=True,capture_output=True)

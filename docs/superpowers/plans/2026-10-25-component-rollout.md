@@ -132,3 +132,13 @@ Ruling: 分离小部署操作器与已验证r6业务/素材包，新增显式--s
 新增回归先红后本地通过：rural根marker、Worker及ML COPY权限和路径、导入位置校验。Linux真实Docker回归待CI：构造带旧regular package的Python3.10.18基础镜像，以0700目录重现缺owner/缺marker/两者组合的导入失败，再验证固定Worker和ML用UID10001、只读rootfs、无网络导入正确overlay模块。真实旧r6配合已缓存完整归档生成101文件v2上下文且原230文件清单不变。独立静态复核无重要阻塞；本地linux/tests 482通过/13跳过、JS1122通过。原生非root Docker测试未在Windows执行，尚不宣称真实服务器修复完成。
 
 精确源码1f139ed的Platform40265443871成功，Linux494通过/1项条件跳过、Worker82通过；真实Docker独立缺owner/缺根marker/组合缺陷的失败及固定Worker/ML的UID10001导入/位置断言均已执行通过。Native40265443944数据库/proxy及完整部署/自身备份恢复成功。当前Worker操作器blob a70877891603582ac946c32e7e78a2004082d42b，38,693字节、SHA37e4eacec6b44eefe0a001cb3bea124169ce3a6680ca2be27a648655058ff47d，官方API实际下载/语法/大小/摘要验证通过。cloud继续原3dda6af，不更换已完成回执指纹；真实4090及照片验收仍待用户，不标记Task4完成。
+
+## 2026-10-26 实际Blender缺libSM：完整官方二进制的系统库与真实渲染验收
+
+用户新日志确认1f修复后候选Worker798ff1f29783da762564a6c61bd9392b16d5fe4c5696b8ae107e360a6bd7af9e的模块以UID10001从/opt/village-components导入成功。下一步官方Blender启动退出127，缺libSM.so.6；无receipt，旧Worker/ML仍原镜像running，ML候选尚未构建。不能把模块导入或归档解压通过当成Blender运行通过。
+
+从已下载并固定SHA的真实Linux Blender可执行ELF读取DT_NEEDED，核对X11/Xrender/Xxf86vm/Xfixes/Xi/xkbcommon及bundled依赖。v3 staging在已缓存ADD之后补安装libsm6/libice6等Ubuntu运行库，--no-upgrade且--no-install-recommends，不安装新CUDA、GPU驱动或模型，不改宿主机。下载缓存仍复用，v1/v2现场和r6原230文件保留。
+
+验收升级：以原User、无网络、只读rootfs和/tmp tmpfs先运行ldd明确列缺库，再启动真实3.6.23创建材质节点，验证Non-Color/Filmic色彩配置，导出并校验GLB头，Cycles CPU渲染32x32 PNG并验签；摘要绑定候选image保存私有report及回执，仍在替换服务前完成。Docker操作额外公开安全阶段及日志basename，遇到失败不用再猜哪一步，不输出原始私密日志。
+
+测试先红后绿，本地linux/tests 484通过/14项平台差异跳过、JS1122通过，真实r6+完整cache生成v3且原清单不变。静态独立复核无重要阻塞。新增一次性Ubuntu22.04+真实官方3.6.23 Docker回归：无库image先复现启动失败，再使用生产APT宏与真实导出/CPU渲染验收验证修复；该完整Linux运行测试待CI，不能以Windows编译或synthetic包测试代替。

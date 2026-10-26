@@ -23,6 +23,51 @@ BLENDER='/opt/blender-runtime/blender-3.6.23-linux-x64/blender'
 BLENDER_ARCHIVE_NAME='blender-3.6.23-linux-x64.tar.xz'
 BLENDER_ARCHIVE_SHA256='0e9a18af4d0060b825e9617e24a775f759e0f9f67271c062f3d53a539030af00'
 BLENDER_ARCHIVE_SIZE=272819000
+BLENDER_SYSTEM_PACKAGES=('libsm6','libice6','libx11-6','libxext6','libxrender1','libxxf86vm1',
+ 'libxfixes3','libxi6','libxkbcommon0','libxcursor1','libxrandr2','libxinerama1',
+ 'libgl1','libegl1','libglu1-mesa','libglib2.0-0','libgomp1','libdbus-1-3')
+BLENDER_SYSTEM_LIBRARIES_RUN=('RUN apt-get update -o Acquire::Retries=3 && '
+ 'DEBIAN_FRONTEND=noninteractive apt-get install -y --no-upgrade --no-install-recommends -o Acquire::Retries=3 '
+ +' '.join(BLENDER_SYSTEM_PACKAGES)+' && rm -rf /var/lib/apt/lists/*')
+BLENDER_RUNTIME_SMOKE_CODE=r'''import bpy,json,struct
+from pathlib import Path
+from mathutils import Vector
+assert bpy.app.version[:3]==(3,6,23), bpy.app.version_string
+bpy.ops.wm.read_factory_settings(use_empty=True)
+scene=bpy.context.scene
+scene.world=bpy.data.worlds.new('SmokeWorld')
+scene.world.color=(0.25,0.25,0.25)
+bpy.ops.mesh.primitive_cube_add()
+cube=bpy.context.object
+mat=bpy.data.materials.new('SmokeMaterial');mat.use_nodes=True
+mat.node_tree.nodes.new('ShaderNodeSeparateColor')
+cube.data.materials.append(mat)
+image=bpy.data.images.new('SmokeColorRole',width=1,height=1)
+image.colorspace_settings.name='Non-Color'
+scene.view_settings.view_transform='Filmic'
+bpy.ops.object.camera_add(location=(4,-6,3))
+camera=bpy.context.object
+camera.rotation_euler=(Vector((0,0,0))-camera.location).to_track_quat('-Z','Y').to_euler()
+scene.camera=camera
+bpy.ops.object.light_add(type='AREA',location=(0,-3,5))
+bpy.context.object.data.energy=600
+bpy.ops.object.select_all(action='DESELECT');cube.select_set(True)
+bpy.context.view_layer.objects.active=cube
+glb=Path('/tmp/component-runtime-smoke.glb')
+bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_apply=True)
+data=glb.read_bytes();magic,version,total=struct.unpack('<4sII',data[:12])
+assert magic==b'glTF' and version==2 and total==len(data)
+scene.render.engine='CYCLES';scene.cycles.device='CPU'
+scene.cycles.samples=1;scene.cycles.use_denoising=True
+scene.render.threads_mode='FIXED';scene.render.threads=2
+scene.render.resolution_x=32;scene.render.resolution_y=32;scene.render.resolution_percentage=100
+scene.render.image_settings.file_format='PNG'
+png=Path('/tmp/component-runtime-smoke.png');scene.render.filepath=str(png)
+bpy.ops.render.render(write_still=True)
+pixels=png.read_bytes();assert pixels[:8]==bytes([137,80,78,71,13,10,26,10])
+print('COMPONENT_BLENDER_SMOKE '+json.dumps({'version':list(bpy.app.version[:3]),'glb_bytes':len(data),
+ 'png_bytes':len(pixels),'view_transform':scene.view_settings.view_transform,'render_engine':scene.render.engine}),flush=True)
+'''
 BLENDER_DOWNLOAD_ROOTS=(
  'https://download.blender.org/release/Blender3.6/',
  'https://mirrors.aliyun.com/blender/release/Blender3.6/',
@@ -304,6 +349,38 @@ def component_import_smoke(service):
             "assert callable(getattr(m,"+repr(symbol)+"))")
 
 
+def docker_step(docker,stage,*args,**kwargs):
+    print(json.dumps({'stage':stage,'status':'started'}),flush=True)
+    try:result=docker.run(*args,**kwargs)
+    except RuntimeError:
+        try:
+            files=list(docker.state.glob('operator-*.log'))
+            log=max(files,key=lambda p:p.stat().st_mtime_ns).name if files else None
+        except OSError:log=None
+        print(json.dumps({'stage':stage,'status':'failed','log':log}),flush=True)
+        raise
+    print(json.dumps({'stage':stage,'status':'passed'}),flush=True)
+    return result
+
+
+def verify_blender_runtime(docker,image,user):
+    common=('run','--rm','--pull=never','--read-only','--network','none','--user',user,
+            '--tmpfs','/tmp:rw,nosuid,nodev,size=128m,mode=1777')
+    output=docker_step(docker,'blender_shared_libraries',*common,'--entrypoint','ldd',image,BLENDER)
+    missing=sorted(set(re.findall(r'^\s*([A-Za-z0-9_.+-]+)\s+=>\s+not found\s*$',output,re.M)))
+    if missing:
+        print(json.dumps({'stage':'blender_shared_libraries','missing':missing}),flush=True)
+        raise ValueError('BLENDER_SYSTEM_LIBRARIES_MISSING')
+    output=docker_step(docker,'blender_export_render_smoke',*common,'--entrypoint',BLENDER,image,
+                      '--background','--factory-startup','--threads','2','--python-exit-code','1','--python-expr',BLENDER_RUNTIME_SMOKE_CODE,timeout=240)
+    rows=[line[len('COMPONENT_BLENDER_SMOKE '):] for line in output.splitlines() if line.startswith('COMPONENT_BLENDER_SMOKE ')]
+    if len(rows)!=1:raise ValueError('BLENDER_RUNTIME_SMOKE_REPORT_MISSING')
+    report=json.loads(rows[0])
+    if report.get('version')!=[3,6,23] or report.get('glb_bytes',0)<20 or report.get('png_bytes',0)<8 or report.get('render_engine')!='CYCLES' or report.get('view_transform')!='Filmic':
+        raise ValueError('BLENDER_RUNTIME_SMOKE_INVALID')
+    return {**report,'image':image}
+
+
 def prepare_worker_build(state,source):
     """Keep the verified r6 payload unchanged; make an isolated offline context."""
     import business_storage_copy as storage
@@ -320,9 +397,11 @@ def prepare_worker_build(state,source):
         original='\n'.join(add if line.startswith(prefixes[2]) else line for line in original.splitlines() if not line.startswith(prefixes[:2]))+'\n'
     if original.splitlines().count(add)!=1 or 'urlretrieve' in original or 'BLENDER_URL' in original:
         raise ValueError('OFFLINE_BLENDER_DOCKERFILE_REQUIRED')
+    if BLENDER_SYSTEM_LIBRARIES_RUN not in original:
+        original=original.replace(add+'\n',add+'\n'+BLENDER_SYSTEM_LIBRARIES_RUN+'\n',1)
     original=runtime_copy_dockerfile(original)
-    # Keep the failed v1 context as evidence; reuse its verified download cache.
-    context=storage.no_links(state/'worker-build-context-v2');context.mkdir(mode=0o700,exist_ok=True)
+    # Preserve failed earlier contexts; reuse their verified download cache.
+    context=storage.no_links(state/'worker-build-context-v3');context.mkdir(mode=0o700,exist_ok=True)
     storage.private_path(context,directory=True)
     files={}
     for name in ('server/src/village_processing','rural_house_generator/backend'):
@@ -436,14 +515,17 @@ def worker(state,source,commit,*,apply,docker):
         base='village-component-base:'+row['Image'][7:19];tag='village-'+suffix+':'+commit[:12]
         dockerfile=worker_dockerfile if service=='facade-worker' else ml_dockerfile
         docker.run('tag',row['Image'],base)
-        docker.run('build','--pull=false','--build-arg','BASE_IMAGE='+base,'--label','village.component.source='+commit,
+        docker_step(docker,'build_'+service,'build','--pull=false','--build-arg','BASE_IMAGE='+base,'--label','village.component.source='+commit,
                    '-f',dockerfile,'-t',tag,context,timeout=1800)
         image=json.loads(docker.run('image','inspect',tag))[0]
         if image.get('Os')!='linux' or image.get('Architecture')!='amd64':raise ValueError('BUILT_IMAGE_PLATFORM_DIFFERS')
         images[name]=image['Id']
         code=component_import_smoke(service)
-        docker.run('run','--rm','--pull=never','--network','none','--user',row['Config'].get('User') or '0','--entrypoint','python',image['Id'],'-c',code)
-        if service=='facade-worker':docker.run('run','--rm','--pull=never','--network','none','--entrypoint',BLENDER,image['Id'],'--version')
+        user=row['Config'].get('User') or '0'
+        docker_step(docker,'import_'+service,'run','--rm','--pull=never','--network','none','--user',user,'--entrypoint','python',image['Id'],'-c',code)
+        if service=='facade-worker':
+            receipt['blender_runtime_smoke']=verify_blender_runtime(docker,image['Id'],user)
+            storage.write_private_json(state/'blender-runtime-smoke.json',receipt['blender_runtime_smoke'])
         original=external_networks(copy.deepcopy(docs[name]));original['services'][service]['image']=row['Image']
         storage.write_private_json(state/(service+'-original.json'),original)
         storage.write_private_json(state/(service+'.json'),worker_document(docs[name],service,image['Id']))
@@ -454,7 +536,7 @@ def worker(state,source,commit,*,apply,docker):
     for name in reversed(names):
         service='facade-worker' if name.endswith('worker-1') else 'facade-ml'
         if docker.inspect(name)['Id']!=rows[name]['Id'] or compose_config(docker,rows[name])!=docs[name]:raise ValueError('CAMPUS_CHANGED_DURING_BUILD')
-        docker.run('compose','-f',state/(service+'.json'),'up','-d','--no-deps','--no-build','--pull','never',service)
+        docker_step(docker,'update_'+service,'compose','-f',state/(service+'.json'),'up','-d','--no-deps','--no-build','--pull','never',service)
         current=wait_healthy(docker,name)
         if resource_snapshot(current)!=resource_snapshot(rows[name]):raise ValueError('UPDATED_WORKER_RESOURCES_CHANGED')
         actual=environment(current['Config']['Env']);old=environment(rows[name]['Config']['Env'])
