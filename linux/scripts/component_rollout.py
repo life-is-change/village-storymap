@@ -283,6 +283,27 @@ def cached_blender_archive(state):
     raise ValueError('BLENDER_DOWNLOAD_UNAVAILABLE')
 
 
+def runtime_copy_dockerfile(text):
+    # Host contexts deliberately stay private (0700). COPY otherwise preserves
+    # those modes with root ownership, hiding modules from runtime UID 10001.
+    copies={
+      'COPY server/src/village_processing /opt/village-components/village_processing':
+        'COPY --chown=10001:10001 server/src/village_processing /opt/village-components/village_processing',
+      'COPY rural_house_generator/backend /opt/village-components/rural_house_generator/backend':
+        'COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator'}
+    result='\n'.join(copies.get(line,line) for line in text.splitlines())+'\n'
+    required='COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator'
+    if result.splitlines().count(required)!=1:raise ValueError('RUNTIME_PACKAGE_COPY_REQUIRED')
+    return result
+
+
+def component_import_smoke(service):
+    module,symbol=('rural_house_generator.backend.component_building.adapter','build_spec') if service=='facade-worker' else ('rural_house_generator.backend.ml_worker','FacadeMLRuntime')
+    return ("import importlib; m=importlib.import_module("+repr(module)+");"
+            "assert m.__file__.startswith('/opt/village-components/'), 'INHERITED_COMPONENT_MODULE_LOADED';"
+            "assert callable(getattr(m,"+repr(symbol)+"))")
+
+
 def prepare_worker_build(state,source):
     """Keep the verified r6 payload unchanged; make an isolated offline context."""
     import business_storage_copy as storage
@@ -299,7 +320,9 @@ def prepare_worker_build(state,source):
         original='\n'.join(add if line.startswith(prefixes[2]) else line for line in original.splitlines() if not line.startswith(prefixes[:2]))+'\n'
     if original.splitlines().count(add)!=1 or 'urlretrieve' in original or 'BLENDER_URL' in original:
         raise ValueError('OFFLINE_BLENDER_DOCKERFILE_REQUIRED')
-    context=storage.no_links(state/'worker-build-context');context.mkdir(mode=0o700,exist_ok=True)
+    original=runtime_copy_dockerfile(original)
+    # Keep the failed v1 context as evidence; reuse its verified download cache.
+    context=storage.no_links(state/'worker-build-context-v2');context.mkdir(mode=0o700,exist_ok=True)
     storage.private_path(context,directory=True)
     files={}
     for name in ('server/src/village_processing','rural_house_generator/backend'):
@@ -308,12 +331,16 @@ def prepare_worker_build(state,source):
         for path in tree.rglob('*'):
             path=storage.no_links(path)
             if path.is_file():files[path.relative_to(source).as_posix()]=path
-    expected=set(files)|{BLENDER_ARCHIVE_NAME,'Dockerfile'}
+    marker='rural_house_generator/__init__.py'
+    expected=set(files)|{BLENDER_ARCHIVE_NAME,'Dockerfile',marker}
     for path in context.rglob('*'):
         path=storage.no_links(path)
         if path.is_file() and path.relative_to(context).as_posix() not in expected:
             raise ValueError('UNEXPECTED_WORKER_BUILD_FILE')
     for name,path in files.items():write_public(context,storage.no_links(context/name).relative_to(context),path.read_bytes())
+    # A namespace directory can lose to an inherited regular package even when
+    # PYTHONPATH points here first. Make this complete overlay package explicit.
+    write_public(context,marker,b'"""Pinned component runtime package."""\n')
     target=storage.no_links(context/BLENDER_ARCHIVE_NAME)
     if target.exists():
         if not valid_blender_archive(target):raise ValueError('PREPARED_BLENDER_ARCHIVE_CHANGED')
@@ -402,18 +429,20 @@ def worker(state,source,commit,*,apply,docker):
     if not apply:return {'status':'component_worker_preflight_passed','separate_compose_configs':True,'services':[public_snapshot(r) for r in rows.values()]}
     receipt={'phase':'prepared','commit':commit,'kind':'worker','before':rows,'other':before}
     images={}
+    context,worker_dockerfile=prepare_worker_build(state,source)
+    ml_dockerfile=write_public(state,'Dockerfile.component-ml-v2',runtime_copy_dockerfile((source/'linux/Dockerfile.component-ml').read_text()).encode())
     for name,row in rows.items():
         service='facade-worker' if name.endswith('worker-1') else 'facade-ml';suffix='component-worker' if service=='facade-worker' else 'component-ml'
         base='village-component-base:'+row['Image'][7:19];tag='village-'+suffix+':'+commit[:12]
-        context,dockerfile=prepare_worker_build(state,source) if service=='facade-worker' else (source,source/'linux'/('Dockerfile.'+suffix))
+        dockerfile=worker_dockerfile if service=='facade-worker' else ml_dockerfile
         docker.run('tag',row['Image'],base)
         docker.run('build','--pull=false','--build-arg','BASE_IMAGE='+base,'--label','village.component.source='+commit,
                    '-f',dockerfile,'-t',tag,context,timeout=1800)
         image=json.loads(docker.run('image','inspect',tag))[0]
         if image.get('Os')!='linux' or image.get('Architecture')!='amd64':raise ValueError('BUILT_IMAGE_PLATFORM_DIFFERS')
         images[name]=image['Id']
-        code='from rural_house_generator.backend.component_building.adapter import build_spec' if service=='facade-worker' else 'from rural_house_generator.backend.ml_worker import FacadeMLRuntime'
-        docker.run('run','--rm','--pull=never','--network','none','--entrypoint','python',image['Id'],'-c',code)
+        code=component_import_smoke(service)
+        docker.run('run','--rm','--pull=never','--network','none','--user',row['Config'].get('User') or '0','--entrypoint','python',image['Id'],'-c',code)
         if service=='facade-worker':docker.run('run','--rm','--pull=never','--network','none','--entrypoint',BLENDER,image['Id'],'--version')
         original=external_networks(copy.deepcopy(docs[name]));original['services'][service]['image']=row['Image']
         storage.write_private_json(state/(service+'-original.json'),original)

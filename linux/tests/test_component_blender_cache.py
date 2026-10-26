@@ -88,6 +88,8 @@ def test_private_worker_context_uses_verified_r6_code_and_local_archive(tmp_path
     assert (context/'server/src/village_processing/example.py').read_bytes()==files['server/src/village_processing/example.py']
     text=dockerfile.read_text()
     assert 'ADD '+m.BLENDER_ARCHIVE_NAME+' /opt/blender-runtime/' in text
+    assert 'COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator' in text
+    assert (context/'rural_house_generator/__init__.py').is_file()
     assert 'urlretrieve' not in text and 'BLENDER_URL' not in text
     assert 'RUN python3 -m pip install --no-cache-dir --no-deps Pillow==11.1.0' in text
     assert not (context/'unrelated-private.env').exists()
@@ -100,6 +102,24 @@ def test_private_worker_context_uses_verified_r6_code_and_local_archive(tmp_path
     (context/'server/src/village_processing/example.py').write_bytes(b'tampered')
     with pytest.raises(ValueError,match='PREPARED_SOURCE_CHANGED'):
         m.prepare_worker_build(state,source)
+
+
+def test_both_runtime_images_copy_readable_owned_regular_package():
+    m=importlib.import_module('component_rollout')
+    for service in ('worker','ml'):
+        original=(ROOT/('linux/Dockerfile.component-'+service)).read_text()
+        fixed=m.runtime_copy_dockerfile(original)
+        assert 'COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator' in fixed
+        assert 'COPY rural_house_generator/backend ' not in fixed
+        if service=='worker':assert 'COPY --chown=10001:10001 server/src/village_processing ' in fixed
+
+
+def test_import_smoke_checks_new_module_location_not_only_symbol():
+    m=importlib.import_module('component_rollout')
+    for service in ('facade-worker','facade-ml'):
+        code=m.component_import_smoke(service)
+        assert '/opt/village-components/' in code and '__file__' in code
+        assert 'build_spec' in code if service=='facade-worker' else 'FacadeMLRuntime' in code
 
 
 def test_real_docker_add_expands_local_xz_without_network(tmp_path):
@@ -124,3 +144,67 @@ def test_real_docker_add_expands_local_xz_without_network(tmp_path):
     finally:
         if container:subprocess.run([*prefix,'rm',container],check=True,capture_output=True)
         subprocess.run([*prefix,'image','rm',image],check=True,capture_output=True)
+
+
+def test_real_private_context_imports_as_uid_10001_and_does_not_load_inherited_package(tmp_path,monkeypatch):
+    import os,subprocess,tarfile,secrets
+    if sys.platform!='linux' or os.environ.get('GITHUB_ACTIONS')!='true':
+        pytest.skip('Actual non-root Docker import fixture is restricted to disposable Linux CI')
+    m=importlib.import_module('component_rollout');source=tmp_path/'source';state=tmp_path/'state';state.mkdir(mode=0o700)
+    worker=(ROOT/'linux/Dockerfile.component-worker').read_text()
+    worker='\n'.join(line for line in worker.splitlines() if not line.startswith('RUN python3 -m pip install'))+'\n'
+    files={
+        'linux/Dockerfile.component-worker':worker,
+        'linux/Dockerfile.component-ml':(ROOT/'linux/Dockerfile.component-ml').read_text(),
+        'server/src/village_processing/__init__.py':"ORIGIN='overlay'\n",
+        'rural_house_generator/backend/__init__.py':'',
+        'rural_house_generator/backend/component_building/__init__.py':'',
+        'rural_house_generator/backend/component_building/adapter.py':"def build_spec():return 'overlay'\n",
+        'rural_house_generator/backend/ml_worker.py':'class FacadeMLRuntime: pass\n',
+    }
+    for name,text in files.items():
+        p=source/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
+    data=io.BytesIO()
+    with tarfile.open(fileobj=data,mode='w:xz') as t:
+        info=tarfile.TarInfo('blender-3.6.23-linux-x64/blender');body=b'synthetic-runtime';info.size=len(body);info.mode=0o755;t.addfile(info,io.BytesIO(body))
+    blob=data.getvalue();monkeypatch.setattr(m,'BLENDER_ARCHIVE_SIZE',len(blob));monkeypatch.setattr(m,'BLENDER_ARCHIVE_SHA256',hashlib.sha256(blob).hexdigest())
+    downloads=state/'downloads';downloads.mkdir(mode=0o700);archive=downloads/m.BLENDER_ARCHIVE_NAME;archive.write_bytes(blob);archive.chmod(0o600)
+    context,dockerfile=m.prepare_worker_build(state,source)
+    for p in context.rglob('*'):
+        if p.is_dir():p.chmod(0o700)  # Same private umask as the production operator.
+    prefix=['sudo','-n','docker','--context','default'];images=[];tag='village-component-import-fixture:'+secrets.token_hex(8)
+    base_dir=tmp_path/'legacy';base_dir.mkdir()
+    (base_dir/'Dockerfile').write_text('FROM python:3.10.18-slim-bookworm\n'
+        'RUN mkdir -p /legacy/rural_house_generator/backend/component_building && touch /legacy/rural_house_generator/__init__.py /legacy/rural_house_generator/backend/__init__.py /legacy/rural_house_generator/backend/component_building/__init__.py\n'
+        'ENV PYTHONPATH=/legacy PYTHONDONTWRITEBYTECODE=1\nUSER 10001:10001\n')
+    def build(file,folder,*extra):
+        result=subprocess.run([*prefix,'build','--pull=false','--network=none','-q',*extra,'-f',str(file),str(folder)],capture_output=True,text=True,timeout=180)
+        assert result.returncode==0,result.stderr[-5000:]
+        image=result.stdout.strip();images.append(image);return image
+    def run(image,service):
+        code='import os;assert os.geteuid()==10001;'+m.component_import_smoke(service)
+        return subprocess.run([*prefix,'run','--rm','--read-only','--network=none','--user','10001:10001','--entrypoint','python',image,'-c',code],capture_output=True,text=True,timeout=30)
+    try:
+        build(base_dir/'Dockerfile',base_dir,'-t',tag,'--label','village.component.import-fixture='+tag)
+        fixed=dockerfile.read_text()
+        # Permission denial and inherited-package precedence independently break
+        # import; together they reproduce the observed missing adapter exactly.
+        broken_versions=[fixed.replace('COPY --chown=10001:10001 ','COPY '),
+            fixed.replace('COPY --chown=10001:10001 rural_house_generator /opt/village-components/rural_house_generator',
+                          'COPY --chown=10001:10001 rural_house_generator/backend /opt/village-components/rural_house_generator/backend')]
+        broken_versions.append(broken_versions[1].replace('COPY --chown=10001:10001 ','COPY '))
+        for i,text in enumerate(broken_versions):
+            file=state/('broken-'+str(i)+'.Dockerfile');file.write_text(text)
+            image=build(file,context,'--build-arg','BASE_IMAGE='+tag)
+            result=run(image,'facade-worker')
+            assert result.returncode!=0 and any(kind in result.stderr for kind in ('ModuleNotFoundError','PermissionError')),result.stderr
+            if i:assert 'ModuleNotFoundError' in result.stderr and 'adapter' in result.stderr,result.stderr
+        for service in ('facade-worker','facade-ml'):
+            file=dockerfile if service=='facade-worker' else state/'ML.Dockerfile'
+            if service=='facade-ml':file.write_text(m.runtime_copy_dockerfile(files['linux/Dockerfile.component-ml']))
+            image=build(file,context,'--build-arg','BASE_IMAGE='+tag)
+            result=run(image,service)
+            assert result.returncode==0,result.stderr
+        assert all((source/name).read_text()==text for name,text in files.items())
+    finally:
+        for image in reversed(images):subprocess.run([*prefix,'image','rm',image],check=True,capture_output=True)
