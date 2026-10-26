@@ -12,17 +12,17 @@
   },
   "worker_operator": {
     "scope": "worker only; completed cloud receipt remains tied to operator above",
-    "source_commit": "d1d347a0470054064393d3b761790fd75b203b74",
+    "source_commit": "1f139ed48fa297237686c40493b3a1a846534599",
     "path": "linux/scripts/component_rollout.py",
-    "filename": "component-worker-rollout-d1d347a04700.py",
-    "blob_sha": "dcfbd6581bf0db01a39b06e4485285a8bc351788",
-    "bytes": 36842,
-    "sha256": "ad76f5c899a8bbd3e76dbbc02e8b9642dc0be0fb61faa782b3c8c447e99ebdf7",
-    "blender_download": "host checksum-verified cache in central state/downloads, then local ADD in isolated build context",
+    "filename": "component-worker-rollout-1f139ed48fa2.py",
+    "blob_sha": "a70877891603582ac946c32e7e78a2004082d42b",
+    "bytes": 38693,
+    "sha256": "37e4eacec6b44eefe0a001cb3bea124169ce3a6680ca2be27a648655058ff47d",
+    "blender_download": "reuse host checksum-verified cache; isolated worker-build-context-v2 with explicit root package and COPY ownership for UID10001 in both Worker/ML",
     "ci": {
-      "platform_run": 40262234399,
+      "platform_run": 40265443871,
       "platform_status": "success",
-      "native_run": 40262234382,
+      "native_run": 40265443944,
       "native_status": "success"
     }
   },
@@ -46,7 +46,7 @@
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
   "docker_global_storage": "unchanged /var/lib/docker for this limited update; new code, host Blender cache, context, logs and receipts remain under central project root",
   "aliyun_operator": "admin; existing sudo -n docker only, no sudo -v or root Python",
-  "real_deployment": "2026-10-26 cloud apply/verify passed with original operator; worker preflight passed but first build hit Blender HTTP403 before receipt/service replacement; old Worker/ML still original images running; offline-cache worker operator and real photo acceptance pending",
+  "real_deployment": "2026-10-26 cloud apply/verify passed with original operator; Worker image built after cached Blender download but adapter import failed before receipt/service replacement; old Worker/ML original images still running; non-root package fix and real photo acceptance pending",
   "ci": {
     "source_commit": "3dda6afb2870c73843cecb9155f322fcb1464b67",
     "native_run": 40203360729,

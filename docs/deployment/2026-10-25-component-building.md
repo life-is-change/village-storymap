@@ -112,6 +112,14 @@ Platform40203360731成功（Linux484通过/1项条件跳过、Worker82通过）�
 
 **回执分离：**已完成的阿里云继续使用`component-rollout-3dda6afb2870.py`及原指纹；新脚本只用于`worker`。其源码路径仍为linux/scripts/component_rollout.py，但不能用新指纹去验证旧云端回执。metadata的`operator`保留云端旧版本，`worker_operator`单列本次补丁；无需重新下载8MB源包或重新执行云端apply。
 
+### 当前Worker操作器：非root权限与包路径修复
+
+用户运行上述d1版本后，完整包下载及候选Worker镜像构建已成功（4e926e635ca5aeec207ba2a5ca6ec3363da1dba5702202ba8a6a704272465e81），但adapter导入检查失败，尚无receipt，旧服务未变。私有上下文0700目录经普通COPY会归root，且namespace rural根可输给继承regular package，必须补足非root导入验收。
+
+当前Worker脚本为`component-worker-rollout-1f139ed48fa2.py`，源码1f139ed48fa297237686c40493b3a1a846534599，blob a70877891603582ac946c32e7e78a2004082d42b；38,693字节、SHA256 `37e4eacec6b44eefe0a001cb3bea124169ce3a6680ca2be27a648655058ff47d`，已实际从GitHub API下载校验。继续复用原r6和已验证的完整Blender下载缓存，不重新下载；生成worker-build-context-v2（101文件）保留原失败v1。Worker和ML共享只含已验证backend/服务代码、固定包及生成marker的上下文，numeric COPY --chown10001:10001保证运行用户可读，显式rural根包防止旧包优先加载；不放宽宿主机私有目录、不修改原r6或云端。
+
+导入smoke使用原容器User，并断言adapter/ML模块__file__来自/opt/village-components，仍在receipt和替换服务之前。Platform40265443871成功（Linux494通过/1项条件跳过，Worker82通过），包含真实Docker以UID10001、只读rootfs、无网络导入固定Worker/ML，以及分别撤销owner/根marker/两者组合复现导入失败的回归。Native40265443944数据库/proxy、完整部署及自身备份恢复成功。独立复核无重要阻塞，真实r6原230文件再次通过清单。真实4090仍需用当前脚本重新check/apply/verify及照片验收，不能把候选镜像构建成功或CI通过当作生产已替换。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
