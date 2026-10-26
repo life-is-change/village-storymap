@@ -142,3 +142,5 @@ Ruling: 分离小部署操作器与已验证r6业务/素材包，新增显式--s
 验收升级：以原User、无网络、只读rootfs和/tmp tmpfs先运行ldd明确列缺库，再启动真实3.6.23创建材质节点，验证Non-Color/Filmic色彩配置，导出并校验GLB头，Cycles CPU渲染32x32 PNG并验签；摘要绑定候选image保存私有report及回执，仍在替换服务前完成。Docker操作额外公开安全阶段及日志basename，遇到失败不用再猜哪一步，不输出原始私密日志。
 
 测试先红后绿，本地linux/tests 484通过/14项平台差异跳过、JS1122通过，真实r6+完整cache生成v3且原清单不变。静态独立复核无重要阻塞。新增一次性Ubuntu22.04+真实官方3.6.23 Docker回归：无库image先复现启动失败，再使用生产APT宏与真实导出/CPU渲染验收验证修复；该完整Linux运行测试待CI，不能以Windows编译或synthetic包测试代替。
+
+源码ab908db的Platform40283154692成功（Linux497通过/1项条件跳过、Worker82通过），完整官方Blender+真实Ubuntu运行库/GLB/CPU渲染回归已执行通过；Native40283154729数据库/proxy及完整部署/自身备份恢复成功。公开操作器blob cc732162c35f2076b1200c102dfb0d3d518602c5，43,507字节、SHA274927ea7c2d96ea7c12559c756a959836a89de99a15389c0992a713218e925d，已通过精确提交raw源实际下载/大小/摘要/语法校验。本地匿名GitHub REST遇限额，改读公开Actions嵌入运行列表确定精确commit的run IDs，使用已连接GitHub工具核对jobs/logs；不把无法访问的API误当作CI失败或索要新凭据。云端继续旧3dda6af，真实4090和照片验收仍未完成。

@@ -120,6 +120,14 @@ Platform40203360731成功（Linux484通过/1项条件跳过、Worker82通过）�
 
 导入smoke使用原容器User，并断言adapter/ML模块__file__来自/opt/village-components，仍在receipt和替换服务之前。Platform40265443871成功（Linux494通过/1项条件跳过，Worker82通过），包含真实Docker以UID10001、只读rootfs、无网络导入固定Worker/ML，以及分别撤销owner/根marker/两者组合复现导入失败的回归。Native40265443944数据库/proxy、完整部署及自身备份恢复成功。独立复核无重要阻塞，真实r6原230文件再次通过清单。真实4090仍需用当前脚本重新check/apply/verify及照片验收，不能把候选镜像构建成功或CI通过当作生产已替换。
 
+### 当前Worker操作器：系统库及真实Blender导出/渲染
+
+用户新现场确认候选798ff1的UID10001导入已经通过，下一步Blender因缺libSM.so.6退出127；ML尚未构建，无receipt，两旧服务仍原镜像running。当前Worker脚本更新为`component-worker-rollout-ab908db95413.py`，源码ab908db95413cc8de2af640d2fea72750984976f，blob cc732162c35f2076b1200c102dfb0d3d518602c5；43,507字节、SHA256 `274927ea7c2d96ea7c12559c756a959836a89de99a15389c0992a713218e925d`，已从精确提交的公开raw源实际下载校验及编译。原cloud脚本/回执和r6不变。
+
+v3上下文复用原下载缓存，保留失败v1/v2；在ADD后、代码COPY前，仅为新Worker镜像安装libsm6/libice6等运行库（--no-upgrade、--no-install-recommends），不改宿主机、CUDA、GPU驱动或ML依赖。替换服务前必须以原User、只读rootfs、无网络及/tmp tmpfs通过ldd，再用真实3.6.23验证材质节点、Non-Color/Filmic、GLB文件头和Cycles CPU 32x32 PNG。报告绑定候选image写入私有state与回执，失败公开具体安全阶段和日志basename，缺库直接公开SONAME清单，不输出原始私密日志。
+
+精确源码Platform40283154692成功（Linux497通过/1项条件跳过、Worker82通过），包含真实官方完整包+Ubuntu22.04：先复现无库启动失败，再按生产APT宏安装后实际完成非root GLB导出和CPU渲染；不是synthetic归档替代。Native40283154729数据库/proxy及完整部署/自身备份恢复成功。本地484通过/14项条件跳过、JS1122通过，独立复核无重要阻塞。真实r6及完整缓存生成v3且原230文件清单通过。真实4090仍待新脚本check/apply/verify、实际照片及旧贴图回归，不能把CI渲染当作生产已升级。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。
