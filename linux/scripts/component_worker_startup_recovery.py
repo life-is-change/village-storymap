@@ -31,6 +31,12 @@ def digest(value):
     return hashlib.sha256(value).hexdigest()
 
 
+def base_reference():
+    # BuildKit treats a bare config-image sha as a registry reference. Use a
+    # private local tag and verify that it resolves to the exact known image.
+    return 'village-component-health-base:' + IMAGES[WORKER][7:19]
+
+
 def validate_baseline(m, receipt, rows, documents, attempt, progress=None):
     expected = dict(IMAGES)
     if receipt.get('phase') == 'complete' and progress:
@@ -83,7 +89,7 @@ def prepare_context(folder, source, m):
     context = folder / 'build-context'
     context.mkdir(mode=0o700, exist_ok=True)
     m.write_public(context, 'health.py', source)
-    dockerfile = ('FROM ' + IMAGES[WORKER] + '\n'
+    dockerfile = ('FROM ' + base_reference() + '\n'
                   'COPY --chown=10001:10001 health.py /opt/village-components/village_processing/health.py\n')
     m.write_public(context, 'Dockerfile', dockerfile.encode())
     return context
@@ -200,6 +206,9 @@ def recover(state, docker, m, storage, helper, *, apply):
             else:
                 raise ValueError('STARTUP_HEALTH_SOURCE_UNAVAILABLE')
         context = prepare_context(folder, source, m)
+        docker.run('tag', IMAGES[WORKER], base_reference())
+        if json.loads(docker.run('image', 'inspect', base_reference()))[0]['Id'] != IMAGES[WORKER]:
+            raise ValueError('STARTUP_LOCAL_BASE_IMAGE_CHANGED')
         image = m.docker_step(docker, 'build_worker_health_overlay', 'build', '--pull=false', '--network=none', '-q',
                               '-t', 'village-component-worker:health-' + HEALTH_SHA[:12], context, timeout=120).strip()
         if not re.fullmatch('sha256:[a-f0-9]{64}', image):

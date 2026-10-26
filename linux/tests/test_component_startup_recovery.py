@@ -63,7 +63,7 @@ def test_pinned_health_overlay_reuses_every_base_layer_and_changes_only_one_file
     assert (context / 'health.py').read_bytes() == source
     text = (context / 'Dockerfile').read_text()
     assert text.splitlines() == [
-        'FROM sha256:3d8f777714d5b611f2312a29f3a606e9c234b4a92b3181c87133cd1307657ef3',
+        'FROM village-component-health-base:3d8f777714d5',
         'COPY --chown=10001:10001 health.py /opt/village-components/village_processing/health.py',
     ]
     with pytest.raises(ValueError, match='STARTUP_HEALTH_SOURCE_CHANGED'):
@@ -202,6 +202,7 @@ def test_real_health_copy_overlay_preserves_image_configuration_and_nonroot_acce
                             'CMD ["python","-c","import time;time.sleep(120)"]\n')
         base = docker('build', '-q', '-f', basefile, tmp_path).strip();images.append(base)
         monkeypatch.setitem(m.IMAGES, m.WORKER, base)
+        docker('tag', base, m.base_reference())
         source = (Path(__file__).resolve().parents[2] / 'server/src/village_processing/health.py').read_bytes()
         context = m.prepare_context(tmp_path, source, rollout)
         image = docker('build', '--pull=false', '--network=none', '-q', context).strip();images.append(image)
@@ -216,6 +217,7 @@ def test_real_health_copy_overlay_preserves_image_configuration_and_nonroot_acce
         docker('run', '--rm', '--read-only', '--network=none', '--env', 'PYTHONPATH=/opt/village-components:/app',
                '--entrypoint', 'python', image, '-c', code)
     finally:
+        subprocess.run([*prefix, 'image', 'rm', m.base_reference()], capture_output=True)
         for image in reversed(images): subprocess.run([*prefix, 'image', 'rm', image], capture_output=True)
 
 
@@ -254,9 +256,11 @@ def test_recovery_executes_targeted_update_and_never_completes_failed_checks(tmp
                 return json.dumps([{'Name': name, 'Id': network_id,
                                     'Containers': {self.rows[m.WORKER]['Id']: {'Name': m.WORKER}}}])
             if args[0] == 'build': self.builds += 1;return 'sha256:' + 'c' * 64
+            if args[0] == 'tag': return ''
             if args[:2] == ('image', 'inspect'):
                 layers = ['base'] + (['health'] if args[2].endswith('c' * 64) else [])
-                return json.dumps([{'Config': {'User': '10001:10001'}, 'RootFS': {'Layers': layers},
+                image_id = 'sha256:' + 'c' * 64 if args[2].endswith('c' * 64) else m.IMAGES[m.WORKER]
+                return json.dumps([{'Id': image_id, 'Config': {'User': '10001:10001'}, 'RootFS': {'Layers': layers},
                                     'Os': 'linux', 'Architecture': 'amd64'}])
             if args[0] == 'run':
                 if self.failure == 'import' and '__main__,health' in args[-1]: raise RuntimeError('DOCKER_OPERATION_FAILED')
