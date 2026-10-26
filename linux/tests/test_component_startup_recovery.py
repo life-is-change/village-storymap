@@ -197,7 +197,7 @@ def test_real_health_copy_overlay_preserves_image_configuration_and_nonroot_acce
             path = tmp_path / relative;path.parent.mkdir(parents=True, exist_ok=True);path.write_text(content)
         basefile = tmp_path / 'base.Dockerfile'
         basefile.write_text('FROM python:3.10.18-slim\nENV PYTHONPATH=/opt/village-components\n'
-                            'COPY legacy /app\nCOPY overlay /opt/village-components\n'
+                            'COPY --chown=10001:10001 legacy /app\nCOPY --chown=10001:10001 overlay /opt/village-components\n'
                             'USER 10001:10001\nWORKDIR /opt/village-components\n'
                             'CMD ["python","-c","import time;time.sleep(120)"]\n')
         base = docker('build', '-q', '-f', basefile, tmp_path).strip();images.append(base)
