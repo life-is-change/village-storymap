@@ -4,6 +4,7 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const source = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function functions(first, next, name, sandbox) {
+  sandbox.GenerationMode ||= require('./generation-mode.js');
   const guardStart = source.indexOf('function isCurrentFacadeRun(');
   if (guardStart >= 0) vm.runInNewContext(source.slice(guardStart, source.indexOf('async function applyFacadeRun(', guardStart)), sandbox);
   return vm.runInNewContext(source.slice(source.indexOf(first), source.indexOf(next, source.indexOf(first))) + ';' + name, sandbox);
@@ -45,6 +46,12 @@ test('a successful submit is not reported as a failed submission when reading pr
 test('account task limit explains unfinished jobs and roof confirmation instead of a photo read error', async () => {
   const { submit } = setupSubmit({ submit: async () => { throw new Error('TOO_MANY_ACTIVE_FACADE_RUNS'); } });
   await assert.rejects(submit({ id: 36 }), /2.*未结束.*屋顶/);
+});
+
+test('unsupported existing footprint is rejected before worker lookup or photo processing',async()=>{
+ const {submit,sandbox,calls}=setupSubmit();
+ Object.assign(sandbox.state,{generationMethod:'components',modelPurpose:'existing',footprintRectangularity:.9692395268270527});
+ await assert.rejects(submit({id:47}),/占地|矩形/);assert.equal(calls.submitted,0);
 });
 function setupAttach(queue) {
   const applied = [], calls = { polls: 0 };
@@ -132,6 +139,33 @@ test('an old preview completing after a task switch cannot change the current ph
   release(); await pending;
   assert.equal(sandbox.els.photoPreview.src, undefined);
   assert.equal(sandbox.state.rectifiedUrl, undefined);
+});
+
+test('a preview not yet synchronized is pending instead of a processing failure',async()=>{
+ const queue={},run={id:'waiting',status:'awaiting_crop'};
+ const sandbox={state:{facadeQueue:queue,photoJobId:'waiting',facadeRunRevision:1,currentFacadeRun:run},facadeArtifact:async()=>null};
+ const load=functions('async function loadRectifiedPreview(', 'async function loadCompletedFacadeModel(', 'loadRectifiedPreview',sandbox);
+ assert.equal(await load(run),false);
+});
+
+test('result download failure cannot turn a responding Worker into a network outage',async()=>{
+ const queue={getRun:async()=>({id:'r',status:'awaiting_crop'}),getWorkerAvailability:async()=>({available:true})};
+ const sandbox={state:{facadeQueue:queue,photoJobId:'r',facadeRunRevision:1,facadePollDelay:2000,currentFacadeRun:{status:'awaiting_crop'}},
+  document:{},clearFacadePollTimer(){},applyFacadeRun:async()=>{throw Error('preview download failed');},
+  scheduleFacadePoll(){},renderPhotoServiceState(){},setStatus(){},console};
+ const poll=functions('async function pollFacadeRun(', 'async function recoverCurrentPhoto(', 'pollFacadeRun',sandbox);
+ await poll();assert.equal(sandbox.state.photoServiceStatus,'online');assert.equal(sandbox.state.facadeResultPending,true);
+});
+
+test('a completed model is displayed even when its optional photo preview is unavailable',async()=>{
+ const run={id:'complete',status:'completed'},queue={};let models=0;
+ const sandbox={state:{facadeQueue:queue,photoJobId:run.id,facadeRunRevision:1},
+  PhotoWorkflow:{canConfirmCrop:()=>true,facadeStatusPresentation:()=>({terminal:true})},
+  restoreGenerationMode(){},renderGenerationMode(){},setProgress(){},setStatus(){},renderFacadeStep(){},
+  loadCompletedFacadeModel:async()=>{models++;},loadRectifiedPreview:async()=>{throw Error('preview unavailable');},
+  els:{photoFallbackActions:{}},clearFacadePollTimer(){},console};
+ const apply=functions('async function applyFacadeRun(', 'function renderFacadeStep(', 'applyFacadeRun',sandbox);
+ await apply(run);assert.equal(models,1);assert.equal(sandbox.state.facadeResultPending,false);
 });
 
 test('an old completed GLB cannot apply after a new generation of the same run starts', async () => {

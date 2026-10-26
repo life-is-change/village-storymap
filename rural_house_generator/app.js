@@ -82,6 +82,7 @@ const state = {
   photoFile: null,
   photoUrl: null,
   rectifiedUrl: null,
+  rectifiedRunKey: '',
   photoJobId: '',
   photoImage: null,
   cropTop: 0.12,
@@ -236,6 +237,11 @@ function renderGenerationMode() {
   const active=state.currentFacadeRun&&!['completed','failed','canceled','revoked'].includes(state.currentFacadeRun.status);
   document.getElementById('cancelGenerationTask').hidden=!active;
   els.componentParameters.hidden=!components;
+  const constraint=GenerationMode.footprintSupport(state.generationMethod,state.modelPurpose,state.footprintRectangularity);
+  const notice=document.getElementById('generationConstraint');
+  notice.hidden=constraint.supported;notice.textContent=constraint.message;
+  document.getElementById('generationSourceCard').hidden=components;
+  els.generateBtn.disabled=!constraint.supported||state.facadeResultPending||Boolean(active&&state.currentFacadeRun.status!=='awaiting_crop');
   els.lengthInput.readOnly=components&&existing;els.widthInput.readOnly=components&&existing;
   if (components&&existing&&state.targetDimensions) {
     els.lengthInput.value=String(state.targetDimensions.length);
@@ -250,15 +256,18 @@ function renderGenerationMode() {
   els.generationModeHint.textContent=components
     ? existing?'保留原白模占地和朝向；实拍图清理、矫正后保留完整屋顶。':'上传标准正立面；跳过清理与透视矫正，尺寸继承白模并可修改。'
     :'照片贴到白模墙面，保留现有处理流程。';
-  els.photoPipelineHint.textContent=components?'保留完整屋顶 → 构件识别 → Blender建模':'先正立面化，再裁屋顶并生成模型';
-  els.cropHint.textContent=components?'本方式不裁掉屋顶；清理时保护空调、栏杆和檐口。':'正立面预处理完成后，拖动分界线切掉屋顶。';
+  els.photoPipelineHint.textContent=components?(existing?'清理与校正 → 完整建筑识别 → 建模':'标准立面 → 构件识别 → 建模'):'先校正立面，再确认屋顶线';
+  els.cropHint.textContent=components?(existing?'保留完整屋顶；清理时保护空调、栏杆和檐口。':'标准正立面直接用于识别与建模，不清理、不做透视校正。'):'正立面预处理完成后，拖动分界线切掉屋顶。';
   els.roofAdvanced.hidden=components;
   if(components){els.roofCropShade.hidden=true;els.roofCropHandle.hidden=true;}
   els.generateBtn.textContent=components?'生成构件建筑':'生成正立面贴图建筑';
   els.photoGenerateBtn.textContent=components?'识别完整建筑并生成构件模型':'按当前主体范围生成模型';
   els.configHint.textContent=components?'墙体高度按正面长度与图中墙身比例计算，不使用白模默认9m。':'填写白模正面长度与进深；墙体高度按正立面比例计算。';
-  const cropStep=els.photoSteps?.querySelector('[data-step="crop"]');
-  if(cropStep)cropStep.textContent=components?'4. 确认建模参数':'4. 裁剪屋顶';
+  const labels=GenerationMode.stepLabels(state.generationMethod,state.modelPurpose);
+  els.photoSteps?.querySelectorAll('[data-step]').forEach(item=>{
+    const step=labels.find(value=>value.key===item.dataset.step);item.hidden=!step;
+    if(step)item.textContent=step.label;
+  });
   renderRoofAnalysis();
 }
 
@@ -505,6 +514,8 @@ async function submitFacadePhoto(photo) {
 }
 
 async function performFacadePhotoSubmission(photo) {
+  const support=GenerationMode.footprintSupport(state.generationMethod,state.modelPurpose,state.footprintRectangularity);
+  if(!support.supported)throw new Error(support.message);
   if (state.facadeInitializationPromise) await state.facadeInitializationPromise;
   if (!state.facadeQueue || !state.facadeContext) {
     throw new Error('平台登录上下文尚未就绪');
@@ -608,30 +619,42 @@ async function applyFacadeRun(run) {
   state.currentFacadeRun = run;
   restoreGenerationMode(run);
   state.facadeResultPending = PhotoWorkflow.canConfirmCrop(run);
+  renderGenerationMode();
   state.photoWorkflowState = String(run?.status || 'idle');
   const presentation = PhotoWorkflow.facadeStatusPresentation(run, state.photoServiceStatus);
   setProgress(presentation.progress, presentation.message);
   setStatus(presentation.message, run?.status === 'failed');
   renderFacadeStep(run?.status);
-  if (PhotoWorkflow.canConfirmCrop(run)) {
-    await loadRectifiedPreview(run, queue, revision);
+  if (run?.status === 'awaiting_crop') {
+    const ready=await loadRectifiedPreview(run, queue, revision);
     if (!isCurrentFacadeResult(run, queue, revision)) return;
+    if (!ready) {
+      setStatus('照片处理已完成，正在同步预览图；任务会自动继续，无需重新上传。');
+      els.photoGenerateBtn.disabled=true;
+      return;
+    }
   }
   if (run?.status === 'completed') {
     await loadCompletedFacadeModel(run, queue, revision);
     if (!isCurrentFacadeResult(run, queue, revision)) return;
+    try {await loadRectifiedPreview(run,queue,revision);}
+    catch(error){console.warn('模型已就绪，附属照片预览暂未读取：',error);}
+    if (!isCurrentFacadeResult(run, queue, revision)) return;
   }
   state.facadeResultPending = false;
-  els.photoFallbackActions.hidden = run?.status !== 'failed';
+  const preparationFailure=run?.status==='failed'&&!String(run.error_code||run.errorCode||'').startsWith('COMPONENT_');
+  els.photoFallbackActions.hidden = !preparationFailure;
+  renderGenerationMode();
   if (presentation.terminal) clearFacadePollTimer();
 }
 
 function renderFacadeStep(status) {
+  if (state.generationMethod==='components'&&state.modelPurpose==='design'&&['pending','queued_rectification','claimed_rectification','rectifying'].includes(status)) {setPhotoStep('upload');return;}
   if (['pending', 'queued_rectification', 'claimed_rectification'].includes(status)) setPhotoStep('identify');
   else if (status === 'rectifying') setPhotoStep('rectify');
   else if (status === 'awaiting_crop') setPhotoStep('crop');
   else if (['queued_generation', 'claimed_generation', 'generating', 'completed'].includes(status)) setPhotoStep('generate');
-  else if (status === 'failed') setPhotoStep('rectify', true);
+  else if (status === 'failed') setPhotoStep(String(state.currentFacadeRun?.error_code||state.currentFacadeRun?.errorCode||'').startsWith('COMPONENT_')?'generate':'rectify', true);
 }
 
 async function facadeArtifact(runId, artifactType, queue = state.facadeQueue) {
@@ -642,14 +665,17 @@ async function facadeArtifact(runId, artifactType, queue = state.facadeQueue) {
 }
 
 async function loadRectifiedPreview(run, queue = state.facadeQueue, revision = state.facadeRunRevision) {
+  const key=GenerationMode.previewKey(run);
+  if(GenerationMode.previewReady(run,state.rectifiedRunKey,state.rectifiedUrl))return true;
   const artifact = await facadeArtifact(run.id, 'rectified_preview', queue);
   if (!isCurrentFacadeResult(run, queue, revision)) return;
-  if (!artifact) throw new Error('正立面预处理未返回预览图');
+  if (!artifact) return false;
   const url = await queue.createArtifactUrl(artifact.storage_path);
   if (!isCurrentFacadeResult(run, queue, revision)) return;
   const image = await loadImage(url);
   if (!isCurrentFacadeResult(run, queue, revision)) return;
   state.rectifiedUrl = url;
+  state.rectifiedRunKey = key;
   state.photoImage = image;
   els.photoPreview.src = url;
   els.photoPreview.hidden = false;
@@ -668,8 +694,9 @@ async function loadRectifiedPreview(run, queue = state.facadeQueue, revision = s
     warnings: ['请确认屋顶线']
   });
   renderRoofAnalysis();
-  els.activeLabel.textContent = state.generationMethod === 'components' ? '完整建筑立面：保留屋顶，等待构件建模' : '规范正立面：等待确认屋顶线';
+  if(run.status!=='completed')els.activeLabel.textContent = state.generationMethod === 'components' ? '完整建筑立面：保留屋顶，等待构件建模' : '规范正立面：等待确认屋顶线';
   renderGenerationMode();
+  return true;
 }
 
 async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision = state.facadeRunRevision) {
@@ -838,6 +865,7 @@ async function setPhotoFile(file) {
   state.photoFile = file;
   state.photoUrl = URL.createObjectURL(file);
   state.rectifiedUrl = null;
+  state.rectifiedRunKey = '';
   state.cropTop = 0.12;
   state.photoWorkflowState = 'idle';
   resetRoofAnalysis();
@@ -918,9 +946,11 @@ function resetRoofAnalysis() {
 }
 
 function renderRoofAnalysis() {
+  const previewReady=GenerationMode.previewReady(state.currentFacadeRun,state.rectifiedRunKey,state.rectifiedUrl);
   if (state.generationMethod === 'components') {
     els.roofAnalysisSummary.textContent = '完整屋顶交给本地识别；墙高按立面比例估算，不使用默认9m。';
-    els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun);
+    els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun)||!previewReady
+      ||!GenerationMode.footprintSupport(state.generationMethod,state.modelPurpose,state.footprintRectangularity).supported;
     return;
   }
   const presentations = {
@@ -939,7 +969,7 @@ function renderRoofAnalysis() {
     els.roofAnalysisSummary.textContent = message;
   }
   const analysisReady = ['ready', 'fallback'].includes(state.roofAnalysisStatus);
-  els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun) || !analysisReady;
+  els.photoGenerateBtn.disabled = !PhotoWorkflow.canConfirmCrop(state.currentFacadeRun) || !analysisReady || !previewReady;
 }
 
 function syncRoofInputs() {
@@ -1010,13 +1040,22 @@ async function pollFacadeRun() {
   if (!state.facadeQueue || !state.photoJobId || document.hidden) return;
   const queue = state.facadeQueue, runId = state.photoJobId, revision = state.facadeRunRevision;
   try {
-    const [run, availability] = await Promise.all([
+    const [runResult, availabilityResult] = await Promise.allSettled([
       queue.getRun(runId),
       queue.getWorkerAvailability()
     ]);
+    if(runResult.status==='rejected')throw runResult.reason;
+    const run=runResult.value;
     if (!isCurrentFacadeRun(runId, queue, revision)) return;
-    state.photoServiceStatus = availability?.available ? 'online' : 'offline';
-    await applyFacadeRun(run);
+    if(availabilityResult.status==='fulfilled')state.photoServiceStatus = availabilityResult.value?.available ? 'online' : 'offline';
+    renderPhotoServiceState();
+    try {await applyFacadeRun(run);}
+    catch(error){
+      if(!isCurrentFacadeRun(runId,queue,revision))return;
+      state.facadeResultPending=true;
+      console.warn('立面结果暂未读取成功，保留任务并重试：',error);
+      if(typeof setStatus==='function')setStatus('任务已保存，结果暂未读取成功，正在自动重试；请勿重复提交。');
+    }
     if (!isCurrentFacadeRun(runId, queue, revision)) return;
     state.facadePollDelay = 2000;
   } catch (error) {
@@ -1106,6 +1145,11 @@ async function generatePhotoModel() {
     setStatus('请先等待原始照片完成正立面预处理。', true);
     return;
   }
+  const support=GenerationMode.footprintSupport(state.generationMethod,state.modelPurpose,state.footprintRectangularity);
+  if(!support.supported){setStatus(support.message,true);return;}
+  if(!GenerationMode.previewReady(state.currentFacadeRun,state.rectifiedRunKey,state.rectifiedUrl)){
+    setStatus('正在等待本次任务的预览图同步完成，请稍候。');scheduleFacadePoll(0);return;
+  }
   if (state.generationMethod !== 'components' && !['ready', 'fallback'].includes(state.roofAnalysisStatus)) {
     setStatus('请等待系统完成屋顶自动匹配。', true);
     return;
@@ -1143,8 +1187,7 @@ async function generatePhotoModel() {
     setStatus(`提交生成失败：${String(error?.message || error)}`, true);
   } finally {
     if (state.facadeQueue === queue && state.photoJobId === runId) scheduleFacadePoll(0);
-    els.generateBtn.disabled = false;
-    renderRoofAnalysis();
+    renderGenerationMode();
   }
 }
 

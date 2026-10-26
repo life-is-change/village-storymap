@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>乡村建筑 3D 生成器</title>
-  <link rel="stylesheet" href="./style.css?v=20260911-photo-lifecycle-fix" />
+  <link rel="stylesheet" href="./style.css?v=20261027-preview-layout" />
   <script type="importmap">
   {
     "imports": {
@@ -19,7 +19,7 @@
     <header class="topbar">
       <div class="topbar-copy">
         <h1>乡村建筑 3D 生成器</h1>
-        <p>照片贴图或本地构件建模 · 4090 工作站生成 · 预览后应用</p>
+        <p>上传建筑照片，生成可预览、下载并应用的三维建筑</p>
       </div>
       <div class="top-actions">
         <button id="generateBtn" class="primary">生成 3D 建筑</button>
@@ -30,20 +30,21 @@
 
     <main class="workspace">
       <aside class="sidebar">
-        <section class="card">
+        <section class="card generation-card">
           <h2>生成方式与用途</h2>
           <div class="form-grid">
             <label><span>生成方式</span><select id="generationMethod"><option value="texture">原有照片贴图</option><option value="components">本地构件建模</option></select></label>
             <label><span>用途</span><select id="modelPurpose"><option value="existing">还原村庄现状</option><option value="design">新建 / 改建农房</option></select></label>
           </div>
           <p id="generationModeHint" class="hint">照片贴到白模墙面，保留现有处理流程。</p>
+          <p id="generationConstraint" class="generation-constraint" role="alert" hidden></p>
           <button id="cancelGenerationTask" type="button" hidden>取消当前任务以更换方式 / 照片</button>
           <div id="componentParameters" class="form-grid" hidden>
             <label><span>建筑层数</span><select id="componentFloors"><option value="1">1 层</option><option value="2">2 层</option><option value="3" selected>3 层</option><option value="4">4 层</option><option value="5">5 层</option><option value="6">6 层</option></select></label>
             <label><span>主屋顶数量</span><select id="componentRoofs"><option value="">自动候选</option><option value="1">1 个</option><option value="2">2 个</option></select></label>
           </div>
         </section>
-        <section class="card source-card" aria-label="标准正立面获取方式">
+        <section id="generationSourceCard" class="card source-card" aria-label="标准正立面获取方式">
           <h2>选择处理方式</h2>
           <button class="source-button active" type="button" data-facade-source="local_worker"><strong>工作站自动处理</strong><span>4090 自动校正与建模</span></button>
           <button class="source-button" type="button" data-facade-source="external_prompt"><strong>外部 AI 辅助</strong><span>复制提示词，上传处理结果</span></button>
@@ -124,7 +125,7 @@
           <div id="photoFallbackActions" class="photo-fallback-actions" hidden>
             <p>自动校正未完成，照片仍然保留。你可以继续使用原图，或重新选择照片。</p>
             <div>
-              <button id="useOriginalBtn" type="button" class="secondary">使用原图继续</button>
+              <button id="useOriginalBtn" type="button" class="secondary">重新上传照片</button>
               <button id="retryPhotoBtn" type="button" class="secondary">重新选择照片</button>
             </div>
           </div>
@@ -182,13 +183,13 @@
       </section>
     </main>
   </div>
-  <script src="./generation-mode.js?v=20261025-components"></script>
-  <script src="./photo-workflow.js?v=20260805-photo-upload-fix"></script>
+  <script src="./generation-mode.js?v=20261027-preview-layout"></script>
+  <script src="./photo-workflow.js?v=20261027-preview-layout"></script>
   <script src="./photo-material-bridge.js?v=20260812-existing-photos"></script>
   <script src="./facade-queue-client.js?v=20261009-queue-recovery"></script>
   <script src="./facade-source-mode.js?v=20260911-three-sources"></script>
   <script src="./facade-cloud-client.js?v=20260911-qwen-adapter"></script>
   <script src="../features/3d/render-quality.js?v=20261013-device-quality"></script>
-  <script type="module" src="./app.js?v=20261025-components"></script>
+  <script type="module" src="./app.js?v=20261027-preview-layout"></script>
 </body>
 </html>

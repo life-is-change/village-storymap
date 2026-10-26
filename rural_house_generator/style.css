@@ -87,6 +87,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 }
 
 .config-card,.list-card,.status-card{padding:16px}
+.sidebar>.card{flex:0 0 auto}
+.generation-card{padding:18px;display:grid;gap:14px}
+.generation-card .hint{margin:0;font-size:12px;line-height:1.7;color:var(--muted)}
+.generation-card>button{width:100%;height:auto;min-height:38px;padding:8px 12px;white-space:normal;font-size:12px}
+.generation-constraint{margin:0;padding:12px;border:1px solid #efd09b;border-radius:10px;background:#fff8eb;color:#815919;font-size:12px;line-height:1.75}
+.section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.section-title>span{max-width:56%;text-align:right;color:var(--muted);font-size:11px;line-height:1.6}
 .card h2{margin:0;font-size:18px;line-height:1.2}
 
 .source-card{padding:14px;display:grid;gap:9px}
@@ -302,19 +309,20 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 .photo-steps{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:6px;
-  margin:12px 0;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin:0;
   padding:0;
   list-style:none;
 }
 
 .photo-steps li{
-  padding:8px 6px;
+  padding:9px 5px;
+  white-space:nowrap;
   border-radius:10px;
   background:#edf2f5;
   color:#718092;
-  font-size:12px;
+  font-size:11px;
   text-align:center;
 }
 

@@ -309,6 +309,7 @@
   function facadeStatusPresentation(run, workerAvailability = 'online') {
     const normalized = normalizeFacadeRun(run);
     const components = run?.generation_method === 'components';
+    const standardDesign = components && run?.model_purpose === 'design';
     const errors = {
       COMPONENT_FOOTPRINT_UNSUPPORTED: '当前构件生成器无法精确保持此占地，请使用原有贴图方式或改建设计。',
       COMPONENT_SCALE_INVALID: '按照片比例估算的层高不合理，请检查层数、正面长度和主体识别范围。',
@@ -318,9 +319,9 @@
     };
     const messages = {
       pending: '任务已保存，等待计算服务接收。',
-      queued_rectification: '正立面预处理已排队，等待 4090 工作站。',
+      queued_rectification: standardDesign ? '正在保存标准正立面，不进行清理或透视校正。' : '照片处理已排队，等待工作站。',
       claimed_rectification: '4090 工作站已领取任务，正在准备模型。',
-      rectifying: '正在识别、清理并生成规范正立面。',
+      rectifying: standardDesign ? '正在准备标准正立面，保留完整屋顶。' : '正在识别、清理与校正立面；首次加载模型或等待 GPU 时耗时会增加。',
       awaiting_crop: components ? '完整立面已就绪，确认楼层和屋顶数量后生成构件模型。' : '正立面已完成，请拖动屋顶线后生成。',
       queued_generation: '模型生成已排队。',
       claimed_generation: '4090 工作站已领取生成任务。',
