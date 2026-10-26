@@ -100,6 +100,18 @@ Platform40203360731成功（Linux484通过/1项条件跳过、Worker82通过）�
 
 2026-10-26实际进度：用户返回上述云端预检成功，随后同一脚本及r6源包cloud --apply与--verify均成功，API/Web更新及数据库保留状态已通过回执检查。4090仍未apply，真实照片/旧贴图回归尚未验收。其新代码/日志/临时文件继续集中在newapply/village-platform；镜像库仍在/var/lib/docker，按用户集中存储要求先只读审计迁移体量与其他容器影响，不能默许新镜像继续写系统盘或未经批准全局迁移Docker。
 
+### 4090下载403后的Worker专用操作器
+
+现场进一步确认：Docker实际目录du -x约92G，runtime仅1.3G且在newapply；本轮沿用现有Docker目录不迁移，保留约18G系统盘余量的开始前检查。宿主机与旧Worker都为Blender3.0.1，构件代码仅验证3.6且使用3.0缺少的材质节点，所以新版镜像增加3.6.23而不改宿主机版本。
+
+首次实际Worker构建在Blender官方下载返回HTTP403时停止，Pillow安装已成功，无receipt，两个服务仍为旧镜像running。新的Worker操作器`component-worker-rollout-d1d347a04700.py`（源码d1d347a0470054064393d3b761790fd75b203b74、blob dcfbd6581bf0db01a39b06e4485285a8bc351788）为36,842字节，SHA256 `ad76f5c899a8bbd3e76dbbc02e8b9642dc0be0fb61faa782b3c8c447e99ebdf7`，已实际由GitHub API下载核验。
+
+它继续读取原r6的230文件及清单，不修改原包或helpers。在集中state/downloads下载固定3.6.23归档，官方源403/断流时使用Aliyun/NJU固定HTTPS备用源；要求长度272819000且匹配原官方SHA，错误内容和未完成文件绝不进入构建。校验后生成state/worker-build-context，只复制两个已验证代码子树和归档；把已知旧Dockerfile的三条网络下载语句替换成本地ADD，自动解压到原预定/opt/blender-runtime。完整包可复用，失败只清理本次临时.part；损坏的既有缓存拒绝保留以供核查。
+
+精确源码Platform40262234399成功：Linux491通过/1项条件跳过、Worker82通过，包括真实Docker无网络本地ADD解压及可执行权限验证；Native40262234382数据库/proxy及完整部署/自身备份恢复成功。本地480通过/12跳过、JS1122通过；真实官方完整归档原固定SHA通过，真实r6离线上下文为100文件且原清单不变。独立静态复核无重要阻塞。真实4090尚需用新Worker脚本重新check/apply/verify，不能据这些检查宣称新服务已上线。
+
+**回执分离：**已完成的阿里云继续使用`component-rollout-3dda6afb2870.py`及原指纹；新脚本只用于`worker`。其源码路径仍为linux/scripts/component_rollout.py，但不能用新指纹去验证旧云端回执。metadata的`operator`保留云端旧版本，`worker_operator`单列本次补丁；无需重新下载8MB源包或重新执行云端apply。
+
 本机没有当前服务器SSH连接配置，也没有在本轮取得远端身份/容器检查结果。以下为同一审阅版本的部署步骤，不代表已上线。不要运行旧的迁移/恢复数据库程序，不要重建已有表。
 
 1. 将本次审阅代码通过项目既有发布途径交付到阿里云和4090；核对两端commit。阿里云按现有发布方式构建包含新版 `business-api`、`features/data` 和 `rural_house_generator` 前端的发布产物。保留现有deployment-config的阿里云覆盖配置。

@@ -10,6 +10,22 @@
     "bytes": 30745,
     "sha256": "702096d70a39d9129bc496a8e14e6137536ac252d79e0863a8b315f70ad97fe3"
   },
+  "worker_operator": {
+    "scope": "worker only; completed cloud receipt remains tied to operator above",
+    "source_commit": "d1d347a0470054064393d3b761790fd75b203b74",
+    "path": "linux/scripts/component_rollout.py",
+    "filename": "component-worker-rollout-d1d347a04700.py",
+    "blob_sha": "dcfbd6581bf0db01a39b06e4485285a8bc351788",
+    "bytes": 36842,
+    "sha256": "ad76f5c899a8bbd3e76dbbc02e8b9642dc0be0fb61faa782b3c8c447e99ebdf7",
+    "blender_download": "host checksum-verified cache in central state/downloads, then local ADD in isolated build context",
+    "ci": {
+      "platform_run": 40262234399,
+      "platform_status": "success",
+      "native_run": 40262234382,
+      "native_status": "success"
+    }
+  },
   "payload": {
     "source_commit": "af39f0411ac638d360d10e2c4d57e5d8c56ed929",
     "directory": "village-components-af39f0411ac6",
@@ -28,9 +44,9 @@
   "campus_operators_root": "/media/gpu332/newapply/village-platform/deploy/components/operators",
   "campus_payload_root": "/media/gpu332/newapply/village-platform/deploy/components/releases",
   "campus_state_root": "/media/gpu332/newapply/village-platform/deploy/components/state",
-  "docker_global_storage": "unchanged; preflight reports actual daemon directory and free space",
+  "docker_global_storage": "unchanged /var/lib/docker for this limited update; new code, host Blender cache, context, logs and receipts remain under central project root",
   "aliyun_operator": "admin; existing sudo -n docker only, no sudo -v or root Python",
-  "real_deployment": "2026-10-26 user confirmed cloud apply and receipt verification passed with this operator/payload; worker previously preflight passed but not applied; Docker storage placement and real photo acceptance pending",
+  "real_deployment": "2026-10-26 cloud apply/verify passed with original operator; worker preflight passed but first build hit Blender HTTP403 before receipt/service replacement; old Worker/ML still original images running; offline-cache worker operator and real photo acceptance pending",
   "ci": {
     "source_commit": "3dda6afb2870c73843cecb9155f322fcb1464b67",
     "native_run": 40203360729,
