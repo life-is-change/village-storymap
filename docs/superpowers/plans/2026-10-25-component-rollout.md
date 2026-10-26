@@ -110,3 +110,13 @@ Ruling: 分离小部署操作器与已验证r6业务/素材包，新增显式--s
 用户先返回component_cloud_preflight_passed（6个API文件、8个函数、active_tasks=0、preserved_awaiting_crop=1），再按同一操作器执行apply/verify，返回component_cloud_updated_worker_and_real_photo_test_pending、api_and_web_updated=true、auth_database_retained=true及component_cloud_rollout_receipt_verified_real_photo_test_pending。两次输出的payload_commit=af39f0411ac638d360d10e2c4d57e5d8c56ed929、operator_sha256=702096d70a39d9129bc496a8e14e6137536ac252d79e0863a8b315f70ad97fe3一致。可以确认云端更新/回执核验完成；不能据此标记4090或真实照片验收完成。
 
 4090尚未apply。此前明确要求Docker部署也集中，而当前镜像库仍是系统盘/var/lib/docker。下一步仅更新集中目录内小操作器，重新worker --check，并只读获取当前Docker存储驱动、磁盘余量、镜像库实际目录占用及运行容器清单；在掌握迁移影响前不构建镜像、不更改daemon或重启其他服务。沿用原r6业务源包，不动两套历史checkout、bind mount、权重及密钥。
+
+## 2026-10-26 4090真实构建下载403：固定包改为主机缓存后本地ADD
+
+用户只读审计：overlay2驱动、DockerRootDir=/var/lib/docker；du -x后真实Docker目录约92G（此前du未跨文件系统限制的118G不能当作独立物理占用），运行数据1.3G在newapply/runtime，镜像95.99GB/构建缓存42.49GB有共享不可相加。用户询问暂不迁移是否可行，本轮有限更新继续沿用原daemon目录，集中代码/缓存/状态仍在newapply，不做全局prune或迁移。主机与旧Worker的/usr/bin/blender实际均为3.0.1，并有色彩管理fallback提示；当前构件代码含3.0没有的Separate Color且仅验证3.6，保留旧版本并增加3.6.23。
+
+用户新Worker预检通过，随后apply失败。附件私有日志确认Pillow11.1.0安装成功，官方Blender URL的urllib下载返回HTTP403，尚未生成receipt；两个服务仍为原0cac700/623ffb0镜像running。不是已知端口/资源差异，也没有证据证明Python User-Agent是唯一原因。本机两种UA的HEAD均200，故不以单改UA冒充已解决远端下载问题。
+
+修正仅在新Worker操作器：主机使用固定HTTPS源（官方、Aliyun、NJU）顺次下载，按官方清单的272819000字节及原SHA256 0e9a18af4d0060b825e9617e24a775f759e0f9f67271c062f3d53a539030af00校验；完整缓存复用，损坏缓存拒绝保留，失败只删除本次随机.part。state/downloads保留校验包，state/worker-build-context只复制r6两个代码子树与安装包，生成Dockerfile把已知旧三条网络下载语句改为本地ADD（自动解压），不在镜像中另留压缩包层、不改原r6的230文件、旧helpers或云端。现有云端已完成回执继续使用3dda6af操作器，不用新Worker指纹去验证旧云端回执。
+
+验证：新增403→备用源→缓存复用、坏缓存保留拒绝、HTML/超长/断流不得晋升缓存、上下文额外文件/源码变更拒绝等测试先失败后通过。本地linux/tests 480通过/12项环境差异跳过，平台JS1122通过。真实官方归档已在E盘测试目录下载，长度/原固定SHA及归档内可执行文件均通过；真实解包r6生成100文件离线上下文，原230文件清单再次通过。独立静态复核未发现重要阻塞。真实Docker本地ADD解压/可执行权限用例待Linux CI，不将本地Windows或静态复核当作真实镜像构建验收。

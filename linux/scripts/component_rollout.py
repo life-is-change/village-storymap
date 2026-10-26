@@ -12,10 +12,21 @@ import subprocess
 import sys
 import time
 import secrets
+import urllib.request
+import urllib.error
+import http.client
+from urllib.parse import urlsplit
 
 ROOT=Path(__file__).resolve().parents[2]
 PATCH='components-20261025-v1'
 BLENDER='/opt/blender-runtime/blender-3.6.23-linux-x64/blender'
+BLENDER_ARCHIVE_NAME='blender-3.6.23-linux-x64.tar.xz'
+BLENDER_ARCHIVE_SHA256='0e9a18af4d0060b825e9617e24a775f759e0f9f67271c062f3d53a539030af00'
+BLENDER_ARCHIVE_SIZE=272819000
+BLENDER_DOWNLOAD_ROOTS=(
+ 'https://download.blender.org/release/Blender3.6/',
+ 'https://mirrors.aliyun.com/blender/release/Blender3.6/',
+ 'https://mirror.nju.edu.cn/blender/release/Blender3.6/')
 CAMPUS_ROOT=Path('/media/gpu332/newapply/village-platform')
 OBSERVED={
  'village-platform-facade-worker-1':'sha256:0cac700ae4a12c4808a95f98958547879b8ec311053bcb1cbe8ef75520610212',
@@ -225,6 +236,94 @@ def source_context(path=None):
 def operator_digest():return sha(Path(__file__).read_bytes())
 
 
+def valid_blender_archive(path):
+    if path.stat().st_size!=BLENDER_ARCHIVE_SIZE:return False
+    digest=hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda:stream.read(1024**2),b''):digest.update(block)
+    return digest.hexdigest()==BLENDER_ARCHIVE_SHA256
+
+
+def cached_blender_archive(state):
+    """Download on the host, not in Docker; publish only checksum-pinned bytes."""
+    import business_storage_copy as storage
+    folder=storage.no_links(state/'downloads');folder.mkdir(mode=0o700,exist_ok=True)
+    storage.private_path(folder,directory=True)
+    archive=storage.no_links(folder/BLENDER_ARCHIVE_NAME)
+    if archive.exists():
+        storage.private_path(archive)
+        if not valid_blender_archive(archive):raise ValueError('BLENDER_ARCHIVE_CHECKSUM_MISMATCH')
+        print(json.dumps({'stage':'blender_archive','status':'verified_cache'}),flush=True)
+        return archive
+    for base in BLENDER_DOWNLOAD_ROOTS:
+        part=folder/(BLENDER_ARCHIVE_NAME+'.'+secrets.token_hex(8)+'.part')
+        try:
+            print(json.dumps({'stage':'blender_download','source':urlsplit(base).hostname,'status':'started'}),flush=True)
+            request=urllib.request.Request(base+BLENDER_ARCHIVE_NAME,headers={'User-Agent':'village-component-rollout/1.0','Accept':'application/octet-stream'})
+            started=time.monotonic();size=0;next_progress=10
+            with urllib.request.urlopen(request,timeout=30) as incoming,os.fdopen(os.open(part,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as output:
+                while block:=incoming.read(1024**2):
+                    size+=len(block)
+                    if size>BLENDER_ARCHIVE_SIZE:raise ValueError('BLENDER_ARCHIVE_SIZE_MISMATCH')
+                    if time.monotonic()-started>900:raise ValueError('BLENDER_DOWNLOAD_TIMEOUT')
+                    output.write(block)
+                    progress=size*100//BLENDER_ARCHIVE_SIZE
+                    if progress>=next_progress:
+                        print(json.dumps({'stage':'blender_download','percent':progress}),flush=True);next_progress=progress+10
+                output.flush();os.fsync(output.fileno())
+            if not valid_blender_archive(part):raise ValueError('BLENDER_ARCHIVE_CHECKSUM_MISMATCH')
+            part.replace(archive)
+            storage.write_private_json(folder/'blender-source.json',{'url':base+BLENDER_ARCHIVE_NAME,'sha256':BLENDER_ARCHIVE_SHA256,'size':size})
+            return archive
+        except (OSError,ValueError,http.client.HTTPException) as error:
+            # Fixed public hosts and numeric HTTP status only, never proxy URLs.
+            print(json.dumps({'stage':'blender_download','source':urlsplit(base).hostname,'status':'failed','category':type(error).__name__,'http_status':getattr(error,'code',None)}),flush=True)
+        finally:
+            if part.exists():part.unlink()  # Only this attempt's own incomplete file.
+    raise ValueError('BLENDER_DOWNLOAD_UNAVAILABLE')
+
+
+def prepare_worker_build(state,source):
+    """Keep the verified r6 payload unchanged; make an isolated offline context."""
+    import business_storage_copy as storage
+    archive=cached_blender_archive(state)
+    original=(source/'linux/Dockerfile.component-worker').read_text()
+    add='ADD '+BLENDER_ARCHIVE_NAME+' /opt/blender-runtime/'
+    # r6 used an in-build URL fetch. Only replace those three known lines;
+    # fresh payloads already contain the equivalent local ADD instruction.
+    prefixes=('ARG BLENDER_URL=','ARG BLENDER_SHA256=','RUN BLENDER_URL=')
+    legacy=[line for line in original.splitlines() if line.startswith(prefixes)]
+    if legacy:
+        if len(legacy)!=3 or not all(sum(line.startswith(prefix) for line in legacy)==1 for prefix in prefixes):
+            raise ValueError('UNSUPPORTED_BLENDER_DOCKERFILE')
+        original='\n'.join(add if line.startswith(prefixes[2]) else line for line in original.splitlines() if not line.startswith(prefixes[:2]))+'\n'
+    if original.splitlines().count(add)!=1 or 'urlretrieve' in original or 'BLENDER_URL' in original:
+        raise ValueError('OFFLINE_BLENDER_DOCKERFILE_REQUIRED')
+    context=storage.no_links(state/'worker-build-context');context.mkdir(mode=0o700,exist_ok=True)
+    storage.private_path(context,directory=True)
+    files={}
+    for name in ('server/src/village_processing','rural_house_generator/backend'):
+        tree=storage.no_links(source/name)
+        if not tree.is_dir():raise ValueError('VERIFIED_WORKER_CODE_REQUIRED')
+        for path in tree.rglob('*'):
+            path=storage.no_links(path)
+            if path.is_file():files[path.relative_to(source).as_posix()]=path
+    expected=set(files)|{BLENDER_ARCHIVE_NAME,'Dockerfile'}
+    for path in context.rglob('*'):
+        path=storage.no_links(path)
+        if path.is_file() and path.relative_to(context).as_posix() not in expected:
+            raise ValueError('UNEXPECTED_WORKER_BUILD_FILE')
+    for name,path in files.items():write_public(context,storage.no_links(context/name).relative_to(context),path.read_bytes())
+    target=storage.no_links(context/BLENDER_ARCHIVE_NAME)
+    if target.exists():
+        if not valid_blender_archive(target):raise ValueError('PREPARED_BLENDER_ARCHIVE_CHANGED')
+    else:
+        shutil.copyfile(archive,target);target.chmod(0o600)
+        if not valid_blender_archive(target):raise ValueError('PREPARED_BLENDER_ARCHIVE_CHANGED')
+    dockerfile=write_public(context,'Dockerfile',original.encode())
+    return context,dockerfile
+
+
 def render_cloud_compose(docker,runtime):
     return json.loads(docker.run('compose','--project-name','village-autonomous',
         '--project-directory',runtime,'-f',runtime/'compose.json','config','--format','json'))
@@ -306,9 +405,10 @@ def worker(state,source,commit,*,apply,docker):
     for name,row in rows.items():
         service='facade-worker' if name.endswith('worker-1') else 'facade-ml';suffix='component-worker' if service=='facade-worker' else 'component-ml'
         base='village-component-base:'+row['Image'][7:19];tag='village-'+suffix+':'+commit[:12]
+        context,dockerfile=prepare_worker_build(state,source) if service=='facade-worker' else (source,source/'linux'/('Dockerfile.'+suffix))
         docker.run('tag',row['Image'],base)
         docker.run('build','--pull=false','--build-arg','BASE_IMAGE='+base,'--label','village.component.source='+commit,
-                   '-f',source/'linux'/('Dockerfile.'+suffix),'-t',tag,source,timeout=1800)
+                   '-f',dockerfile,'-t',tag,context,timeout=1800)
         image=json.loads(docker.run('image','inspect',tag))[0]
         if image.get('Os')!='linux' or image.get('Architecture')!='amd64':raise ValueError('BUILT_IMAGE_PLATFORM_DIFFERS')
         images[name]=image['Id']
