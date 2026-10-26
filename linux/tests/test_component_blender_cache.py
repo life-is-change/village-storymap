@@ -255,10 +255,19 @@ def test_real_official_blender_dependencies_export_and_render_as_nonroot(tmp_pat
     # Same verified local ADD and dependency instruction used by the operator.
     import shutil
     shutil.copyfile(archive,context/m.BLENDER_ARCHIVE_NAME)
+    # Exercise the real facade startup gate with this same official binary,
+    # rather than considering `blender --version` alone a Worker readiness check.
+    package=context/'village_processing';package.mkdir()
+    (package/'__init__.py').write_text('')
+    for name in ('health.py','task_backend.py'):
+        shutil.copyfile(ROOT/'server/src/village_processing'/name,package/name)
     common=('FROM ubuntu:22.04\nADD '+m.BLENDER_ARCHIVE_NAME+' /opt/blender-runtime/\n')
     suffix='ENV HOME=/tmp/village-home XDG_CACHE_HOME=/tmp/village-cache\nUSER 10001:10001\n'
     (context/'broken.Dockerfile').write_text(common+suffix)
-    (context/'fixed.Dockerfile').write_text(common+m.BLENDER_SYSTEM_LIBRARIES_RUN+'\n'+suffix)
+    startup=('RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*\n'
+             'COPY --chown=10001:10001 village_processing /opt/startup-smoke/village_processing\n'
+             'ENV PYTHONPATH=/opt/startup-smoke\n')
+    (context/'fixed.Dockerfile').write_text(common+m.BLENDER_SYSTEM_LIBRARIES_RUN+'\n'+startup+suffix)
     prefix=['sudo','-n','docker','--context','default'];images=[];label=secrets.token_hex(10)
     class Docker:
         def __init__(self):self.state=state
@@ -281,5 +290,18 @@ def test_real_official_blender_dependencies_export_and_render_as_nonroot(tmp_pat
         assert report['version']==[3,6,23] and report['view_transform']=='Filmic'
         assert report['glb_bytes']>100 and report['png_bytes']>100
         assert report['render_engine']=='CYCLES'
+        health_code="""import os
+from pathlib import Path
+from types import SimpleNamespace
+from village_processing.health import run_facade_health_checks
+p=Path('/tmp/startup-smoke'); repo=p/'models/building-seg/repos/sam2';repo.mkdir(parents=True)
+checkpoint=p/'models/building-seg/checkpoints/sam2.1_hiera_large.pt';checkpoint.parent.mkdir();checkpoint.write_bytes(b'fixture')
+os.environ.update(VILLAGE_TASK_BACKEND='supabase',SUPABASE_URL='https://fixture.example',SUPABASE_SERVICE_ROLE_KEY='fixture',FACADE_WORK_ROOT=str(p/'work'),FACADE_MODEL_ROOT=str(p/'models'),BLENDER_EXECUTABLE='/opt/blender-runtime/blender-3.6.23-linux-x64/blender')
+assert run_facade_health_checks(client=SimpleNamespace(storage=SimpleNamespace(get_bucket=lambda _:{})),http_get=lambda *a,**k:SimpleNamespace(status_code=200))==0
+"""
+        output=docker.run('run','--rm','--read-only','--network','none','--user','10001:10001',
+                          '--tmpfs','/tmp:rw,nosuid,nodev,size=128m,mode=1777',
+                          '--entrypoint','python3',fixed,'-c',health_code)
+        assert 'BLENDER_RUNTIME=OK' in output
     finally:
         for image in reversed(images):subprocess.run([*prefix,'image','rm',image],check=True,capture_output=True)

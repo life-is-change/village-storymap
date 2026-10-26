@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 from .task_backend import backend, build_gateway
@@ -53,13 +54,15 @@ def run_facade_health_checks(
             check=False,
         )
         version_output = f"{completed.stdout}\n{completed.stderr}"
-        results["BLENDER_3_0_1"] = (
+        version = re.search(r'^Blender (\d+\.\d+\.\d+)(?:[ \t]|$)', version_output, re.M)
+        results["BLENDER_RUNTIME"] = (
             blender.is_file()
             and completed.returncode == 0
-            and "Blender 3.0.1" in version_output
+            and version is not None
+            and version.group(1) in ('3.0.1', '3.6.23')
         )
     except (OSError, subprocess.SubprocessError):
-        results["BLENDER_3_0_1"] = False
+        results["BLENDER_RUNTIME"] = False
 
     work_root = Path(os.environ.get("FACADE_WORK_ROOT", "/work"))
     model_root = Path(os.environ.get("FACADE_MODEL_ROOT", "/models"))

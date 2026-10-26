@@ -27,8 +27,13 @@ def test_facade_worker_requires_service_role_configuration(monkeypatch):
         cli.main(["facade-worker"])
 
 
+@pytest.mark.parametrize('version,exit_code,accepted', [
+    ('3.0.1', 0, True), ('3.6.23', 0, True),
+    ('3.0.10', 0, False), ('3.6.230', 0, False),
+    ('4.3.0', 0, False), ('unrecognized', 0, False), ('3.6.23', 1, False),
+])
 def test_facade_health_checks_blender_internal_workers_and_storage(
-    monkeypatch, tmp_path: Path, capsys
+    monkeypatch, tmp_path: Path, capsys, version, exit_code, accepted
 ):
     work_root = tmp_path / "work"
     model_root = tmp_path / "models"
@@ -59,7 +64,7 @@ def test_facade_health_checks_blender_internal_workers_and_storage(
 
     def fake_run(command, **_kwargs):
         assert command == [str(blender), "--version"]
-        return SimpleNamespace(returncode=0, stdout="Blender 3.0.1\n", stderr="")
+        return SimpleNamespace(returncode=exit_code, stdout=f"Blender {version}\n", stderr="")
 
     def fake_get(url, **_kwargs):
         assert url in {
@@ -68,15 +73,27 @@ def test_facade_health_checks_blender_internal_workers_and_storage(
         }
         return SimpleNamespace(status_code=200)
 
-    assert run_facade_health_checks(
+    result = run_facade_health_checks(
         client=client, subprocess_run=fake_run, http_get=fake_get
-    ) == 0
+    )
+    assert result == (0 if accepted else 1)
     output = capsys.readouterr().out
-    assert "BLENDER_3_0_1=OK" in output
+    assert f"BLENDER_RUNTIME={'OK' if accepted else 'FAIL'}" in output
     assert "FACADE_ML=OK" in output
     assert "FACADE_LAMA=OK" in output
     assert "FACADE_STORAGE=OK" in output
     assert "very-secret" not in output
+    started = []
+    monkeypatch.setattr(cli, 'run_facade_worker', lambda: started.append(True))
+    monkeypatch.setattr(cli, 'run_facade_health_checks', lambda: run_facade_health_checks(
+        client=client, subprocess_run=fake_run, http_get=fake_get))
+    if accepted:
+        assert cli.main(['facade-worker']) == 0
+        assert started == [True]
+    else:
+        with pytest.raises(SystemExit, match='Facade worker health checks failed'):
+            cli.main(['facade-worker'])
+        assert started == []
 
 
 def test_facade_worker_stops_before_claim_when_health_fails(monkeypatch):
