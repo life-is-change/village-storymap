@@ -1,4 +1,5 @@
 import copy
+import base64
 import hashlib
 import importlib.util
 from pathlib import Path
@@ -60,3 +61,53 @@ def test_completion_keeps_all_other_guards(change):
 @pytest.mark.parametrize('env',[['BAD'],['=empty'],['A=1','A=2'],[None]])
 def test_invalid_environment_rejected(env):
     with pytest.raises(ValueError):completion.canonical_environment(env)
+
+
+def test_completion_reads_current_start_logs_without_tail_limit():
+    module=load(ROOT/'linux/releases/component-quality-worker-20261027.py','quality_log_test')
+    calls=[]
+    class Docker:
+        def inspect(self,name):return {'Id':'same-worker'}
+        def run(self,*args,**kwargs):
+            calls.append((args,kwargs))
+            return 'BLENDER_RUNTIME=OK' if '--tail' not in args else ''
+    def wait_ready(docker,identifier,**kwargs):
+        assert docker.inspect('worker')['Id']==identifier
+        assert docker.run('logs','--since','current-start','--tail','100',module.WORKER)=='BLENDER_RUNTIME=OK'
+        return 'ready'
+    helper=SimpleNamespace(wait_ready=wait_ready)
+    module.load_module=lambda path,name:helper
+    completion.install_completion_guard(module)
+    loaded=module.load_module('helper.py','quality_startup_helper')
+    assert loaded.wait_ready(Docker(),'same-worker',timeout=5)=='ready'
+    assert calls==[(('logs','--since','current-start',module.WORKER),{})]
+
+
+@pytest.mark.parametrize('failure',[None,'missing_marker','failed_marker','restarting'])
+def test_frozen_startup_wait_preserves_health_and_stability_checks(tmp_path,monkeypatch,failure):
+    module=load(ROOT/'linux/releases/component-quality-worker-20261027.py','quality_real_wait_test')
+    path=tmp_path/'startup.py'
+    path.write_bytes(base64.b64decode(module.unpack()['startup_helper']))
+    completion.install_completion_guard(module)
+    helper=module.load_module(path,'quality_startup_helper')
+    now=[0]
+    monkeypatch.setattr(helper.time,'monotonic',lambda:now[0])
+    monkeypatch.setattr(helper.time,'sleep',lambda seconds:now.__setitem__(0,now[0]+seconds))
+    calls=[]
+    class Docker:
+        def inspect(self,name):
+            return {'Id':'candidate','RestartCount':0,'State':{'Running':True,'Restarting':failure=='restarting',
+                     'Pid':123,'StartedAt':'current-start','OOMKilled':False}}
+        def run(self,*args,**kwargs):
+            calls.append(args)
+            assert args==('logs','--since','current-start',module.WORKER)
+            logs='BLENDER_RUNTIME=OK\nFACADE_ML=OK\nFACADE_LAMA=OK\nALIYUN_GATEWAY=OK\n'
+            if failure=='missing_marker':logs=logs.replace('FACADE_ML=OK','FACADE_ML=FAIL')
+            if failure=='failed_marker':logs+='Facade worker health checks failed'
+            return logs+'polling\n'*150
+    if failure:
+        with pytest.raises(ValueError,match='STARTUP_WORKER_NOT_READY'):
+            helper.wait_ready(Docker(),'candidate',timeout=14)
+    else:
+        assert helper.wait_ready(Docker(),'candidate',timeout=14)['Id']=='candidate'
+        assert now[0]>=10 and len(calls)>=6

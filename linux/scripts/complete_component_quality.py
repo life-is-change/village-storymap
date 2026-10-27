@@ -41,6 +41,26 @@ def install_completion_guard(module):
             candidate['Config']['Env']=canonical_environment(candidate['Config']['Env'])
         original(api,parent,private_rows,private_progress)
     module.validate_live=validate
+    original_load=module.load_module
+    def load(path,name):
+        helper=original_load(path,name)
+        if name=='quality_startup_helper':
+            original_wait=helper.wait_ready
+            class StartupLogs:
+                def __init__(self,docker):self.docker=docker
+                def inspect(self,*args,**kwargs):return self.docker.inspect(*args,**kwargs)
+                def run(self,*args,**kwargs):
+                    # Keep the current-start boundary. Startup markers can
+                    # leave the last 100 lines while a healthy worker polls.
+                    if (len(args)==6 and args[:2]==('logs','--since')
+                            and args[3:]==('--tail','100',module.WORKER)):
+                        args=(*args[:3],args[5])
+                    return self.docker.run(*args,**kwargs)
+            def wait(docker,identifier,**kwargs):
+                return original_wait(StartupLogs(docker),identifier,**kwargs)
+            helper.wait_ready=wait
+        return helper
+    module.load_module=load
 
 
 def main():

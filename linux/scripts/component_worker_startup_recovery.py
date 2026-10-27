@@ -126,7 +126,7 @@ def wait_ready(docker, identifier, *, timeout=180):
             raise ValueError('STARTUP_CONTAINER_CHANGED_WHILE_WAITING')
         stamp = (row['State'].get('Pid'), row.get('RestartCount'), row['State'].get('StartedAt'))
         started = row['State'].get('StartedAt')
-        logs = docker.run('logs', '--since', started, '--tail', '100', WORKER) if started else ''
+        logs = docker.run('logs', '--since', started, WORKER) if started else ''
         markers = ('BLENDER_RUNTIME=OK', 'FACADE_ML=OK', 'FACADE_LAMA=OK', 'ALIYUN_GATEWAY=OK')
         if worker_alive(row) and all(marker in logs for marker in markers) and 'Facade worker health checks failed' not in logs:
             if stable is None or stamp != previous: stable = time.monotonic()
