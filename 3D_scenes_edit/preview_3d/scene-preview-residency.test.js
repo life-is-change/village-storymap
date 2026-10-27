@@ -164,8 +164,8 @@ test('clear releases model components and cancels pending installations without 
   h.adapter.dispose();
 });
 
-function nativeSetup(budget = 3) {
-  const h = setup(async asset => 'signed:' + asset.storagePath, budget);
+function nativeSetup(budget = 3, globe) {
+  const h = setup(async asset => 'signed:' + asset.storagePath, budget, globe);
   // Recreate using a Cesium implementation that supports explicitly owned Models.
   h.adapter.dispose();
   const requests = [], primitives = new Set();
@@ -177,15 +177,17 @@ function nativeSetup(budget = 3) {
   }
   const Cesium = {
     Cartesian3, HeadingPitchRoll: class { constructor(heading, pitch, roll) { Object.assign(this, { heading, pitch, roll }); } },
+    Cartographic: { fromDegrees: (longitude, latitude) => ({ longitude, latitude }) },
     Transforms: { headingPitchRollQuaternion: () => ({}), headingPitchRollToFixedFrame: (position, hpr) => ({ position, hpr }) },
     Matrix4: { multiplyByScale(matrix, scale) { matrix.scale = scale; return matrix; } },
     Model: { fromGltfAsync(options) { return new Promise((resolve, reject) => requests.push({ options, resolve, reject })); } },
-    Color: { GRAY: {}, WHITE: { withAlpha: () => ({}) }, YELLOW: 'yellow' }, HeightReference: { RELATIVE_TO_GROUND: 'relative' }
+    Color: { GRAY: {}, WHITE: { withAlpha: () => ({}) }, YELLOW: 'yellow' }, HeightReference: { RELATIVE_TO_GROUND: 'relative', NONE: 'none' }
   };
   h.viewer.scene.primitives = { add(primitive) { primitives.add(primitive); }, remove(primitive) { primitives.delete(primitive); } };
   h.adapter = createScenePreviewAdapter({ Cesium, viewer: h.viewer, getModelBudget: () => budget, getDetailPixels: () => 100,
     assetResolver: async asset => 'signed:' + asset.storagePath });
   h.requests = requests; h.primitives = primitives;
+  h.Cesium = Cesium;
   h.finish = async index => {
     let destroyed = false;
     const errors = new Set();
@@ -198,6 +200,36 @@ function nativeSetup(budget = 3) {
   return h;
 }
 
+test('camera motion reuses stationary model terrain height and tile completion refreshes the matrix', async () => {
+  let height = 45, samples = 0;
+  const tileListeners = new Set(), providerListeners = new Set();
+  const event = listeners => ({ addEventListener(fn) { listeners.add(fn); return () => listeners.delete(fn); } });
+  const h = nativeSetup(1, { getHeight() { samples++; return height; },
+    tileLoadProgressEvent: event(tileListeners), terrainProviderChanged: event(providerListeners) });
+  h.viewer.camera.positionWC.z = 60;
+  const doc = scene([['ground', 0]]);
+  doc.objects[0].transform.heightOffsetM = 2;
+  await h.adapter.render(doc, assets({ metadata: { groundOffsetM: 1 } })); await tick();
+  const primitive = await h.finish(0);
+  h.change();
+  assert.equal(h.requests[0].options.modelMatrix.position.z, 48);
+  const before = samples;
+  for (let i = 0; i < 30; i++) h.change();
+  assert.equal(samples, before, 'camera changes must not ray-pick terrain for stationary objects');
+  height = 52;
+  for (const fn of tileListeners) fn(0);
+  assert.equal(primitive.modelMatrix.position.z, 55);
+  height = 60;
+  for (const fn of providerListeners) fn();
+  assert.equal(primitive.modelMatrix.position.z, 63);
+  doc.objects[0].geometry.coordinates = [2, 0];
+  await h.adapter.render(doc, assets({ metadata: { groundOffsetM: 1 } }));
+  assert.equal(primitive.modelMatrix.position.x, 2);
+  h.adapter.dispose();
+  assert.equal(tileListeners.size, 0);
+  assert.equal(providerListeners.size, 0);
+});
+
 test('native models limit actual GLB loads, preserve pick ids, apply calibrated matrices, and destroy every GPU resource', async () => {
   const h = nativeSetup();
   const document = scene([['a', 0], ['b', 0], ['c', 0]]);
@@ -206,7 +238,7 @@ test('native models limit actual GLB loads, preserve pick ids, apply calibrated 
   await tick();
   assert.equal(h.requests.length, 2);
   assert.equal(h.requests[0].options.minimumPixelSize, 0);
-  assert.equal(h.requests[0].options.heightReference, 'relative');
+  assert.equal(h.requests[0].options.heightReference, 'none');
   assert.equal(h.requests[0].options.scene, h.viewer.scene);
   assert.equal(h.requests[0].options.id, h.entities.get('scene-edit:a'));
   const appliedScale = h.requests[0].options.modelMatrix.scale;

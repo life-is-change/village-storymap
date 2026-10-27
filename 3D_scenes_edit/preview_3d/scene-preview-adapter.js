@@ -31,6 +31,7 @@
     let disposed = false;
     let ghostEntity = null;
     let ghostAssetKey = null;
+    let terrainRevision = 0;
     const pendingLoads = new Set();
     const hasNativeModels = !!(Cesium.Model?.fromGltfAsync && Cesium.Transforms?.headingPitchRollToFixedFrame && viewer.scene?.primitives);
     const profile = () => options.getQualityProfile?.() || Quality?.getProfile?.() || { modelBudget: 24, detailPixels: 100 };
@@ -62,7 +63,7 @@
             try {
               const primitive = await Cesium.Model.fromGltfAsync({ url: uri, id: record.entity,
                 modelMatrix: primitiveMatrix(record), scene: viewer.scene,
-                heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND,
+                heightReference: Cesium.HeightReference?.NONE,
                 scale: 1, minimumPixelSize: 0, incrementallyLoadTextures: false, runAnimations: false });
               return { uri, record, primitive, added: false };
             } catch (error) {
@@ -99,6 +100,9 @@
           record.modelResource = resource;
           if (resource.primitive) {
             if (!resource.added) {
+              // Terrain may have completed while this GLB was loading.
+              resource.primitive.modelMatrix = primitiveMatrix(record);
+              record.appliedGroundSample = record.groundSample;
               resource.removeErrorListener = resource.primitive.errorEvent?.addEventListener?.(error => {
                 if (disposed || records.get(entry.key) !== record || record.modelResource !== resource) return;
                 residency.fail(entry.key, error);
@@ -148,7 +152,7 @@
       const metadata = record.asset?.metadata || {};
       const angles = descriptor.orientationRadians;
       const [longitude, latitude, height = 0] = descriptor.positionDegrees;
-      const position = Cesium.Cartesian3.fromDegrees(longitude, latitude, height + (Number(metadata.groundOffsetM) || 0));
+      const position = Cesium.Cartesian3.fromDegrees(longitude, latitude, terrainHeight(record) + height + (Number(metadata.groundOffsetM) || 0));
       let matrix = Cesium.Transforms.headingPitchRollToFixedFrame(position,
         new Cesium.HeadingPitchRoll(angles.heading + (Number(metadata.headingCorrectionDeg) || 0) * Math.PI / 180, angles.pitch, angles.roll));
       if (Cesium.Matrix4?.multiplyByScale) {
@@ -176,6 +180,18 @@
     function applyProxy(record) {
       Object.assign(record.entity, fallbackGraphics(proxyDescriptor(record), record.unavailable), { model: undefined, show: true });
     }
+    function terrainHeight(record) {
+      const [longitude, latitude] = record.descriptor.positionDegrees;
+      const provider = viewer.terrainProvider;
+      const sample = record.groundSample;
+      if (sample && sample.longitude === longitude && sample.latitude === latitude &&
+          sample.provider === provider && sample.revision === terrainRevision) return sample.height;
+      const point = Cesium.Cartographic?.fromDegrees?.(longitude, latitude);
+      const value = point ? viewer.scene?.globe?.getHeight?.(point) : undefined;
+      record.groundSample = { longitude, latitude, provider, revision: terrainRevision,
+        height: Number.isFinite(value) ? value : 0 };
+      return record.groundSample.height;
+    }
     function viewportCandidates() {
       const camera = viewer.camera;
       const cameraPosition = camera?.positionWC || camera?.position;
@@ -187,9 +203,11 @@
           record.asset?.footprintM?.[1] || 1, record.asset?.defaultHeightM || 1];
         const radius = Math.max(.1, Math.hypot(size[0] * descriptor.scale[0], size[1] * descriptor.scale[1], size[2] * descriptor.scale[2]) / 2);
         const [longitude, latitude, offset = 0] = descriptor.positionDegrees;
-        const cartographic = Cesium.Cartographic?.fromDegrees?.(longitude, latitude);
-        const sampledHeight = cartographic ? viewer.scene?.globe?.getHeight?.(cartographic) : undefined;
-        const groundHeight = Number.isFinite(sampledHeight) ? sampledHeight : 0;
+        const groundHeight = terrainHeight(record);
+        if (record.modelResource?.primitive && record.appliedGroundSample !== record.groundSample) {
+          record.modelResource.primitive.modelMatrix = primitiveMatrix(record);
+          record.appliedGroundSample = record.groundSample;
+        }
         const position = Cesium.Cartesian3.fromDegrees(longitude, latitude,
           groundHeight + offset + (Number(record.asset?.metadata?.groundOffsetM) || 0));
         const measured = cameraPosition && Cesium.Cartesian3.distance && Metrics?.measureModelView
@@ -202,8 +220,16 @@
     function updateResidency() {
       if (!disposed && residency) residency.update(viewportCandidates());
     }
+    function refreshTerrain(remaining) {
+      if (disposed || (typeof remaining === 'number' && remaining > 0)) return;
+      terrainRevision++;
+      updateResidency();
+      viewer.scene?.requestRender?.();
+    }
     const removeCameraListener = viewer.camera?.changed?.addEventListener?.(updateResidency);
-    const removeTerrainListener = viewer.scene?.globe?.tileLoadProgressEvent?.addEventListener?.(updateResidency);
+    const removeTerrainListener = viewer.scene?.globe?.tileLoadProgressEvent?.addEventListener?.(refreshTerrain);
+    const providerEvent = viewer.scene?.terrainProviderChanged || viewer.scene?.globe?.terrainProviderChanged;
+    const removeProviderListener = providerEvent?.addEventListener?.(refreshTerrain);
     const unsubscribeQuality = Quality?.subscribe?.(updateResidency);
 
     function color(name, alpha) {
@@ -534,7 +560,9 @@
       if (typeof removeCameraListener === 'function') removeCameraListener();
       else viewer.camera?.changed?.removeEventListener?.(updateResidency);
       if (typeof removeTerrainListener === 'function') removeTerrainListener();
-      else viewer.scene?.globe?.tileLoadProgressEvent?.removeEventListener?.(updateResidency);
+      else viewer.scene?.globe?.tileLoadProgressEvent?.removeEventListener?.(refreshTerrain);
+      if (typeof removeProviderListener === 'function') removeProviderListener();
+      else providerEvent?.removeEventListener?.(refreshTerrain);
       unsubscribeQuality?.();
       residency?.destroy();
       clear();
