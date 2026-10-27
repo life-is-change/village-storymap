@@ -38,9 +38,15 @@ def front_facade(v,name,m,ops,structure):
         elif o['kind']=='door':v.add_door(name+'_Door','X',y,o,-1)
         elif o['arch']:v.add_arch_window(name+'_Arch','X',y,o,-1)
         else:v.add_rect_window(name+'_Window','X',y,o,-1)
-    for p in porches:
-        for x in (p['x0'],p['x1']):
-            v.wall_piece(name+'_Porch_Return',m['front'],m['front']+p['recess'],x,p['bottom'],p['bottom'],p['top'],p['top'],'Y')
+    # Use the actual stepped front profile, not one overlapping return per zone.
+    # Local balcony overrides can overlap a pre-existing whole-height colonnade.
+    for x in sorted(set(x for p in porches for x in (p['x0'],p['x1']))):
+        for bottom,top in zip(levels,levels[1:]):
+            z=(bottom+top)/2
+            left=wall_front(m,structure,x-.0001,z) if x>m['x0'] else m['front']
+            right=wall_front(m,structure,x+.0001,z) if x<m['x1'] else m['front']
+            if abs(left-right)>.00001:
+                v.wall_piece(name+'_Porch_Return',min(left,right),max(left,right),x,bottom,bottom,top,top,'Y')
 
 
 def glazed_door(v,name,y,o):
@@ -87,6 +93,29 @@ def solid_railing(v,name,a,b,z,height):
     cap=(length+.04,.20,.07) if abs(d.x)>abs(d.y) else (.20,length+.04,.07)
     v.box(name+'_Solid_Parapet',tuple((A+B)/2+Vector((0,0,height/2))),dims,v.M_WALL,'Balustrades',.012)
     v.box(name+'_Parapet_Coping',tuple((A+B)/2+Vector((0,0,height))),cap,v.M_WHITE,'Balustrades',.012)
+
+
+def validate_balcony_floors(v,balconies,dimensions):
+    """Ray-check the actual continuous walking slab before objects are joined."""
+    from mathutils.bvhtree import BVHTree
+    import bpy
+    bpy.context.view_layer.update()
+    verts=[];faces=[]
+    for ob in v.cs['Balconies'].objects:
+        if ob.type!='MESH':continue
+        start=len(verts);verts.extend(ob.matrix_world@p.co for p in ob.data.vertices)
+        faces.extend(tuple(start+j for j in p.vertices) for p in ob.data.polygons)
+    tree=BVHTree.FromPolygons(verts,faces,all_triangles=False) if verts else None
+    samples=0
+    for b,d in zip(balconies,dimensions):
+        if not d['depth_version']:continue
+        for t in (.05,.25,.5,.75,.95):
+            y=d['rail_front']+(d['glass_face']-d['rail_front'])*t
+            hit=tree.ray_cast(Vector((b['x'],y,b['base']+.18)),Vector((0,0,-1)),.35)[0] if tree else None
+            if hit is None or abs(hit.z-b['base'])>.07:
+                raise RuntimeError('阳台连续楼板支承检查失败')
+            samples+=1
+    return samples
 
 
 def sealed_core(v,name,shell):

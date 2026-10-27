@@ -52,9 +52,18 @@ def relate_balconies(rgb,crop,width,height,fh,masses,openings,balconies,porches)
                       and any(q['x']-q['width']/2+.02<x<q['x']+q['width']/2-.02 for x in (lo,hi)) for q in ops)
         if not existing and supported and not straddles:
             existing={'mass':mass['id'],'x0':lo,'x1':hi,'bottom':b['base'],
-                      'top':min(height,b['base']+fh),'recess':.65,
+                      'top':min(height,b['base']+fh),'recess':1.0,
                       'source':'shaded-side-returns-design-prior','confidence':.5,'measured':False}
             zones.append(existing)
-        if existing:relation.update(placement='recessed-prior',recess=existing['recess'])
+        if existing:
+            relation.update(placement='recessed-prior',recess=existing['recess'])
+            if existing['recess']<=1.0 and existing['x0']<=lo and hi<=existing['x1']:
+                # A whole-height colonnade must keep its original ground floor.
+                # Add only this balcony's local override; wall_front uses max.
+                if existing['recess']<1.0:
+                    zones.append({'mass':mass['id'],'x0':lo,'x1':hi,'bottom':b['base'],
+                        'top':min(height,b['base']+fh),'recess':1.0,
+                        'source':'hybrid-balcony-depth-design-prior','confidence':.5,'measured':False})
+                relation.update(recess=1.0,clear_depth=1.5,depth_version=1)
         relations.append(relation)
     return ops,zones,relations

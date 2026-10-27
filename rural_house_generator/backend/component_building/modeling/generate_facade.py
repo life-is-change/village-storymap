@@ -13,6 +13,7 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 import v3_parts as v
 import component_geometry as components
+from balcony_layout import balcony_layout
 
 # Blender 3.6 requires Auto Smooth for the V3 weighted-normal modifiers.
 original_box=v.box
@@ -141,14 +142,20 @@ components.porch_frames(v,structure,f['masses'],{m['id']:[opening(o) for o in f[
 components.roof_details(v,f['roof'],H,D)
 railing_styles=[]
 metal_railing_segments=0
+balcony_dimensions=[]
 for i,b in enumerate(f['balconies']):
     m=min(f['masses'],key=lambda m:abs((m['x0']+m['x1'])/2-b['x']))
-    y=components.wall_front(m,structure,b['x'],min(H-.01,b['base']+.15))-.15
-    front=m['front']-.08 if y>m['front']+.1 else y-b['depth'];lo=b['x']-b['width']/2;hi=b['x']+b['width']/2;z=b['base']
-    v.box('Balcony_Slab',((lo+hi)/2,(front+y)/2,z-.12),(hi-lo+.15,y-front+.15,.24),v.M_CONCRETE,'Balconies',.02)
-    v.box('Balcony_Paving',((lo+hi)/2,(front+y)/2,z+.012),(hi-lo+.08,y-front+.08,.04),v.M_STEPS,'Balconies')
     railing=b.get('railing',{});style=railing.get('style','unknown')
     if style=='unknown':style='metal' if profile=='rural-realistic' else 'stone'
+    wall=components.wall_front(m,structure,b['x'],min(H-.01,b['base']+.15))
+    relation=next((r for r in structure.get('balcony_relations',[]) if r.get('balcony')==i and r.get('depth_version')==1),None)
+    layout=balcony_layout(m['front'],wall,b['depth'],style,relation['clear_depth'] if relation else None,v.T)
+    front,y=layout['rail_front'],layout['side_end']
+    lo=b['x']-b['width']/2;hi=b['x']+b['width']/2;z=b['base']
+    slab_front,slab_back=layout['slab_front'],layout['slab_back']
+    v.box('Balcony_Slab',((lo+hi)/2,(slab_front+slab_back)/2,z-.12),(hi-lo+.15,slab_back-slab_front,.24),v.M_CONCRETE,'Balconies',.02)
+    v.box('Balcony_Paving',((lo+hi)/2,(slab_front+slab_back)/2,z+.012),(hi-lo+.08,slab_back-slab_front-.04,.04),v.M_STEPS,'Balconies')
+    balcony_dimensions.append(dict(balcony=i,**layout))
     railing_styles.append(style)
     for name,a,end in [('Front',(lo,front),(hi,front)),('Left',(lo,front),(lo,y)),('Right',(hi,front),(hi,y))]:
         if style=='solid':components.solid_railing(v,f'Balcony_{i}_{name}',a,end,z,b['rail_height'])
@@ -234,6 +241,7 @@ for o in hidden:
 if hidden_hits:raise RuntimeError(f'侧背开口检查失败：{hidden_hits}')
 
 roof_checks=components.validate_roofs(roof_core_objects,f['masses'],H,D)
+balcony_floor_samples=components.validate_balcony_floors(v,f['balconies'],balcony_dimensions)
 
 source=json.loads((HERE/'v3_parts.json').read_text('utf8'))
 parts_text=(HERE/'v3_parts.py').read_text('utf8');nodes=ast.parse(parts_text)
@@ -334,6 +342,8 @@ manifest={'engine':'facade-v2','wall_height':H,'openings':len(f['openings']),
     'hidden_openings':len(hidden),'hidden_opening_wall_hits':hidden_hits,'render_profile':profile}
 manifest.update(roof_checks)
 manifest.update(ao_baked=False,ao_device=ao_device,render_device=render_device,
+    balcony_dimensions=balcony_dimensions,
+    balcony_floor_support_samples=balcony_floor_samples,
     columns=len(structure.get('columns',[])),porches=len(structure.get('porches',[])),
     roof_texture=f['roof'].get('texture'),eave_curve=f['roof'].get('eave_curve',0),albedo_baked=profile=='rural-realistic',
     solid_parapets=sum(b.get('railing',{}).get('style')=='solid' for b in f['balconies']),
