@@ -34,12 +34,25 @@ def front_facade(v,name,m,ops,structure):
         y=wall_front(m,structure,o['x'],(o['b']+o['t'])/2)
         if o.get('subtype')=='passage':continue
         if o.get('subtype')=='shutter':shutter(v,name+'_Shutter',y,o)
+        elif o.get('subtype')=='glazed_door':glazed_door(v,name+'_Balcony_Glazed_Door',y,o)
         elif o['kind']=='door':v.add_door(name+'_Door','X',y,o,-1)
         elif o['arch']:v.add_arch_window(name+'_Arch','X',y,o,-1)
         else:v.add_rect_window(name+'_Window','X',y,o,-1)
     for p in porches:
         for x in (p['x0'],p['x1']):
             v.wall_piece(name+'_Porch_Return',m['front'],m['front']+p['recess'],x,p['bottom'],p['bottom'],p['top'],p['top'],'Y')
+
+
+def glazed_door(v,name,y,o):
+    z,h,u,w=o['b'],o['t']-o['b'],o['x'],o['w'];front=y-v.T/2-.04
+    v.rect_skin(name+'_Glass','X',y,u,z+.05,w-.12,h-.1,v.M_GLASS)
+    v.rect_skin(name+'_Interior','X',y+.04,u,z+.05,w-.14,h-.12,v.M_SHADOW,depth=.02)
+    for x in (u-w/2+.035,u,u+w/2-.035):
+        v.rect_skin(name+'_Vertical_Frame','X',front,x,z,.065,h,v.M_WINDOW)
+    for level in (z+.035,z+h-.035,z+h*.82):
+        v.rect_skin(name+'_Frame','X',front,u,level,w,.065,v.M_WINDOW)
+    v.rect_skin(name+'_Threshold','X',front,u,z-.025,w+.10,.06,v.M_STEPS,depth=.20)
+    for x in (u-.10,u+.10):v.rect_skin(name+'_Handle','X',front-.035,x,z+min(1.,h*.45),.035,.22,v.M_WINDOW,depth=.035)
 
 
 def shutter(v,name,y,o):

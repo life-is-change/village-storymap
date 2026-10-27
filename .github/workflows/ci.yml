@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: python -m pip install pytest==8.4.2 httpx==0.28.1 PyYAML==6.0.2 python-dotenv==1.1.0
+      - run: python -m pip install pytest==8.4.2 httpx==0.28.1 PyYAML==6.0.2 python-dotenv==1.1.0 numpy==2.2.6 Pillow==11.1.0 opencv-python-headless==4.11.0.86
       - name: Test deployment, probe safety and archive contracts
         run: python -m pytest linux/tests -q
       - name: Test existing Worker and private bridge input compatibility without real tasks

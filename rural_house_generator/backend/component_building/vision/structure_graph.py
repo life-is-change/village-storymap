@@ -115,6 +115,8 @@ def infer_components(rgb,ds,crop,width,height,fh,masses,openings,balconies,retri
             if ratio>.6:
                 o['subtype']=d['kind'];o['subtype_source']='photo-structure-detection'
                 if d['kind']=='shutter':o['kind']='door'
-    return {'version':1,'layout':name,'layout_source':source,'columns':columns[:16],'porches':porches[:12],
+    from .balcony_relations import relate_balconies
+    openings,porches,relations=relate_balconies(rgb,crop,width,height,fh,masses,openings,balconies,porches)
+    return {'version':1,'layout':name,'layout_source':source,'columns':columns[:16],'porches':porches[:12],'balcony_relations':relations,
             'openings':openings,'balconies':balconies,'roof':roof_components(rgb,crop,width,height,ds,retrieval),
             'metric_depth_measured':False}

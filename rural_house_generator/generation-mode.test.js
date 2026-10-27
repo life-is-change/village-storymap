@@ -21,10 +21,12 @@ test('component placement restores the footprint center after model-library bott
  assert.deepEqual(mode.placement({x:.2,z:-.6},30,30),{heading:-60,offsetX:.2,offsetY:.6});
 });
 
-test('existing footprint is checked before costly processing without weakening its boundary constraint',()=>{
- assert.equal(mode.footprintSupport('components','existing',.9692395268270527).supported,false);
+test('near rectangular existing footprints use disclosed opposite-edge approximation',()=>{
+ assert.equal(mode.footprintSupport('components','existing',.9692395268270527).supported,true);
  assert.match(mode.footprintSupport('components','existing',.9692395268270527).message,/占地|矩形/);
  assert.equal(mode.footprintSupport('components','existing',1).supported,true);
+ assert.equal(mode.footprintSupport('components','existing',.7).supported,false);
+ assert.equal(mode.footprintSupport('components','existing',0).supported,false);
  assert.equal(mode.footprintSupport('components','design',.4).supported,true);
  assert.equal(mode.footprintSupport('texture','existing',.4).supported,true);
 });

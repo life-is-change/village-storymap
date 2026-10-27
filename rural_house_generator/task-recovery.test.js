@@ -50,7 +50,7 @@ test('account task limit explains unfinished jobs and roof confirmation instead 
 
 test('unsupported existing footprint is rejected before worker lookup or photo processing',async()=>{
  const {submit,sandbox,calls}=setupSubmit();
- Object.assign(sandbox.state,{generationMethod:'components',modelPurpose:'existing',footprintRectangularity:.9692395268270527});
+ Object.assign(sandbox.state,{generationMethod:'components',modelPurpose:'existing',footprintRectangularity:.70});
  await assert.rejects(submit({id:47}),/占地|矩形/);assert.equal(calls.submitted,0);
 });
 function setupAttach(queue) {

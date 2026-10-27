@@ -6,7 +6,7 @@ def normalize_structure(raw,masses,width,height,depth):
     if not raw:return {'version':1,'layout':'unknown','porches':[],'columns':[]}
     result={'version':1,'layout':str(raw.get('layout','unknown'))[:60],
             'layout_source':str(raw.get('layout_source',''))[:100],'porches':[],'columns':[],
-            'metric_depth_measured':False}
+            'metric_depth_measured':False,'balcony_relations':[dict(r) for r in raw.get('balcony_relations',[])[:12]]}
     for kind in ['porches','columns']:
         values=raw.get(kind,[])
         if not isinstance(values,list) or len(values)>20:raise ValueError('结构构件数量无效')

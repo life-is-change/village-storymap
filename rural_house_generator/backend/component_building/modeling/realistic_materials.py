@@ -105,19 +105,19 @@ def ceramic_surface(mat):
     mat['wall_finish']='ceramic-panels';mat['tile_size_m']=tile;mat['tile_atlas_m']=atlas
 
 
-def bake_albedo(mat,target):
+def bake_albedo(mat,target,*,neutralize=False):
     """Bake photo tint into standard image pixels, shared by native and glTF."""
     import hashlib
     import numpy as np
     nodes=mat.node_tree.nodes;links=mat.node_tree.links
     tex=next((n for n in nodes if n.type=='TEX_IMAGE' and n.image and n.image.colorspace_settings.name=='sRGB'),None)
     if tex is None:return
-    source=tex.image;key=hashlib.sha256((source.name+str(list(target))).encode()).hexdigest()[:12]
+    source=tex.image;key=hashlib.sha256((source.name+str(list(target))+str(neutralize)+'linear-v3').encode()).hexdigest()[:12]
     name=source.name+'_Tint_'+key;derived=bpy.data.images.get(name)
     if derived is None:
         pixels=np.empty(len(source.pixels),dtype=np.float32);source.pixels.foreach_get(pixels);pixels=pixels.reshape((-1,4))
-        median=np.median(pixels[::8,:3],axis=0)
-        pixels[:,:3]=np.clip(pixels[:,:3]*np.asarray(target)/np.maximum(median,.01),0,1)
+        from color_space import tint_linear_pixels
+        pixels=tint_linear_pixels(pixels,target,neutralize=neutralize)
         derived=bpy.data.images.new(name,width=source.size[0],height=source.size[1],alpha=False)
         derived.colorspace_settings.name='sRGB';derived.pixels.foreach_set(pixels.ravel())
         folder=Path(os.environ.get('RURAL_COMPONENT_CACHE', str(ASSETS.parents[2]/'.cache/materials')))/'photo-albedo-v2';folder.mkdir(parents=True,exist_ok=True)
@@ -179,7 +179,7 @@ def apply_materials(v,gray=False,appearance=None,tiled=True,roof_texture=None):
     appearance=appearance or {}
     bake_albedo(v.M_WALL,appearance.get('wall_srgb',[.85,.84,.81]))
     roof_colour=appearance.get('roof_srgb',[.24,.29,.34] if gray else [.58,.29,.18])
-    for mat in v.M_ROOF:bake_albedo(mat,roof_colour)
+    for mat in v.M_ROOF:bake_albedo(mat,roof_colour,neutralize=True)
     socle=appearance.get('zones',{}).get('socle_srgb')
     if socle:base(v.M_STEPS,socle,.62)
     return rail

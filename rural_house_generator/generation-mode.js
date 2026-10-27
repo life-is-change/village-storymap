@@ -8,7 +8,8 @@
  function stages(method,purpose){return {cropRoof:method!=='components',preprocess:method!=='components'||purpose!=='design'};}
  function footprintSupport(method,purpose,ratio){
   if(method!=='components'||purpose!=='existing')return {supported:true,message:''};
-  if(!Number.isFinite(Number(ratio))||Number(ratio)<.98||Number(ratio)>1)return {supported:false,message:'当前白模占地存在不规则边界，现状构件建模暂不支持精确保留。请选择“原有照片贴图”还原现状，或切换“新建 / 改建农房”生成新方案。'};
+  if(!Number.isFinite(Number(ratio))||Number(ratio)<.90||Number(ratio)>1)return {supported:false,message:'当前占地凹缺较大、含内院或缺少占地信息，暂不适合用矩形近似。请选择“原有照片贴图”，或切换“新建 / 改建农房”。'};
+  if(Number(ratio)<.98)return {supported:true,message:'此占地按两组对边长度均值近似为矩形，保留位置和朝向；生成边界与原白模存在小幅差异。'};
   return {supported:true,message:''};
  }
  function stepLabels(method,purpose){

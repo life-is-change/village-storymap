@@ -61,7 +61,7 @@ def normalize_facade(building, payload):
             'width': w, 'bottom': z, 'height': height, 'kind': kind, 'shape': shape,
             'arch_rise': rise, 'evidence_box': o.get('evidence_box'),
             'confidence': number(o.get('confidence', 0), 0, 1, '检测置信度'),
-            'subtype':o.get('subtype') if o.get('subtype') in ('shutter','passage') else None})
+            'subtype':o.get('subtype') if o.get('subtype') in ('shutter','passage','glazed_door') else None})
     if not openings: raise ValueError('没有可用门窗；请调整识别或更换标准正立面图')
     balconies = []
     for b in f.get('balconies', []):
@@ -122,6 +122,9 @@ def normalize_facade(building, payload):
     profile=f.get('render_profile','v3-natural')
     from .structure import normalize_structure
     structure=normalize_structure(f.get('structure'),masses,width,h,depth)
+    relation_ids={str(o.get('id',f'opening-{i}')):openings[i]['id'] for i,o in enumerate(f.get('openings',[]))}
+    structure['balcony_relations']=[{**r,'opening_id':relation_ids[r['opening_id']]}
+        for r in structure.get('balcony_relations',[]) if r.get('opening_id') in relation_ids]
     roof['texture']=roof.get('texture','gray_wave_tile' if roof['palette']=='gray' else 'clay_tiles')
     if roof['texture'] not in ('gray_wave_tile','clay_tiles','metal_sheet'):raise ValueError('瓦面类型无效')
     roof['eave_curve']=number(roof.get('eave_curve',0),0,.35,'檐角起翘')

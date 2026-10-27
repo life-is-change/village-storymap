@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
 const PhotoMaterialBridge = window.PhotoMaterialBridge;
@@ -239,7 +240,7 @@ function renderGenerationMode() {
   els.componentParameters.hidden=!components;
   const constraint=GenerationMode.footprintSupport(state.generationMethod,state.modelPurpose,state.footprintRectangularity);
   const notice=document.getElementById('generationConstraint');
-  notice.hidden=constraint.supported;notice.textContent=constraint.message;
+  notice.hidden=!constraint.message;notice.textContent=constraint.message;
   document.getElementById('generationSourceCard').hidden=components;
   els.generateBtn.disabled=!constraint.supported||state.facadeResultPending||Boolean(active&&state.currentFacadeRun.status!=='awaiting_crop');
   els.lengthInput.readOnly=components&&existing;els.widthInput.readOnly=components&&existing;
@@ -254,7 +255,7 @@ function renderGenerationMode() {
     els.photoInput.disabled=false;
   }
   els.generationModeHint.textContent=components
-    ? existing?'保留原白模占地和朝向；实拍图清理、矫正后保留完整屋顶。':'上传标准正立面；跳过清理与透视矫正，尺寸继承白模并可修改。'
+    ? existing?'沿用白模位置、朝向和对边均值尺寸；实拍图清理、矫正后保留完整屋顶。':'上传标准正立面；跳过清理与透视矫正，尺寸继承白模并可修改。'
     :'照片贴到白模墙面，保留现有处理流程。';
   els.photoPipelineHint.textContent=components?(existing?'清理与校正 → 完整建筑识别 → 建模':'标准立面 → 构件识别 → 建模'):'先校正立面，再确认屋顶线';
   els.cropHint.textContent=components?(existing?'保留完整屋顶；清理时保护空调、栏杆和檐口。':'标准正立面直接用于识别与建模，不清理、不做透视校正。'):'正立面预处理完成后，拖动分界线切掉屋顶。';
@@ -751,9 +752,10 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   const link = document.createElement('a');
   link.href = state.currentUrl;
   link.download = `${state.currentModelInfo.id}.glb`;
-  link.textContent = '下载标准正立面贴图建筑 GLB';
+  link.textContent = run.generation_method==='components'?'下载构件建筑 GLB':'下载标准正立面贴图建筑 GLB';
   els.downloadLink.replaceChildren(link);
-  setProgress(100, '标准正立面贴图建筑生成完成');
+  setProgress(100, run.generation_method==='components'?'构件建筑生成完成':'标准正立面贴图建筑生成完成');
+  els.activeLabel.textContent=run.generation_method==='components'?'本地构件建筑：已生成，可旋转查看阳台与侧面':'正立面贴图建筑：已生成';
   setStatus(buildGenerateCompleteMessage(state.generationMethod === 'components' ? '本地构件模型' : '标准正立面贴图模型'));
   renderGenerationMode();
   els.photoHeightSummary.hidden = false;
@@ -1295,6 +1297,13 @@ function initThree() {
     antialias: window.RenderQualityModule?.getMode() !== 'low', alpha: true
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1;
+  const room = new RoomEnvironment();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromScene(room, .04);
+  scene.environment = environment.texture;
+  room.dispose();pmrem.dispose();
   els.viewer.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -1305,7 +1314,7 @@ function initThree() {
   controls.maxPolarAngle = Math.PI / 2.05;
   controls.enablePan = false;
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+  scene.add(new THREE.AmbientLight(0xffffff, .40));
 
   const sun = new THREE.DirectionalLight(0xffffff, 2);
   sun.position.set(14, 18, 12);
@@ -1343,6 +1352,7 @@ function initThree() {
   window.addEventListener('pagehide', event => {
     state.previewLoop?.setVisible(false);
     if (!event.persisted) {
+      environment.dispose();
       state.previewLoop?.dispose();
       state.qualityUnsubscribe?.();
     }

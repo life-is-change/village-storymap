@@ -25,8 +25,9 @@ def build_spec(image_path, analysis, options):
         for key, current in [('sourceBuildingWidth', width), ('sourceBuildingDepth', depth)]:
             if options.get(key) is not None and abs(float(options[key])-current) > .001:
                 raise ValueError('现状还原不能修改原白模占地尺寸。')
-    if settings['model_purpose'] == 'existing' and number(options.get('footprintRectangularity', 1), 0, 1, '占地矩形程度') < .98:
-        raise ValueError('当前构件生成器不能精确保持此不规则占地，请保留贴图方式或使用改建设计。')
+    rectangularity=number(options.get('footprintRectangularity', 0), 0, 1, '占地矩形程度')
+    if settings['model_purpose'] == 'existing' and rectangularity < .90:
+        raise ValueError('占地凹缺较大、带内院或缺少占地信息，不能可靠使用对边均值矩形近似。')
     ds = [d for d in analysis.get('detections', []) if valid_box(d.get('box'))]
     crop, _, _, _ = calibrate(analysis, ds)
     with Image.open(image_path) as image:
@@ -45,8 +46,12 @@ def build_spec(image_path, analysis, options):
     result = facade_draft(building, analysis, image_path, params, options.get('photoId'))
     spec = result['spec']
     spec['platform'] = {**settings, 'height_source': 'rectified-wall-aspect', 'white_model_height_used': False,
-                        'subject_width': width, 'subject_depth': depth, 'orientation': 'platform-binding'}
+                        'subject_width': width, 'subject_depth': depth, 'orientation': 'platform-binding',
+                        'footprint_approximation':settings['model_purpose']=='existing' and rectangularity<.98,
+                        'footprint_rectangularity':rectangularity,'dimension_source':'opposite-edge-means'}
     spec['assumptions'] = [s for s in spec['assumptions'] if '不强制匹配' not in s or settings['model_purpose'] == 'design']
     spec['assumptions'].append('墙身高度由正面长度及立面比例估算；侧背面和构件进深为规则补全。')
+    if spec['platform']['footprint_approximation']:
+        spec['assumptions'].append('原占地按两组对边长度均值近似矩形；保留位置与朝向，边界并非逐点复刻。')
     spec['warnings'] = result['warnings'] = spec['assumptions']
     return result

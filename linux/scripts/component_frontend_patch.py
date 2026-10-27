@@ -26,6 +26,19 @@ FILES = tuple('rural_house_generator/' + name for name in (
 # Release builder replaces these two literals in the delivered standalone script.
 PAYLOAD = ''
 PAYLOAD_SHA256 = ''
+REQUIRE_IDLE = False
+
+
+def check_idle():
+    sql="""BEGIN READ ONLY; SET LOCAL statement_timeout='10s';
+    SELECT (SELECT count(*) FROM api_private.local_gpu_runs WHERE kind='facade'
+       AND status NOT IN('awaiting_crop','completed','failed','canceled'))
+       +(SELECT count(*) FROM api_private.task_requests WHERE kind='facade'
+       AND state IN('pending','queued') AND source_run_id IS NULL); COMMIT;"""
+    result=subprocess.run(['sudo','-n','docker','--context','default','exec','-i','village-autonomous-postgres',
+        'psql','-X','-q','-w','-A','-t','-h','/var/run/postgresql','-U','village_restore_admin',
+        '-d','village_unified_candidate','-v','ON_ERROR_STOP=1'],input=sql.encode(),capture_output=True,timeout=20,check=True)
+    if result.stdout.strip()!=b'0':raise ValueError('ACTIVE_FACADE_TASKS_MUST_FINISH')
 
 
 def sha(data):
@@ -201,7 +214,9 @@ def main():
         lock = safe(Path.home() / 'village-autonomous/.operator-operation.lock')
         with os.fdopen(os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600), 'w') as stream:
             fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if REQUIRE_IDLE:check_idle()
             result = patch(state, payload(), apply=args.apply)
+            if REQUIRE_IDLE:result['active_facade_tasks']=0
         print(json.dumps(result))
         return 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:

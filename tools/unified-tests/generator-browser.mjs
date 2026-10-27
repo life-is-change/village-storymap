@@ -9,9 +9,15 @@ const root=fileURLToPath(new URL('../../',import.meta.url));
 const three=process.env.GENERATOR_TEST_THREE;
 if(!three)throw Error('Set GENERATOR_TEST_THREE to the existing three@0.164.1 package directory');
 const output=process.env.GENERATOR_TEST_OUTPUT;
+const model=process.env.GENERATOR_TEST_MODEL;
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://local');
+  if(model&&url.pathname==='/__model.glb'){res.setHeader('Content-Type','model/gltf-binary');return res.end(await readFile(model));}
+  if(model&&url.pathname==='/__manifest.json'){
+   const config=JSON.parse(await readFile(resolve(model,'../config.json'),'utf8')),s=config.spec;
+   res.setHeader('Content-Type','application/json');return res.end(JSON.stringify({building:{width:s.facade.width,depth:s.facade.depth,wall_height:s.metrics.wall_height,roof_height:s.roof.rise}}));
+  }
   const file=resolve(root,'.'+decodeURIComponent(url.pathname));
   if(!file.startsWith(resolve(root)+sep))throw Error('escape');
   let data=await readFile(file);
@@ -38,12 +44,15 @@ try{
   }
   return route.abort();
  });
- await page.goto(origin+'/rural_house_generator/index.html?mode=photo&length=14.81&width=8.239&footprintRectangularity=0.9692395268270527');
+ await page.goto(origin+'/rural_house_generator/index.html?mode=photo&length=14.81&width=8.239&footprintRectangularity=0.70');
  await page.waitForFunction(()=>window.__generatorTest);
  await page.selectOption('#generationMethod','components');
  assert.equal(await page.locator('#generationConstraint').isVisible(),true);
  assert.equal(await page.locator('#generateBtn').isDisabled(),true);
  assert.equal(await page.locator('#generationSourceCard').isVisible(),false);
+ await page.evaluate(()=>{window.__generatorTest.state.footprintRectangularity=.9692395268270527;window.__generatorTest.renderGenerationMode();});
+ assert.equal(await page.locator('#generateBtn').isDisabled(),false);
+ assert.match(await page.locator('#generationConstraint').textContent(),/均值|近似/);
  if(output){await mkdir(output,{recursive:true});await page.screenshot({path:resolve(output,'existing-unsupported.png')});}
  await page.selectOption('#modelPurpose','design');
  assert.equal(await page.locator('#generationConstraint').isVisible(),false);
@@ -76,6 +85,19 @@ try{
   const layout=await page.locator('.generation-card').evaluate(card=>({padding:parseFloat(getComputedStyle(card).paddingLeft),title:card.querySelector('h2').getBoundingClientRect().x-card.getBoundingClientRect().x}));
   assert.ok(layout.padding>=16&&layout.title>=16,'card padding at '+width);
   if(output)await page.screenshot({path:resolve(output,'design-'+width+'.png')});
+ }
+ if(model){
+  await page.setViewportSize({width:1440,height:1000});
+  await page.evaluate(async()=>{
+   const t=window.__generatorTest,s=t.state,run={id:'model-run',status:'completed',generation_method:'components',model_purpose:'design'};
+   s.photoJobId=run.id;s.currentFacadeRun=null;s.facadeRunRevision++;
+   s.facadeQueue={listArtifacts:async()=>[{artifact_type:'building_glb',storage_path:'/__model.glb'},{artifact_type:'model_manifest',storage_path:'/__manifest.json'}],createArtifactUrl:async p=>p};
+   await t.applyFacadeRun(run);t.clearFacadePollTimer();
+  });
+  await page.waitForFunction(()=>window.__generatorTest.state.currentBlob);
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('#downloadBtn').isDisabled(),false);
+  if(output)await page.locator('#viewer').screenshot({path:resolve(output,'actual-model-web.png')});
  }
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({status:'generator_browser_passed',viewportWidths:[1440,1280,390],previewDelayRecovery:true,unsupportedFootprintBlocked:true,designSkipsRectification:true,realGpuJobs:false}));

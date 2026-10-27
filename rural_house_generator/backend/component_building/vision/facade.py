@@ -174,7 +174,7 @@ def facade_draft(building, analysis, photo_path, params, photo_id):
     else:roof_details={}
     assumptions=calibration['notes']+['只解析标准正立面；未自动校正透视。',
         '入口平台/台阶按门槛候选自动支承；尺度是设计假设，非照片实测。',
-        f'进深 {depth:.2f} m、阳台深度 0.90 m 为设计假设；侧背面保留素墙。',
+        f'进深 {depth:.2f} m、外挑阳台默认深度 0.90 m 为设计假设；凹阳台另按结构记录。',
         '设计体块不强制匹配选中建筑的原占地；应用前需核对边界。',
         '窗框、套线、瓦片和栏杆截面复用 V3 构件样式，非逐个细节实测。',
         f'屋顶 {count} 个，类型 {typ}；'+profile['reason'],
@@ -182,7 +182,11 @@ def facade_draft(building, analysis, photo_path, params, photo_id):
         dep.get('reason','未启用相对深度估计；前后退进未作实测。'),
         '空调位置和正面尺寸来自检测；外机厚度 0.32 m、风扇和支架为通用构件预设。']
     if params.get('roof_count'):assumptions.append('屋顶数量由用户确认。')
-    if structure.get('porches'):assumptions.append('门廊/走廊由局部样式和柱候选推断，凹进 0.90 m 为设计预设，不是照片实测。')
+    if structure.get('porches'):
+        recesses=' / '.join(f"{v:.2f}" for v in sorted({p['recess'] for p in structure['porches']}))
+        assumptions.append(f'门廊/阳台由图像证据及构件关系推断，凹进 {recesses} m 是设计预设，不是照片测深。')
+    if any(r.get('access_kind')=='glazed_door' for r in structure.get('balcony_relations',[])):
+        assumptions.append('阳台后方落地开口按通行关系推定玻璃门；被栏杆遮挡的门底为规则补全。')
     if retrieval.get('available'):assumptions.append('构件检索库仅含六张开发图的区域原型；相似度不是正确率，未知样式和传统彩绘雕花仍可能缺失。')
     if sum(o['bottom']+o['height']*.5<fh*.9 for o in openings)<2 and len(openings)>=5:
         assumptions.append('底层候选较少，可能漏掉卷帘门或开敞空间；当前草案不能视为完整还原，可在照片上补画漏检。')
