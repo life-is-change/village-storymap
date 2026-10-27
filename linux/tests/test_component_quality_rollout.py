@@ -47,6 +47,20 @@ def test_image_transition_cannot_change_env_or_resources():
     with pytest.raises(ValueError,match='WORKER_RESOURCES_CHANGED'):m.validate_live(api,parent,rows,progress)
 
 
+def test_environment_order_is_not_a_resource_change():
+    api,parent,rows=baseline();rows[m.WORKER]['Config']['Env']=['A=B','SECOND=value']
+    progress={'parent_before':parent,'image':'new-image','phase':'replacing','worker_before':copy.deepcopy(rows[m.WORKER])}
+    rows[m.WORKER].update(Id='new-id',Image='new-image')
+    rows[m.WORKER]['Config']['Env'].reverse()
+    m.validate_live(api,parent,rows,progress)
+
+
+def test_duplicate_environment_keys_are_not_normalized_away():
+    api,parent,rows=baseline();progress={'parent_before':parent,'image':'new-image','phase':'replacing','worker_before':copy.deepcopy(rows[m.WORKER])}
+    rows[m.WORKER]['Config']['Env'].append('A=B')
+    with pytest.raises(ValueError):m.validate_live(api,parent,rows,progress)
+
+
 def test_missing_worker_resumes_only_during_validated_replacement():
     _,parent,rows=baseline()
     class Docker:

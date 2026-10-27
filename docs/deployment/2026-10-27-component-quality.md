@@ -39,3 +39,11 @@
 镜像层仍进入已确认的Docker根目录`/var/lib/docker`；本次没有全局迁移或清理。旧镜像和原回执作为恢复依据保留。完成后父回执只更新Worker镜像/容器身份和本补丁标识，原启动修复记录不删除。旧启动恢复脚本不能用于覆盖这次新版本。
 
 真实输出必须分别返回`component_quality_worker_updated_real_photo_test_pending`和`component_generator_frontend_updated_real_photo_test_pending`，才能确认两端发布；源码提交和本地测试不代表远程已更新。
+
+## 环境变量顺序误报续验
+
+4090现场已完成覆盖层构建、真实Blender几何检查和Worker替换；随后资源校验误把Env列表顺序变化视为配置变化。现场输出确认候选镜像正确、进程正常运行、ML未变化、资源快照无差异，且Env无重复键、增删键或值变化。
+
+`complete_component_quality.py`只对固定摘要为`51294854b024360ec6f3a2543906a13792d17c2c343f70b77e998bab00e53677`的原已发布Worker脚本补充续验。它要求checkpoint已到replacing/complete、有已保存的新容器ID，且该候选正在运行、PID有效、未重启。仅在副本上排序无重复键的Env列表，调用原完整核验；不改容器配置、原脚本摘要或检查点身份。原流程因此跳过构建和替换，仅继续启动、网络端点、云端身份和回执核验。任意真实环境变量或资源变化仍拒绝。原发布包保持不变，避免破坏进行中的checkpoint摘要。
+
+本地26项定向测试通过，覆盖冻结原脚本与异常状态。远程回执仍待返回；阿里云质量版网页此前仅preflight通过，尚需Worker续验成功后执行apply。

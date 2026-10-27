@@ -78,6 +78,17 @@ def context(folder,value,m):
     return root
 
 
+def environment_identity(values):
+    result={}
+    for value in values:
+        if not isinstance(value,str) or '=' not in value:
+            raise ValueError('INVALID_WORKER_ENVIRONMENT')
+        key,content=value.split('=',1)
+        if not key or key in result:raise ValueError('DUPLICATE_OR_EMPTY_ENVIRONMENT_KEY')
+        result[key]=content
+    return result
+
+
 def validate_live(m,parent,rows,progress):
     before=progress['parent_before'] if progress else parent
     if before.get('phase')!='complete' or before.get('commit')!=COMMIT or before.get('kind')!='worker' or before.get('operator_sha256')!=OPERATOR_SHA:
@@ -95,7 +106,7 @@ def validate_live(m,parent,rows,progress):
     resumable=replacing and (row['Image']==BASE_IMAGE or (row['State'].get('Status') in ('created','exited') and row['State'].get('ExitCode',0)==0))
     if (not row['State']['Running'] or row['State'].get('Restarting')) and not resumable:raise ValueError('WORKER_NOT_STABLE')
     baseline=progress['worker_before'] if progress else row
-    if m.resource_snapshot(row)!=m.resource_snapshot(baseline) or row['Config']['Env']!=baseline['Config']['Env']:
+    if m.resource_snapshot(row)!=m.resource_snapshot(baseline) or environment_identity(row['Config']['Env'])!=environment_identity(baseline['Config']['Env']):
         raise ValueError('WORKER_RESOURCES_CHANGED')
 
 
