@@ -43,8 +43,9 @@ def verify_semester_groups(repo,d):
     # The preflight must not accept a drifted function or create any columns.
     signature='public.ensure_group_plan_space(uuid,uuid,text,uuid)'
     definition=d.sql('SELECT pg_get_functiondef('+q(signature)+'::regprocedure);')
-    body=d.sql('SELECT prosrc FROM pg_proc WHERE oid='+q(signature)+'::regprocedure;')
+    body=d.sql('SELECT prosrc FROM pg_proc WHERE oid='+q(signature)+'::regprocedure;').removesuffix('\n')
     # pg_get_functiondef formats header only; append inside its known dollar body.
+    if definition.count(body)!=1:raise ValueError('SEMESTER_DRIFT_BODY_REQUIRED')
     drift=definition.replace(body,body+'\n-- unknown semester fixture\n')
     if drift==definition:raise ValueError('SEMESTER_DRIFT_FIXTURE_REQUIRED')
     d.sql(drift)
