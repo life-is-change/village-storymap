@@ -43,4 +43,16 @@ python3 -B linux/scripts/repair-autonomous-semester-groups.py --apply
 - API 单元测试 137 项通过。
 - 迁移、覆盖层和历史版本重建专项 14 项通过。
 - Windows 地理环境缺少 cv2，且部分历史 Linux 文件权限/临时目录测试无法在 Windows 下完整运行；不据这些结果宣称 Linux 原生验收通过。
-- 原生 PostgreSQL、多学期权限和实际部署状态将在后续补充；目前尚未应用线上升级。
+- 上述初始记录之后，完整 Linux 回归及原生 PostgreSQL 验收均已通过，见下方交付记录。
+
+## 线上交付记录
+
+- 已部署提交：`6ae43374ca5c81caaa247e62f1a02bc5107ce4fb`，原目录 main。
+- [Platform regression](https://github.com/life-is-change/village-storymap/actions/runs/40689078313) 与 [Unified native database tests](https://github.com/life-is-change/village-storymap/actions/runs/40689076652) 全部通过。
+- 原生验收包含同村两届的组码、成员、进度、个人成果和方案隔离，332 跨课程/跨学期资格，归档后的二维冲突/恢复及三维草稿/版本拒写，练习村庄拒绝方案，以及准备中断、API 停止/删除后的升级恢复。
+- 首次线上应用在备份末尾的源文件复核阶段停止，学期字段尚未写入。原因是已有公开资源可读权限与 `digest_file` 的私有文件权限要求不一致。修正只涉及备份源复核，副本仍为 0600；增加真实 0644 资源的原生复现后全量通过。停止时原 API/Auth 已自动恢复，旧私有诊断备份保留。
+- 最终应用成功，回执 phase 为 complete；再次运行操作器验证通过。数据库函数、网页及 API 契约校验通过，Auth/Postgres 容器身份保留，4090 未更新。
+- 后台浏览器实际显示“2026年秋季深井村规划实践 · 正式村庄：深井村”；332 显示实验室组、跨学期保留，成员数为 1，成员名为管理员。
+- 数据库复核：332 的 scope_kind 为 lab；账号 profile_role=admin、membership_role=member；练习村庄的 group_plan 数为 0。旧 Autonomous TEST group 保留为 legacy，不进入本届小组列表。
+- 三个学生组尚未代建，用户可在“课程小组”输入组名及可选组码创建，归属由当前学期和正式村庄自动确定。
+- 本次升级使用源码目录中的修正备份脚本；既有冻结 control 和其定时器没有被替换。本记录只确认本次升级备份成功，不宣称旧定时备份脚本已更新或本次生产备份已做实际还原。
