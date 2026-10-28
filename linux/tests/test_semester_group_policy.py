@@ -31,6 +31,8 @@ def test_schema_contains_real_scope_invariants_and_not_magic_role_assignment():
     schema = (ROOT / 'linux/sql/semester-groups.sql').read_text(encoding='utf-8')
     assert 'semester_membership_unique' in schema
     assert 'semester_progress_unique' in schema
+    assert "NOT EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conindid=x.indexrelid)" in schema
+    assert "ARRAY['owner_id','course_id','village_id','space_type']" in schema
     assert "scope_kind='lab'" in schema
     assert 'SEMESTER_GROUP_AMBIGUOUS_HISTORY' in schema
     assert 'UPDATE public.profiles' not in schema
