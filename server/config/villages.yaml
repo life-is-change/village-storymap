@@ -15,3 +15,8 @@ villages:
     display_name: "红星村"
     imagery: "建筑矢量/input_tif/红星村.tif"
     bounds: [113.89168024063113, 22.704443889633787, 113.91114234924319, 22.720496594144244]
+  412f3a07-afd2-4ccd-89be-deeca66a8219:
+    display_name: "深井村"
+    imagery: "建筑矢量/input_tif/深井村.tif"
+    bounds: [113.39208126068115, 23.065237998962402, 113.4135389328003, 23.085451126098633]
+    aliases: [shenjing]
