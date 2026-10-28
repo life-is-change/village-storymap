@@ -16,6 +16,17 @@ def previous_source_bytes(root,name):
     value=(root/name).read_bytes()
     if name.endswith('.pdf'):return value
     value=value.replace(b'\r\n',b'\n')
+    # Historical acceptance must reconstruct deployed bytes before semester edits,
+    # rather than silently changing the checksums of earlier release fixtures.
+    semester_path=root/'linux/semester-group-web-edits.json'
+    if semester_path.is_file():
+        semester=json.loads(semester_path.read_text(encoding='utf8'))
+        changes=semester['web'].get(name,[]) if name!='business-api/unified/contracts.mjs' else semester['contracts']
+        text=value.decode('utf8')
+        for change in reversed(changes):
+            if text.count(change['after'])!=1:raise ValueError('PREVIOUS_SEMESTER_SOURCE_FIXTURE_CHANGED')
+            text=text.replace(change['after'],change['before'],1)
+        value=text.encode('utf8')
     component=json.loads((root/'linux/tests/component-legacy-web.json').read_text(encoding='utf8'))
     text=value.decode('utf8')
     for change in reversed(component['files'].get(name,[])):

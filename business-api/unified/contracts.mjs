@@ -22,6 +22,9 @@ const list = (f,max=500,min=0) => field(value=>Array.isArray(value)&&value.lengt
 const multiline = (max=4000) => field(value=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(value),'TEST');
 const context = {teachingProjectId:uuid,villageId:uuid,spaceId:id};
 const replay = {requestId:uuid};
+// Optional at the transport boundary for historical clients; the semester DB
+// policy requires and verifies it before scoped operations can execute.
+const semester = {teachingProjectId:optional(uuid)};
 const definitions = Object.create(null);
 function add(action,fields,readOnly,source,path) {
   if(Object.hasOwn(definitions,action)) throw Error('DUPLICATE_OPERATION');
@@ -39,12 +42,13 @@ add('admin.listUsers',{},true,'supabase/functions/admin-delete-user; auth-system
 add('admin.disableUser',{userId:uuid,...replay},false,'supabase/functions/admin-delete-user (local business disable only)');
 
 for(const [name,fields,readOnly,source] of [
- ['listCourses',{},true,'courses'],['getCourseContext',{courseId:id},true,'courses;group_memberships;task_progress'],['listGroups',{courseId:id},true,'course_groups'],
- ['createGroup',{courseId:id,name:str(100),...replay},false,'course_groups'],
- ['joinGroup',{courseId:id,code:str(32),...replay},false,'group_memberships'],
- ['lockGroup',{groupId:id,locked:bool,...replay},false,'course_groups'],
- ['getProgress',{courseId:id},true,'task_progress'],['setProgress',{courseId:id,taskId:id,complete:bool,...replay},false,'task_progress'],
- ['listActivity',{courseId:id,limit:optional(integer(1,200))},true,'activity_events'],
+ ['listCourses',{},true,'courses'],['getCourseContext',{courseId:id,...semester},true,'courses;group_memberships;task_progress'],['listGroups',{courseId:id,...semester},true,'course_groups'],
+ ['createGroup',{courseId:id,...semester,name:str(100),code:optional(str(32)),...replay},false,'course_groups'],
+ ['joinGroup',{courseId:id,...semester,code:str(32),...replay},false,'group_memberships'],
+ ['lockGroup',{groupId:id,...semester,locked:bool,...replay},false,'course_groups'],
+ ['groupRoster',{courseId:id,teachingProjectId:uuid},true,'group_memberships;task_progress'],
+ ['getProgress',{courseId:id,...semester},true,'task_progress'],['setProgress',{courseId:id,...semester,taskId:id,complete:bool,...replay},false,'task_progress'],
+ ['listActivity',{courseId:id,...semester,limit:optional(integer(1,200))},true,'activity_events'],
  ['recordActivity',{courseId:id,...context,taskId:optional(id),action:str(100),targetType:optional(displayField(100)),targetId:optional(displayField(200)),viewMode:optional(displayField(30)),metadata:optional(json),...replay},false,'activity_events'],
  ['getActiveContext',{},true,'get_active_project_context'],['listVillages',{},true,'villages'],
  ['listSpaces',{teachingProjectId:uuid,villageId:uuid},true,'planning_spaces;course_personal_spaces'],

@@ -78,7 +78,8 @@
           if(typeof onCatalog==='function')onCatalog({project,villages});
           const villageId=project.formalProjectOpen&&project.formalVillageId?project.formalVillageId:project.practiceVillageId;
           const profile=await services.identity.me();
-          return {project,villages,spaces:includeSpaces?await client.listSpaces({teachingProjectId:project.id,villageId}):[],actor:{userId:profile.id,groupId:null,isStaff:['teacher','admin'].includes(profile.role)}};
+          const courseContext=await call('catalog.getCourseContext',{courseId:project.courseId,teachingProjectId:project.id});
+          return {project,villages,spaces:includeSpaces?await client.listSpaces({teachingProjectId:project.id,villageId}):[],actor:{userId:profile.id,groupId:courseContext?.group?.id||null,isStaff:['teacher','admin'].includes(profile.role)}};
         },
         ensurePersonalSpace(input){return call('catalog.ensureSpace',{teachingProjectId:input.teachingProjectId,villageId:input.villageId,spaceType:input.villageRole==='practice'?SPACE_TYPES.PRACTICE_PERSONAL:SPACE_TYPES.FORMAL_PERSONAL,...(input.title?{title:input.title}:{})},true);}
       };

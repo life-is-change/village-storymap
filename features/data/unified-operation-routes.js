@@ -40,6 +40,10 @@
     "method": "POST",
     "path": "/api/v1/spaces/get-course-context"
   },
+  "catalog.groupRoster": {
+    "method": "POST",
+    "path": "/api/v1/spaces/group-roster"
+  },
   "catalog.listGroups": {
     "method": "POST",
     "path": "/api/v1/courses/list-groups"

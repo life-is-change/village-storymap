@@ -56,20 +56,39 @@
       deps.uuid ||
       (() => root?.crypto?.randomUUID?.() || `course-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
     if (deps.services?.catalog) {
-      const execute = (name,input={}) => deps.services.catalog.execute('catalog.'+name,{courseId:course.id,...input});
+      async function projectScope() {
+        let projectId;
+        let courseId = course.id;
+        if (typeof deps.getTeachingProject === 'function') {
+          const project = await deps.getTeachingProject();
+          projectId = project?.id;
+          courseId = project?.courseId || project?.course_id || courseId;
+        }
+        else if (typeof deps.getTeachingProjectId === 'function') projectId = await deps.getTeachingProjectId();
+        else if (deps.teachingProjectId) projectId = deps.teachingProjectId;
+        else {
+          const context = await deps.services.catalog.execute('catalog.getActiveContext', {});
+          projectId = context?.project?.id;
+          courseId = context?.project?.course_id || context?.project?.courseId || courseId;
+        }
+        if (!projectId) throw createServiceError('TEACHING_PROJECT_REQUIRED', '请先创建并选择当前学期教学项目。');
+        return {courseId, teachingProjectId: projectId};
+      }
+      const execute = async (name,input={}) => deps.services.catalog.execute('catalog.'+name,{...await projectScope(),...input});
       const group = row => row && ({...row,courseId:row.course_id,name:row.name,joinCode:row.join_code,spaceId:row.space_id,createdBy:row.created_by,syncPending:false});
       const membership = row => row && ({...row,courseId:row.course_id,groupId:row.group_id,studentKey:row.student_key,studentName:row.student_name,studentId:row.student_id,syncPending:false});
       async function loadContext(user) {
         const value=await execute('getCourseContext');
-        return {...value,course:value.course||course,user,teachingProjectId:deps.teachingProjectId||course.teachingProjectId,group:group(value.group),membership:membership(value.membership)};
+        return {...value,course:value.course||course,user,teachingProjectId:value.teachingProjectId || value.project?.id,group:group(value.group),membership:membership(value.membership)};
       }
       return {
         loadContext,
         async listGroups(){return (await execute('listGroups')).map(group);},
         async refreshGroupsFromRemote(){return (await execute('listGroups')).map(group);},
-        async createGroup(name){return group(await execute('createGroup',{name:String(name||'').trim(),requestId:uuid()}));},
+        async createGroup(name,requestedCode){const code=normalizeGroupCode(requestedCode);return group(await execute('createGroup',{name:String(name||'').trim(),...(code?{code}:{}),requestId:uuid()}));},
         async joinGroup(code,user){await execute('joinGroup',{code:normalizeGroupCode(code),requestId:uuid()});return loadContext(user);},
-        async setGroupLocked(groupId,locked){return group(await deps.services.catalog.execute('catalog.lockGroup',{groupId,locked:Boolean(locked),requestId:uuid()}));},
+        async setGroupLocked(groupId,locked){const {teachingProjectId}=await projectScope();return group(await deps.services.catalog.execute('catalog.lockGroup',{teachingProjectId,groupId,locked:Boolean(locked),requestId:uuid()}));},
+        getGroupRoster(){return execute('groupRoster');},
         setTaskComplete(taskId,complete){return execute('setProgress',{taskId,complete:Boolean(complete),requestId:uuid()});},
         getProgress(){return execute('getProgress');}
       };

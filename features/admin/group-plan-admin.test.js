@@ -16,6 +16,11 @@ const appSource = fs.readFileSync(path.join(projectRoot, "admin.js"), "utf8");
 const workspaceSource = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 const sqlSource = fs.readFileSync(path.join(projectRoot, "supabase_SQL/Group Plan Baseline Update.sql"), "utf8");
 
+test("waiting for a snapshot is not reported as a created group space", async () => {
+  const controller=createGroupPlanAdminController({supabaseClient:{rpc:async()=>({data:{space_id:null,status:'waiting_for_snapshot'},error:null})}});
+  await assert.rejects(controller.ensureSpace({teachingProjectId:'p1',villageId:'v1',groupId:'g1'}), /冻结/);
+});
+
 test("admin dashboard rows show lifecycle baseline activity and conflicts", () => {
   const html = renderGroupRows([{
     group_id: "g1", group_name: "第一组", member_count: 6, space_id: "s1",

@@ -97,12 +97,16 @@
     }
     async function ensureSpace(input = {}) {
       const current = requireContext(input);
-      return rpc("ensure_group_plan_space", {
+      const result = await rpc("ensure_group_plan_space", {
         p_teaching_project_id: current.teachingProjectId,
         p_village_id: current.villageId,
         p_group_id: clean(input.groupId),
         p_snapshot_id: clean(input.snapshotId) || null
       });
+      if (result?.status === 'waiting_for_snapshot') {
+        throw new Error('请先在“现状校核”冻结并推荐一版共享现状，再建立小组方案空间。');
+      }
+      return result;
     }
     async function updateBaseline(input = {}) {
       const current = requireContext(input);

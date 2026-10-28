@@ -625,6 +625,11 @@ def main():
             phase='single-personal-shared-access'
             from single_personal_native_fixture import verify_single_personal
             verify_single_personal(state,repo,d,load,api,original_run)
+            phase='semester-groups-isolation'
+            from semester_group_native_fixture import verify_semester_groups,verify_semester_rollout
+            verify_semester_groups(repo,d)
+            phase='semester-groups-rollout-recovery'
+            verify_semester_rollout(state,repo,d,load,original_run)
             print('AUTONOMOUS_COORDINATOR_FIXTURE_VERIFIED_NOT_PUBLIC_CA_OR_GPU_ACCEPTED')
             print(json.dumps({'auth_users':report['users'],'own_restore_tables':len(expected['rows']),'business_restart':True,
                 'load_concurrency':[r['concurrency'] for r in full['load']],'ca_called':False,'provider_called':False,'gpu_called':False}))

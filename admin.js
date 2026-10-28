@@ -51,6 +51,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   let remoteCleanupWarnings = [];
   let messageBoardSortOrder = "time_desc";
   let courseAdminService = null;
+  let courseAdminProject = null;
+  let courseAdminLogContext = null;
   let courseAdminLogger = null;
   let villageAdminController = null;
   let surveyAdminController = null;
@@ -1122,6 +1124,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   async function readCourseTable(table, columns = "*") {
+    if (services?.catalog) {
+      const teachingProjectId = await resolveCourseAdminProject();
+      if (!teachingProjectId) return [];
+      if (table === 'activity_events') return services.catalog.execute('catalog.listActivity', {
+        courseId: courseAdminProject.course_id || courseAdminProject.courseId,
+        teachingProjectId, limit: 200
+      });
+      const roster = await courseAdminService.getGroupRoster();
+      if (table === 'group_memberships') return roster.memberships || [];
+      if (table === 'task_progress') return roster.progress || [];
+      throw new Error('不支持的课程统计数据');
+    }
     if (!supabaseClient) return [];
     try {
       let query = supabaseClient.from(table).select(columns).eq("course_id", "mibu-village-planning");
@@ -1164,11 +1178,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function renderCourseGroups() {
     const tbody = $("adminCourseGroupTableBody");
     if (!tbody || !courseAdminService) return;
+    const projectId = services?.catalog ? await resolveCourseAdminProject() : null;
+    const contextLabel = $('adminCourseGroupContext');
+    if (contextLabel) contextLabel.textContent = courseAdminProject
+      ? `当前学期：${courseAdminProject.name} · 正式村庄：${courseAdminProject.formalVillageName || '尚未绑定'}。332 为跨学期实验室组。`
+      : '请先创建当前学期，并绑定正式村庄后再创建学生组。';
+    const createButton = $('adminCreateGroupForm')?.querySelector('button[type="submit"]');
+    if (createButton && services?.catalog) createButton.disabled = !courseAdminProject?.formal_village_id || !courseAdminProject?.formal_project_open;
+    if (services?.catalog && !projectId) {
+      tbody.innerHTML = '<tr><td colspan="6" class="admin-empty">尚未创建当前学期教学项目。</td></tr>';
+      $('adminCourseGroupCount').textContent = '共 0 个小组';
+      return;
+    }
     courseGroupRows = await courseAdminService.listGroups({ refresh: true });
-    const [memberships, progress] = await Promise.all([
-      readCourseTable("group_memberships"),
-      readCourseTable("task_progress")
-    ]);
+    const roster = services?.catalog ? await courseAdminService.getGroupRoster() : null;
+    const [memberships, progress] = roster ? [roster.memberships || [], roster.progress || []]
+      : await Promise.all([readCourseTable("group_memberships"), readCourseTable("task_progress")]);
     const summaries = window.CourseAdminModule.summarizeGroups(courseGroupRows, memberships, progress);
     $("adminCourseGroupCount").textContent = `共 ${summaries.length} 个小组`;
     tbody.innerHTML = summaries.length
@@ -1179,7 +1204,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
             .map((row) => row.student_name)
             .filter(Boolean);
           return `<tr>
-            <td>${escapeHtml(summary.name)}${memberNames.length ? `<div class="cell-muted">${escapeHtml(memberNames.join("、"))}</div>` : ""}</td>
+            <td>${escapeHtml(summary.name)}<div class="cell-muted">${group.scope_kind === 'lab' ? '实验室组 · 跨学期保留' : '本学期学生组'}</div>${memberNames.length ? `<div class="cell-muted">${escapeHtml(memberNames.join("、"))}</div>` : ""}</td>
             <td><strong>${escapeHtml(group.joinCode || "—")}</strong></td>
             <td>${summary.memberCount}</td>
             <td>${summary.completedCount}</td>
@@ -1255,7 +1280,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function loadCourseActivity() {
     const remoteRows = await readCourseTable("activity_events");
     const merged = new Map();
-    [...readLocalActivityRows(), ...remoteRows].forEach((row) => {
+    [...(services?.catalog ? [] : readLocalActivityRows()), ...remoteRows].forEach((row) => {
       const key = row.client_event_id || row.event_id || `${row.occurred_at}:${row.student_name}:${row.action}:${row.target_id || ""}`;
       merged.set(key, row);
     });
@@ -1299,7 +1324,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
         event.preventDefault();
         try {
           const group = await courseAdminService.createGroup($("adminGroupNameInput").value, $("adminGroupCodeInput").value);
-          await courseAdminLogger?.record("group_created", { type: "group", id: group.id }, { groupName: group.name, joinCode: group.joinCode });
+          if (courseAdminLogContext || !services?.catalog) {
+            try { await courseAdminLogger?.record("group_created", { type: "group", id: group.id }, { groupName: group.name }); }
+            catch (error) { console.warn('小组已创建，操作记录暂未写入：', error); }
+          }
           courseAdminLogger?.flush().catch(() => {});
           form.reset();
           showAdminNotice(`已创建 ${group.name}，组码为 ${group.joinCode}。`, "success");
@@ -1343,6 +1371,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
     $("adminActivityExportBtn")?.addEventListener("click", downloadActivityCsv);
   }
 
+  async function resolveCourseAdminProject() {
+    if (!services?.catalog) return latestVillageAdminState?.context?.project?.id || null;
+    const raw = await services.catalog.execute('catalog.getActiveContext', {});
+    courseAdminProject = raw?.project || null;
+    const project = courseAdminProject;
+    if (project) {
+      project.formalVillageName = raw.villages?.find(v => v.id === project.formal_village_id)?.name || '';
+      const villageId = project.formal_project_open && project.formal_village_id || project.practice_village_id;
+      if (villageId && (courseAdminLogContext?.teachingProjectId !== project.id || courseAdminLogContext?.villageId !== villageId)) {
+        const spaces = await services.catalog.execute('catalog.listSpaces', {teachingProjectId:project.id,villageId});
+        const shared = spaces.find(s => ['practice_shared','formal_shared'].includes(s.space_type));
+        courseAdminLogContext = shared ? {courseId:project.course_id,teachingProjectId:project.id,villageId,spaceId:shared.id} : null;
+      }
+    } else courseAdminLogContext = null;
+    return courseAdminProject?.id || null;
+  }
+
   async function initializeCourseAdmin() {
     if (!window.CourseServiceModule || !window.CourseAdminModule) return;
     courseAdminService = window.CourseServiceModule.createCourseService({
@@ -1356,10 +1401,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     services,
       getContext: () => ({
         actor: { studentKey: "admin::管理员", name: getCurrentUser()?.name || "管理员" },
-        courseId: "mibu-village-planning",
-        teachingProjectId: "00000000-0000-4000-8000-000000000003",
-        villageId: "00000000-0000-4000-8000-000000000001",
-        spaceId: "practice-shared-00000000-0000-4000-8000-000000000003"
+        ...courseAdminLogContext
       })
     }) || null;
     bindCourseAdminEvents();

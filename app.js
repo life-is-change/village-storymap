@@ -2333,7 +2333,7 @@ async function ensureCourseWorkbenchInitialized() {
     supabaseClient,
     services: window.VillageBusinessServices,
     actorName: getCourseUser().name,
-    teachingProjectId: activeVillageContext?.teachingProjectId
+    getTeachingProject: () => activeVillageContext?.project
   });
   activityLogger = window.ActivityLoggerModule.createActivityLogger({
     storage: localStorage,
@@ -3149,7 +3149,7 @@ function readSceneStudioPlatformState() {
     user: authUser,
     role,
     teachingProjectId: activeVillageContext?.teachingProjectId || space?.teachingProjectId || course.teachingProjectId,
-    courseId: group?.courseId || space?.courseId || course.id,
+    courseId: activeVillageContext?.project?.courseId || space?.courseId || course.id,
     villageId: activeVillageContext?.villageId || space?.villageId || course.practiceVillageId,
     group,
     space: space ? { ...space, baselineRevision: Number(space.baselineRevision ?? space.revision ?? window.__buildingGeometryRevision ?? 0) || 0 } : null,
