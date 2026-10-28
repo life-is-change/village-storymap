@@ -23,7 +23,7 @@ def verify_semester_groups(repo,d):
         if expecting:
             # Verify the intended application error inside SQL; permission errors,
             # syntax failures and missing functions cannot count as successful rejection.
-            accepted="'FORBIDDEN','INVALID_INPUT','STAFF_REQUIRED','GROUP_MEMBERSHIP_REQUIRED','FORMAL_VILLAGE_PROJECT_REQUIRED','PRACTICE_GROUP_SPACE_FORBIDDEN','SCENE_EDIT_FORBIDDEN'"
+            accepted="'FORBIDDEN','INVALID_INPUT','STAFF_REQUIRED','GROUP_MEMBERSHIP_REQUIRED','PROJECT_GROUP_REQUIRED','FORMAL_VILLAGE_PROJECT_REQUIRED','PRACTICE_GROUP_SPACE_FORBIDDEN','SCENE_EDIT_FORBIDDEN'"
             return d.sql('BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='+q(uid)+
                 '; DO $negative$ DECLARE failed boolean:=false; BEGIN BEGIN PERFORM '+expression+
                 '; EXCEPTION WHEN SQLSTATE \'P0001\' THEN IF SQLERRM NOT IN ('+accepted+') THEN RAISE; END IF; failed:=true; END; IF NOT failed THEN RAISE EXCEPTION '+q(expecting)+
