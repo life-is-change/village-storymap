@@ -165,6 +165,12 @@ def verify_semester_rollout(state,repo,d,load,original_run):
     if os.environ.get('GITHUB_ACTIONS')!='true' or os.environ.get('VILLAGE_TEST_AUTONOMOUS_RUNTIME')!='1':raise ValueError('DISPOSABLE_SEMESTER_ROLLOUT_REQUIRED')
     from autonomous_operator import API
     repair=load('repair-autonomous-semester-groups');repair.load_script=load
+    # Real web overlays contain publicly readable assets. Backup must retain
+    # private copies and recheck them without rejecting the live source mode.
+    compose=json.loads((state/'compose.json').read_text())
+    web=next(v['source'] for v in compose['services']['web']['volumes'] if v.get('target')=='/srv/village-web')
+    from pathlib import Path
+    (Path(web)/'admin.html').chmod(0o644)
     original_prepare=repair.prepare_files
     def partial(original,root,updates,contract):
         stage=root/'web-preparing';stage.mkdir(parents=True,exist_ok=True)

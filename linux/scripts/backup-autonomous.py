@@ -174,6 +174,21 @@ def copy_private(source,target):
     return {'bytes':count,'sha256':digest.hexdigest()}
 
 
+def backup_source_digest(source):
+    # Deployed web assets and public certificates may be 0644. Their backup is
+    # still private; rechecking the source must use the same rules as layout.
+    import stat
+    source=storage.no_links(source)
+    fd=os.open(source,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0))
+    with os.fdopen(fd,'rb') as stream:
+        st=os.fstat(stream.fileno())
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1:raise ValueError('BACKUP_REGULAR_SOURCE_REQUIRED')
+        if os.name=='posix' and (st.st_uid!=os.geteuid() or st.st_mode&0o022):raise ValueError('BACKUP_OPERATOR_PATH_REQUIRED')
+        digest=hashlib.sha256();count=0
+        for block in iter(lambda:stream.read(1024**2),b''):digest.update(block);count+=len(block)
+    return digest.hexdigest(),count
+
+
 def backup(state,output_root):
     state=storage.private_path(state,directory=True);meta=storage.read_private_json(state/'release.json');docker=Docker(state)
     if meta.get('schemaVersion')!=2 or meta.get('kind')!='autonomous':raise ValueError('AUTONOMOUS_BACKUP_ONLY')
@@ -207,7 +222,7 @@ def backup(state,output_root):
         after_files,after_links=backup_layout(state,meta)
         if set(files)!=set(after_files) or links!=after_links:raise ValueError('BACKUP_FILE_SET_CHANGED')
         for name,source in files.items():
-            if storage.digest_file(source)!=(rows['state/'+name]['sha256'],rows['state/'+name]['bytes']):raise ValueError('BACKUP_SOURCE_FILE_CHANGED')
+            if backup_source_digest(source)!=(rows['state/'+name]['sha256'],rows['state/'+name]['bytes']):raise ValueError('BACKUP_SOURCE_FILE_CHANGED')
         manifest={'version':1,'status':'autonomous_snapshot_verified_not_test_restored','releaseId':meta['releaseId'],'created_at':storage.now(),
             'database':DATABASE,'postgres_image_id':pg['Image'],'files':rows,'controlled_symlinks':links,
             'limits':['No overwrite restore or source synchronization was executed.','Keep the private key and data backup outside public web and Git.']}

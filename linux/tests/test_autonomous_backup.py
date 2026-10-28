@@ -3,6 +3,7 @@ from pathlib import Path
 import importlib.util
 import pytest
 import json
+import os
 from unittest.mock import patch
 
 S=Path(__file__).resolve().parents[1]/'scripts';sys.path.insert(0,str(S))
@@ -12,6 +13,17 @@ def module():
     path=S/'backup-autonomous.py';assert path.is_file()
     spec=importlib.util.spec_from_file_location('autonomous_backup_test',path)
     m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+
+
+def test_recheck_hash_accepts_readable_deployed_assets_but_not_writable_or_linked_sources(tmp_path):
+    m=module();source=tmp_path/'public.js';source.write_bytes(b'deployed asset');source.chmod(0o644)
+    import hashlib
+    assert m.backup_source_digest(source)==(hashlib.sha256(b'deployed asset').hexdigest(),14)
+    if os.name=='posix':
+        source.chmod(0o666)
+        with pytest.raises(ValueError,match='BACKUP_OPERATOR_PATH_REQUIRED'):m.backup_source_digest(source)
+        source.chmod(0o644);alias=tmp_path/'linked.js';alias.symlink_to(source)
+        with pytest.raises(ValueError):m.backup_source_digest(alias)
 
 
 def test_quiesced_backup_restarts_only_originally_running_exact_ids_even_on_failure():
