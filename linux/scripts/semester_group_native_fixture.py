@@ -56,6 +56,12 @@ def verify_semester_groups(repo,d):
             if 'SEMESTER_GROUP_FUNCTION_CHANGED' not in log.read_text():raise
         else:raise ValueError('SEMESTER_UNKNOWN_FUNCTION_ACCEPTED')
     finally:d.sql(definition)
+    # Name only the missing/drifted signature, never print a business function.
+    from semester_group_policy import replacements
+    for name,before,after in replacements(repo):
+        allowed=','.join(q(v) for v in (before,before.replace('\n','\r\n'),after))
+        if d.sql('SELECT coalesce((SELECT prosrc IN ('+allowed+') FROM pg_proc WHERE oid=to_regprocedure('+q(name)+')),false);').strip()!='t':
+            raise ValueError('SEMESTER_BASELINE_MISMATCH_'+name.split('.')[1].split('(')[0].upper())
     d.sql(patch_sql(repo,apply=False))
     if d.sql("SELECT count(*) FROM pg_attribute WHERE attrelid='public.course_groups'::regclass AND attname='scope_kind' AND NOT attisdropped;").strip()!='0':
         raise ValueError('SEMESTER_PREFLIGHT_WROTE_SCHEMA')

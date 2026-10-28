@@ -36,6 +36,11 @@ test('full committed coordinator preserves imported accounts and real business f
   const lifecycle=await readFile(new URL('../../supabase_SQL/Teaching Project Practice Catalog and Village Lifecycle.sql',import.meta.url),'utf8');
   const ensure=lifecycle.match(/create or replace function public.ensure_context_space\([\s\S]*?\n\$\$;/i)?.[0];
   assert.ok(ensure);await setup.query(ensure);
+  // The live source also has formal-village binding. Keep the complete real
+  // function available for exact-body migration checks after legacy recovery.
+  const foundation=await readFile(new URL('../../supabase_SQL/Multi-Village Dual-Track Foundation.sql',import.meta.url),'utf8');
+  const bind=foundation.match(/create or replace function public.bind_formal_village\([\s\S]*?\n\$\$;/i)?.[0];
+  assert.ok(bind);await setup.query(bind);
   await setup.query('ALTER TABLE teaching_projects ADD created_by uuid; CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean NOT NULL DEFAULT false);CREATE TABLE public.geoprocessing_villages(village_id text PRIMARY KEY,active boolean);');
   await setup.query("INSERT INTO public.geoprocessing_villages VALUES('b0000000-0000-4000-8000-000000000001',true)");
   // The real legacy source predates the optional project-context migration.
