@@ -55,6 +55,26 @@ BEGIN
    AND pg_get_constraintdef(oid)='UNIQUE (owner_id, course_id, village_id, space_type)')
  LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',c.tbl,c.conname); END LOOP;
 END $constraints$;
+-- Legacy installs also created the same unique keys as standalone indexes.
+-- Remove only exact, unconditional column keys, never a primary/constraint index.
+DO $indexes$
+DECLARE i record;
+BEGIN
+ FOR i IN SELECT x.indexrelid::regclass AS idx FROM pg_index x
+ WHERE x.indisunique AND NOT x.indisprimary AND x.indexprs IS NULL AND x.indpred IS NULL
+  AND x.indnkeyatts=x.indnatts
+  AND NOT EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conindid=x.indexrelid)
+  AND (x.indrelid='public.group_memberships'::regclass
+    AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(x.indkey) WITH ORDINALITY k(num,ord)
+     JOIN pg_attribute a ON a.attrelid=x.indrelid AND a.attnum=k.num)=ARRAY['course_id','student_key']
+   OR x.indrelid='public.task_progress'::regclass
+    AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(x.indkey) WITH ORDINALITY k(num,ord)
+     JOIN pg_attribute a ON a.attrelid=x.indrelid AND a.attnum=k.num)=ARRAY['course_id','student_key','task_id']
+   OR x.indrelid='public.course_personal_spaces'::regclass
+    AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(x.indkey) WITH ORDINALITY k(num,ord)
+     JOIN pg_attribute a ON a.attrelid=x.indrelid AND a.attnum=k.num)=ARRAY['owner_id','course_id','village_id','space_type'])
+ LOOP EXECUTE format('DROP INDEX %s',i.idx); END LOOP;
+END $indexes$;
 CREATE UNIQUE INDEX IF NOT EXISTS semester_membership_unique ON public.group_memberships(teaching_project_id,student_key) WHERE scope_kind='semester';
 CREATE UNIQUE INDEX IF NOT EXISTS semester_group_member_unique ON public.group_memberships(group_id,student_key);
 CREATE UNIQUE INDEX IF NOT EXISTS semester_progress_unique ON public.task_progress(teaching_project_id, student_key, task_id);
