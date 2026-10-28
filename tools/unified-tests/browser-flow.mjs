@@ -24,7 +24,7 @@ try{
    const services=window.VillageBusinessServices;const registry={mode:services.mode,user:window.VillageAuth.getCurrentUser().id};
    if(services.mode==='aliyun'){
     await services.identity.me();await services.catalog.execute('catalog.listCourses',{});await services.admin.execute('admin.listUsers',{});
-    const client=window.CourseServiceModule.createCourseService({supabaseClient:services.businessClient,services});await client.listGroups();
+    const client=window.CourseServiceModule.createCourseService({supabaseClient:services.businessClient,services,teachingProjectId:'a0000000-0000-4000-8000-000000000001'});await client.listGroups();
     let refused=false;try{services.businessClient.from('profiles');}catch(e){refused=e.message==='SOURCE_BUSINESS_DISABLED';}if(!refused)throw Error('SOURCE_GUARD_MISSING');
    }else{await window.VillageSupabaseClient.from('profiles').select('*');}
    return {...registry,sourceCalls:window.__sourceCalls.length,localDomains:Boolean(services.catalog),auth:window.__authClientOptions};

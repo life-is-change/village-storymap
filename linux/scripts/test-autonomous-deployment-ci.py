@@ -624,7 +624,20 @@ def main():
             verify_workspace_repair(state,previous_source,d,load,api,actor,local_call,original_run)
             phase='single-personal-shared-access'
             from single_personal_native_fixture import verify_single_personal
-            verify_single_personal(state,repo,d,load,api,original_run)
+            # Apply the previous repair with its own source generation, then
+            # exercise the new semester rollout separately against current code.
+            from baseline_web_fixture import before_semester_bytes
+            personal_repair=load('repair-autonomous-single-personal')
+            pre_semester=root/'pre-semester-source';pre_semester.mkdir(mode=0o700)
+            personal_names=set(names)|set(personal_repair.BASELINE)|{
+                'supabase_SQL/Multi-Village Dual-Track Repair.sql',
+                'supabase_SQL/Personal Figure Ground Spaces and Layer Versions.sql',
+                'linux/sql/unified/planning.sql','linux/sql/unified/catalog.sql',
+                'linux/sql/single-personal-apply.sql'}
+            for name in personal_names:
+                target=pre_semester/name;target.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+                target.write_bytes(before_semester_bytes(repo,name));target.chmod(0o600)
+            verify_single_personal(state,pre_semester,d,load,api,original_run)
             phase='semester-groups-isolation'
             from semester_group_native_fixture import verify_semester_groups,verify_semester_rollout
             verify_semester_groups(repo,d)

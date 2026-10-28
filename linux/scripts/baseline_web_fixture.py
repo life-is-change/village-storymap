@@ -12,7 +12,7 @@ def previous_component_sql(root,value):
     return value
 
 
-def previous_source_bytes(root,name):
+def before_semester_bytes(root,name):
     value=(root/name).read_bytes()
     if name.endswith('.pdf'):return value
     value=value.replace(b'\r\n',b'\n')
@@ -27,6 +27,12 @@ def previous_source_bytes(root,name):
             if text.count(change['after'])!=1:raise ValueError('PREVIOUS_SEMESTER_SOURCE_FIXTURE_CHANGED')
             text=text.replace(change['after'],change['before'],1)
         value=text.encode('utf8')
+    return value
+
+
+def previous_source_bytes(root,name):
+    value=before_semester_bytes(root,name)
+    if name.endswith('.pdf'):return value
     component=json.loads((root/'linux/tests/component-legacy-web.json').read_text(encoding='utf8'))
     text=value.decode('utf8')
     for change in reversed(component['files'].get(name,[])):
