@@ -84,7 +84,7 @@ for(const [name,fields,readOnly,source] of [
  ['listPhotos',objectTarget,true,'object_photos;list_object_photo_facade_usage'],
  ['deletePhoto',{photoId:integer(1),...replay},false,'delete_object_photo_safely'],
  ['listReviews',context,true,'survey_feature_reviews'],['getReview',featureTarget,true,'survey_feature_reviews'],
- ['initializeReviews',{...context,datasetId:uuid,items:list(json),...replay},false,'initialize_shared_survey_reviews'],
+ ['initializeReviews',{...context,datasetId:uuid,items:list(json,20000,1),...replay},false,'initialize_shared_survey_reviews'],
  ['confirmGeometry',{...featureTarget,revision:integer(),lockToken:uuid,...replay},false,'confirm_survey_feature_geometry'],
  ['dashboard',context,true,'get_shared_survey_dashboard'],
  ['listFeatures',{...context,layerKey:optional(nullable(choice('building','road','water'))),geometryStatus:optional(nullable(choice('pending','confirmed_unchanged','modified','deleted','added'))),actorId:optional(nullable(uuid)),limit:optional(integer(1,200))},true,'list_shared_survey_features'],

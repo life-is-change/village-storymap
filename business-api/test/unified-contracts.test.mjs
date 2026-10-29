@@ -2,6 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 let api;try{api=await import('../unified/contracts.mjs');}catch{api={};}
 const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'group-space'};
+
+test('whole-village review initialization accepts more than 500 identities without expanding edit batches',()=>{
+ const input={...context,datasetId:context.villageId,requestId:context.teachingProjectId,
+  items:Array.from({length:2000},(_,i)=>({layerKey:'building',objectCode:'B'+i}))};
+ assert.equal(api.parseOperation('survey.initializeReviews',input).input.items.length,2000);
+ assert.throws(()=>api.parseOperation('survey.initializeReviews',{...input,items:[]}),{code:'INVALID_INPUT'});
+ assert.throws(()=>api.parseOperation('survey.initializeReviews',{...input,items:Array.from({length:20001},()=>({}))}),{code:'INVALID_INPUT'});
+});
 test('all fixed action contracts have valid examples and reject unknown fields',()=>{
  assert.equal(typeof api.parseOperation,'function');assert.ok(Object.keys(api.OPERATIONS).length>=60);
  for(const [name,def] of Object.entries(api.OPERATIONS)){
