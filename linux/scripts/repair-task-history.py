@@ -8,7 +8,7 @@ SIGNATURE='api_private.task_execute(text,jsonb,text)'
 OLD="WHERE api_private.context_accessible((r.context->>'teachingProjectId')::uuid,(r.context->>'villageId')::uuid,r.context->>'spaceId') AND api_private.task_grant_key(r.context)=r.grant_key;RETURN result;"
 NEW="WHERE CASE WHEN api_private.context_accessible((r.context->>'teachingProjectId')::uuid,(r.context->>'villageId')::uuid,r.context->>'spaceId') THEN api_private.task_grant_key(r.context)=r.grant_key ELSE false END;RETURN result;"
 def sql(statement):
-    result=subprocess.run(['docker','exec','village-autonomous-postgres','psql','-X','-A','-t','-v','ON_ERROR_STOP=1','-U','village_restore_admin','-d','village_unified_candidate'],input=statement,text=True,capture_output=True)
+    result=subprocess.run(['docker','exec','-i','village-autonomous-postgres','psql','-X','-A','-t','-v','ON_ERROR_STOP=1','-U','village_restore_admin','-d','village_unified_candidate'],input=statement,text=True,capture_output=True)
     if result.returncode:
         raise RuntimeError('TASK_HISTORY_SQL_FAILED: '+result.stderr[:1500])
     return result.stdout
