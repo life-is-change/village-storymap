@@ -19,7 +19,7 @@
       if (!planMap) return;
 
       planMap.on("pointermove", (evt) => {
-        if (evt.dragging) return;
+        if (evt.dragging) { pendingHoverPixel = null; return; }
 
         pendingHoverPixel = Array.isArray(evt.pixel) ? [...evt.pixel] : evt.pixel;
         if (hoverCheckRaf) return;
@@ -28,6 +28,11 @@
           hoverCheckRaf = 0;
           const currentMap = deps.getPlanMap();
           if (!currentMap || !pendingHoverPixel) return;
+          const view = currentMap.getView?.();
+          if (view?.getAnimating?.() || view?.getInteracting?.()) {
+            pendingHoverPixel = null;
+            return;
+          }
 
           const hovered = pickHoveredFeature(currentMap, pendingHoverPixel, deps.isNonInteractiveLayerKey);
           pendingHoverPixel = null;

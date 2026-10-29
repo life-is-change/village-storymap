@@ -9,7 +9,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20261029-map-interaction" />
+  <link rel="stylesheet" href="style.css?v=20261029-2d-performance" />
   <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260920-layer-library" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -122,14 +122,15 @@
               <button id="projectSettingsCloseBtn" type="button" title="关闭设置">×</button>
             </header>
             <div class="project-settings-body">
-              <label style="display:block;padding:12px">三维画质
-                <select id="renderQualitySelect" aria-label="三维画质">
+              <div class="render-quality-setting">
+                <label for="renderQualitySelect">三维画质</label>
+                <select id="renderQualitySelect" aria-label="三维画质" aria-describedby="renderQualityHelp">
                   <option value="low">流畅优先（低配置电脑）</option>
                   <option value="balanced" selected>均衡</option>
                   <option value="high">精细</option>
                 </select>
-                <small style="display:block;margin-top:6px">流畅优先会减少精细模型数量；选中的对象优先加载。</small>
-              </label>
+                <small id="renderQualityHelp">流畅优先会减少精细模型数量；选中的对象优先加载。</small>
+              </div>
               <section id="groupBaselinePanelMount" class="group-baseline-panel" aria-label="小组方案基线" hidden></section>
               <div id="spaceList" class="space-list-panel active"></div>
             </div>
@@ -349,7 +350,7 @@
   <script defer src="auth-system.js?v=20261008-entry-auth-lock"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
-  <script defer src="features/ui/map-style.js?v=20261029-map-interaction"></script>
+  <script defer src="features/ui/map-style.js?v=20261029-2d-performance"></script>
   <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20261007-wait-chain2"></script>
@@ -397,7 +398,7 @@
   <script defer src="features/map-editing/geometry-editor.js?v=20261029-map-interaction"></script>
   <script defer src="features/map-editing/survey-review-overlay.js?v=20260908-survey-status"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
-  <script defer src="features/map-editing/map-hover-handler.js"></script>
+  <script defer src="features/map-editing/map-hover-handler.js?v=20261029-2d-performance"></script>
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20261007-wait-chain2"></script>

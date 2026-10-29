@@ -18,14 +18,19 @@
   const buildingStyleCache = new WeakMap();
   const api = {
     getOlFeatureStyle(deps, feature, resolution) {
-      if (feature.get('layerKey') !== 'building' || typeof feature.getRevision !== 'function') {
+      if (typeof feature.getRevision !== 'function') {
         return api.buildOlFeatureStyle(deps, feature, resolution);
       }
       const OL = deps.getOL();
+      const layerKey = feature.get('layerKey');
+      // Road widths and contour text scale depend on exact resolution. Other
+      // polygon styles only change at the survey badge visibility threshold.
+      const zoomKey = layerKey === 'road' || layerKey === 'contours'
+        ? resolution : Number.isFinite(resolution) && resolution > 0.00012;
       const key = JSON.stringify([
-        feature.getRevision(), Number.isFinite(resolution) && resolution > 0.00012, deps.isActiveFeature(feature),
+        feature.getRevision(), zoomKey, deps.isActiveFeature(feature),
         deps.isHoveredFeature(feature), deps.getSelectedLayersForCurrentSpace().includes('figureGround'),
-        feature.get('surveyReviewVisual') || null
+        feature.get('surveyReviewVisual') || null, deps.getContourLabelsVisible?.() === true
       ]);
       const cached = buildingStyleCache.get(feature);
       if (cached?.key === key && cached.OL === OL) return cached.style;
