@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261029-survey-models", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261029-map-interaction", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -6863,7 +6863,9 @@ async function ensurePlanMap() {
 
   view.on("change:resolution", () => {
     syncBasemapUIBySpace(currentSpaceId);
-    planVectorLayer?.changed();
+    // OpenLayers already schedules vector rendering for a view resolution change.
+    // Avoid invalidating the whole source on every animated zoom step.
+    refreshBuildingEdgeLabels();
     scheduleMapScaleBarUpdate();
   });
 
@@ -7153,6 +7155,9 @@ function updateWorkspaceContextBar(context = activeCourseTaskContext) {
 
 function setProjectSettingsOpen(open) {
   isProjectSettingsOpen = Boolean(open);
+  if (isProjectSettingsOpen && workspaceContextBar && projectSettingsDrawer) {
+    projectSettingsDrawer.style.top = `${workspaceContextBar.getBoundingClientRect().bottom + 12}px`;
+  }
   projectSettingsDrawer?.classList.toggle("is-open", isProjectSettingsOpen);
   projectSettingsDrawer?.setAttribute("aria-hidden", String(!isProjectSettingsOpen));
   projectSettingsBtn?.setAttribute("aria-expanded", String(isProjectSettingsOpen));
@@ -9171,6 +9176,9 @@ async function refreshBuildingEdgeLabels() {
     for (let i = 0; i < n - 1; i++) {
       const dist = getGeoDistanceMeters(ring[i], ring[i + 1]);
       if (dist <= 0.01) continue;
+      const a = planMap?.getPixelFromCoordinate?.(ring[i]);
+      const b = planMap?.getPixelFromCoordinate?.(ring[i + 1]);
+      if (a && b && Math.hypot(b[0] - a[0], b[1] - a[1]) < 48) continue;
 
       const midX = (ring[i][0] + ring[i + 1][0]) / 2;
       const midY = (ring[i][1] + ring[i + 1][1]) / 2;
@@ -9275,6 +9283,9 @@ async function toggle2DMeasure(force = null) {
   const btn = document.getElementById("measure2dBtn");
 
   if (!shouldEnable) {
+    measure2DState.viewport?.removeEventListener("contextmenu", measure2DState.cancel);
+    document.removeEventListener("keydown", measure2DState.escape);
+    measure2DState.viewport = null;
     if (measure2DState.draw && planMap) {
       planMap.removeInteraction(measure2DState.draw);
     }
@@ -9302,7 +9313,8 @@ async function toggle2DMeasure(force = null) {
 
   const draw = new Draw({
     source: measure2DState.source,
-    type: "LineString"
+    type: "LineString",
+    maxPoints: 2
   });
 
   draw.on("drawstart", (evt) => {
@@ -9325,8 +9337,13 @@ async function toggle2DMeasure(force = null) {
   measure2DState.draw = draw;
   measure2DState.active = true;
   planMap.addInteraction(draw);
+  measure2DState.viewport = planMap.getViewport();
+  measure2DState.cancel = (event) => { event.preventDefault(); void toggle2DMeasure(false); };
+  measure2DState.escape = (event) => { if (event.key === "Escape") measure2DState.cancel(event); };
+  measure2DState.viewport.addEventListener("contextmenu", measure2DState.cancel);
+  document.addEventListener("keydown", measure2DState.escape);
   btn?.classList.add("is-active");
-  set2DMeasureReadout("测量中：单击打点，双击结束", true);
+  set2DMeasureReadout("单击两点测距；右键或 Esc 退出", true);
   return true;
 }
 

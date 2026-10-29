@@ -23,7 +23,7 @@
       }
       const OL = deps.getOL();
       const key = JSON.stringify([
-        feature.getRevision(), resolution, deps.isActiveFeature(feature),
+        feature.getRevision(), Number.isFinite(resolution) && resolution > 0.00012, deps.isActiveFeature(feature),
         deps.isHoveredFeature(feature), deps.getSelectedLayersForCurrentSpace().includes('figureGround'),
         feature.get('surveyReviewVisual') || null
       ]);

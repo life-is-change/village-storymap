@@ -806,6 +806,7 @@
         return { success: false, reason: "save_failed", error };
       } finally {
         state.isSaving = false;
+        api.updateBuildingEditorToolbarState(deps);
       }
     }
   };

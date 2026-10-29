@@ -2110,7 +2110,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
                     </span>
                   </label>
                   <input id="groupModelUploadInput" class="group-model-file-input" type="file" accept=".glb,model/gltf-binary" />
-                  <label>模型单位 <select id="groupModelUnitSelect" aria-label="模型单位"><option value="1">米</option><option value="0.01">厘米</option><option value="0.001">毫米</option></select></label>
+                  <details class="model-upload-advanced"><summary>高级选项</summary><label>模型单位 <select id="groupModelUnitSelect" aria-label="模型单位"><option value="1">米</option><option value="0.01">厘米</option><option value="0.001">毫米</option></select></label></details>
                   <div class="group-model-upload-actions">
                     <button id="groupModelUploadBtn" class="upload-btn" type="button" disabled>上传模型</button>
                     <button id="refreshGroupModelLibraryBtn" class="model-library-refresh-btn" type="button" aria-label="刷新模型库" title="刷新模型库">↻</button>
@@ -4396,6 +4396,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     viewer.scene.globe.depthTestAgainstTerrain = true;
     viewer.scene.globe.maximumScreenSpaceError = PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR;
     viewer.scene.requestRenderMode = true;
+    // Static village scenes have no clock-driven animation. Camera, data and
+    // async model/imagery changes still explicitly request their own frames.
+    viewer.scene.maximumRenderTimeChange = Infinity;
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
     // Disable post-process anti-aliasing and cap render scale to reduce first-open jank.
     viewer.scene.fxaa = false;

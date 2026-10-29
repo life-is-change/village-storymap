@@ -81,6 +81,7 @@ async function geometrySave({fail=false,refreshFail=false}={}){
  const state={mode:'idle',editLayerKey:'building',dirtyCodes:new Set(['building::HNEW']),pendingAddedFeatures:[feature],pendingDeletedFeatures:[],deletedCodes:new Set(),originalGeoms:new Map()};
  const messages=[],window={PersonalEditVersionModule:require('../data/personal-edit-version.js')};
  vm.runInNewContext(fs.readFileSync('features/map-editing/geometry-editor.js','utf8'),{window,console:{error(){},warn(){}},setTimeout});
+ window.GeometryEditorModule.updateBuildingEditorToolbarState=()=>{};
  const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'owned'};
  const edit=require('../data/feature-edit-session.js');let busy;
  const deps={getBuildingEditState:()=>state,isEditableSpace:()=>true,isEditableGeometryLayer:()=>true,getLayerLabel:()=> '建筑',getCurrent2DBuildingSpaceId:()=>c.spaceId,

@@ -9,7 +9,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20261029-object-details" />
+  <link rel="stylesheet" href="style.css?v=20261029-map-interaction" />
   <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20260920-layer-library" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -349,7 +349,7 @@
   <script defer src="auth-system.js?v=20261008-entry-auth-lock"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
-  <script defer src="features/ui/map-style.js?v=20261029-workspace-entry"></script>
+  <script defer src="features/ui/map-style.js?v=20261029-map-interaction"></script>
   <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20261007-wait-chain2"></script>
@@ -394,7 +394,7 @@
   <script defer src="features/object-collaboration/object-comments.js"></script>
   <script defer src="features/object-collaboration/object-info-deps.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
-  <script defer src="features/map-editing/geometry-editor.js?v=20260723-contour-ui"></script>
+  <script defer src="features/map-editing/geometry-editor.js?v=20261029-map-interaction"></script>
   <script defer src="features/map-editing/survey-review-overlay.js?v=20260908-survey-status"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js"></script>
@@ -434,7 +434,7 @@
   <script defer src="3D_scenes_edit/persistence/scene-files-api-client.js"></script>
   <script defer src="features/data/scene-services.js"></script>
   <script defer src="features/data/platform-services.js"></script>
-  <script defer src="app.js?v=20261029-survey-models"></script>
+  <script defer src="app.js?v=20261029-map-interaction"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

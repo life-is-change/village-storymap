@@ -2498,8 +2498,8 @@ body.landing-only-mode .home-landing-frame {
 }
 
 .map-measure-readout {
-  position: absolute;
-  right: 14px;
+  position: fixed;
+  right: calc(var(--right-panel-width) + 76px);
   bottom: 108px;
   z-index: 20;
   min-width: 96px;
@@ -2521,6 +2521,14 @@ body.landing-only-mode .home-landing-frame {
 .map-measure-readout.show {
   display: block;
 }
+
+.mode-map-right-collapsed .map-measure-readout {
+  right: 76px;
+}
+
+.model-upload-advanced { margin: 8px 0; font-size: 12px; }
+.model-upload-advanced summary { cursor: pointer; color: #60788b; }
+#groupModelUploadStatus:empty { display: none; }
 
 #model3dView.content-view.active .map-measure-readout {
   bottom: 156px;
@@ -7164,7 +7172,7 @@ body.map-view-active .workspace-context-bar {
 
 .project-settings-drawer {
   position: fixed;
-  top: 78px;
+  top: 90px;
   bottom: 16px;
   left: calc(var(--course-task-width) + var(--left-panel-width) + 16px);
   width: min(320px, calc(100vw - var(--course-task-width) - var(--left-panel-width) - var(--right-panel-width) - 40px));
