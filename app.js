@@ -3095,7 +3095,7 @@ async function ensureVillage3DLoaded() {
       await loadScriptOnce("assets/vendor/cesium-1.118.0/Cesium.js", "cesium-runtime-script");
     }
 
-    await loadScriptOnce("features/3d/reality-inset.js?v=20261020-unified-routing", "reality-inset-script");
+    await loadScriptOnce("features/3d/reality-inset.js?v=20261029-workspace-entry", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
     await loadScriptOnce("app-3d.js?v=20261020-unified-routing", "village-3d-script");
 
