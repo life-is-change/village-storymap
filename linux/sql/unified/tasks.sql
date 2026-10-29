@@ -50,7 +50,7 @@ SET search_path=pg_catalog,public,api_private,auth,pg_temp AS $$DECLARE t api_pr
  IF instance!~'^aliyun-[a-zA-Z0-9_-]{1,92}$' OR api_private.profile_status()<>'active' THEN RAISE EXCEPTION 'FORBIDDEN';END IF;
  IF a='tasks.list' THEN
   SELECT coalesce(jsonb_agg(api_private.task_public(r) ORDER BY r.created_at DESC),'[]') INTO result FROM (SELECT * FROM api_private.task_requests WHERE instance_id=instance AND owner_id=auth.uid() AND context->>'villageId'=p->>'villageId' AND state<>'revoked' ORDER BY created_at DESC LIMIT 100)r
-  WHERE api_private.context_accessible((r.context->>'teachingProjectId')::uuid,(r.context->>'villageId')::uuid,r.context->>'spaceId') AND api_private.task_grant_key(r.context)=r.grant_key;RETURN result;
+  WHERE CASE WHEN api_private.context_accessible((r.context->>'teachingProjectId')::uuid,(r.context->>'villageId')::uuid,r.context->>'spaceId') THEN api_private.task_grant_key(r.context)=r.grant_key ELSE false END;RETURN result;
  END IF;
  IF a='tasks.availability' THEN RETURN jsonb_build_object('authorized',true);END IF;
  IF a='tasks.sourceStatus' THEN

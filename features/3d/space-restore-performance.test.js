@@ -13,7 +13,7 @@ test('3D space reads edits and model bindings concurrently but applies edits bef
   const entity = {};
   const sandbox = {
     window: {EffectiveBuildingFeaturesModule:require('../data/effective-building-features')},
-    resetSceneToBaseHeights() {}, getActualLinkedSpaceIdFor3D: () => 'space',
+    resetSceneToBaseHeights() {}, replacementModelDescriptors:new Map(), removeReplacementModel() {}, getActualLinkedSpaceIdFor3D: () => 'space',
     fetchCurrentSpaceAllEdits: async () => { events.push('edits-read'); await blocked; return [{ object_code: 'A', data: { height: 8 } }]; },
     getGroupModelLibrary: () => ({ listBindings: async id => { events.push('bindings-read'); assert.equal(id,'space'); return [{ object_code: 'A', group_model_assets: { storage_path: 'asset' }, transform: {} }]; }, createSignedUrl: async () => 'asset' }),
     normalizeCode: x => x, entityMap: new Map([['A',entity]]),
@@ -25,7 +25,7 @@ test('3D space reads edits and model bindings concurrently but applies edits bef
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(events, ['edits-read','bindings-read']);
   release(); await run;
-  assert.deepEqual(events, ['edits-read','bindings-read','height:8','edit-apply','binding-apply']);
+  assert.deepEqual(events, ['edits-read','bindings-read','height:8','binding-apply']);
 });
 
 test('late bindings from a departed space never change the new scene', async () => {

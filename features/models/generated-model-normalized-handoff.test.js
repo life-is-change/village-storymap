@@ -24,7 +24,7 @@ test('normalized facade warm render and a fresh group viewer restore share ancho
     window: { location: { origin: 'http://localhost' }, GroupModelLibraryModule: group, EffectiveBuildingFeaturesModule: { runBoundedTasks } },
     HOUSE_GENERATOR_MESSAGE_TYPE: 'village-house-generator:model-ready', HOUSE_GENERATOR_DEFAULT_SCALE: 10,
     ArrayBuffer, File, console, activeEntity: null, currentSelectedEntityCode: '52', entityInfoRevision: 0,
-    entityMap: new Map([['52', entity]]), getActualLinkedSpaceIdFor3D: () => 'S',
+    entityMap: new Map([['52', entity]]), replacementModelDescriptors:new Map(), removeReplacementModel() {}, getActualLinkedSpaceIdFor3D: () => 'S',
     get3DEditPolicy: () => ({ canEditModel: true }), getCurrentModelLibraryScope: () => scope,
     getGroupModelLibrary: () => library, normalizeCode: value => String(value || ''),
     clampNumber: (value, min, max, fallback) => Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback,

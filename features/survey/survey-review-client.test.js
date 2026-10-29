@@ -3,6 +3,17 @@ const assert = require("node:assert/strict");
 
 const { createSurveyReviewClient, requireSharedContext } = require("./survey-review-client.js");
 
+test('business API review initialization normalizes duplicate identities just like Supabase', async () => {
+  let sent;
+  const client = createSurveyReviewClient({ services: { survey: { execute: async (_a, p) => { sent=p; return {}; } } },
+    getContext: () => context(), uuid: () => 'request' });
+  await client.initializeReviews('dataset', [
+    {layerKey:'building',objectCode:' B1 '}, {layerKey:'building',objectCode:'B1'},
+    {layerKey:'water',objectCode:'W1'}, {layerKey:'contours',objectCode:'C1'}, {layerKey:'water',objectCode:''}
+  ]);
+  assert.deepEqual(sent.items,[{layerKey:'building',objectCode:'B1'},{layerKey:'water',objectCode:'W1'}]);
+});
+
 function createQuery(rows, calls) {
   const query = {
     select(columns) { calls.push(["select", columns]); return query; },

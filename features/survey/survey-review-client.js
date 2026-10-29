@@ -36,11 +36,25 @@
     return response?.data ?? null;
   }
 
+  function normalizeReviewItems(items) {
+    if (!Array.isArray(items) || !items.length) throw new Error('SURVEY_REVIEW_ITEMS_REQUIRED');
+    const seen = new Set();
+    const result = [];
+    for (const item of items) {
+      const layerKey = normalize(item?.layerKey), objectCode = normalize(item?.objectCode);
+      const key = `${layerKey}\u0000${objectCode}`;
+      if (!SURVEY_LAYERS.has(layerKey) || !objectCode || seen.has(key)) continue;
+      seen.add(key); result.push({layerKey, objectCode});
+    }
+    if (!result.length) throw new Error('SURVEY_REVIEW_ITEMS_REQUIRED');
+    return result;
+  }
+
   function createSurveyReviewClient({ supabaseClient, services, getContext, uuid=()=>globalThis.crypto.randomUUID() }) {
     if(services?.survey){
       const call=(action,input={},write=false)=>services.survey.execute('survey.'+action,{...requireSharedContext(getContext),...input,...(write?{requestId:uuid()}: {})});
       return {
-        initializeReviews(datasetId,items){return call('initializeReviews',{datasetId,items},true);},
+        initializeReviews(datasetId,items){return call('initializeReviews',{datasetId,items:normalizeReviewItems(items)},true);},
         listReviews(){return call('listReviews');},
         getReview(layerKey,objectCode){return call('getReview',requireTarget(layerKey,objectCode));},
         confirmGeometry(input){return call('confirmGeometry',{...requireTarget(input.layerKey,input.objectCode),revision:input.expectedRevision,lockToken:input.lockToken},true);}

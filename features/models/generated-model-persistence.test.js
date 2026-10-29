@@ -41,7 +41,7 @@ function fixture({ failPlacement = false, gate = Promise.resolve() } = {}) {
     toBooleanFlag: (value, fallback) => value === undefined ? fallback : value === true || value === '1',
     setRuntimeGeneratedModelState: (space, code, state) => runtime.set(space + ':' + code, state),
     applyModelStateToEntity: async (_, row) => renders.push(row), showEntityInfo: async () => {}, byId: () => null,
-    viewer: { scene: { requestRender() {} } }, resetSceneToBaseHeights() {},
+    viewer: { scene: { requestRender() {} } }, resetSceneToBaseHeights() {}, replacementModelDescriptors:new Map(), removeReplacementModel() {},
     fetchCurrentSpaceAllEdits: async () => [], applyRuntimeGeneratedModelsForSpace: async () => {}, update3DStatusText() {},
     saveSingle3DEdit: async (_, row) => { assert.ok(!String(row.modelUrl).startsWith('blob:')); }
   };

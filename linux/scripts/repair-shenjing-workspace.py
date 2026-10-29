@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 import subprocess
 
-FILES={'index.html','app.js','style.css','features/survey/survey-review-model.js','features/3d/reality-inset.js'}
-STATE=Path('/home/admin/village-autonomous/files/object-details-reality-20261029-v1')
+FILES={'index.html','app.js','app-3d.js','features/survey/survey-review-client.js'}
+STATE=Path('/home/admin/village-autonomous/files/survey-model-usability-20261029-v1')
 
 def digest(data):return hashlib.sha256(data).hexdigest()
 def docker(*args):return subprocess.check_output(['docker',*args],text=True)

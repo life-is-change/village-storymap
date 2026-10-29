@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261020-unified-routing", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261029-survey-models", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3769,7 +3769,7 @@ async function refreshSurveyReviewState() {
       activityQueries
     ]);
     if (
-      space.spaceType === "practice_shared"
+      ["practice_shared", "formal_shared"].includes(space.spaceType)
       && reviews.length === 0
       && ["teacher", "admin"].includes(getCurrentUserRole())
     ) {
@@ -7539,6 +7539,11 @@ async function deleteObjectPhoto(photoRecord) {
 }
 
 function buildEditableDetailHtml(row, layerKey, allowEdit) {
+  if (layerKey === 'water') {
+    return [['id', row?.id ?? row?.osm_id ?? currentSelectedObject?.sourceCode ?? '—'],
+      ['name', row?.name || '—'], ['source', row?.source || '—']]
+      .map(([key,value]) => `<div class="house-row" data-field-key="${key}"><span class="house-label">${key}：</span><span class="house-value">${escapeHtml(String(value))}</span></div>`).join('');
+  }
   if (layerKey === "building") {
     const displayRow = normalizeBuildingInfoRow(row, currentSelectedObject?.sourceCode || "");
     const fields = getEditableFields(layerKey);

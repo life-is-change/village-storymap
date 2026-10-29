@@ -1,6 +1,22 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=()=>fs.readFileSync(path.join(__dirname,'../../app-3d.js'),'utf8');
 function extract(name){const s=source(),start=s.indexOf(`  function ${name}(`);assert.ok(start>=0,`${name} must be integrated`);let count=0,end=start+s.slice(start).indexOf('{');for(let i=end;i<s.length;i++){if(s[i]==='{')count++;if(s[i]==='}'&&--count===0)return s.slice(start,i+1);}}
+
+test('returning to the same scene preserves loaded replacements while resetting base heights',()=>{
+ let cleared=0;const entity={__sourceCode:'A',polygon:{},__baseHeight:9,__terrainHeight:2};const resource={primitive:{show:true}};let visual;
+ const ctx={clearAllReplacementModels(){cleared++;},entityMap:new Map([['A',entity]]),replacementModelMap:new Map([['A',resource]]),normalizeCode:v=>v,DEFAULT_HEIGHT:9,
+ setEntityReplacementVisual:(_e,...v)=>visual=v,viewer:{scene:{requestRender(){}}}};
+ vm.runInNewContext(extract('resetSceneToBaseHeights')+';resetSceneToBaseHeights()',ctx);
+ assert.equal(cleared,0);assert.deepEqual(visual,[true,true]);
+});
+
+test('storage identity and placement, rather than expiring signed URLs, determine replacement revision',()=>{
+ const code=extract('getReplacementModelIdentity');const ctx={};vm.createContext(ctx);vm.runInContext(code+';this.identity=getReplacementModelIdentity;',ctx);
+ const first=ctx.identity({modelUrl:'signed-old',modelStoragePath:'models/a.glb',modelScale:1});
+ const renewed=ctx.identity({modelUrl:'signed-new',modelStoragePath:'models/a.glb',modelScale:1});
+ assert.equal(first.revision,renewed.revision);assert.equal(first.url,renewed.url);
+ assert.notEqual(first.revision,ctx.identity({modelUrl:'signed-new',modelStoragePath:'models/a.glb',modelScale:2}).revision);
+});
 test('high LOD reload uses durable storage path instead of an expired initial signed URL',async()=>{
  const renders=[],signed=[],map=new Map(),entity={__sourceCode:'52'},state={modelUrl:'expired-high',modelStoragePath:'group/house.glb'};
  const ctx={window:{ModelResidencyModule:require('./model-residency'),RenderQualityModule:{getProfile:()=>({modelBudget:1,detailPixels:100})}},viewer:{scene:{requestRender(){}}},replacementResidencyManager:null,replacementModelMap:map,replacementModelDescriptors:new Map([['52',{entity,modelState:state,revision:'same'}]]),getActualLinkedSpaceIdFor3D:()=> 's',

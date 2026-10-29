@@ -2098,7 +2098,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
               <div class="model-toolbox-section">
                 <div class="model-toolbox-header">
                   <h4 class="model-toolbox-title">修改模型</h4>
-                  <p class="model-toolbox-desc">本小组成员共享该模型库；无小组时仅本人可见。选择一个不超过 50 MB 的 GLB，系统会自动准备轻量版本并保留原文件。</p>
+                  <p class="model-toolbox-desc">本小组成员共享该模型库；选择一个不超过 50 MB 的 GLB，系统会自动准备轻量版本并保留原文件。</p>
                 </div>
 
                 <div class="group-model-upload-panel">
@@ -2115,7 +2115,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
                     <button id="groupModelUploadBtn" class="upload-btn" type="button" disabled>上传模型</button>
                     <button id="refreshGroupModelLibraryBtn" class="model-library-refresh-btn" type="button" aria-label="刷新模型库" title="刷新模型库">↻</button>
                   </div>
-                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status">上传时自动准备高、低清模型并统一底部原点，完成后应用到当前建筑，可供小组复用。</div>
+                  <div id="groupModelUploadStatus" class="group-model-upload-status" role="status"></div>
                 </div>
 
                 <div class="model-library-toolbar">
@@ -2234,7 +2234,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
         <div class="house-row">当前状态：${escapeHtml(modelStatusText)}</div>
         ${hasPlacedModel ? `<div class="house-row">当前模型来源：${escapeHtml(modelState.modelAssetName || currentLibraryBinding?.group_model_assets?.name || "自定义模型")}</div>` : ""}
-        <div class="house-row">调整说明：修改缩放、旋转、抬高、拉伸和偏移后会直接生效。</div>
       </div>
     `;
   }
@@ -2361,7 +2360,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function resetSceneToBaseHeights() {
-    clearAllReplacementModels();
 
     entityMap.forEach((entity) => {
       if (!entity || !entity.polygon) return;
@@ -2372,7 +2370,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
       entity.__buildingHeight = baseHeight;
       entity.polygon.height = terrainHeight;
       entity.polygon.extrudedHeight = terrainHeight + baseHeight;
-      setEntityReplacementVisual(entity, false);
+      const replacement = replacementModelMap.get(normalizeCode(entity.__sourceCode));
+      setEntityReplacementVisual(entity, !!replacement, !!replacement?.primitive && replacement.primitive.show !== false);
     });
 
     viewer?.scene.requestRender();
@@ -2704,7 +2703,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         scale: 1,
         minimumPixelSize: 0,
         maximumScale: undefined,
-        incrementallyLoadTextures: true,
+        incrementallyLoadTextures: false,
         runAnimations: false
       });
 
@@ -2861,6 +2860,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
   }
 
+  function getReplacementModelIdentity(modelState) {
+    const url = modelState.modelStoragePath ? `storage:${modelState.modelStoragePath}` : modelState.modelUrl;
+    return {url, revision:JSON.stringify({...modelState,modelUrl:url})};
+  }
+
   async function applyModelStateToEntity(entity, row) {
     if (!entity) return;
 
@@ -2868,9 +2872,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const residency = getReplacementResidencyManager();
     if (residency && modelState.modelUrl) {
       const key = normalizeCode(entity.__sourceCode);
-      const revision=JSON.stringify(modelState);
+      const {revision, url}=getReplacementModelIdentity(modelState);
       replacementModelDescriptors.set(key, {entity, modelState, revision});
-      residency.register(key, {entity, modelState, spaceId:getActualLinkedSpaceIdFor3D(), revision, url:modelState.modelUrl,
+      residency.register(key, {entity, modelState, spaceId:getActualLinkedSpaceIdFor3D(), revision, url,
         lowUrl:modelState.modelLowStoragePath ? `storage:${modelState.modelLowStoragePath}` : null});
       updateReplacementResidency();
       return;
@@ -2993,6 +2997,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const queueOptions = { concurrency: 3, key: item => normalizeCode(item.object_code), isCurrent };
       const edits = await fetchCurrentSpaceAllEdits();
       if (!isCurrent()) return;
+      const bindingResult = await bindingsReady;
+      const boundCodes = new Set((bindingResult.bindings || []).map(binding => normalizeCode(binding.object_code)));
+      const expectedModelCodes = new Set(boundCodes);
       await window.EffectiveBuildingFeaturesModule.runBoundedTasks(edits, async (item) => {
         const code = normalizeCode(item.object_code);
         const entity = entityMap.get(code);
@@ -3005,12 +3012,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
         }
 
         if (!data.modelAssetId) {
-          await applyModelStateToEntity(entity, data);
+          if (data.modelUrl || data.modelStoragePath) expectedModelCodes.add(code);
+          if (!boundCodes.has(code)) await applyModelStateToEntity(entity, data);
         }
       }, queueOptions);
 
       try {
-        const result = await bindingsReady;
+        const result = bindingResult;
         if (!isCurrent()) return;
         if (result.error) throw result.error;
         const { library, bindings } = result;
@@ -3042,6 +3050,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
         }, queueOptions);
       } catch (error) {
         console.warn("恢复空间模型库绑定失败：", error);
+      }
+      if (!bindingResult.error && isCurrent()) {
+        for (const code of [...replacementModelDescriptors.keys()]) {
+          if (!expectedModelCodes.has(code)) removeReplacementModel(code);
+        }
       }
     }
 
@@ -3397,7 +3410,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       ${buildModelReplaceCardHtmlV3(mergedRow, allowEdit)}
       <div class="info-card">
         <h3 class="house-title">3D 模型说明</h3>
-        <div class="house-row">当前空间：${escapeHtml(linkedSpaceId || "current")}</div>
         <div class="house-row">地形高程：${escapeHtml((entity.__terrainHeight ?? 0).toFixed(2))} m</div>
         <div class="house-row">当前挤出高度：${escapeHtml(String(entity.__buildingHeight ?? DEFAULT_HEIGHT))} m</div>
       </div>
