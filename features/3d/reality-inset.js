@@ -237,7 +237,8 @@
     let enterPromise = null;
     let tilesetPromise = null;
     let pendingProxyRecords = [];
-    let visible = config.enabled;
+    let visible = false;
+    let reopenButton = null;
     let hostActive = options.hostActive !== false;
     let destroyed = false;
     let controlsBound = false;
@@ -282,6 +283,7 @@
       resetButton ||= byId("reality3dResetBtn");
       terrainButton ||= byId("reality3dTerrainBtn");
       closeButton ||= byId("reality3dCloseBtn");
+      reopenButton ||= byId("reality3dReopenBtn");
       retryButton ||= byId("reality3dRetryBtn");
       titlebar ||= byId("reality3dTitlebar");
     }
@@ -299,6 +301,9 @@
       panel?.classList.toggle("is-hidden", !visible);
       toggleButton?.classList.toggle("is-active", visible);
       toggleButton?.setAttribute("aria-pressed", visible ? "true" : "false");
+      toggleButton?.setAttribute("aria-label", visible ? "收起实景对照" : "展开实景对照");
+      toggleButton?.setAttribute("title", visible ? "收起实景对照" : "展开实景对照");
+      if (reopenButton) reopenButton.hidden = visible;
       syncRenderActivity();
       return visible;
     }
@@ -541,11 +546,12 @@
     function bindControls() {
       if (controlsBound) return;
       resolveElements();
-      if (titleEl) titleEl.textContent = config.title;
-      addDomListener(toggleButton, "click", () => {
-        show();
-        enter().catch(() => {});
-      });
+      if (titleEl) titleEl.textContent = config.title || '村庄实景对照';
+      const toggleInset = () => {
+        if (toggle()) enter().catch(() => {});
+      };
+      addDomListener(toggleButton, "click", toggleInset);
+      addDomListener(reopenButton, "click", toggleInset);
       addDomListener(closeButton, "click", hide);
       addDomListener(resetButton, "click", resetView);
       addDomListener(terrainButton, "click", () => setTerrainEnabled(!terrainEnabled));
@@ -894,9 +900,8 @@
     }
 
     async function enter() {
-      if (destroyed || !config.enabled) return false;
+      if (destroyed || !config.enabled || !visible) return false;
       bindControls();
-      show();
       if (enterPromise) return enterPromise;
       enterPromise = (async () => {
         if (!viewer) viewer = createViewer();
@@ -939,8 +944,8 @@
     bindControls();
     if (!config.enabled) {
       setStatus('当前村庄尚未发布实景模型', 'idle');
-      if (toggleButton) toggleButton.hidden = true;
-    } else if (toggleButton) toggleButton.hidden = false;
+    }
+    if (toggleButton) toggleButton.hidden = false;
 
     return {
       enter,

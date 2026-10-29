@@ -12,6 +12,7 @@
   }
 
   function normalizeReviewRow(row = {}) {
+    row = row ?? {};
     const revision = Number(row.geometry_revision ?? row.geometryRevision ?? 0);
     return {
       layerKey: normalize(row.layer_key ?? row.layerKey),

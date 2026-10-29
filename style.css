@@ -3709,6 +3709,22 @@ body.scene-studio-active .course-task-sidebar {
   display: none !important;
 }
 
+.reality-3d-reopen {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(31, 83, 50, 0.18);
+  border-radius: 12px;
+  background: #f8fbfc;
+  color: #255b42;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reality-3d-reopen[hidden] { display: none; }
+
 .reality-3d-panel.is-dragging {
   user-select: none;
   box-shadow: 0 22px 54px rgba(15, 35, 55, 0.38);

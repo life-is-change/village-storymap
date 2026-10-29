@@ -55,7 +55,8 @@ test('3D view exposes the configured reality-model inset and its accessible cont
   assert.match(html, /id="reality3dFullscreenBtn"[^>]*aria-label="实景模型全屏"/);
   assert.match(html, /id="reality3dResetBtn"[^>]*aria-label="重置实景视角"/);
   assert.match(html, /id="reality3dTerrainBtn"[^>]*aria-label="切换实景地形"/);
-  assert.match(html, /id="reality3dCloseBtn"[^>]*aria-label="关闭实景窗口"/);
+  assert.match(html, /id="reality3dCloseBtn"[^>]*aria-label="收起实景对照"/);
+  assert.match(html, /id="reality3dReopenBtn"[^>]*aria-controls="reality3dPanel"/);
   assert.match(html, /id="reality3dToggleBtn"[^>]*aria-label="显示实景模型"/);
   assert.match(css, /\.reality-3d-panel\s*\{/);
   assert.match(css, /\.reality-3d-panel\.is-fullscreen/);

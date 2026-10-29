@@ -246,11 +246,34 @@ test('closing an available reality window keeps later building clicks from reope
   let hidden;
   const panel = { classList: { toggle(name, value) { if (name === 'is-hidden') hidden = value; } } };
   const controller = createController({ panel, config: { ionAssetId: 42 } });
+  assert.equal(hidden, true);
+  controller.show();
   assert.equal(hidden, false);
   controller.hide();
   assert.equal(await controller.focusBuilding('building-1'), false);
   assert.equal(hidden, true);
   controller.destroy();
+});
+
+test('every village retains an explicit reopen control and close returns to that control', () => {
+  for (const config of [{}, { ionAssetId: 42 }]) {
+    const handlers = {};
+    const reopen = { hidden: false, addEventListener: (_, fn) => { handlers.open = fn; }, removeEventListener() {} };
+    const close = { addEventListener: (_, fn) => { handlers.close = fn; }, removeEventListener() {} };
+    let hidden;
+    const panel = { classList: { toggle(name, value) { if (name==='is-hidden') hidden=value; } } };
+    const document = { getElementById: id => ({ reality3dReopenBtn: reopen, reality3dCloseBtn: close }[id]) };
+    const controller = createController({ panel, document, config });
+    assert.equal(hidden, true);
+    assert.equal(reopen.hidden, false);
+    assert.equal(typeof handlers.open, 'function');
+    controller.show();
+    assert.equal(reopen.hidden, true);
+    handlers.close();
+    assert.equal(hidden, true);
+    assert.equal(reopen.hidden, false);
+    controller.destroy();
+  }
 });
 
 test('inset updates a loaded tileset after quality changes and pauses while the tab is hidden', async () => {
@@ -282,6 +305,7 @@ test('inset updates a loaded tileset after quality changes and pauses while the 
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'reality-inset.js'), 'utf8'), { window: root, setTimeout });
   const controller = root.VillageRealityInsetModule.createController({ Cesium, document,
     container: {}, config: { ionAssetId: 42, terrainEnabled: false } });
+  controller.show();
   await controller.enter();
   assert.equal(viewer.resolutionScale, 1);
   assert.equal(typeof onQualityChange, 'function', 'an open inset must react to mode changes');

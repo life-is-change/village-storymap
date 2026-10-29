@@ -3,6 +3,13 @@ const assert = require("node:assert/strict");
 
 const model = require("./survey-review-model.js");
 
+test('missing review records are pending and never grant downstream permission', () => {
+  assert.equal(model.normalizeReviewRow(null).geometryStatus, 'pending');
+  assert.equal(model.normalizeReviewRow(undefined).geometryRevision, 0);
+  assert.equal(model.canUseDownstreamActions(null), false);
+  assert.equal(model.isGeometryReviewed(null), false);
+});
+
 test("normalizes database and domain review rows into one stable shape", () => {
   assert.deepEqual(model.normalizeReviewRow({
     layer_key: " building ",
