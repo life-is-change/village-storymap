@@ -62,7 +62,7 @@ test("platform entry uses the initialized course context and defers activity log
   assert.match(entry, /PlatformEntryControllerModule\.createPlatformEntryController/);
   assert.match(entry, /workbench\.getContext\(\)\s*\|\|\s*await workbench\.showDashboard\(\)/);
   assert.match(entry, /recordActivity:\s*\(\)\s*=>\s*recordCourseActivity/);
-  assert.match(entry, /openWorkspace:\s*openCoursePlanningWorkspace/);
+  assert.match(entry, /return openCoursePlanningWorkspace\(view, null\)/);
 });
 
 test("homepage bridge waits for the iframe document root before binding", () => {

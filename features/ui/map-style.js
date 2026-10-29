@@ -15,8 +15,25 @@
     return color;
   }
 
+  const buildingStyleCache = new WeakMap();
   const api = {
     getOlFeatureStyle(deps, feature, resolution) {
+      if (feature.get('layerKey') !== 'building' || typeof feature.getRevision !== 'function') {
+        return api.buildOlFeatureStyle(deps, feature, resolution);
+      }
+      const OL = deps.getOL();
+      const key = JSON.stringify([
+        feature.getRevision(), resolution, deps.isActiveFeature(feature),
+        deps.isHoveredFeature(feature), deps.getSelectedLayersForCurrentSpace().includes('figureGround'),
+        feature.get('surveyReviewVisual') || null
+      ]);
+      const cached = buildingStyleCache.get(feature);
+      if (cached?.key === key && cached.OL === OL) return cached.style;
+      const style = api.buildOlFeatureStyle(deps, feature, resolution);
+      buildingStyleCache.set(feature, { key, OL, style });
+      return style;
+    },
+    buildOlFeatureStyle(deps, feature, resolution) {
       const OL = deps.getOL();
       if (!OL) return null;
 

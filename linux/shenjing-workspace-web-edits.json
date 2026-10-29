@@ -1,0 +1,28 @@
+{
+  "app.js": [
+    {
+      "before": "      if (isCurrent && !isCurrent()) return null;\n      return workbench.getContext() || await workbench.showDashboard();\n    },\n    openWorkspace: openCoursePlanningWorkspace,\n    recordActivity: () => recordCourseActivity(\"course_entered\", {\n      type: \"course\",\n      id: window.CourseModelModule.DEFAULT_COURSE.id\n",
+      "after": "      if (isCurrent && !isCurrent()) return null;\n      return workbench.getContext() || await workbench.showDashboard();\n    },\n    openWorkspace: (view) => {\n      // Homepage opens shared current data; group plans have an explicit entry.\n      return openCoursePlanningWorkspace(view, null);\n    },\n    recordActivity: () => recordCourseActivity(\"course_entered\", {\n      type: \"course\",\n      id: window.CourseModelModule.DEFAULT_COURSE.id\n"
+    }
+  ],
+  "features/ui/map-style.js": [
+    {
+      "before": "    return color;\n  }\n\n  const api = {\n    getOlFeatureStyle(deps, feature, resolution) {\n      const OL = deps.getOL();\n      if (!OL) return null;\n\n",
+      "after": "    return color;\n  }\n\n  const buildingStyleCache = new WeakMap();\n  const api = {\n    getOlFeatureStyle(deps, feature, resolution) {\n      if (feature.get('layerKey') !== 'building' || typeof feature.getRevision !== 'function') {\n        return api.buildOlFeatureStyle(deps, feature, resolution);\n      }\n      const OL = deps.getOL();\n      const key = JSON.stringify([\n        feature.getRevision(), resolution, deps.isActiveFeature(feature),\n        deps.isHoveredFeature(feature), deps.getSelectedLayersForCurrentSpace().includes('figureGround'),\n        feature.get('surveyReviewVisual') || null\n      ]);\n      const cached = buildingStyleCache.get(feature);\n      if (cached?.key === key && cached.OL === OL) return cached.style;\n      const style = api.buildOlFeatureStyle(deps, feature, resolution);\n      buildingStyleCache.set(feature, { key, OL, style });\n      return style;\n    },\n    buildOlFeatureStyle(deps, feature, resolution) {\n      const OL = deps.getOL();\n      if (!OL) return null;\n\n"
+    }
+  ],
+  "features/3d/reality-inset.js": [
+    {
+      "before": "    let enterPromise = null;\n    let tilesetPromise = null;\n    let pendingProxyRecords = [];\n    let visible = true;\n    let hostActive = options.hostActive !== false;\n    let destroyed = false;\n    let controlsBound = false;\n",
+      "after": "    let enterPromise = null;\n    let tilesetPromise = null;\n    let pendingProxyRecords = [];\n    let visible = config.enabled;\n    let hostActive = options.hostActive !== false;\n    let destroyed = false;\n    let controlsBound = false;\n"
+    },
+    {
+      "before": "\n    async function focusBuilding(sourceCode) {\n      const code = normalizeBuildingCode(sourceCode);\n      if (!code || destroyed) return false;\n      const token = focusGate.next();\n      show();\n      try {\n",
+      "after": "\n    async function focusBuilding(sourceCode) {\n      const code = normalizeBuildingCode(sourceCode);\n      if (!code || destroyed || !config.enabled || !visible) return false;\n      const token = focusGate.next();\n      show();\n      try {\n"
+    },
+    {
+      "before": "    }\n\n    resolveElements();\n\n    return {\n      enter,\n",
+      "after": "    }\n\n    resolveElements();\n    bindControls();\n    if (!config.enabled) {\n      setStatus('当前村庄尚未发布实景模型', 'idle');\n      if (toggleButton) toggleButton.hidden = true;\n    } else if (toggleButton) toggleButton.hidden = false;\n\n    return {\n      enter,\n"
+    }
+  ]
+}

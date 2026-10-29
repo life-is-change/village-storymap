@@ -8405,7 +8405,10 @@ function ensurePlatformEntryController() {
       if (isCurrent && !isCurrent()) return null;
       return workbench.getContext() || await workbench.showDashboard();
     },
-    openWorkspace: openCoursePlanningWorkspace,
+    openWorkspace: (view) => {
+      // Homepage opens shared current data; group plans have an explicit entry.
+      return openCoursePlanningWorkspace(view, null);
+    },
     recordActivity: () => recordCourseActivity("course_entered", {
       type: "course",
       id: window.CourseModelModule.DEFAULT_COURSE.id

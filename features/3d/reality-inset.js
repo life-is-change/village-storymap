@@ -237,7 +237,7 @@
     let enterPromise = null;
     let tilesetPromise = null;
     let pendingProxyRecords = [];
-    let visible = true;
+    let visible = config.enabled;
     let hostActive = options.hostActive !== false;
     let destroyed = false;
     let controlsBound = false;
@@ -823,7 +823,7 @@
 
     async function focusBuilding(sourceCode) {
       const code = normalizeBuildingCode(sourceCode);
-      if (!code || destroyed) return false;
+      if (!code || destroyed || !config.enabled || !visible) return false;
       const token = focusGate.next();
       show();
       try {
@@ -936,6 +936,11 @@
     }
 
     resolveElements();
+    bindControls();
+    if (!config.enabled) {
+      setStatus('当前村庄尚未发布实景模型', 'idle');
+      if (toggleButton) toggleButton.hidden = true;
+    } else if (toggleButton) toggleButton.hidden = false;
 
     return {
       enter,

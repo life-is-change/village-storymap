@@ -232,6 +232,27 @@ test('createController exposes the complete inset lifecycle API', () => {
   ].forEach((name) => assert.equal(typeof controller[name], 'function', name));
 });
 
+test('a village without a reality model starts hidden and building clicks never reopen it', async () => {
+  let hidden = false;
+  const panel = { classList: { toggle(name, value) { if (name === 'is-hidden') hidden = value; } } };
+  const controller = createController({ panel, config: {} });
+  assert.equal(hidden, true);
+  assert.equal(await controller.focusBuilding('building-1'), false);
+  assert.equal(hidden, true);
+  controller.destroy();
+});
+
+test('closing an available reality window keeps later building clicks from reopening it', async () => {
+  let hidden;
+  const panel = { classList: { toggle(name, value) { if (name === 'is-hidden') hidden = value; } } };
+  const controller = createController({ panel, config: { ionAssetId: 42 } });
+  assert.equal(hidden, false);
+  controller.hide();
+  assert.equal(await controller.focusBuilding('building-1'), false);
+  assert.equal(hidden, true);
+  controller.destroy();
+});
+
 test('inset updates a loaded tileset after quality changes and pauses while the tab is hidden', async () => {
   const vm = require('node:vm');
   const listeners = new Map();
