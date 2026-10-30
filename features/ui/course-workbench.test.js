@@ -253,7 +253,7 @@ test("personal space reliability scripts share a cache-busting release version",
     "personal-layer-versions.js",
     "overlay-renderer.js"
   ]) {
-    const expectedVersion = script === "overlay-renderer.js" ? "20261007-wait-chain2" : version;
+    const expectedVersion = script === "overlay-renderer.js" ? "20261030-main-game1" : version;
     assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${expectedVersion}`));
   }
 

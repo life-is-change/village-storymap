@@ -23,8 +23,19 @@
       const baselineFeatures = (state.baselineFeatures || []).map((feature) => {
         const geojson = state.serializeFeature ? state.serializeFeature(feature) : feature;
         const plain = clone(geojson);
+        const layerKey = plain?.layerKey || plain?.properties?.layerKey || feature?.layerKey || feature?.get?.("layerKey") || "baseline";
+        const sourceCode = plain?.properties?.sourceCode ?? feature?.get?.("sourceCode");
+        // Some road adapters expose a road NAME as sourceCode. Distinct OSM
+        // segments share that name, so prefer the dataset's explicit ID.
+        const dataId = plain?.properties?.id ?? plain?.properties?.osm_id;
+        const identity = dataId ?? sourceCode;
+        const legacyId = plain?.id ?? plain?.properties?.id ?? feature?.getId?.();
+        const id = identity != null && String(identity).trim()
+          ? `${layerKey}:${identity}` : (plain?.id ?? feature?.getId?.());
         return {
-          layerKey: plain?.properties?.layerKey || feature?.layerKey || feature?.get?.("layerKey") || "baseline",
+          ...(id != null ? { id } : {}),
+          ...(legacyId != null && id !== legacyId ? { legacyId } : {}),
+          layerKey,
           geometry: plain?.geometry || null,
           properties: plain?.properties || {}
         };

@@ -2,6 +2,17 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const Bridge = require("./platform-bridge");
 
+test('uses stable layer and source codes for current geometry, even when generic IDs collide',()=>{
+ const features=['building','road'].map(layer=>({getId:()=>0,get:key=>({layerKey:layer,sourceCode:'001'}[key])}));
+ const built=Bridge.buildSceneEditContext(state({baselineFeatures:features,serializeFeature:f=>({type:'Feature',id:0,geometry:{type:'Point',coordinates:[113,23]},properties:{layerKey:f.get('layerKey'),sourceCode:f.get('sourceCode')}})}));
+ assert.deepEqual(built.context.baselineFeatures.map(f=>f.id),['building:001','road:001']);
+});
+test('same-named OSM road segments keep their unique data IDs instead of collapsing into their shared name',()=>{
+ const features=['589467758','749465430'].map(id=>({type:'Feature',properties:{layerKey:'road',id,sourceCode:'松白路',displayName:'松白路'},geometry:{type:'LineString',coordinates:[[113,23],[113.001,23]]}}));
+ const built=Bridge.buildSceneEditContext(state({baselineFeatures:features,serializeFeature:undefined}));
+ assert.deepEqual(built.context.baselineFeatures.map(f=>f.id),['road:589467758','road:749465430']);
+});
+
 function state(overrides = {}) {
   return {
     activeView: "plan",

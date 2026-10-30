@@ -9,6 +9,23 @@ function scene(ids) {
   })) };
 }
 
+test('site ranges follow elevated terrain and retain a selectable ground outline', async () => {
+  const entities = new Map();
+  const viewer = { entities: { add(v) { entities.set(v.id,v);return v; }, remove() {} } };
+  const Cesium = { Cartesian3:{fromDegreesArray:v=>v}, Color:{YELLOW:'YELLOW',GREEN:'GREEN',DARKGREEN:'DARKGREEN',CYAN:'CYAN',fromCssColorString:v=>v}, HeightReference:{RELATIVE_TO_GROUND:'relative'}, ClassificationType:{BOTH:'both'} };
+  const adapter = createScenePreviewAdapter({Cesium,viewer});
+  const document=scene([]);document.objects=[{id:'site',kind:'surface',category:'activity-field',layerId:'design',geometry:document.selectionBoundary,properties:{elevationM:0,extrusionHeightM:.05}}, {id:'planter',kind:'surface',category:'planter',layerId:'design',geometry:document.selectionBoundary,properties:{elevationM:0,extrusionHeightM:.45}}];
+  await adapter.render(document,new Map());
+  const site=entities.get('scene-edit:site');
+  assert.equal(site.polygon.height,undefined,'site fill is clamped, not placed at absolute sea level');
+  assert.equal(site.polygon.extrudedHeight,undefined,'a range has no fake slab');
+  assert.equal(site.polyline.clampToGround,true);
+  assert.equal(adapter.pickObjectId({id:site}),'site');
+  adapter.select(['selection-boundary']);assert.equal(entities.get('scene-edit:selection-boundary').polyline.material,'YELLOW');
+  assert.equal(entities.get('scene-edit:planter').polygon.heightReference,'relative');
+  assert.equal(entities.get('scene-edit:planter').polygon.extrudedHeightReference,'relative');
+});
+
 test("renders models with Cesium degree conversion, reuses ids and removes stale resources", async () => {
   const calls = [];
   const entities = new Map();
@@ -147,7 +164,11 @@ test("renders wide road assets as terrain-clamped corridors with real-world widt
   const road = entities.find((entity) => entity.id === "scene-edit:path-1");
   assert.equal(road.corridor.width, 1.5);
   assert.equal(road.corridor.heightReference, "clamp");
-  assert.equal(road.polyline, undefined);
+  assert.equal(road.polyline.clampToGround,true);
+  assert.equal(road.corridor.material,'#4f8fca');
+  adapter.select(['path-1']);assert.notEqual(road.corridor.material,'#4f8fca');assert.equal(road.corridor.width,1.5);assert.ok(road.polyline.width>=4);
+  assert.equal(adapter.previewLineGeometry('path-1',{type:'LineString',coordinates:[[114,30],[114.002,30.002]]}),true);
+  assert.deepEqual(road.corridor.positions,[114,30,114.002,30.002]);adapter.resetLinePreview('path-1');assert.deepEqual(road.corridor.positions,[114,30,114.001,30.001]);adapter.select([]);assert.equal(road.corridor.material,'#4f8fca');
 });
 
 test("focuses a long path by its midpoint and extent instead of using the point-object range", async () => {

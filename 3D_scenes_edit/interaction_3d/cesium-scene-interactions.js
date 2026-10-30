@@ -21,6 +21,8 @@
     let dragCoordinate = null;
     let boundaryEditOriginal = null;
     let selectedBoundaryVertex = null;
+    let editedRoadId = null, roadGeometry = null, selectedRoadVertex = null, roadDragging = false, roadChanged = false, skipRoadClick = false;
+    let moveStart = null, moveGeometry = null;
     const requestFrame = options?.requestAnimationFrame || globalThis.requestAnimationFrame?.bind(globalThis) || ((callback) => { callback(); return null; });
     const cancelFrame = options?.cancelAnimationFrame || globalThis.cancelAnimationFrame?.bind(globalThis) || (() => {});
     const placementPreviewIntervalMs = Math.max(16, Number(options?.placementPreviewIntervalMs) || 60);
@@ -172,7 +174,8 @@
       }
       const ring = unique.map((point) => point.slice(0, 2));
       ring.push(ring[0].slice());
-      options?.onBoundaryComplete?.({ type: "Polygon", coordinates: [ring] });
+      const result = options?.onBoundaryComplete?.({ type: "Polygon", coordinates: [ring] });
+      if (result?.ok === false) { status(result.message || '范围未能保存，请调整边界后重试', 'warning'); return false; }
       vertices.length = 0;
       clearPreview();
       status("公共空间边界已确定", "success");
@@ -188,7 +191,8 @@
       }
       const ring = unique.map((point) => point.slice(0, 2));
       ring.push(ring[0].slice());
-      options?.onBoundaryComplete?.({ type: "Polygon", coordinates: [ring] });
+      const result = options?.onBoundaryComplete?.({ type: "Polygon", coordinates: [ring] });
+      if (result?.ok === false) { status(result.message || '范围未能保存，请调整边界后重试', 'warning'); return false; }
       boundaryEditOriginal = ring.map((point) => point.slice());
       vertices.length = 0;
       clearPreview();
@@ -233,11 +237,45 @@
       const geometry = tool === "draw-surface"
         ? { type: "Polygon", coordinates: [[...coordinates, coordinates[0].slice()]] }
         : { type: "LineString", coordinates };
-      options?.onCreate?.({ tool, asset: currentAsset, geometry });
+      const result = options?.onCreate?.({ tool, asset: currentAsset, geometry });
+      if (result?.ok === false) { status(result.message || '未能创建场地，请检查范围与图层锁定状态', 'warning'); return false; }
       vertices.length = 0;
       clearPreview();
       status(`${currentAsset?.label || currentAsset?.displayName || "要素"}已绘制`, "success");
       return true;
+    }
+
+    function editableRoad(id) {
+      const road=currentDocument?.objects?.find(o=>o.id===id&&o.kind==='line'&&o.category==='path');
+      const layer=currentDocument?.layers?.find(l=>l.id===road?.layerId);
+      return road&&layer?.locked!==true&&layer?.visible!==false?road:null;
+    }
+    const copyLine = geometry => ({type:'LineString',coordinates:geometry.coordinates.map(p=>p.slice())});
+    function roadHandleIndex(picked,kind) {
+      const id=String(picked?.id?.id||picked?.id||'');const match=id.match(new RegExp('^scene-edit-road-'+kind+'-(\\d+)$'));return match?Number(match[1])-1:-1;
+    }
+    function showRoadHandles() {
+      clearPreview();if(!roadGeometry)return;
+      const add=(point,id,label,size)=>previewEntities.push(viewer.entities.add({id,position:Cesium.Cartesian3.fromDegrees(point[0],point[1],.8),point:{pixelSize:size,color:Cesium.Color.fromCssColorString(label?'#ffe082':'#42a5f5'),outlineColor:Cesium.Color.WHITE,outlineWidth:2,disableDepthTestDistance:Infinity,heightReference:relativeToGround()},...(label?{label:{text:label,font:'700 12px system-ui',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,verticalOrigin:Cesium.VerticalOrigin.BOTTOM,disableDepthTestDistance:Infinity,heightReference:relativeToGround()}}:{})}));
+      roadGeometry.coordinates.forEach((p,i)=>{add(p,'scene-edit-road-vertex-'+(i+1),String(i+1),selectedRoadVertex===i?17:13);if(i){const a=roadGeometry.coordinates[i-1];add([(a[0]+p[0])/2,(a[1]+p[1])/2],'scene-edit-road-midpoint-'+i,'',9);}});
+    }
+    function commitRoad(id,geometry) {
+      const result=options?.onGeometryEdit?.({id,geometry:copyLine(geometry)});
+      if (!result || result.ok===false) {
+        options?.previewAdapter?.resetLinePreview?.(id);
+        if(editedRoadId===id){const road=editableRoad(id);roadGeometry=road?copyLine(road.geometry):null;showRoadHandles();}
+        status(result?.message||'道路未能修改，请检查范围与图层锁','warning');return false;
+      }
+      const actual=result.geometry||editableRoad(id)?.geometry||geometry;
+      options?.previewAdapter?.previewLineGeometry?.(id,actual,{committed:true});
+      if(editedRoadId===id){roadGeometry=copyLine(actual);showRoadHandles();}
+      status('道路已更新；可继续编辑，或结束编辑。','success');return true;
+    }
+    function deleteRoadVertex() {
+      if(activeTool!=='edit-road-nodes'||selectedRoadVertex===null||!roadGeometry)return false;
+      if(roadGeometry.coordinates.length<=2){status('道路至少保留两个顶点','warning');return false;}
+      const next=copyLine(roadGeometry);next.coordinates.splice(selectedRoadVertex,1);
+      const ok=commitRoad(editedRoadId,next);if(ok){selectedRoadVertex=Math.min(selectedRoadVertex,next.coordinates.length-1);showRoadHandles();}return ok;
     }
 
     function activate(tool) {
@@ -301,6 +339,30 @@
         }, eventTypes.LEFT_CLICK);
         handler.setInputAction(finishBoundaryEdit, eventTypes.RIGHT_CLICK);
         status("拖动编号点调整范围；点击青色边线增加点，完成后保存");
+      } else if (tool === 'edit-road-nodes') {
+        const road=(options?.getSelectedIds?.()||[]).map(editableRoad).find(Boolean);
+        if(!road){status('请选择一条未锁定且可见的道路','warning');return {ok:false,code:'ROAD_REQUIRED'};}
+        editedRoadId=road.id;roadGeometry=copyLine(road.geometry);showRoadHandles();
+        handler.setInputAction(event=>{
+          skipRoadClick=false;
+          const index=roadHandleIndex(viewer.scene.pick?.(event.position),'vertex');if(index<0)return;
+          selectedRoadVertex=index;roadDragging=true;roadChanged=false;showRoadHandles();
+          if(viewer.scene?.screenSpaceCameraController)viewer.scene.screenSpaceCameraController.enableInputs=false;
+        },eventTypes.LEFT_DOWN);
+        handler.setInputAction(event=>{
+          if(!roadDragging)return;const point=previewPickGround(event.endPosition);if(!point)return;
+          const previous=roadGeometry.coordinates[selectedRoadVertex];roadChanged ||= previous[0]!==point[0]||previous[1]!==point[1];
+          roadGeometry.coordinates[selectedRoadVertex]=point.slice(0,2);options?.previewAdapter?.previewLineGeometry?.(editedRoadId,roadGeometry);showRoadHandles();
+        },eventTypes.MOUSE_MOVE);
+        handler.setInputAction(()=>{if(!roadDragging)return;roadDragging=false;restoreCamera();if(roadChanged){skipRoadClick=true;commitRoad(editedRoadId,roadGeometry);}},eventTypes.LEFT_UP);
+        handler.setInputAction(event=>{
+          if(skipRoadClick){skipRoadClick=false;return;}
+          const picked=viewer.scene.pick?.(event.position),index=roadHandleIndex(picked,'vertex');
+          if(index>=0){selectedRoadVertex=index;showRoadHandles();return;}
+          const midpoint=roadHandleIndex(picked,'midpoint');if(midpoint<0||midpoint>=roadGeometry.coordinates.length-1)return;
+          const a=roadGeometry.coordinates[midpoint],b=roadGeometry.coordinates[midpoint+1],next=copyLine(roadGeometry);next.coordinates.splice(midpoint+1,0,[(a[0]+b[0])/2,(a[1]+b[1])/2]);selectedRoadVertex=midpoint+1;commitRoad(editedRoadId,next);
+        },eventTypes.LEFT_CLICK);
+        status('拖动编号顶点；点击蓝色中点加点；松开保存，结束编辑保留修改。');
       } else if (tool === "draw-line" || tool === "draw-surface") {
         handler.setInputAction((event) => {
           const point = pickGround(event.position);
@@ -325,7 +387,8 @@
           const point = pickGround(event.position);
           if (!point) return status("未能定位到地面，请换一个位置", "warning");
           options?.previewAdapter?.clearGhost?.();
-          options?.onPlace?.({ asset: currentAsset, coordinate: point.slice(0, 2) });
+          const result = options?.onPlace?.({ asset: currentAsset, coordinate: point.slice(0, 2) });
+          if (result?.ok === false) return status(result.message || '组件未放置，请检查场地范围与图层锁', 'warning');
           status(`${currentAsset.label || currentAsset.displayName || currentAsset.name || currentAsset.category || "组件"}已放置`, "success");
         }, eventTypes.LEFT_CLICK);
         status("移动鼠标预览位置，单击地面放置组件");
@@ -343,6 +406,7 @@
           dragId = options?.previewAdapter?.pickObjectId?.(picked) || null;
           dragCoordinate = null;
           if (!dragId) return;
+          const road=editableRoad(dragId);moveStart=road?previewPickGround(event.position):null;moveGeometry=road?copyLine(road.geometry):null;
           options?.previewAdapter?.select?.([dragId]);
           options?.onSelect?.([dragId]);
           if (viewer.scene?.screenSpaceCameraController) viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -350,7 +414,10 @@
         handler.setInputAction((event) => {
           if (!dragId) return;
           const point = previewPickGround(event.endPosition);
-          if (point) dragCoordinate = point.slice(0, 2);
+          if (point) {
+            dragCoordinate = point.slice(0, 2);
+            if(moveGeometry&&moveStart){const dx=point[0]-moveStart[0],dy=point[1]-moveStart[1];options?.previewAdapter?.previewLineGeometry?.(dragId,{type:'LineString',coordinates:moveGeometry.coordinates.map(p=>[p[0]+dx,p[1]+dy,...p.slice(2)])});}
+          }
         }, eventTypes.MOUSE_MOVE);
         handler.setInputAction(() => {
           const id = dragId;
@@ -358,7 +425,9 @@
           dragId = null;
           dragCoordinate = null;
           restoreCamera();
-          if (id && coordinate) options?.onMove?.({ id, coordinate });
+          if(id&&coordinate&&moveGeometry&&moveStart){const dx=coordinate[0]-moveStart[0],dy=coordinate[1]-moveStart[1];commitRoad(id,{type:'LineString',coordinates:moveGeometry.coordinates.map(p=>[p[0]+dx,p[1]+dy,...p.slice(2)])});}
+          else if (id && coordinate&&!moveGeometry) options?.onMove?.({ id, coordinate });
+          moveGeometry=null;moveStart=null;
         }, eventTypes.LEFT_UP);
         status("按住并拖动场景组件以调整位置");
       }
@@ -366,6 +435,8 @@
     }
 
     function cancel() {
+      if(editedRoadId)options?.previewAdapter?.resetLinePreview?.(editedRoadId);
+      if(dragId&&moveGeometry)options?.previewAdapter?.resetLinePreview?.(dragId);
       cancelPlacementPreview();
       clearActions();
       vertices.length = 0;
@@ -377,6 +448,7 @@
       activeTool = null;
       boundaryEditOriginal = null;
       selectedBoundaryVertex = null;
+      editedRoadId=null;roadGeometry=null;selectedRoadVertex=null;roadDragging=false;roadChanged=false;skipRoadClick=false;moveGeometry=null;moveStart=null;
     }
 
     function dispose() {
@@ -387,9 +459,14 @@
     }
 
     return {
-      activate, cancel, dispose, finishBoundary, finishBoundaryEdit, cancelBoundaryEdit, deleteSelectedBoundaryVertex,
+      activate, cancel, dispose, finishBoundary, finishBoundaryEdit, cancelBoundaryEdit, deleteSelectedBoundaryVertex, deleteRoadVertex,
+      finishDrawing() { if (activeTool === 'draw-boundary') return finishBoundary(); if (activeTool === 'edit-boundary') return finishBoundaryEdit(); if (['draw-line','draw-surface'].includes(activeTool)) return finishGeometry(activeTool); return false; },
       setAsset(asset) { currentAsset = asset || null; },
-      setDocument(document) { currentDocument = document || null; return currentDocument; },
+      setDocument(document) {
+        currentDocument = document || null;
+        if(editedRoadId&&!roadDragging){const road=editableRoad(editedRoadId);if(road){roadGeometry=copyLine(road.geometry);selectedRoadVertex=selectedRoadVertex===null?null:Math.min(selectedRoadVertex,roadGeometry.coordinates.length-1);showRoadHandles();}else cancel();}
+        return currentDocument;
+      },
       getActiveTool: () => activeTool
     };
   }

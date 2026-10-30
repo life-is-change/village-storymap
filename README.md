@@ -14,6 +14,8 @@ python -m http.server 5501 --bind 127.0.0.1
 
 ## 目录
 
+村庄游戏模块体验入口是 [`village_game/index.html`](village_game/index.html)。使用同一 HTTP 服务打开 `/village_game/`，即可体验完整虚构村庄的二维/三维设计、居民与游客运行、三日结算、方案修改与本地保存；无需登录。操作与规则边界见 [village_game/README.md](village_game/README.md)。
+
 | 路径 | 内容 |
 | --- | --- |
 | `index.html`、`app.js`、`app-3d.js`、`style.css` | 整合平台和二维／三维入口 |
@@ -21,6 +23,7 @@ python -m http.server 5501 --bind 127.0.0.1
 | `features` | 认证、课程、村庄、数据、协作、地图和界面模块及测试 |
 | `assets`、`data` | 平台必要静态资源，包括固定版本 Cesium |
 | `3D_scenes_edit`、`rural_house_generator` | 场景编辑和住宅生成相关源码 |
+| `village_game` | 村庄设计与生活模拟体验版、独立逻辑和行为测试 |
 | `supabase_SQL`、`supabase/functions` | 数据库迁移与服务函数源码 |
 | `server` | Python GPU Worker 与服务源码、配置模板和测试 |
 | `linux` | Docker、Compose、部署说明与检查脚本 |

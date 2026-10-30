@@ -1,0 +1,12 @@
+const test=require('node:test'),assert=require('node:assert/strict'),Scene=require('./scene');
+let Growth;try{Growth=require('./growth');}catch{}
+test('successful use grows a particular facility once per person per day, never capacity',()=>{
+ assert.ok(Growth,'growth model must exist');const s=Scene.createAdaptiveVillage(),g=Growth.create(s),b=s.buildings.find(b=>b.type==='park'),p=s.people[0];
+ for(let i=0;i<12;i++)g.record({...p,id:'guest-'+i,kind:'visitor'},b,{mode:'service'},80,1,600);
+ g.record({id:'guest-0',kind:'visitor'},b,{mode:'service'},80,1,620);
+ assert.equal(g.export().facilities[b.id].visits,12);assert.equal(g.export().facilities[b.id].stage,1);assert.equal(Scene.capacity(b),Scene.capacity(s.buildings.find(x=>x.id===b.id)));
+ const copy=g.export();copy.facilities[b.id].visits=900;assert.equal(g.export().facilities[b.id].visits,12);
+});
+test('growth imports enforce known identities types and bounded meaningful progress',()=>{assert.ok(Growth);const s=Scene.createAdaptiveVillage(),state=Growth.create(s).export();assert.deepEqual(Growth.validate(state,s),[]);state.facilities['not-here']={type:'park',visits:999,total:999,count:999,stage:2};assert.ok(Growth.validate(state,s).length);delete state.facilities['not-here'];const b=s.buildings.find(b=>b.type==='park');state.facilities[b.id]={type:'park',visits:0,total:0,count:0,stage:2};assert.ok(Growth.validate(state,s).length);});
+test('completed events give finite resident skills and exactly one community outcome',()=>{assert.ok(Growth);const s=Scene.createAdaptiveVillage(),g=Growth.create(s),a={...s.people[0],kind:'resident'},b={id:'visitor-x',kind:'visitor'};g.completeEvent([a,b],'guide');assert.equal(g.export().community.guide,1);assert.equal(g.export().people[a.id].culture,1);assert.equal(Object.keys(g.export().people).length,1);});
+test('living scenes persist growth and clean obsolete facility progress on change of use',()=>{assert.equal(typeof Scene.createLivingVillage,'function');const G=require('./growth'),E=require('./editor'),Storage=require('./storage'),s=Scene.createLivingVillage(),g=G.create(s),b=s.buildings.find(b=>b.type==='park');g.record({id:'visitor',kind:'visitor'},b,{mode:'service'},75,1,600);const e=E.createEditor(s);e.apply({type:'set-growth',growth:g.export()});assert.ok(Storage.parse(Storage.serialize(e.scene)).scene.growth.facilities[b.id]);e.apply({type:'update-building',id:b.id,patch:{type:'attraction'}});assert.equal(e.scene.growth.facilities[b.id],undefined);assert.ok(!Scene.validate({...s,scenario:{...s.scenario,living:'yes'}}).ok);});

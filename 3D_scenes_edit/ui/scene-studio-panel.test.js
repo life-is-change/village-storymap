@@ -5,6 +5,30 @@ const path = require("node:path");
 
 const Panel = require("./scene-studio-panel");
 
+test('sites contain components while circulation and legacy range remain separate',()=>{
+ const polygon=(x,y,w)=>({type:'Polygon',coordinates:[[[x,y],[x+w,y],[x+w,y+w],[x,y+w],[x,y]]]});
+ const objects=[{id:'site',kind:'surface',category:'activity-field',geometry:polygon(113,23,.001),properties:{}},{id:'bench',kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[113.0002,23.0002]},properties:{}},{id:'garden-path',kind:'line',category:'path',geometry:{type:'LineString',coordinates:[[113.0002,23.0002],[113.0004,23.0004]]},properties:{sceneRole:'site-component'}},{id:'road',kind:'line',category:'path',geometry:{type:'LineString',coordinates:[[113,23],[113.001,23]]},properties:{}}];
+ const tree=Panel.buildSiteTree(objects);assert.deepEqual(tree.sites[0].children.map(o=>o.id),['bench','garden-path']);assert.deepEqual(tree.roads.map(o=>o.id),['road']);
+ const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){}};
+ const panel=Panel.createSceneStudioPanel({root});panel.render(Panel.buildViewModel({phase:'editing',mode:'3d',objects,selectionBoundary:polygon(113,23,.001),selectedIds:['selection-boundary']}));
+ assert.match(root.innerHTML,/设定范围/);assert.match(root.innerHTML,/规划道路/);assert.match(root.innerHTML,/旧版放置范围/);assert.doesNotMatch(root.innerHTML,/拉伸高度/);
+ assert.match(root.innerHTML,/data-action="rotate-geometry"/);
+});
+
+test('task entries replace the scattered footer tools and layers are optional advanced controls',()=>{
+ const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){},focus(){}};const panel=Panel.createSceneStudioPanel({root});
+ panel.render(Panel.buildViewModel({mode:'3d',phase:'editing',selectionBoundary:{},selectedIds:['one'],objects:[{id:'one',kind:'asset',category:'bench',properties:{}}]}));
+ assert.match(root.innerHTML,/data-action="draw-field"/);assert.match(root.innerHTML,/放置组件/);assert.match(root.innerHTML,/图层管理/);
+ assert.doesNotMatch(root.innerHTML,/取消当前工具|data-action="group"|data-action="align"|data-action="distribute"/);
+});
+
+test('roads have a shared design entry and selected paths can edit nodes in 2D',()=>{
+ const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){},focus(){}};
+ const panel=Panel.createSceneStudioPanel({root});
+ panel.render(Panel.buildViewModel({mode:'2d',phase:'editing',objects:[{id:'road',kind:'line',category:'path',geometry:{type:'LineString',coordinates:[]},properties:{}}],selectedIds:['road']}));
+ assert.match(root.innerHTML,/data-action="draw-road"/);assert.match(root.innerHTML,/data-action="edit-road"/);
+});
+
 test("builds student-first view models for every persistence state", () => {
   const cases = [
     ["no-project", "尚未创建方案"],
@@ -70,7 +94,7 @@ test("DOM adapter renders accessible regions and delegates declared actions", ()
   assert.match(root.innerHTML, /data-panel="assets"/);
   assert.match(root.innerHTML, /data-panel="properties"/);
   assert.match(root.innerHTML, /data-action="delete"/);
-  assert.match(root.innerHTML, /data-action="cancel"/);
+  assert.doesNotMatch(root.innerHTML, /取消当前工具/);
   const target = { closest: () => ({ dataset: { action: "undo", value: "" } }) };
   listeners.click({ target });
   assert.equal(actions[0].type, "undo");
@@ -104,10 +128,10 @@ test("2D mode exposes only review and fine-tuning tools", () => {
   const root = { innerHTML: "", setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {} };
   const panel = Panel.createSceneStudioPanel({ root });
   panel.render(Panel.buildViewModel({ mode: "2d", phase: "editing" }));
-  for (const tool of ["select", "box-select", "move", "rotate", "scale", "measure", "pan"]) {
+  for (const tool of ["select", "box-select", "measure", "pan"]) {
     assert.match(root.innerHTML, new RegExp(`data-action="tool" data-value="${tool}"`));
   }
-  for (const tool of ["draw-surface", "draw-rectangle", "draw-line", "place-asset", "edit-nodes", "edit-boundary"]) {
+  for (const tool of ["draw-surface", "draw-rectangle", "draw-line", "place-asset", "edit-nodes", "edit-boundary", "move", "rotate", "scale"]) {
     assert.doesNotMatch(root.innerHTML, new RegExp(`data-action="tool" data-value="${tool}"`));
   }
 });
@@ -199,7 +223,7 @@ test("asset library uses category filters, search and a collapsible compact grid
   assert.match(root.innerHTML, /data-action="asset-search"/);
   assert.match(root.innerHTML, /data-action="asset-category" data-value="all"/);
   assert.match(root.innerHTML, /data-action="asset-group" data-value="site"/);
-  assert.match(root.innerHTML, /场地地面/);
+  assert.match(root.innerHTML, /地面与铺装/);
   assert.match(root.innerHTML, /class="scene-asset-grid"/);
   assert.match(root.innerHTML, /data-action="toggle-inspector"/);
   assert.doesNotMatch(root.innerHTML, />curb</);

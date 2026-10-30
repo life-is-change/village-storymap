@@ -20,7 +20,9 @@
     const baselineReady = Promise.resolve()
       .then(() => deps.ensurePlanMap?.())
       .then(() => deps.ensureSelectedLayersLoaded?.())
-      .then(() => deps.refresh2DOverlay?.());
+      // The studio opens in 3D. Prepare the scoped, edited 2D baseline anyway;
+      // both collision checking and simulation consume it, regardless of view.
+      .then(() => deps.refresh2DOverlay?.({ allowInactive: true, forceFullRebuild: true }));
     const threeDReady = Promise.resolve()
       .then(() => deps.ensureVillage3DLoaded?.())
       .then(async (api) => {

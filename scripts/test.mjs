@@ -13,7 +13,7 @@ function walk(directory) {
     else if (item.name.endsWith('.test.js')) files.push(path);
   }
 }
-for (const directory of ['features', 'homepage/src', '3D_scenes_edit', 'rural_house_generator']) walk(resolve(root, directory));
+for (const directory of ['features', 'homepage/src', '3D_scenes_edit', 'rural_house_generator', 'village_game']) walk(resolve(root, directory));
 files.sort();
 if (!files.length) throw new Error('No platform tests found');
 const result = spawnSync(process.execPath, ['--test', ...files], { cwd: root, stdio: 'inherit' });

@@ -77,8 +77,8 @@
         category: selected?.category || "path",
         geometry,
         properties: selected
-          ? { assetRef: selected.id, displayName: selected.label || selected.displayName, widthM: selected.footprintM?.[0] || 1.5, heightM: selected.defaultHeightM || 0 }
-          : { widthM: 1.5, heightM: 0 }
+          ? { assetRef: selected.id, displayName: selected.label || selected.displayName, widthM: selected.footprintM?.[0] || 1.5, heightM: selected.defaultHeightM || 0, sceneRole: selected.sceneRole || 'site-component' }
+          : { widthM: 1.5, heightM: 0, sceneRole:'circulation' }
       };
     }
     if (tool === "draw-surface" || tool === "draw-rectangle") {
@@ -128,15 +128,20 @@
   function createActionDispatcher(options) {
     const controller = options.controller;
     const lifecycle = options.lifecycle;
+    const refreshed = result => { options.onSelectionChange?.();return result; };
     return async function dispatch(action) {
       if (action.type === "tool") {
         controller.setTool(action.value);
         return lifecycle.activateTool?.(action.value);
       }
-      if (action.type === "undo") return controller.undo();
-      if (action.type === "redo") return controller.redo();
-      if (action.type === "copy" || action.type === "duplicate") return controller.duplicateSelection();
-      if (action.type === "delete") return controller.deleteSelection();
+      if (action.type === "undo") return refreshed(controller.undo());
+      if (action.type === "redo") return refreshed(controller.redo());
+      if (action.type === "copy" || action.type === "duplicate") return refreshed(controller.duplicateSelection());
+      if (action.type === "delete") return refreshed(controller.deleteSelection());
+      if (action.type === "rotate-geometry") return refreshed(controller.rotateSelection(Number(action.value)));
+      if (action.type === "move-shape") return lifecycle.moveShape();
+      if (action.type === "edit-road") return lifecycle.editRoad();
+      if (action.type === "delete-road-vertex") return lifecycle.deleteRoadVertex();
       if (action.type === "group") return controller.groupSelection();
       if (action.type === "align") return controller.alignSelection(action.value);
       if (action.type === "distribute") return controller.distributeSelection(action.value);
@@ -167,6 +172,12 @@
       if (action.type === "upload-asset") return lifecycle.uploadAsset();
       if (action.type === "cancel") return lifecycle.cancel();
       if (action.type === "milestone") return lifecycle.createMilestone();
+      if (action.type === "simulation") return lifecycle.openSimulation();
+      if (action.type === "draw-road") return lifecycle.drawRoad();
+      if (action.type === "draw-field") return lifecycle.drawField();
+      if (action.type === "browse-assets") return lifecycle.browseAssets();
+      if (action.type === "finish-drawing") return lifecycle.finishDrawing();
+      if (action.type === "edit-shape") return lifecycle.editShape();
       if (action.type === "compare-version") return lifecycle.compareVersion(action.value);
       if (action.type === "restore-version") return lifecycle.restoreVersion(action.value);
       if (action.type === "submit-version") return lifecycle.submitVersion(action.value);
@@ -260,6 +271,7 @@
     let interactionBridge = options.services?.cesiumInteractions || options.services?.interactions || null;
     let previewAdapter = options.services?.preview || null;
     let cesiumEnvironment = null;
+    let simulationWorkspace = null, simulationLoading = false, studioDisposed = false;
     let mode = "3d";
     const resources = await loadStudioResources({
       loadSeeds: () => context.seedAssets || loadSeedAssets(options.fetch || globalThis.fetch?.bind(globalThis)),
@@ -289,7 +301,7 @@
     function phase() {
       const saveStatus = autosave.getState().status;
       if (saveStatus === "offline" || saveStatus === "conflict") return saveStatus;
-      return document.selectionBoundary ? "editing" : "drawing-boundary";
+      return "editing";
     }
     function currentViewModel() {
       const state = controller?.getState() || { document, selectedIds: [], tool: "select" };
@@ -302,7 +314,7 @@
         assets, canUndo: state.canUndo, canRedo: state.canRedo, saveStatus: autosave.getState().status,
         revision: document.revision, updatedAt: document.updatedAt,
         versions, comparisonIds,
-        interactionStatus,
+        interactionStatus, activeAssetLabel: activeAsset?.label || activeAsset?.displayName || "", activeAssetRole: activeAsset?.sceneRole || '',
         conflict: autosave.getState().status === "conflict" ? { remoteRevision: autosave.getState().remoteRevision } : null
       });
     }
@@ -316,7 +328,8 @@
       requestFrame(() => {
         if (mode !== "2d") return;
         options.map?.updateSize?.();
-        adapter.fitBoundary?.(document.selectionBoundary);
+        const selected=controller.getState().selectedIds,road=document.objects.find(o=>selected.includes(o.id)&&o.kind==='line'&&o.category==='path');
+        adapter.fitBoundary?.(road?.geometry||document.selectionBoundary);
       });
     }
     let hydratingTopViews = false;
@@ -343,11 +356,12 @@
         hydratingTopViews = false;
       }
     }
-    function updateSelectionUI(focusId) {
+    function updateSelectionUI(focusId, inspect = false) {
       const model = currentViewModel();
       panel.updateSelection?.(model);
       previewAdapter?.select?.(model.selectedIds);
       if (focusId && mode === "3d") previewAdapter?.flyToObject?.(focusId);
+      if (inspect && model.selectedIds.length) panel.showProperties?.();
       return model.selectedIds;
     }
     controller = Editor.createSceneEditorController({
@@ -355,6 +369,7 @@
       history: Commands.createHistory(document),
       geometryRules: Geometry,
       baselineBuildings: context.baselineFeatures.filter((feature) => feature.layerKey === "building").map((feature) => feature.geometry).filter(Boolean),
+      baselineRoads: context.baselineFeatures.filter(feature => ['road','roads','path'].includes(feature.layerKey)).map(feature => feature.geometry).filter(Boolean),
       villageBoundary: context.villageBoundary || null,
       idFactory: options.idFactory || (() => globalThis.crypto?.randomUUID?.() || `scene-${Date.now()}-${Math.random().toString(36).slice(2)}`),
       onDocumentChange(nextDocument, command) {
@@ -377,19 +392,25 @@
         source: adapter.getSource(),
         layer: adapter.getLayer(),
         projection: options.projection,
-        onSelect(ids) { controller.select(ids); updateSelectionUI(); },
+        getSelectedIds: () => controller.getState().selectedIds,
+        onSelect(ids) { controller.select(ids); updateSelectionUI(undefined, true); },
         onCreate(drawTool, geometry) {
-          if (!controller.getState().document.selectionBoundary && (drawTool === "draw-surface" || drawTool === "draw-rectangle")) {
+          if (controller.getState().tool === "draw-boundary") {
             controller.setSelectionBoundary(geometry);
             controller.setTool("select");
             mapInteractionBridge.activate("select");
           } else {
             const input = createObjectInputForTool(drawTool, geometry, activeAsset);
-            if (input) controller.createObject(input);
+            const result = input ? controller.createObject(input) : null;
+            if (result?.ok && drawTool !== 'place-asset') finishCreation();
+            return result;
           }
           render();
         },
-        onGeometryChange(id, geometry) { controller.select([id]); controller.updateSelection({ geometry }); },
+        onGeometryChange(id, geometry) {
+          controller.select([id]);const result=controller.updateSelection({ geometry });
+          mapInteractionBridge.activate(controller.getState().tool);updateSelectionUI();return result;
+        },
         onMeasure(geometry) { options.onStatus?.({ level: "info", code: "MEASUREMENT", measurements: Editor.measureGeometry(geometry, Geometry) }); }
       });
     }
@@ -408,6 +429,11 @@
           Cesium: cesiumEnvironment.Cesium,
           viewer: cesiumEnvironment.viewer,
           previewAdapter,
+          getSelectedIds: () => controller.getState().selectedIds,
+          onGeometryEdit({id,geometry}) {
+            controller.select([id]);const result=controller.updateSelection({geometry});updateSelectionUI();
+            return result?.ok?{...result,geometry:document.objects.find(o=>o.id===id)?.geometry}:result;
+          },
           onBoundaryComplete(geometry) {
             const result = controller.setSelectionBoundary(geometry);
             if (result.ok) {
@@ -415,19 +441,22 @@
               interactionBridge.activate("select");
             }
             render();
+            return result;
           },
           onPlace({ asset, coordinate }) {
             const input = createObjectInputForTool("place-asset", { type: "Point", coordinates: coordinate }, asset);
             const result = input ? controller.createObject(input) : null;
             previewAdapter?.clearGhost?.();
-            if (result?.ok) updateSelectionUI(result.object.id);
+            if (result?.ok) updateSelectionUI();
+            return result;
           },
           onCreate({ tool, asset, geometry }) {
             const input = createObjectInputForTool(tool, geometry, asset);
             const result = input ? controller.createObject(input) : null;
-            if (result?.ok) updateSelectionUI(result.object.id);
+            if (result?.ok) finishCreation();
+            return result;
           },
-          onSelect(ids) { controller.select(ids); updateSelectionUI(); },
+          onSelect(ids) { controller.select(ids); updateSelectionUI(undefined, true); },
           onMove({ id, coordinate }) { controller.moveObject(id, coordinate); updateSelectionUI(); },
           onStatus(status) {
             interactionStatus = status?.message || "";
@@ -440,6 +469,12 @@
       interactionBridge?.setDocument?.(document);
       return { previewAdapter, interactionBridge };
     }
+    function finishCreation() {
+      controller.setTool('select');
+      if (mode === '3d') interactionBridge?.activate?.('select'); else mapInteractionBridge?.activate?.('select');
+      activeAsset = null; interactionStatus = '已完成绘制并返回选择；点击对象可调整属性。';
+      render(); updateSelectionUI(undefined, true);
+    }
     function enterPropertyInspection() {
       controller.setTool("select");
       if (mode === "3d") interactionBridge?.activate?.("select");
@@ -448,10 +483,81 @@
       return { ok: true, tool: "select" };
     }
     const lifecycle = {
+      finishDrawing() { return mode === '3d' ? interactionBridge?.finishDrawing?.() : mapInteractionBridge?.finishDrawing?.(); },
+      drawField() {
+        activeAsset = {...(assets.find(asset => asset.kind === 'surface' && asset.category === 'activity-field') || {id:'seed:activity-field:flex',kind:'surface',category:'activity-field',label:'活动场地'}),sceneRole:'site-range'};
+        controller.setTool('draw-surface');interactionBridge?.setAsset?.(activeAsset);
+        if(mode==='3d')interactionBridge?.activate?.('draw-surface');else mapInteractionBridge?.activate?.('draw-surface');
+        interactionStatus='点击地图勾画一处场地范围，再点上方“完成绘制”。';render();panel.showProperties?.();return {ok:true};
+      },
+      browseAssets() { lifecycle.cancel();interactionStatus='从右侧选一个组件，再点击地图放置；可连续放置，完成后点“结束放置”。';render();panel.showAssets?.('furniture'); },
+      async editShape() { controller.setTool('edit-nodes');await lifecycle.switchMode('2d');mapInteractionBridge?.activate?.('edit-nodes');interactionStatus='点击需要修改的线或面，再拖动节点。完成后点“结束编辑”。';render();panel.showProperties?.(); },
+      async moveShape() { controller.setTool('move');await lifecycle.switchMode('2d');interactionStatus='拖动所选范围或道路；范围与组件位置独立修改。';render();panel.showProperties?.(); },
+      editRoad() {
+        activeAsset=null;const tool=mode==='3d'?'edit-road-nodes':'edit-nodes';controller.setTool(tool);
+        const result=mode==='3d'?interactionBridge?.activate?.(tool):mapInteractionBridge?.activate?.(tool);
+        render();panel.showProperties?.();if(mode==='2d')schedule2DBoundaryFit();return result;
+      },
+      deleteRoadVertex() { return interactionBridge?.deleteRoadVertex?.(); },
+      drawRoad() {
+        simulationWorkspace?.dispose?.(); simulationWorkspace = null;
+        options.root.classList?.remove('simulation-active');
+        activeAsset = {...(assets.find(asset => asset.kind === 'line' && asset.category === 'path') || {id:'seed:path:gravel',kind:'line',category:'path'}),label:'连接道路',sceneRole:'circulation',footprintM:[4,4]};
+        controller.setTool('draw-line'); interactionBridge?.setAsset?.(activeAsset);
+        if (mode === '3d') interactionBridge?.activate?.('draw-line');
+        else mapInteractionBridge?.activate?.('draw-line');
+        interactionStatus = '依次点选道路中心线，再点“完成绘制”；首尾2米内吸附道路。'+(context.villageBoundary?'可超出场地范围，须位于村界内。':'当前缺少村界，暂受旧版放置范围约束。');
+        render(); panel.showProperties?.(); requestFrame(() => cesiumEnvironment?.viewer?.resize?.());
+        return { ok: true, tool: 'draw-line' };
+      },
+      async openSimulation() {
+        if (simulationWorkspace || simulationLoading) return { ok: false, code: "SIMULATION_ALREADY_OPEN" };
+        simulationLoading = true;
+        try {
+          if (mode !== "3d") await lifecycle.switchMode("3d");
+          if (!cesiumEnvironment) cesiumEnvironment = await options.ensure3D?.();
+          if (!cesiumEnvironment?.viewer) throw Error("三维视图尚未就绪");
+          let api = options.simulationApi;
+          if (!api) {
+            if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
+              const script = globalThis.document.createElement("script");
+              script.src = "village_game/integration/loader.js?v=20261030-roads3";
+              script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
+              globalThis.document.head.appendChild(script);
+            });
+            api = await globalThis.loadVillageSimulation();
+          }
+          if (studioDisposed) return { ok: false, code: "CLIENT_DISPOSED" };
+          controller.setTool("select"); interactionBridge?.cancel?.(); previewAdapter?.clearGhost?.();
+          options.root.classList?.add("simulation-active");
+          requestFrame(() => { if (!studioDisposed) { cesiumEnvironment.viewer.resize?.(); cesiumEnvironment.viewer.scene?.requestRender?.(); } });
+          simulationWorkspace = api.open({
+            context, environment: cesiumEnvironment,
+            onEditRoad: () => lifecycle.drawRoad(),
+            pickGround: globalThis.CesiumGroundPickerModule?.pickGroundDegrees,
+            readDocument: () => { if (studioDisposed) throw Error("场景已关闭"); return document; },
+            writeConfig: (config) => { if (studioDisposed) throw Error("场景已关闭"); controller.setSimulationConfig(config); },
+            save: async () => {
+              for (let attempt = 0; attempt < 4; attempt++) {
+                const result = await autosave.flush();
+                if (!result.ok) return result;
+                if (!["dirty", "saving"].includes(autosave.getState().status)) return result;
+              }
+              return { ok: false, code: "DRAFT_NOT_SAVED" };
+            },
+            onClose() { simulationWorkspace = null; options.root.classList?.remove("simulation-active"); interactionBridge?.activate?.("select"); requestFrame(() => cesiumEnvironment.viewer.resize?.()); }
+          });
+          return { ok: true };
+        } catch (error) {
+          options.root.classList?.remove("simulation-active"); interactionBridge?.activate?.("select");
+          options.onStatus?.({ level: "error", message: error.message });
+          return { ok: false, code: "SIMULATION_UNAVAILABLE", message: error.message };
+        } finally { simulationLoading = false; }
+      },
       selectObject(id) {
         enterPropertyInspection();
         controller.select(id ? [id] : []);
-        return updateSelectionUI(id);
+        return updateSelectionUI(undefined, true);
       },
       inspectProperties() { return enterPropertyInspection(); },
       finishBoundaryEdit() {
@@ -473,6 +579,11 @@
       deleteBoundaryVertex() { return interactionBridge?.deleteSelectedBoundaryVertex?.(); },
       async switchMode(nextMode) {
         mode = nextMode === "3d" ? "3d" : "2d";
+        if(mode==='2d'&&controller.getState().tool==='edit-road-nodes')controller.setTool('edit-nodes');
+        if(mode==='3d'&&controller.getState().tool==='edit-nodes'){
+          const state=controller.getState(),selected=document.objects.find(o=>state.selectedIds.includes(o.id));
+          controller.setTool(selected?.kind==='line'&&selected.category==='path'?'edit-road-nodes':'select');
+        }
         await options.onModeChange?.(mode);
         if (mode === "3d") {
           await ensureCesiumEditing();
@@ -480,10 +591,10 @@
             await previewAdapter.render(document, new Map(assets.map((asset) => [asset.id, asset])));
             previewAdapter.flyToBoundary?.(document.selectionBoundary);
           }
-          interactionBridge?.activate?.(document.selectionBoundary ? controller.getState().tool : "draw-boundary");
+          interactionBridge?.activate?.(controller.getState().tool);
         } else {
           interactionBridge?.cancel?.();
-          mapInteractionBridge?.activate?.(document.selectionBoundary ? controller.getState().tool : "draw-surface");
+          mapInteractionBridge?.activate?.(controller.getState().tool);
           void hydratePlacedAssetTopViews();
         }
         render();
@@ -574,6 +685,7 @@
         return { ok: false, code: "UNKNOWN_CONFLICT_CHOICE" };
       },
       activateTool(nextTool) {
+        if (mode === '2d' && ['draw-boundary','edit-boundary'].includes(nextTool)) return lifecycle.switchMode('3d');
         const requires2D = toolRequires2D(nextTool);
         if (mode === "3d" && requires2D) return lifecycle.switchMode("2d").then(() => mapInteractionBridge?.activate?.(nextTool));
         const result = mode === "3d" ? interactionBridge?.activate?.(nextTool) : mapInteractionBridge?.activate?.(nextTool);
@@ -584,6 +696,7 @@
         activeAsset = assets.find((asset) => asset.id === assetId) || null;
         if (!activeAsset) return;
         const nextTool = toolForAsset(activeAsset);
+        interactionStatus = nextTool === "place-asset" ? "点击地面连续放置组件；完成后点上方“结束放置”。" : "点击地图添加节点，再点上方“完成绘制”；完成后自动回到选择。";
         controller.setTool(nextTool);
         interactionBridge?.setAsset?.(activeAsset);
         if (mode === "3d") interactionBridge?.activate?.(nextTool);
@@ -599,12 +712,12 @@
         render();
         return result;
       },
-      cancel() { controller.setTool("select"); if (mode === "3d") interactionBridge?.activate?.("select"); else mapInteractionBridge?.activate?.("select"); render(); },
+      cancel() { activeAsset=null;interactionStatus="已返回选择；已完成的对象保留，可用撤销退回。";controller.setTool("select"); if (mode === "3d") interactionBridge?.activate?.("select"); else mapInteractionBridge?.activate?.("select"); render(); },
       close() { options.onClose?.(); }
     };
-    const dispatch = createActionDispatcher({ controller, lifecycle });
-    if (!document.selectionBoundary) controller.setTool("draw-boundary");
-    const dispose = () => { autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); options.services?.dispose?.(); };
+    const dispatchAction = createActionDispatcher({ controller, lifecycle, onSelectionChange: render });
+    const dispatch = action => simulationWorkspace ? { ok: false, code: "SIMULATION_ACTIVE" } : dispatchAction(action);
+    const dispose = () => { studioDisposed = true; simulationWorkspace?.dispose?.(); simulationWorkspace = null; options.root.classList?.remove("simulation-active"); autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); options.services?.dispose?.(); };
     try {
       await lifecycle.switchMode("3d");
       panel.focus();

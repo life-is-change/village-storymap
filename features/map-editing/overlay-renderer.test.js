@@ -55,6 +55,15 @@ function overlayFixture(t, { personal = false } = {}) {
   return { deps, features: () => source.getFeatures() };
 }
 
+test("studio can prepare scoped edited geometry while 3D is active, ordinary background refresh still skips", async t => {
+ const f=overlayFixture(t);
+ f.deps.getPlan2DView=()=>({classList:{contains:()=>false}});
+ await refresh2DOverlay(f.deps,null,{forceFullRebuild:true});
+ assert.equal(f.features().length,0);
+ await refresh2DOverlay(f.deps,null,{allowInactive:true,forceFullRebuild:true});
+ assert.deepEqual(f.features().map(x=>x.get('sourceCode')),['building-edited','building-static','road-edited','road-static','water-edited','water-static']);
+});
+
 test("shared overlay starts independent layer reads before waiting for the first one", async t => {
   const f = overlayFixture(t), started=[];
   let release;

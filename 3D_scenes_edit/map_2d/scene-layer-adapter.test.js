@@ -4,6 +4,17 @@ const assert = require("node:assert/strict");
 const SceneDocument = require("../domain/scene-document");
 const Layers = require("./scene-layer-adapter");
 
+test('2D roads show metre width, blue styling and visible selected vertices using real OpenLayers',()=>{
+ const vm=require('node:vm'),fs=require('node:fs'),path=require('node:path'),ctx={setTimeout,clearTimeout};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(__dirname,'../../assets/vendor/openlayers-10.8.0/ol.js'),'utf8'),ctx);const ol=ctx.ol;
+ const map={getView:()=>({getProjection:()=>ol.proj.get('EPSG:3857')})};
+ const adapter=Layers.createSceneLayerAdapter({ol,map});const doc={layers:[{id:'design'}],objects:[{id:'road',kind:'line',category:'path',layerId:'design',geometry:{type:'LineString',coordinates:[[0,0],[.001,0]]},properties:{widthM:6}}]};
+ adapter.render(doc,{selectedIds:['road']});const feature=adapter.getSource().getFeatures()[0],styles=adapter.getLayer().getStyleFunction()(feature,2);
+ assert.ok(Array.isArray(styles));assert.equal(styles[0].getStroke().getWidth(),3);assert.match(String(styles[0].getStroke().getColor()),/33.*150.*243/);assert.equal(styles.at(-1).getGeometryFunction()(feature).getCoordinates().length,2);
+ doc.objects[0].properties.widthM=10;adapter.render(doc,{selectedIds:['road']});assert.equal(adapter.getLayer().getStyleFunction()(adapter.getSource().getFeatures()[0],2)[0].getStroke().getWidth(),5);
+ adapter.render(doc,{forcedStyleToken:'compareA'});const a=adapter.getLayer().getStyleFunction()(adapter.getSource().getFeatures()[0],2)[0].getStroke().getColor();
+ adapter.render(doc,{forcedStyleToken:'compareB'});const b=adapter.getLayer().getStyleFunction()(adapter.getSource().getFeatures()[0],2)[0].getStroke().getColor();assert.notEqual(a,b,'two compared road versions must remain distinguishable');
+});
+
 function documentFixture() {
   const doc = SceneDocument.create({ projectId: "p", villageId: "v", groupId: "g", spaceId: "s", baselineRevision: 1,
     selectionBoundary: { type: "Polygon", coordinates: [[[114, 30], [114.002, 30], [114.002, 30.002], [114, 30]]] } });
@@ -20,16 +31,16 @@ function documentFixture() {
 test("builds point, line, surface and rotated footprint descriptors", () => {
   const descriptors = Layers.buildFeatureDescriptors(documentFixture(), { selectedIds: ["bench"], errorIds: ["line"] });
   assert.deepEqual(descriptors.map((item) => `${item.objectId}:${item.role}`), [
-    "null:boundary", "surface:geometry", "line:geometry", "bench:geometry", "bench:footprint"
+    "selection-boundary:geometry", "surface:geometry", "line:geometry", "bench:geometry", "bench:footprint"
   ]);
   assert.equal(descriptors.find((item) => item.objectId === "line").styleToken, "error");
   assert.equal(descriptors.find((item) => item.objectId === "bench").styleToken, "selected");
   assert.equal(descriptors.find((item) => item.role === "footprint").geometry.type, "Polygon");
 });
 
-test("adds a non-selectable cyan design boundary to the 2D scene overlay", () => {
-  const boundary = Layers.buildFeatureDescriptors(documentFixture(), {}).find((item) => item.role === "boundary");
-  assert.equal(boundary.objectId, null);
+test("adds a selectable legacy cyan range to the 2D scene overlay", () => {
+  const boundary = Layers.buildFeatureDescriptors(documentFixture(), {}).find((item) => item.kind === "boundary");
+  assert.equal(boundary.objectId, 'selection-boundary');
   assert.equal(boundary.kind, "boundary");
   assert.equal(boundary.styleToken, "boundary");
   assert.equal(boundary.geometry.type, "Polygon");
@@ -123,6 +134,7 @@ test("2D scene symbols keep placed assets and paths visible over imagery", () =>
     constructor() { this.values = {}; }
     setProperties(values) { this.values = values; }
     get(key) { return this.values[key]; }
+    getGeometry() { return {getFirstCoordinate:()=>[0,0]}; }
   }
   class Geometry { constructor(coordinates) { this.coordinates = coordinates; } }
   class Style { constructor(options) { this.options = options; } }
@@ -142,7 +154,7 @@ test("2D scene symbols keep placed assets and paths visible over imagery", () =>
   path.setProperties({ sceneStyleToken: "normal", sceneRole: "geometry", sceneKind: "line", sceneCategory: "path" });
 
   const footprintStyle = adapter.getLayer().options.style(footprint);
-  const pathStyle = adapter.getLayer().options.style(path).options;
+  const pathStyle = adapter.getLayer().options.style(path)[0].options;
   assert.equal(footprintStyle, null);
   assert.equal(pathStyle.stroke.options.width >= 4, true);
 });

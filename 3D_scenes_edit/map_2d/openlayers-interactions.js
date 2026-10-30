@@ -14,6 +14,8 @@
     const onGeometryChange = options.onGeometryChange || function () {};
     const onMeasure = options.onMeasure || function () {};
     const active = [];
+    let drawing = null;
+    let lastDrawResult = true;
     const geojson = new ol.format.GeoJSON();
 
     function value(feature, key) {
@@ -25,6 +27,7 @@
     }
 
     function removeActive() {
+      drawing = null;
       while (active.length) map.removeInteraction(active.pop());
     }
 
@@ -46,7 +49,11 @@
     }
 
     function activateSelect(tool) {
-      const select = add(new ol.interaction.Select({ layers: [layer], hitTolerance: 7, multi: true }));
+      const select = add(new ol.interaction.Select({ layers: [layer], hitTolerance: 7, multi: true, style:null }));
+      const selected = new Set(options.getSelectedIds?.() || []);
+      if (selected.size) for (const feature of source.getFeatures?.() || []) {
+        if (selected.has(value(feature,'sceneObjectId')) && value(feature,'sceneRole')==='geometry') select.getFeatures().push?.(feature);
+      }
       select.on("select", () => onSelect(selectedObjectFeatures(select.getFeatures()).map((feature) => value(feature, "sceneObjectId"))));
       if (tool === "move") {
         const translate = add(new ol.interaction.Translate({ features: select.getFeatures() }));
@@ -78,19 +85,28 @@
 
     function activateDraw(tool) {
       const types = { "draw-line": "LineString", "draw-surface": "Polygon", "draw-rectangle": "Circle", "place-asset": "Point", measure: "LineString" };
-      const drawOptions = { source, type: types[tool] };
+      const drawOptions = { type: types[tool] };
       if (tool === "draw-rectangle") drawOptions.geometryFunction = ol.interaction.Draw.createBox();
       const draw = add(new ol.interaction.Draw(drawOptions));
+      drawing = draw;
       draw.on("drawend", (event) => {
         const geometry = geometryObject(event.feature);
         source.removeFeature?.(event.feature);
         if (tool === "measure") onMeasure(geometry);
-        else onCreate(tool, geometry);
+        else {
+          const result = onCreate(tool, geometry);
+          lastDrawResult = result?.ok !== false;
+          if (!lastDrawResult && ['LineString','Polygon'].includes(geometry.type)) {
+            const coordinates = geometry.type === 'Polygon' ? geometry.coordinates[0].slice(0,-1) : geometry.coordinates;
+            draw.appendCoordinates?.(coordinates);
+          }
+        }
       });
       if (ol.interaction.Snap) add(new ol.interaction.Snap({ source }));
     }
 
     return {
+      finishDrawing() { if (!drawing?.finishDrawing) return false; lastDrawResult = true; drawing.finishDrawing(); return lastDrawResult; },
       activate(tool) {
         removeActive();
         if (tool === "select" || tool === "move" || tool === "edit-nodes" || tool === "rotate" || tool === "scale") activateSelect(tool);

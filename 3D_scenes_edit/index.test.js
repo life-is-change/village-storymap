@@ -3,6 +3,21 @@ const assert = require("node:assert/strict");
 
 const Studio = require("./index");
 
+test('selection-changing commands refresh the view after controller selection settles',async()=>{
+ const document=require('./domain/scene-document').create({projectId:'p'}),Commands=require('./domain/scene-commands'),Editor=require('./map_2d/scene-editor-controller'),Geometry=require('./domain/geometry-rules');
+ document.selectionBoundary={type:'Polygon',coordinates:[[[113,23],[113.001,23],[113.001,23.001],[113,23.001],[113,23]]]};
+ const c=Editor.createSceneEditorController({history:Commands.createHistory(document),geometryRules:Geometry,adapter:{render(){}},idFactory:()=> 'id'});c.select(['selection-boundary']);
+ const selections=[];const dispatch=Studio.createActionDispatcher({controller:c,lifecycle:{},onSelectionChange:()=>selections.push(c.getState().selectedIds)});
+ await dispatch({type:'delete'});assert.deepEqual(selections,[[]]);
+});
+
+test('catalog paths are components while the planning tool explicitly creates circulation',()=>{
+ const geometry={type:'LineString',coordinates:[[113,23],[113.001,23]]};
+ const asset={id:'gravel',kind:'line',category:'path',label:'碎石步道'};
+ assert.equal(Studio.createObjectInputForTool('draw-line',geometry,asset).properties.sceneRole,'site-component');
+ assert.equal(Studio.createObjectInputForTool('draw-line',geometry,{...asset,sceneRole:'circulation'}).properties.sceneRole,'circulation');
+});
+
 const completeContext = {
   userId: "u1",
   teachingProjectId: "tp1",
@@ -78,6 +93,11 @@ test("property patches preserve unaffected transform axes", () => {
   assert.deepEqual(Studio.patchForProperty("properties.widthM", 1.8, object), { properties: { widthM: 1.8 } });
 });
 
+test('village road drawing has a dedicated lifecycle action',async()=>{
+ let calls=0;const dispatch=Studio.createActionDispatcher({controller:{},lifecycle:{drawRoad(){calls++;return {ok:true};}}});
+ assert.equal((await dispatch({type:'draw-road'})).ok,true);assert.equal(calls,1);
+});
+
 test("chooses a newer local draft without overwriting a newer server document", () => {
   const server = { revision: 4, updatedAt: "2026-09-14T02:00:00Z" };
   assert.equal(Studio.chooseInitialDocument(server, { revision: 5, document: { revision: 5 } }).revision, 5);
@@ -88,7 +108,7 @@ test("chooses a newer local draft without overwriting a newer server document", 
 test("maps draw tools and selected catalog items to canonical object input", () => {
   assert.deepEqual(Studio.createObjectInputForTool("draw-line", { type: "LineString", coordinates: [[1, 2], [3, 4]] }, null), {
     kind: "line", category: "path", geometry: { type: "LineString", coordinates: [[1, 2], [3, 4]] },
-    properties: { widthM: 1.5, heightM: 0 }
+    properties: { widthM: 1.5, heightM: 0, sceneRole:'circulation' }
   });
   const asset = { id: "seed:bench:wood", kind: "asset", category: "bench", label: "木座椅", footprintM: [1.8, 0.65], defaultHeightM: 0.85 };
   assert.deepEqual(Studio.createObjectInputForTool("place-asset", { type: "Point", coordinates: [1, 2] }, asset), {
@@ -111,6 +131,7 @@ test("creates and disposes a loaded studio with its real composition services", 
   };
   const calls = [];
   const frames = [];
+  const fittedGeometries = [];
   class VectorSource { clear() {} addFeatures() {} }
   class VectorLayer { constructor(options) { this.options = options; } changed() {} }
   class Feature { constructor() { this.values = {}; } setProperties(values) { this.values = values; } }
@@ -139,7 +160,7 @@ test("creates and disposes a loaded studio with its real composition services", 
         async listVersions() { return { ok: true, data: [{ id: "v1", label: "测试1", document }] }; }
       },
       localStore: { read() { return null; }, write() {}, remove() {} },
-      adapter: { mount() { calls.push("mount"); }, render() {}, fitBoundary() { calls.push("adapter-fit"); }, dispose() { calls.push("adapter-dispose"); } },
+      adapter: { mount() { calls.push("mount"); }, render() {}, fitBoundary(geometry) { calls.push("adapter-fit");fittedGeometries.push(geometry); }, dispose() { calls.push("adapter-dispose"); } },
       interactions: { activate(tool) { calls.push(["activate", tool]); }, dispose() { calls.push("interactions-dispose"); } },
       preview
     }
@@ -155,12 +176,15 @@ test("creates and disposes a loaded studio with its real composition services", 
   await studio.dispatch({ type: "select-object", value: "missing" });
   assert.equal(studio.getState().tool, "select");
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === "activate").at(-1), ["activate", "select"]);
+  const roadGeometry={type:'LineString',coordinates:[[114.0001,30.0001],[114.0008,30.0008]]};
+  const road=studio.createObject({kind:'line',category:'path',geometry:roadGeometry,properties:{widthM:4}});studio.select([road.object.id]);
   const fitCountBefore2D = calls.filter((call) => call === "adapter-fit").length;
   await studio.dispatch({ type: "mode", value: "2d" });
   assert.equal(studio.getState().mode, "2d");
   assert.equal(calls.filter((call) => call === "adapter-fit").length, fitCountBefore2D);
   assert.equal(frames.length, 1);
   frames.shift()();
+  assert.deepEqual(fittedGeometries.at(-1),roadGeometry,'2D editing frames the selected road, not an unrelated blue range');
   assert.deepEqual(calls.slice(-2), ["map-update-size", "adapter-fit"]);
   await studio.switchMode("3d");
   assert.equal(calls.some((call) => call[0] === "preview-render"), true);
@@ -174,6 +198,9 @@ test("creates and disposes a loaded studio with its real composition services", 
   assert.equal(frames.length, 1);
   frames.shift()();
   assert.deepEqual(calls.slice(-2), ["map-update-size", "adapter-fit"]);
+  await studio.dispatch({type:'tool',value:'edit-boundary'});
+  assert.equal(studio.getState().mode,'3d','range editing explicitly switches to the supported 3D editor');
+  assert.equal(studio.getState().tool,'edit-boundary');
   studio.dispose();
   assert.equal(listeners.size, 0);
   assert.equal(calls.includes("preview-dispose"), true);

@@ -136,7 +136,7 @@
     planIncrementalLayerUpdate,
     async refresh2DOverlay(deps, refreshRequest = null, options = {}) {
       const plan2dView = deps.getPlan2DView();
-      if (!plan2dView?.classList.contains("active")) return;
+      if (!plan2dView?.classList.contains("active") && options.allowInactive !== true) return;
 
       const currentSpaceId = deps.getCurrentSpaceId();
       const refreshOptions = {

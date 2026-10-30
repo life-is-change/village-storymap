@@ -239,22 +239,23 @@
 
     function lineMaterial(descriptor) {
       const colors = {
-        path: "#b98b55",
+        path: "#4f8fca",
         drainage: "#4c94b8",
         curb: "#8c9298",
         "low-wall": "#a26f4a",
         fence: "#8a6848",
         hedge: "#447f4f"
       };
-      return Cesium.Color?.fromCssColorString?.(colors[descriptor.category] || "#f4f1e8") || color("WHITE");
+      const material=Cesium.Color?.fromCssColorString?.(colors[descriptor.category] || "#f4f1e8") || color("WHITE");
+      return descriptor.category==='path'&&material?.withAlpha?material.withAlpha(.52):material;
     }
 
     function lineGraphics(descriptor) {
       const positions = Cesium.Cartesian3.fromDegreesArray(flattenPositions(descriptor.coordinatesDegrees));
       const material = lineMaterial(descriptor);
-      if (descriptor.renderer === "wide-line" || descriptor.renderer === "extruded-line") {
+      if (descriptor.category==='path' || descriptor.renderer === "wide-line" || descriptor.renderer === "extruded-line") {
         return {
-          polyline: undefined,
+          polyline: descriptor.category==='path'?{positions,width:1.6,clampToGround:true,material:Cesium.Color?.fromCssColorString?.('#1f5f9e')||color('WHITE')}:undefined,
           corridor: {
             positions,
             width: Math.max(.2, descriptor.widthM),
@@ -383,11 +384,22 @@
       for (const descriptor of descriptors.polygons) {
         nextIds.add(descriptor.sourceObjectId);
         const outer = descriptor.coordinatesDegrees?.[0] || [];
-        upsert(descriptor.sourceObjectId, { polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(flattenPositions(outer)), material: color("WHITE", .7), height: descriptor.elevationM, extrudedHeight: descriptor.elevationM + descriptor.extrusionHeightM } });
+        const positions = Cesium.Cartesian3.fromDegreesArray(flattenPositions(outer));
+        const holes = (descriptor.coordinatesDegrees || []).slice(1).map(ring => new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flattenPositions(ring))));
+        const range = descriptor.category === 'activity-field';
+        const palette = {grass:'GREEN',water:'STEELBLUE',planting:'DARKGREEN',planter:'SADDLEBROWN'};
+        const polygon = { hierarchy: holes.length ? new Cesium.PolygonHierarchy(positions,holes) : positions,
+          material: color(range ? 'GREEN' : palette[descriptor.category] || 'WHITE', range ? .28 : .72), classificationType: Cesium.ClassificationType?.BOTH };
+        if (!range && (descriptor.elevationM || descriptor.extrusionHeightM)) Object.assign(polygon, {
+          height: descriptor.elevationM, heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND,
+          extrudedHeight: descriptor.elevationM + descriptor.extrusionHeightM, extrudedHeightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND
+        });
+        upsert(descriptor.sourceObjectId, { polygon, polyline: { positions, width: 3, clampToGround: true, material: color('DARKGREEN') } });
       }
       for (const descriptor of descriptors.polylines) {
         nextIds.add(descriptor.sourceObjectId);
         upsert(descriptor.sourceObjectId, lineGraphics(descriptor), null, lineFocus(descriptor.coordinatesDegrees));
+        records.get(descriptor.sourceObjectId).lineDescriptor = descriptor;
       }
       for (const descriptor of descriptors.fallbacks) {
         nextIds.add(descriptor.sourceObjectId);
@@ -445,10 +457,32 @@
       for (const [id, record] of records) {
         if (!record.descriptor) record.entity.show = true;
         record.entity.isSceneEditSelected = selectedIds.has(id);
+        if (record.entity.polygon && record.entity.polyline) {
+          record.entity.polyline.width = selectedIds.has(id) ? 5 : id==='selection-boundary'?5:3;
+          record.entity.polyline.material = color(selectedIds.has(id) ? 'YELLOW' : id==='selection-boundary'?'CYAN':'DARKGREEN');
+        }
+        if (record.lineDescriptor?.category==='path') {
+          const selected=selectedIds.has(id),tint=Cesium.Color?.fromCssColorString?.(selected?'#2196f3':'#4f8fca')||color('WHITE');
+          record.entity.corridor.material=tint?.withAlpha?tint.withAlpha(selected?.8:.52):tint;
+          record.entity.polyline.width=selected?5:1.6;
+          record.entity.polyline.material=Cesium.Color?.fromCssColorString?.(selected?'#ffe082':'#1f5f9e')||color('YELLOW');
+        }
         if (record.entity.model) record.entity.model.silhouetteSize = selectedIds.has(id) ? 2 : 0;
         if (record.modelResource?.primitive) record.modelResource.primitive.silhouetteSize = selectedIds.has(id) ? 2 : 0;
       }
       updateResidency();
+    }
+
+    function previewLineGeometry(id,geometry,options) {
+      const record=records.get(id);
+      if(!record?.lineDescriptor||geometry?.type!=='LineString')return false;
+      if(options?.committed)record.lineDescriptor={...record.lineDescriptor,coordinatesDegrees:geometry.coordinates.map(p=>p.slice())};
+      Object.assign(record.entity,lineGraphics({...record.lineDescriptor,coordinatesDegrees:geometry.coordinates}));
+      select([...selectedIds]);viewer.scene?.requestRender?.();return true;
+    }
+    function resetLinePreview(id) {
+      const record=records.get(id);if(!record?.lineDescriptor)return false;
+      return previewLineGeometry(id,{type:'LineString',coordinates:record.lineDescriptor.coordinatesDegrees});
     }
 
     function flyToBoundary(boundary) {
@@ -568,7 +602,7 @@
       clear();
     }
 
-    return { render, select, flyToBoundary, flyToObject, pickObjectId, setGhost, clearGhost, clear, dispose,
+    return { render, select, previewLineGeometry, resetLinePreview, flyToBoundary, flyToObject, pickObjectId, setGhost, clearGhost, clear, dispose,
       whenReady, updateResidency, getModelStats: () => residency?.getStats?.() || null };
   }
 

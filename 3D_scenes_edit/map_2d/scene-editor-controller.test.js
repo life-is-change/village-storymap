@@ -23,14 +23,85 @@ function createController(options = {}) {
     idFactory: () => `object-${++sequence}`,
     baselineBuildings: options.baselineBuildings || [],
     villageBoundary: options.villageBoundary || square(114.29, 30.49, 0.03),
+    baselineRoads: options.baselineRoads || [],
     onDocumentChange(document) { changes.push({ document }); },
     onStatus(status) { statuses.push(status); }
   });
   return { controller, changes, statuses };
 }
 
+test('legacy blue range can be selected, rotated, moved and cleared without deleting sites',()=>{
+ const {controller:c}=createController(),initial=c.getState().document.selectionBoundary;
+ c.createObject({kind:'surface',category:'activity-field',geometry:square(114.3001,30.5001,.0002)});
+ c.select(['selection-boundary']);assert.deepEqual(c.getState().selectedIds,['selection-boundary']);
+ assert.equal(c.rotateSelection(90).ok,true);
+ assert.notDeepEqual(c.getState().document.selectionBoundary,initial);
+ assert.equal(c.updateSelection({geometry:square(114.3001,30.5001,.001)}).ok,true);
+ c.deleteSelection();assert.equal(c.getState().document.selectionBoundary,null);assert.equal(c.getState().document.objects.length,1);
+ c.undo();assert.ok(c.getState().document.selectionBoundary);
+});
+
+test('mixed locked deletion does not clear range and successful mixed deletion has one undo',()=>{
+ const {controller:c}=createController(),initial=structuredClone(c.getState().document.selectionBoundary);
+ const item=c.createObject({kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.3001,30.5001]}}).object;
+ c.setLayerLocked('design',true);c.select(['selection-boundary',item.id]);const before=JSON.stringify(c.getState().document);
+ assert.equal(c.deleteSelection().code,'LAYER_LOCKED');assert.equal(JSON.stringify(c.getState().document),before);
+ c.setLayerLocked('design',false);c.deleteSelection();assert.equal(c.getState().document.selectionBoundary,null);assert.equal(c.getState().document.objects.length,0);
+ c.undo();assert.deepEqual(c.getState().document.selectionBoundary,initial);assert.equal(c.getState().document.objects.length,1);
+});
+
+test('decorative site paths do not become village circulation or snap to distant roads',()=>{
+ const {controller:c}=createController(),geometry={type:'LineString',coordinates:[[114.3001,30.5001],[114.3002,30.5002]]};
+ const component=c.createObject({kind:'line',category:'path',geometry,properties:{sceneRole:'site-component'}});
+ assert.equal(component.ok,true);assert.equal(component.object.layerId,'design');
+ assert.equal(c.getState().document.layers.some(l=>l.id==='circulation'),false);
+});
+
+test('activity fields are independent facilities within the village and can host components without enlarging the park',()=>{
+ const {controller:c}=createController(),before=JSON.stringify(c.getState().document.selectionBoundary),geometry=square(114.302,30.501,.0003);
+ assert.equal(c.createObject({kind:'surface',category:'activity-field',geometry,properties:{}}).ok,true);
+ assert.equal(c.createObject({kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.3021,30.5011]},properties:{}}).ok,true);
+ assert.equal(JSON.stringify(c.getState().document.selectionBoundary),before);
+ assert.equal(c.createObject({kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.305,30.505]},properties:{}}).ok,false);
+});
+
+test('village paths use their own reversible layer outside a local park while other objects remain constrained',()=>{
+ const {controller:c}=createController(),boundary=c.getState().document.selectionBoundary;
+ const geometry={type:'LineString',coordinates:[[114.302,30.501],[114.303,30.501]]};
+ assert.equal(c.createObject({kind:'line',category:'path',geometry,properties:{widthM:1.5}}).ok,true);
+ assert.equal(c.getState().document.objects[0].layerId,'circulation');
+ assert.equal(c.getState().document.layers.find(l=>l.id==='circulation').name,'村庄道路与步道');
+ assert.deepEqual(c.getState().document.selectionBoundary,boundary);
+ c.undo();assert.equal(c.getState().document.objects.length,0);assert.ok(!c.getState().document.layers.some(l=>l.id==='circulation'));
+ c.redo();assert.equal(c.getState().document.objects.length,1);
+ assert.equal(c.createObject({kind:'line',category:'fence',geometry}).code,'OUTSIDE_BOUNDARY');
+ const outside={type:'LineString',coordinates:[[114.5,30.501],[114.51,30.501]]};
+ assert.equal(c.createObject({kind:'line',category:'path',geometry:outside}).code,'OUTSIDE_VILLAGE');
+ c.select(['object-1']);assert.equal(c.updateSelection({geometry:outside}).code,'OUTSIDE_VILLAGE');
+ const inside={type:'LineString',coordinates:[[114.304,30.501],[114.305,30.501]]};
+ assert.equal(c.updateSelection({geometry:inside}).ok,true);
+ c.toggleLayerLocked('circulation');assert.equal(c.createObject({kind:'line',category:'path',geometry}).code,'LAYER_LOCKED');
+});
+
+test('path endpoints snap within two metres to road centre lines and preserve intermediate nodes',()=>{
+ const origin=[114.3002,30.5002],p=xy=>Geometry.fromLocalMeters(xy,origin);
+ const road={type:'LineString',coordinates:[p([0,0]),p([100,0])]};
+ const {controller:c}=createController({baselineRoads:[road]});
+ const mid=p([50,8]),result=c.createObject({kind:'line',category:'path',geometry:{type:'LineString',coordinates:[p([10,1.9]),mid,p([80,2.1])]}});
+ assert.equal(result.ok,true);const coords=result.object.geometry.coordinates;
+ assert.ok(Math.abs(Geometry.toLocalMeters(coords[0],origin)[1])<.001);assert.deepEqual(coords[1],mid);
+ assert.ok(Geometry.toLocalMeters(coords[2],origin)[1]>2);
+});
+
+test('duplicating a village path cannot bypass its layer lock or village boundary',()=>{
+ const {controller:c}=createController({villageBoundary:square()});
+ c.createObject({kind:'line',category:'path',geometry:{type:'LineString',coordinates:[[114.300999,30.5002],[114.300999,30.5008]]}});
+ assert.equal(c.duplicateSelection().code,'OUTSIDE_VILLAGE');assert.equal(c.getState().document.objects.length,1);
+ c.toggleLayerLocked('circulation');assert.equal(c.duplicateSelection().code,'LAYER_LOCKED');
+});
+
 test("supports the complete first-release tool set", () => {
-  assert.deepEqual(Editor.TOOLS, ["select", "box-select", "draw-boundary", "edit-boundary", "draw-surface", "draw-rectangle", "draw-line", "place-asset", "move", "rotate", "scale", "measure", "pan", "edit-nodes"]);
+  assert.deepEqual(Editor.TOOLS, ["select", "box-select", "draw-boundary", "edit-boundary", "draw-surface", "draw-rectangle", "draw-line", "place-asset", "move", "rotate", "scale", "measure", "pan", "edit-nodes", "edit-road-nodes"]);
 });
 
 test("sets and undoes a validated design boundary without touching the baseline", () => {

@@ -126,6 +126,38 @@
   }
 
   function containsGeometry(boundary, geometry) {
+    if (['LineString','Polygon'].includes(geometry?.type)) {
+      const polygons = boundary?.type === 'Polygon' ? [boundary] : boundary?.type === 'MultiPolygon' ? boundary.coordinates.map(coordinates => ({ type: 'Polygon', coordinates })) : [];
+      const inside = p => polygons.some(polygon => pointInPolygon(p, polygon) || (geometry.type==='Polygon' && segments(polygon).some(([a,b])=>pointOnSegment(p,a,b))));
+      if (!polygons.length || !geometry.coordinates?.length || !vertices(geometry).every(inside)) return false;
+      const edges = polygons.flatMap(polygon => segments(polygon));
+      const edgesInside = segments(geometry).every(([a,b]) => {
+        const dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy,cuts=[0,1];
+        for (const [c,d] of edges) {
+          const ux=d[0]-c[0],uy=d[1]-c[1],cross=dx*uy-dy*ux;
+          if (Math.abs(cross)>1e-20) {
+            const t=((c[0]-a[0])*uy-(c[1]-a[1])*ux)/cross,u=((c[0]-a[0])*dy-(c[1]-a[1])*dx)/cross;
+            if(t>0&&t<1&&u>=0&&u<=1)cuts.push(t);
+          } else if(length) for(const p of [c,d])if(pointOnSegment(p,a,b))cuts.push(((p[0]-a[0])*dx+(p[1]-a[1])*dy)/length);
+        }
+        cuts.sort((x,y)=>x-y);
+        return cuts.slice(1).every((t,i)=>inside([a[0]+dx*(t+cuts[i])/2,a[1]+dy*(t+cuts[i])/2]));
+      });
+      if (!edgesInside) return false;
+      if (geometry.type==='Polygon') {
+        // A filled polygon must not cover an excluded island even if all its edges fit.
+        for (const polygon of polygons) for (const hole of polygon.coordinates.slice(1)) {
+          const ys=[...new Set(hole.map(p=>p[1]))].sort((a,b)=>a-b);
+          for (let row=1;row<ys.length;row++) {
+            const y=(ys[row-1]+ys[row])/2,xs=[];
+            for (const [a,b] of segments({type:'LineString',coordinates:hole})) if((a[1]>y)!==(b[1]>y))xs.push(a[0]+(b[0]-a[0])*(y-a[1])/(b[1]-a[1]));
+            xs.sort((a,b)=>a-b);
+            for(let column=1;column<xs.length;column+=2){const p=[(xs[column-1]+xs[column])/2,y];if(pointInPolygon(p,geometry)&&!polygons.some(area=>pointInPolygon(p,area)))return false;}
+          }
+        }
+      }
+      return true;
+    }
     if (boundary?.type !== "Polygon") return false;
     return vertices(geometry).every((point) => pointInPolygon(point, boundary));
   }

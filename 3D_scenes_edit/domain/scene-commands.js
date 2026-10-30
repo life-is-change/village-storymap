@@ -30,7 +30,10 @@
   function apply(document, command) {
     const next = SceneDocument.clone(document);
     const type = command?.type;
-    if (type === "addObject") {
+    if (type === "setSimulation") {
+      next.metadata = { ...next.metadata, simulation: SceneDocument.clone(command.config) };
+    } else if (type === "addObject") {
+      if (command.layer && !next.layers.some(layer => layer.id === command.layer.id)) next.layers.push(SceneDocument.clone(command.layer));
       next.objects.push(SceneDocument.clone(command.object));
     } else if (type === "addLayer") {
       if (!command.layer?.id || next.layers.some((layer) => layer.id === command.layer.id)) throw new Error("addLayer requires a fresh id");
@@ -43,6 +46,7 @@
       mapSelected(next, command.ids, (object) => mergeObject(object, command.patch || {}));
     } else if (type === "deleteObjects") {
       const ids = new Set(command.ids || []);
+      if(command.clearSelectionBoundary)next.selectionBoundary=null;
       next.objects = next.objects.filter((object) => !ids.has(object.id));
       next.groups = next.groups
         .map((group) => ({ ...group, objectIds: (group.objectIds || []).filter((id) => !ids.has(id)) }))

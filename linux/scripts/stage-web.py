@@ -25,7 +25,7 @@ def public(name):
         return len(p.parts) == 2 and p.name in PUBLIC_CSV
     if p.parts[:3] == ('assets', 'vendor', 'cesium-1.118.0') and p.name in {'tilemapresource.xml', 'LICENSE.md', 'README.md'}:
         return True
-    allowed = p.parts[0] in {'assets', 'data', 'features', '3D_scenes_edit', 'rural_house_generator'} or p.parts[:2] == ('homepage', 'dist')
+    allowed = p.parts[0] in {'assets', 'data', 'features', '3D_scenes_edit', 'rural_house_generator', 'village_game'} or p.parts[:2] == ('homepage', 'dist')
     return allowed and p.suffix.lower() in EXTENSIONS
 
 def stage(source, target):
@@ -36,7 +36,7 @@ def stage(source, target):
         base=Path(directory);relative=base.relative_to(source)
         dirs[:]=[name for name in dirs if not name.startswith('.') and name not in {'backend','tests','node_modules','runtime_storage','__pycache__'} and not (base/name).is_symlink()]
         if base == source:
-            dirs[:]=[name for name in dirs if name in {'assets','data','features','3D_scenes_edit','rural_house_generator','homepage'}]
+            dirs[:]=[name for name in dirs if name in {'assets','data','features','3D_scenes_edit','rural_house_generator','homepage','village_game'}]
         elif relative == Path('homepage'):
             dirs[:]=[name for name in dirs if name == 'dist']
         elif relative == Path('3D_scenes_edit'):

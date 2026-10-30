@@ -2,6 +2,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const Startup = require("./scene-studio-startup.js");
 
+test('studio explicitly prepares the baseline even when its initial view is 3D',async()=>{
+ let requested;
+ await Startup.prepareSceneStudio({refresh2DOverlay:async options=>{requested=options;}});
+ assert.equal(requested?.allowInactive,true);
+ assert.equal(requested?.forceFullRebuild,true);
+});
+
 test("one studio session reuses prepared 3D without repeating cloud refresh", async () => {
   let calls = 0;
   const api = { enter: async () => { calls++; } };

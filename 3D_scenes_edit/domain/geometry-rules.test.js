@@ -3,6 +3,14 @@ const assert = require("node:assert/strict");
 
 const Geometry = require("./geometry-rules");
 
+test('a road segment cannot leave a concave village or cross a village hole between valid endpoints',()=>{
+ const boundary={type:'Polygon',coordinates:[[[0,0],[3,0],[3,3],[2,3],[2,1],[1,1],[1,3],[0,3],[0,0]]]};
+ assert.equal(Geometry.containsGeometry(boundary,{type:'LineString',coordinates:[[.5,2],[2.5,2]]}),false);
+ assert.equal(Geometry.containsGeometry(boundary,{type:'LineString',coordinates:[[.5,2],[.5,.5],[2.5,.5],[2.5,2]]}),true);
+ const hole={type:'Polygon',coordinates:[[[0,0],[4,0],[4,4],[0,4],[0,0]],[[1,1],[2,1],[2,2],[1,2],[1,1]]]};
+ assert.equal(Geometry.containsGeometry(hole,{type:'LineString',coordinates:[[.5,1.5],[3,1.5]]}),false);
+});
+
 const origin = [114.3, 30.5];
 const square = {
   type: "Polygon",
@@ -82,4 +90,15 @@ test("validates a selected public-space boundary against village and buildings",
   const warned = Geometry.validateSelectionBoundary(narrow, { villageBoundary: village, baselineBuildings: [] });
   assert.equal(warned.ok, true);
   assert.match(warned.warnings.join(" "), /0.8 m/);
+});
+test('polygon containment checks concave edges and excluded holes, including matching holed ranges',()=>{
+ const polygon=coordinates=>({type:'Polygon',coordinates});
+ const u=polygon([[[0,0],[4,0],[4,4],[3,4],[3,1],[1,1],[1,4],[0,4],[0,0]]]);
+ const bridge=polygon([[[.5,2],[3.5,2],[3.5,3],[.5,3],[.5,2]]]);
+ assert.equal(Geometry.containsGeometry(u,bridge),false);
+ const outer=[[0,0],[6,0],[6,6],[0,6],[0,0]],hole=[[2,2],[4,2],[4,4],[2,4],[2,2]],holed=polygon([outer,hole]);
+ assert.equal(Geometry.containsGeometry(holed,polygon([outer])),false);
+ assert.equal(Geometry.containsGeometry(holed,polygon([hole])),false);
+ assert.equal(Geometry.containsGeometry(holed,holed),true);
+ assert.equal(Geometry.containsGeometry(holed,polygon([[[.5,.5],[1.5,.5],[1.5,1.5],[.5,1.5],[.5,.5]]])),true);
 });

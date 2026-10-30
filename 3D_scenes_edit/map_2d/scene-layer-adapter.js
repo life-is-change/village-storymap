@@ -12,13 +12,13 @@
     const descriptors = [];
     if (document?.selectionBoundary) {
       descriptors.push({
-        objectId: null,
-        role: "boundary",
+        objectId: 'selection-boundary',
+        role: "geometry",
         kind: "boundary",
         category: "selection-boundary",
         geometry: document.selectionBoundary,
         layerId: null,
-        styleToken: "boundary",
+        styleToken: selected.has('selection-boundary') ? 'selected' : 'boundary',
         properties: {}
       });
     }
@@ -99,11 +99,23 @@
       return style;
     }
 
+    function roadStyle(feature,resolution) {
+      const token=getValue(feature,'sceneStyleToken'),selected=token==='selected';
+      const coordinate=feature.getGeometry().getFirstCoordinate?.()||[0,0];
+      const metresPerPixel=ol.proj?.getPointResolution?.(projection,resolution,coordinate,'m')||resolution||1;
+      const width=Math.max(1,Math.min(800,Math.round((Number(getValue(feature,'sceneWidthM'))||4)/metresPerPixel*10)/10));
+      const key=`road:${token}:${width}`;if(styleCache.has(key))return styleCache.get(key);
+      const fill=token==='compareA'?'rgba(65,105,161,.5)':token==='compareB'?'rgba(182,70,150,.5)':token==='error'?'rgba(214,64,69,.7)':token==='locked'?'rgba(110,118,129,.5)':selected?'rgba(33,150,243,.8)':'rgba(79,143,202,.52)';
+      const styles=[new ol.style.Style({stroke:new ol.style.Stroke({color:fill,width})}),new ol.style.Style({stroke:new ol.style.Stroke({color:selected?'#ffe082':'#1f5f9e',width:selected?4:1.4})})];
+      if(selected&&ol.geom.MultiPoint)styles.push(new ol.style.Style({geometry:f=>new ol.geom.MultiPoint(f.getGeometry().getCoordinates()),image:new ol.style.Circle({radius:5,fill:new ol.style.Fill({color:'#fff'}),stroke:new ol.style.Stroke({color:'#1565c0',width:2})})}));
+      styleCache.set(key,styles);return styles;
+    }
+
     const layer = new ol.layer.Vector({
       source,
       zIndex: Number(options?.zIndex) || 1200,
       properties: { sceneEditOverlay: true },
-      style: (feature) => makeStyle(
+      style: (feature,resolution) => getValue(feature,'sceneKind')==='line'&&getValue(feature,'sceneCategory')==='path'&&ol.style ? roadStyle(feature,resolution) : makeStyle(
         getValue(feature, "sceneStyleToken"), getValue(feature, "sceneRole"), getValue(feature, "sceneKind"),
         getValue(feature, "sceneCategory"), getValue(feature, "sceneAssetRef"), getValue(feature, "sceneHeadingDeg")
       )
@@ -129,8 +141,9 @@
       throw new Error(`Unsupported scene geometry: ${geometry.type}`);
     }
 
-    function makeFeature(descriptor) {
-      const feature = new ol.Feature({ geometry: makeGeometry(descriptor.geometry) });
+    function makeFeature(descriptor,existing) {
+      const feature = existing?.setGeometry ? existing : new ol.Feature({ geometry: makeGeometry(descriptor.geometry) });
+      if(feature===existing)feature.setGeometry(makeGeometry(descriptor.geometry));
       feature.setProperties({
         sceneObjectId: descriptor.objectId,
         sceneRole: descriptor.role,
@@ -138,9 +151,10 @@
         sceneCategory: descriptor.category,
         sceneAssetRef: descriptor.properties?.assetRef || null,
         sceneHeadingDeg: Number(descriptor.properties?.headingDeg ?? descriptor.headingDeg) || 0,
+        sceneWidthM: Number(descriptor.properties?.widthM) || 4,
         sceneLayerId: descriptor.layerId,
         sceneStyleToken: descriptor.styleToken,
-        sceneBaseStyleToken: descriptor.styleToken === "locked" ? "locked" : "normal"
+        sceneBaseStyleToken: descriptor.kind === 'boundary' ? 'boundary' : descriptor.styleToken === "locked" ? "locked" : "normal"
       });
       return feature;
     }
@@ -151,7 +165,8 @@
         return layer;
       },
       render(document, viewState) {
-        const features = buildFeatureDescriptors(document, { ...(viewState || {}), forcedStyleToken: options?.forcedStyleToken || viewState?.forcedStyleToken }).map(makeFeature);
+        const existing=new Map(renderedFeatures.map(feature=>[`${getValue(feature,'sceneObjectId')}:${getValue(feature,'sceneRole')}`,feature]));
+        const features = buildFeatureDescriptors(document, { ...(viewState || {}), forcedStyleToken: options?.forcedStyleToken || viewState?.forcedStyleToken }).map(descriptor=>makeFeature(descriptor,existing.get(`${descriptor.objectId}:${descriptor.role}`)));
         source.clear();
         source.addFeatures(features);
         renderedFeatures = features;
