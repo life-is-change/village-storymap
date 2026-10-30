@@ -9,7 +9,7 @@
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
   <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20261029-2d-performance" />
+  <link rel="stylesheet" href="style.css?v=20261030-panel-anchor" />
   <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20261030-main-game1" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -387,7 +387,7 @@
   <script defer src="features/survey/survey-activity-model.js?v=20260908-survey-markers"></script>
   <script defer src="features/survey/survey-review-client.js?v=20261029-survey-models"></script>
   <script defer src="features/survey/survey-review-panel.js?v=20260911-survey-layout-fix"></script>
-  <script defer src="features/survey/survey-realtime-controller.js"></script>
+  <script defer src="features/survey/survey-realtime-controller.js?v=20261030-sync-recovery"></script>
   <script defer src="features/data/data-service.js?v=20260911-photo-security"></script>
   <script defer src="features/data/feature-edit-session.js"></script>
   <script defer src="features/data/feature-db.js?v=20260607-delete-tombstone"></script>
@@ -426,16 +426,16 @@
   <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20261030-main-game1"></script>
   <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20261030-main-game1"></script>
   <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20261030-main-game1"></script>
-  <script defer src="3D_scenes_edit/index.js?v=20261030-main-game1"></script>
+  <script defer src="3D_scenes_edit/index.js?v=20261030-layout"></script>
   <script defer src="features/data/unified-operation-routes.js"></script>
   <script defer src="features/data/unified-api-client.js"></script>
   <script defer src="features/data/business-files-client.js"></script>
   <script defer src="features/data/business-task-client.js"></script>
-  <script defer src="features/sync/business-event-client.js"></script>
+  <script defer src="features/sync/business-event-client.js?v=20261030-sync-recovery"></script>
   <script defer src="3D_scenes_edit/persistence/scene-files-api-client.js?v=20261030-scene-open1"></script>
   <script defer src="features/data/scene-services.js"></script>
   <script defer src="features/data/platform-services.js"></script>
-  <script defer src="app.js?v=20261030-scene-open1"></script>
+  <script defer src="app.js?v=20261030-startup-surface1"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

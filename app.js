@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261030-scene-open1", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261030-startup-surface1", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3703,11 +3703,17 @@ function focusGeometryWorkspace(layerKey) {
   });
 }
 
-function setSurveyRealtimeState(state) {
+function setSurveyRealtimeState(state, detail) {
   surveyRealtimeState = state;
   if (surveyReviewPanelRoot) {
     surveyReviewPanelRoot.dataset.connectionState = state;
-    surveyReviewPanelRoot.title = state === "disconnected" ? "共享数据暂时不同步" : "";
+    if (state !== "disconnected") surveyReviewPanelRoot.title = "";
+    else if (detail || !surveyReviewPanelRoot.title) {
+      const reason = detail?.status === 403 ? "当前账号没有此空间的订阅权限"
+        : detail?.status === 401 ? "登录凭证正在更新，系统会自动重连"
+        : "实时连接中断，系统会自动重连并重新读取共享数据";
+      surveyReviewPanelRoot.title = `共享数据暂时不同步：${reason}`;
+    }
   }
   ensureBuildingEditorToolbar?.();
 }
@@ -3737,7 +3743,9 @@ async function syncSurveyRealtimeSubscription() {
   surveyRealtimeController ||= window.SurveyRealtimeControllerModule.createSurveyRealtimeController({
     client: supabaseClient,
     services: window.VillageBusinessServices,
-    loadLatest: refreshSurveyReviewState,
+    loadLatest: async () => {
+      if (await refreshSurveyReviewState() === false) throw new Error("SHARED_REFRESH_FAILED");
+    },
     onConnectionChange: setSurveyRealtimeState
   });
   await surveyRealtimeController.start(context);
@@ -3820,6 +3828,7 @@ async function refreshSurveyReviewState() {
     progress.unresolvedIssueCount = (rows[3] || []).filter((row) => row?.status === "pending").length;
     panel?.setProgress(progress, surveyFocusPending);
     applyCurrentSurveyReviewOverlay();
+    return true;
   } catch (error) {
     console.warn(
       `刷新几何校核进度失败：${error?.message || error?.code || "UNKNOWN_ERROR"}`,
@@ -3827,7 +3836,8 @@ async function refreshSurveyReviewState() {
       error?.details || "",
       error?.hint || ""
     );
-    panel.hide();
+    panel?.hide();
+    return false;
   }
 }
 
@@ -7211,6 +7221,14 @@ function bindProjectSettingsDrawer() {
   }
 }
 
+function syncRightPanelTogglePosition() {
+  if (!rightPanelToggleBtn) return;
+  const rect = document.querySelector(".detail-panel")?.getBoundingClientRect();
+  const edge = rect?.width > 0 ? Math.max(0, window.innerWidth - rect.left) : 0;
+  rightPanelToggleBtn.style.setProperty("--right-panel-edge", `${edge}px`);
+  rightPanelToggleBtn.dataset.panelAnchored = "true";
+}
+
 function syncMapSidePanelLayout() {
   if (!mainLayout) return;
   mainLayout.classList.toggle("mode-map-left-collapsed", !!isLeftPanelCollapsed);
@@ -7234,6 +7252,7 @@ function syncMapSidePanelLayout() {
   }
 
   requestAnimationFrame(() => {
+    syncRightPanelTogglePosition();
     if (plan2dView.classList.contains("active")) {
       planMap?.updateSize();
     }
@@ -7268,6 +7287,16 @@ function bindCourseTaskSidebarToggle() {
 }
 
 function bindMapSidePanelToggleButtons() {
+  if (rightPanelToggleBtn && !rightPanelToggleBtn.dataset.anchorBound) {
+    rightPanelToggleBtn.dataset.anchorBound = "true";
+    const panel = document.querySelector(".detail-panel");
+    if (panel && typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(syncRightPanelTogglePosition);
+      observer.observe(panel);
+    }
+    window.addEventListener("resize", syncRightPanelTogglePosition);
+    syncRightPanelTogglePosition();
+  }
   if (leftPanelToggleBtn && !leftPanelToggleBtn.dataset.bound) {
     leftPanelToggleBtn.dataset.bound = "1";
     leftPanelToggleBtn.addEventListener("click", () => {

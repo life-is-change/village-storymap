@@ -4,11 +4,12 @@
   if (root) root.SurveyRealtimeControllerModule = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
   function createSurveyRealtimeController({ client, services, loadLatest, onConnectionChange, debounceMs = 160 } = {}) {
-    if (services?.events) return services.events.createClient({ onInvalidate: () => { void loadLatest?.(); }, onConnectionChange });
+    if (services?.events) return services.events.createClient({ onInvalidate: () => loadLatest?.(), onConnectionChange });
     if (!client) throw new Error("REALTIME_CLIENT_REQUIRED");
     let channel = null;
     let context = null;
     let timer = null;
+    let generation = 0;
 
     function payloadMatches(payload) {
       const row = payload?.new || payload?.old || {};
@@ -19,37 +20,47 @@
     function scheduleReload(payload) {
       if (!payloadMatches(payload)) return;
       clearTimeout(timer);
-      timer = setTimeout(() => { void loadLatest?.(); }, debounceMs);
+      const epoch = generation;
+      timer = setTimeout(() => { void refreshAfterReconnect(epoch); }, debounceMs);
     }
 
-    async function refreshAfterReconnect() {
-      await loadLatest?.();
-      onConnectionChange?.("connected");
+    async function refreshAfterReconnect(epoch = generation) {
+      try {
+        await loadLatest?.();
+        if (epoch === generation) onConnectionChange?.("connected");
+      } catch (error) {
+        if (epoch === generation) onConnectionChange?.("disconnected", { code: error?.message });
+      }
     }
 
     async function stop() {
+      generation++;
       clearTimeout(timer);
       timer = null;
-      if (channel) await client.removeChannel?.(channel);
+      const previous = channel;
       channel = null;
       context = null;
+      if (previous) await client.removeChannel?.(previous);
     }
 
     async function start(nextContext) {
-      await stop();
+      const stopping = stop(), epoch = generation;
+      await stopping;
+      if (epoch !== generation) return null;
       context = { ...nextContext };
       onConnectionChange?.("connecting");
       channel = client.channel(`survey-review:${context.spaceId}`)
         .on("postgres_changes", {
           event: "*", schema: "public", table: "survey_feature_reviews",
           filter: `space_id=eq.${context.spaceId}`
-        }, scheduleReload)
+        }, (payload) => { if (epoch === generation) scheduleReload(payload); })
         .on("postgres_changes", {
           event: "*", schema: "public", table: "feature_edit_locks",
           filter: `space_id=eq.${context.spaceId}`
-        }, scheduleReload)
+        }, (payload) => { if (epoch === generation) scheduleReload(payload); })
         .subscribe(async (status) => {
-          if (status === "SUBSCRIBED") await refreshAfterReconnect();
+          if (epoch !== generation) return;
+          if (status === "SUBSCRIBED") await refreshAfterReconnect(epoch);
           else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
             onConnectionChange?.("disconnected");
           }

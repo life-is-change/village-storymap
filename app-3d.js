@@ -71,10 +71,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   let viewer = null;
   let initialized = false;
+  let viewerInitializationTask = null;
+  let startupSurfaceCleanup = null;
   let startupCameraKey = null;
-  let startupCameraPending = false;
-  let startupCameraCancelled = false;
-  let startupCameraFocus = null;
   let buildingsDataSource = null;
   let loadedBuildingsSpaceId = null;
   let loadedBuildingRevision = -1;
@@ -1203,9 +1202,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     throw new Error("当前 Cesium 版本不支持 ArcGISTiledElevationTerrainProvider");
   }
 
-  async function loadPreferredTerrainProviderInBackground(canUseIonServices) {
-    if (!viewer) return;
-
+  async function resolvePreferredTerrainProvider(canUseIonServices) {
     let nextTerrainProvider = null;
     let nextCanUseIonServices = canUseIonServices;
 
@@ -1216,9 +1213,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
           ONLINE_RESOURCE_TIMEOUT_MS,
           "在线地形服务响应超时"
         );
-        console.log("在线地形已在后台加载成功");
+        console.log("在线地形初始化成功");
       } catch (error) {
-        console.warn("后台加载在线地形失败：", error?.message || error);
+        console.warn("初始化在线地形失败：", error?.message || error);
         ionServicesLikelyBlocked = true;
         nextCanUseIonServices = false;
       }
@@ -1231,23 +1228,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
           ONLINE_RESOURCE_TIMEOUT_MS,
           "ArcGIS 在线地形服务响应超时"
         );
-        console.log("ArcGIS 在线地形已在后台加载成功");
+        console.log("ArcGIS 在线地形初始化成功");
       } catch (arcGisTerrainError) {
-        console.warn("后台加载 ArcGIS 在线地形失败：", arcGisTerrainError?.message || arcGisTerrainError);
+        console.warn("初始化 ArcGIS 在线地形失败：", arcGisTerrainError?.message || arcGisTerrainError);
       }
     }
 
-    if (!viewer || !nextTerrainProvider) return;
-    try {
-      viewer.terrainProvider = nextTerrainProvider;
-      terrainHeightCache.clear();
-      if (buildingsDataSource?.entities?.values?.length) {
-        await applyTerrainHeights(buildingsDataSource.entities.values);
-      }
-      viewer.scene.requestRender();
-    } catch (error) {
-      console.warn("应用后台地形失败：", error?.message || error);
-    }
+    return nextTerrainProvider || new Cesium.EllipsoidTerrainProvider();
   }
 
   async function createOpenStreetMapImageryProvider() {
@@ -3231,7 +3218,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const loadKey = get3DLoadKey();
     const isStartupCamera = startupCameraKey === loadKey;
-    startupCameraFocus = null;
     if (!isStartupCamera) positionVillageCamera();
     startupCameraKey = null;
     const isCurrentLoad = () => get3DLoadKey() === loadKey;
@@ -3304,15 +3290,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
       entityMap.set(sourceCode, entity);
     });
 
-    if (entities.length && !(isStartupCamera && startupCameraCancelled)) {
+    // The first overview already uses the village extent. A second flight after
+    // asynchronous building reads would overwrite any camera input made meanwhile.
+    if (entities.length && !isStartupCamera) {
       const focusViewer = viewer;
       const focusSource = buildingsDataSource;
       const focus = () => {
         if (!isCurrentLoad() || viewer !== focusViewer || buildingsDataSource !== focusSource || !is3DViewActive()) return;
         void focusViewer.flyTo(focusSource, { duration: 0.6, offset: getOverviewCameraOffset() });
       };
-      if (isStartupCamera && startupCameraPending) startupCameraFocus = focus;
-      else focus();
+      focus();
     }
     await applyTerrainHeights(entities);
     if (!isCurrentLoad()) return;
@@ -4309,6 +4296,39 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   }
 
+  function coverInitial3DSurface(instance, cover, imageryTask) {
+    let resourcesReady = false;
+    let disposed = false;
+    const cleanup = () => {
+      if (disposed) return;
+      disposed = true;
+      removeCheck();
+      window.clearTimeout(slowTimer);
+      cover.remove();
+    };
+    const removeCheck = instance.scene.postRender.addEventListener(() => {
+      if (!resourcesReady) return;
+      const scene = instance.scene;
+      const canvas = scene.canvas;
+      const ray = instance.camera.getPickRay(new Cesium.Cartesian2(
+        canvas.clientWidth / 2, canvas.clientHeight / 2
+      ));
+      // pick() only intersects rendered globe meshes. Waiting for every tile
+      // request instead would block entry on distant or slow imagery tiles.
+      if (scene.globe.tilesLoaded || (ray && scene.globe.pick(ray, scene))) cleanup();
+    });
+    const slowTimer = window.setTimeout(() => {
+      cover.textContent = "三维场景仍在加载，可先切换平面视图继续操作。";
+    }, 8000);
+    const ready = () => {
+      if (disposed) return;
+      resourcesReady = true;
+      instance.scene.requestRender();
+    };
+    Promise.resolve(imageryTask).then(ready, ready);
+    return cleanup;
+  }
+
   function positionVillageCamera({ duration = 0, complete, cancel } = {}) {
     if (!viewer) return;
     const extent = getMain3DResources().initialExtent;
@@ -4328,6 +4348,16 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   async function initViewer() {
     if (initialized) return;
+    if (viewerInitializationTask) return viewerInitializationTask;
+    viewerInitializationTask = initializeViewer();
+    try {
+      await viewerInitializationTask;
+    } finally {
+      viewerInitializationTask = null;
+    }
+  }
+
+  async function initializeViewer() {
 
     if (typeof Cesium === "undefined") {
       throw new Error("Cesium not found. Please include Cesium.js in index.html first.");
@@ -4337,8 +4367,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
       throw new Error("Cannot find #cesiumContainer. Please check the 3D container in index.html.");
     }
 
-    await ensureBasemapGeorefResolved();
-
     let canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
     if (canUseIonServices) {
       Cesium.Ion.defaultAccessToken = window.CESIUM_ION_TOKEN;
@@ -4346,86 +4374,100 @@ const ENABLE_SUPABASE_SYNC = (() => {
       console.warn("Cesium Ion token 未配置，3D 将跳过在线地形/影像服务。");
     }
 
-    // 3D 首屏不再等待在线地形服务；先用椭球体地形快速打开白模，
-    // 在线地形在 Viewer 创建后后台加载并替换，避免首次进入 3D 时长时间卡住。
-    const terrainProvider = new Cesium.EllipsoidTerrainProvider();
+    const container = byId("cesiumContainer");
+    container.querySelector('[data-3d-startup]')?.remove();
+    const startupCover = document.createElement("div");
+    startupCover.dataset['3dStartup'] = "true";
+    startupCover.setAttribute("role", "status");
+    startupCover.textContent = "正在加载三维场景…";
+    startupCover.style.cssText = "position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:#c8d8e8;color:#304c40;font:15px/1.6 sans-serif;padding:24px;text-align:center";
+    container.appendChild(startupCover);
 
-    const viewerOptions = {
-      animation: false,
-      timeline: false,
-      baseLayer: false,
-      imageryProvider: false,
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      fullscreenButton: false,
-      selectionIndicator: false,
-      infoBox: false,
-      shouldAnimate: false,
-      terrainProvider: terrainProvider
-    };
+    try {
+      // Resolve metadata concurrently, before creating the globe. Replacing an
+      // already visible terrain provider discards its tiles and briefly exposes sky.
+      const [, terrainProvider] = await Promise.all([
+        ensureBasemapGeorefResolved(),
+        resolvePreferredTerrainProvider(canUseIonServices)
+      ]);
 
-    viewer = new Cesium.Viewer("cesiumContainer", viewerOptions);
-    viewer.scene.requestRender();
-    await new Promise(resolve => (window.requestAnimationFrame || (fn => window.setTimeout(fn, 0)))(resolve));
-    startupCameraKey = get3DLoadKey();
-    startupCameraPending = true;
-    startupCameraCancelled = false;
-    positionVillageCamera({ duration: 0.65,
-      complete: () => {
-        startupCameraPending = false;
-        const focus = startupCameraFocus;
-        startupCameraFocus = null;
-        focus?.();
-      },
-      cancel: () => { startupCameraPending = false; startupCameraCancelled = true; startupCameraFocus = null; }
-    });
-    viewer.scene.renderError.addEventListener((scene, error) => {
-      console.error("[Cesium renderError]", error);
-    });
-    viewer.scene.rethrowRenderErrors = false;
-    addViewerImageryLayers(canUseIonServices).catch((error) => {
-      console.warn("后台加载 3D 影像图层失败：", error?.message || error);
-    });
-    loadPreferredTerrainProviderInBackground(canUseIonServices);
+      const viewerOptions = {
+        animation: false,
+        timeline: false,
+        baseLayer: false,
+        imageryProvider: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        fullscreenButton: false,
+        selectionIndicator: false,
+        infoBox: false,
+        shouldAnimate: false,
+        useDefaultRenderLoop: false,
+        terrainProvider: terrainProvider
+      };
 
-    // 统一设置无影像覆盖区域的底色为浅蓝灰，避免默认蓝色或异常色块
-    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#c8d8e8");
-    viewer.scene.globe.depthTestAgainstTerrain = true;
-    viewer.scene.globe.maximumScreenSpaceError = PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR;
-    viewer.scene.requestRenderMode = true;
-    // Static village scenes have no clock-driven animation. Camera, data and
-    // async model/imagery changes still explicitly request their own frames.
-    viewer.scene.maximumRenderTimeChange = Infinity;
-    viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
-    // Disable post-process anti-aliasing and cap render scale to reduce first-open jank.
-    viewer.scene.fxaa = false;
-    if (viewer.scene.postProcessStages && viewer.scene.postProcessStages.fxaa) {
-      viewer.scene.postProcessStages.fxaa.enabled = false;
+      viewer = new Cesium.Viewer("cesiumContainer", viewerOptions);
+      startupCameraKey = get3DLoadKey();
+      // Set the destination before the first frame; never render the global
+      // default camera or fly through unloaded globe tiles on first entry.
+      positionVillageCamera();
+      viewer.scene.renderError.addEventListener((scene, error) => {
+        console.error("[Cesium renderError]", error);
+      });
+      viewer.scene.rethrowRenderErrors = false;
+      const imageryTask = addViewerImageryLayers(canUseIonServices).catch((error) => {
+        console.warn("后台加载 3D 影像图层失败：", error?.message || error);
+      });
+
+      // 统一设置无影像覆盖区域的底色为浅蓝灰，避免默认蓝色或异常色块
+      viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#c8d8e8");
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+      viewer.scene.globe.maximumScreenSpaceError = PERF_TERRAIN_MAX_SCREEN_SPACE_ERROR;
+      viewer.scene.requestRenderMode = true;
+      // Static village scenes have no clock-driven animation. Camera, data and
+      // async model/imagery changes still explicitly request their own frames.
+      viewer.scene.maximumRenderTimeChange = Infinity;
+      viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+      // Disable post-process anti-aliasing and cap render scale to reduce first-open jank.
+      viewer.scene.fxaa = false;
+      if (viewer.scene.postProcessStages && viewer.scene.postProcessStages.fxaa) {
+        viewer.scene.postProcessStages.fxaa.enabled = false;
+      }
+      const deviceScale = Number(window.devicePixelRatio) || 1;
+      viewer.resolutionScale = Math.min(deviceScale, PERF_RESOLUTION_SCALE_CAP);
+      window.RenderQualityModule?.applyViewer(viewer);
+      renderQualityUnsubscribe = window.RenderQualityModule?.subscribe(() => {
+        window.RenderQualityModule.applyViewer(viewer);
+        updateReplacementResidency();
+      });
+      viewer.camera.percentageChanged = 0.01;
+      viewer.camera.changed.addEventListener(() => {
+        scheduleRoadWidthSync();
+        updateReplacementResidency();
+      });
+
+      if (viewer.cesiumWidget && viewer.cesiumWidget.creditContainer) {
+        viewer.cesiumWidget.creditContainer.style.display = "none";
+      }
+
+      bindClickEvents();
+      ensureRealityInsetController();
+      startupSurfaceCleanup = coverInitial3DSurface(viewer, startupCover, imageryTask);
+      initialized = true;
+      setRenderActive(window.__is3DViewActive !== false);
+    } catch (error) {
+      startupSurfaceCleanup?.();
+      startupSurfaceCleanup = null;
+      if (viewer && !viewer.isDestroyed()) viewer.destroy();
+      viewer = null;
+      initialized = false;
+      startupCover.textContent = "三维场景未能加载，请切换平面视图后重试。";
+      container.appendChild(startupCover);
+      throw error;
     }
-    const deviceScale = Number(window.devicePixelRatio) || 1;
-    viewer.resolutionScale = Math.min(deviceScale, PERF_RESOLUTION_SCALE_CAP);
-    window.RenderQualityModule?.applyViewer(viewer);
-    renderQualityUnsubscribe = window.RenderQualityModule?.subscribe(() => {
-      window.RenderQualityModule.applyViewer(viewer);
-      updateReplacementResidency();
-    });
-    viewer.camera.percentageChanged = 0.01;
-    viewer.camera.changed.addEventListener(() => {
-      scheduleRoadWidthSync();
-      updateReplacementResidency();
-    });
-
-    if (viewer.cesiumWidget && viewer.cesiumWidget.creditContainer) {
-      viewer.cesiumWidget.creditContainer.style.display = "none";
-    }
-
-    bindClickEvents();
-    ensureRealityInsetController();
-    initialized = true;
-    setRenderActive(window.__is3DViewActive !== false);
   }
 
   async function enter() {
@@ -4643,6 +4685,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function destroy() {
+    startupSurfaceCleanup?.();
+    startupSurfaceCleanup = null;
     renderQualityUnsubscribe?.(); renderQualityUnsubscribe = null;
     toggleMeasureMode(false);
     if (deferredEntityInfoTimer) {

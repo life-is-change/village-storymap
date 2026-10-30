@@ -295,6 +295,11 @@ body.landing-only-mode .detail-panel {
   right: calc(var(--right-panel-width) - 1px);
 }
 
+.main-layout.mode-map #rightPanelToggleBtn[data-panel-anchored="true"] {
+  right: max(0px, calc(var(--right-panel-edge) - 1px));
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
 .main-layout.mode-map .map-floating-controls {
   z-index: 20;
 }

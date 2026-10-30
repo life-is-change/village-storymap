@@ -39,6 +39,14 @@ test('local survey subscribes to authorized events without opening a source chan
  await controller.start({spaceId:'A'});assert.deepEqual(calls,[{spaceId:'A'},'refreshed']);
 });
 
+test('local reconnect waits for the latest facts before reporting ready',async()=>{
+ let options,finish;const refreshed=new Promise(r=>finish=r);
+ const controller=createSurveyRealtimeController({services:{events:{createClient(o){options=o;return {start(){},stop(){}};}}},loadLatest:()=>refreshed});
+ const pending=options.onInvalidate({kind:'refresh'});let done=false;Promise.resolve(pending).then(()=>done=true);
+ await new Promise(r=>setImmediate(r));assert.equal(done,false);
+ finish();await pending;await controller.stop();
+});
+
 test("realtime reloads facts after reconnect before reporting connected", async () => {
   const calls = [];
   let emitStatus;
@@ -51,6 +59,39 @@ test("realtime reloads facts after reconnect before reporting connected", async 
   await controller.start({ teachingProjectId: "p1", villageId: "v1", spaceId: "s1" });
   await emitStatus("SUBSCRIBED");
   assert.deepEqual(calls, ["connecting", "reload", "connected"]);
+});
+
+test('source reconnect refresh failure blocks shared writes without an unhandled rejection',async()=>{
+ let emitStatus,fail=false;const states=[];
+ const client=fakeRealtimeClient({onSubscribe:emit=>emitStatus=emit});
+ const controller=createSurveyRealtimeController({client,onConnectionChange:s=>states.push(s),loadLatest:async()=>{if(fail)throw Error('SHARED_REFRESH_FAILED');}});
+ await controller.start({spaceId:'A'});await emitStatus('SUBSCRIBED');assert.equal(states.at(-1),'connected');
+ fail=true;await assert.doesNotReject(emitStatus('SUBSCRIBED'));assert.equal(states.at(-1),'disconnected');await controller.stop();
+});
+
+test('a completed source refresh cannot mark a stopped subscription connected',async()=>{
+ let emitStatus,finish;const states=[],pending=new Promise(r=>finish=r);
+ const client=fakeRealtimeClient({onSubscribe:emit=>emitStatus=emit});
+ const controller=createSurveyRealtimeController({client,onConnectionChange:s=>states.push(s),loadLatest:()=>pending});
+ await controller.start({spaceId:'A'});const refreshing=emitStatus('SUBSCRIBED');await controller.stop();finish();await refreshing;
+ assert.ok(!states.includes('connected'));
+});
+
+test('overlapping source stops detach the old channel only once',async()=>{
+ let release,removals=0;const pending=new Promise(r=>release=r),client=fakeRealtimeClient();
+ client.removeChannel=async()=>{removals++;await pending;};
+ const controller=createSurveyRealtimeController({client});await controller.start({spaceId:'A'});
+ const stopped=controller.stop(),started=controller.start({spaceId:'B'});await new Promise(r=>setImmediate(r));
+ const actual=removals;release();await Promise.all([stopped,started]);await controller.stop();assert.equal(actual,1);
+});
+
+test('source change-event refresh failure clears ready and handles its rejection',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout']});let emitStatus,fail=false;const states=[];
+ const client=fakeRealtimeClient({onSubscribe:emit=>emitStatus=emit});
+ const controller=createSurveyRealtimeController({client,debounceMs:10,onConnectionChange:s=>states.push(s),loadLatest:async()=>{if(fail)throw Error('SHARED_REFRESH_FAILED');}});
+ await controller.start({spaceId:'A'});await emitStatus('SUBSCRIBED');fail=true;
+ client.filters[0].callback({new:{}});t.mock.timers.tick(10);await new Promise(r=>setImmediate(r));
+ assert.equal(states.at(-1),'disconnected');await controller.stop();
 });
 
 test("formal shared writes are guarded by the workspace connection state", () => {
