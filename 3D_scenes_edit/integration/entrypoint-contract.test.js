@@ -14,7 +14,7 @@ test("keeps the scene studio out of the fixed top bar and declares one isolated 
 
 test("closing the scene studio restores an actual 2D platform viewport", () => {
   const closeBody = appSource.match(/function closeSceneStudioWorkspace\(\) \{([\s\S]*?)\n\}/)?.[1] || "";
-  assert.match(closeBody, /switchMainView\("plan2d"\)/);
+  assert.match(closeBody, /syncSceneStudioPlatformView\("plan2d"\)/);
   assert.match(closeBody, /planMap\?\.setTarget\?\.\(map2dEl\)/);
   assert.match(closeBody, /planMap\?\.updateSize\?\.\(\)/);
 });

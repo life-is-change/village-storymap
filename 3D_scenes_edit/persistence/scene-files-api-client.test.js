@@ -40,3 +40,16 @@ test('logout or identity changes reject late JSON responses and cancel in-flight
  const client=api.createSceneFilesClient({baseUrl:'http://127.0.0.1/api/v1/scene-files',getAccessToken:async()=> 'token',getIdentityKey:()=>identity,fetchImpl:async(url,o)=>{signal=o.signal;await gate;return json({id:'old-user-project'});}});
  const pending=client.dataClient.loadProject('p');await new Promise(r=>setImmediate(r));identity='two';client.dispose();release();assert.equal((await pending).ok,false);assert.equal(signal.aborted,true);
 });
+
+for(const scopeKind of ['group','admin_sandbox'])test(`new ${scopeKind} projects serialize only the authenticated server create contract`,async()=>{
+ const {parseOperation}=await import('../../business-api/scene/contracts.mjs');let sent;
+ const client=api.createSceneFilesClient({baseUrl:'http://127.0.0.1/api/v1/scene-files',getAccessToken:async()=> 'token',fetchImpl:async(url,options)=>{
+  assert.ok(url.endsWith('/scene/create'));sent=JSON.parse(options.body);
+  try{parseOperation('create',sent);return json({id:'10000000-0000-4000-8000-000000000003',revision:0});}
+  catch(error){return new Response(JSON.stringify({error:{code:error.code}}),{status:400});}
+ }});
+ const input={teachingProjectId:'10000000-0000-4000-8000-000000000001',villageId:'10000000-0000-4000-8000-000000000002',spaceId:'group-space',groupId:scopeKind==='group'?'lab-332':null,scopeKind,ownerId:'10000000-0000-4000-8000-000000000004',title:'Public space',baselineRevision:0,selectionBoundary:null};
+ const result=await client.dataClient.createProject(input);
+ assert.equal(result.ok,true,'the real server contract must accept studio context without client ownership fields');
+ assert.equal(Object.hasOwn(sent,'ownerId'),false);assert.equal(sent.scopeKind,scopeKind);assert.equal(sent.groupId,input.groupId);assert.equal(input.ownerId,'10000000-0000-4000-8000-000000000004');client.dispose();
+});

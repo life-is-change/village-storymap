@@ -158,7 +158,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   }
 
   function getWorldFileUrl(imageUrl) {
-    if (!imageUrl || typeof imageUrl !== "string") return "";
+    if (!imageUrl || typeof imageUrl !== "string" || /^(?:blob|data):/i.test(imageUrl)) return "";
     return imageUrl.replace(/\.[^.]+$/i, ".pgw");
   }
 

@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261029-map-interaction", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261030-scene-open1", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3323,11 +3323,20 @@ function restoreSceneStudioViewportTargets() {
   window.Village3D?.getViewer?.()?.resize?.();
 }
 
+function syncSceneStudioPlatformView(viewKey) {
+  if (switchMainView(viewKey) === false) return;
+  const space = getCurrentSpace();
+  if (space && (viewKey === "plan2d" || viewKey === "model3d")) {
+    space.viewMode = viewKey === "model3d" ? "3d" : "2d";
+  }
+  renderSpaceList();
+}
+
 function closeSceneStudioWorkspace() {
   restoreSceneStudioViewportTargets();
   sceneStudioPlatformBridge?.close?.();
   sceneStudioFocusMode?.exit?.();
-  switchMainView("plan2d");
+  syncSceneStudioPlatformView("plan2d");
   planMap?.setTarget?.(map2dEl);
   planMap?.updateSize?.();
   requestAnimationFrame(() => {
@@ -3382,7 +3391,7 @@ function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
     storage: localStorage,
     onPanelRender: renderSceneStudioViewport,
     onModeChange: async (mode) => {
-      switchMainView(mode === "3d" ? "model3d" : "plan2d");
+      syncSceneStudioPlatformView(mode === "3d" ? "model3d" : "plan2d");
       if (mode === "3d") {
         await ensureScene3D();
       } else {
@@ -3409,7 +3418,7 @@ function buildSceneStudioOpenOptions(context, runtimeOptions = {}) {
     },
     ensure3D: async () => {
       const api = await ensureScene3D();
-      switchMainView("model3d");
+      syncSceneStudioPlatformView("model3d");
       return { Cesium: window.Cesium, viewer: api.getViewer() };
     }
   };
@@ -3428,6 +3437,7 @@ function ensureSceneStudioPlatformBridge() {
 }
 
 async function openSceneStudioWorkspace() {
+  const previousView = getSceneStudioActiveView();
   sceneStudioMapHome ||= map2dEl?.parentNode || null;
   sceneStudioCesiumHome ||= cesiumContainerEl?.parentNode || null;
   const focusMode = ensureSceneStudioFocusMode();
@@ -3442,8 +3452,14 @@ async function openSceneStudioWorkspace() {
       </div>
     `;
   }
+  const restoreOpeningView = () => {
+    restoreSceneStudioViewportTargets();
+    if (sceneStudioMount) sceneStudioMount.hidden = true;
+    focusMode?.exit?.();
+    syncSceneStudioPlatformView(previousView);
+  };
   try {
-    switchMainView("model3d");
+    syncSceneStudioPlatformView("model3d");
     const startup = window.SceneStudioStartupModule;
     let prepared3D;
     if (startup?.startSceneStudioPreparation) {
@@ -3461,21 +3477,19 @@ async function openSceneStudioWorkspace() {
     }
     const bridge = ensureSceneStudioPlatformBridge();
     if (!bridge) {
-      focusMode?.exit?.();
+      restoreOpeningView();
       return showToast("公共空间设计模块尚未加载", "error");
     }
     const result = await bridge.open(undefined, { prepared3D });
     if (!result.ok) {
-      restoreSceneStudioViewportTargets();
-      focusMode?.exit?.();
+      restoreOpeningView();
       showToast(result.message || "公共空间设计工作台启动失败", "error");
       return result;
     }
     showToast("已进入公共空间设计工作室", "success");
     return result;
   } catch (error) {
-    restoreSceneStudioViewportTargets();
-    focusMode?.exit?.();
+    restoreOpeningView();
     throw error;
   }
 }

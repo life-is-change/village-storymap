@@ -55,7 +55,7 @@ test("course design task launches a 3D-first scene studio and supplies role cont
   const stateReader = appSource.match(/function readSceneStudioPlatformState\(\)[\s\S]*?(?=\nfunction chooseSceneStudioFile)/)?.[0] || "";
   assert.match(stateReader, /\brole,/);
   const opener = appSource.match(/async function openSceneStudioWorkspace\(\)[\s\S]*?(?=\nfunction buildViewSwitcherDeps)/)?.[0] || "";
-  assert.match(opener, /switchMainView\("model3d"\)/);
+  assert.match(opener, /syncSceneStudioPlatformView\("model3d"\)/);
   assert.match(opener, /ensureVillage3DLoaded/);
   assert.doesNotMatch(opener, /^\s*switchMainView\("plan2d"\)/m);
 });
