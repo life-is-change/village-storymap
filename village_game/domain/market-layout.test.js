@@ -10,3 +10,5 @@ test('thin walls and excluded holes cannot be crossed even between grid samples'
  const f=fixture();f.stalls=[];f.aisles=[];f.field.coordinates.push([[8,5],[12,5],[12,11],[8,11],[8,5]]);const r=L.compileMarketLayout(f);assert.equal(r.ok,true);assert.equal(L.segmentClear(r.layout,[5,8],[15,8]),false);const route=L.route(r.layout,[5,8],[15,8]);assert.ok(route);assert.ok(route.distance>12);
  f.obstacles=[box(0,7.971,20,.017).coordinates[0]];assert.equal(L.compileMarketLayout(f).ok,true);assert.equal(L.route(L.compileMarketLayout(f).layout,[5,2],[5,14]),null);
 });
+
+test('edited stall service side follows Cesium clockwise heading used by scene-document models',()=>{const f=fixture();f.stalls[0].headingDeg=90;const r=L.compileMarketLayout(f);assert.equal(r.ok,true,JSON.stringify(r.errors));assert.ok(Math.abs(r.layout.stalls[0].service[0]-3.1)<1e-8);assert.ok(Math.abs(r.layout.stalls[0].service[1]-11)<1e-8);});

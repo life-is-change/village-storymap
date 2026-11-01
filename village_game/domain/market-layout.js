@@ -35,11 +35,11 @@
   const ring=field.coordinates[0];if(!ring?.length||ring.some(p=>!p.every(Number.isFinite)))return fail('早市范围无效');
   const min=[0,1].map(i=>Math.min(...ring.map(p=>p[i]))),max=[0,1].map(i=>Math.max(...ring.map(p=>p[i])));
   if(max.some((v,i)=>v-min[i]>120))return fail('早市单边不得超过120米，请缩小教学场地');
-  const layout={version:VERSION,field:copy(field),gate:copy(gate),stalls:[],obstacles:copy(obstacles),nodes:[],edges:[]};
+  const layout={version:VERSION,field:copy(field),gate:copy(gate),aisles:copy(aisles),stalls:[],obstacles:copy(obstacles),nodes:[],edges:[]};
   const ids=new Set();
   for(const stall of stalls){
    if(!stall?.id||ids.has(stall.id)||!stall.center?.every(Number.isFinite)||!stall.footprint?.every(n=>Number.isFinite(n)&&n>0)||!Number.isFinite(stall.headingDeg)){errors.push('摊位尺寸、朝向或编号无效');continue;}ids.add(stall.id);
-   const angle=stall.headingDeg*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle),point=(x,y)=>[stall.center[0]+x*c-y*s,stall.center[1]+x*s+y*c],w=stall.footprint[0]/2,d=stall.footprint[1]/2;
+   const angle=-stall.headingDeg*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle),point=(x,y)=>[stall.center[0]+x*c-y*s,stall.center[1]+x*s+y*c],w=stall.footprint[0]/2,d=stall.footprint[1]/2;
    const footprint=[[-w,-d],[w,-d],[w,d],[-w,d],[-w,-d]].map(p=>point(...p));
    if(!G.containsGeometry(field,{type:'Polygon',coordinates:[footprint]}))errors.push(stall.id+'：摊位越出早市范围');
    layout.obstacles.push(footprint);
@@ -54,5 +54,5 @@
   for(const stall of layout.stalls)for(const p of [stall.service,stall.vendor,...stall.queue])if(!route(layout,gate,p))errors.push(stall.id+'：入口无法通达服务、排队或摊主位置，请调整摊位及通道');
   return {ok:!errors.length,layout:errors.length?undefined:layout,errors};
  }
- return {VERSION,compileMarketLayout,route,segmentClear};
+ return {VERSION,compileMarketLayout,route,segmentClear,contains:(layout,p)=>inside(p,layout.field)};
 });

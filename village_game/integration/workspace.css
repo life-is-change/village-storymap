@@ -66,3 +66,5 @@
 .village-simulation-workspace[data-drawing-area=true] .village-sim-sidebar{visibility:hidden}
 .village-sim-draw-help{pointer-events:auto;position:absolute;left:12%;right:12%;bottom:0;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:#fffdf5;box-shadow:0 4px 20px #23442f33}
 .village-sim-draw-help span{flex:1}
+
+.village-sim-market{margin:12px 0;padding:12px;border:1px solid #bed0af;border-radius:10px;background:#f1f5e9}.village-sim-market>b{display:block;color:#315d43}.village-sim-market p{font-size:12px;line-height:1.6}.village-sim-market button{margin-top:6px}[data-market-live]{padding:10px 0;font-weight:600;color:#315d43}[data-market-people] button{display:block;width:100%;margin:4px 0;text-align:left}

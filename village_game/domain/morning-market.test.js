@@ -17,3 +17,5 @@ test('reported population counts only selected shoppers and queue standing slots
  const sim=M.createSimulation(scene(1,12));for(let i=0;i<240;i++){sim.step(1);const s=sim.snapshot();for(const stall of s.market.stalls){const standing=s.agents.filter(a=>stall.queue.includes(a.id)&&a.marketState==='queued');assert.equal(new Set(standing.map(a=>a.x+','+a.y)).size,standing.length);}}
  assert.equal(M.createSimulation(scene(2,4)).result().resident.total,4);
 });
+
+test('market summary records attendance, actual waiting and observed aisle trips',()=>{const r=finish(M.createSimulation(scene(6,12)),15);assert.equal(r.market.arrivedVendors,6);assert.equal(r.market.enteredCustomers,12);assert.equal(r.market.conversations,12);assert.ok(r.market.averageWaitMinutes>=0);assert.ok(r.market.longestWaitMinutes>=r.market.averageWaitMinutes);assert.ok(Object.values(r.market.aisleUsage).some(n=>n>0));});

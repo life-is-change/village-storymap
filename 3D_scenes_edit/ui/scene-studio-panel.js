@@ -183,7 +183,7 @@
     return `<div class="scene-asset-groups" role="tablist" aria-label="素材分组">${groupButtons}</div><div class="scene-asset-filters" role="toolbar" aria-label="素材分类">${categories.join("")}</div><div class="scene-asset-grid">${cards || '<p class="scene-studio-empty">没有符合条件的素材</p>'}</div>`;
   }
 
-  function renderProperties(object, mode, selectedIds = []) {
+  function renderProperties(object, mode, selectedIds = [], readOnly = false) {
     if (!object) return '<p class="scene-studio-empty">选择对象后编辑属性</p>';
     if(object.kind==='boundary')return '<p class="scene-studio-empty">旧版放置范围：用于兼容原方案，不是活动场地或模拟范围。可平移、旋转、改节点或清除；清除不删除已有场地与组件。</p>';
     const transform = object.transform || {};
@@ -199,7 +199,7 @@
       <label>翻滚（°）<input type="number" data-action="property" data-path="transform.rollDeg" value="${Number(transform.rollDeg) || 0}"></label>
       <label>材质标识<input type="text" data-action="property" data-value-type="string" data-path="properties.materialRef" value="${escapeHtml(properties.materialRef || "")}"></label>` : ""}
       ${object.kind === "line" ? `<label>宽度（m）<input type="number" step="0.1" min="0.05" data-action="property" data-path="properties.widthM" value="${Number(properties.widthM) || 1}"></label>` : ""}
-      ${object.category==='activity-field'?'<p class="scene-studio-empty">这是贴地的设施范围。内部组件在左侧缩进显示；移动或旋转范围只修改边界，组件位置独立保留。</p><button data-action="place-market">布置早市 · 6个精细摊位</button><p class="scene-studio-empty">需要约17×14米空地；布置后可分别编辑摊位与通道。</p>':object.kind === "surface" ? `<label>拉伸高度（m）<input type="number" step="0.05" data-action="property" data-path="properties.extrusionHeightM" value="${Number(properties.extrusionHeightM) || 0}"></label>` : ""}${selectedIds.length > 1 ? `<details class="scene-multiple-actions"><summary>多对象整理（${selectedIds.length}个）</summary><button data-action="group">成组</button><button data-action="align" data-value="left">左对齐</button><button data-action="distribute" data-value="horizontal">水平等距</button></details>` : ""}`;
+      ${object.category==='activity-field'?'<p class="scene-studio-empty">这是贴地的设施范围。内部组件在左侧缩进显示；移动或旋转范围只修改边界，组件位置独立保留。</p><button data-action="place-market" '+((readOnly||properties.marketId)?'disabled':'')+'>布置早市 · 6个精细摊位</button><p class="scene-studio-empty">需要约17×14米空地；布置后可分别编辑摊位与通道。</p>':object.kind === "surface" ? `<label>拉伸高度（m）<input type="number" step="0.05" data-action="property" data-path="properties.extrusionHeightM" value="${Number(properties.extrusionHeightM) || 0}"></label>` : ""}${selectedIds.length > 1 ? `<details class="scene-multiple-actions"><summary>多对象整理（${selectedIds.length}个）</summary><button data-action="group">成组</button><button data-action="align" data-value="left">左对齐</button><button data-action="distribute" data-value="horizontal">水平等距</button></details>` : ""}`;
   }
 
   function renderVersions(versions, comparisonIds) {
@@ -215,7 +215,7 @@
   function renderInspectorProperties(model) {
     if(model.activeAssetRole==='site-range'&&model.activeTool==='draw-surface')return '<h4>设定活动场地范围</h4><p>沿公园或广场边界点选至少三个节点，再点“完成绘制”。范围本身不铺装，也不生成建筑。</p><p>完成后可为这处场地放置组件，并在村庄模拟中赋予设施功能。</p>';
     if(model.activeAssetRole==='circulation'&&model.activeTool==='draw-line')return '<h4>规划连接道路</h4><p>依次点选道路中心线，再点“完成绘制”。首尾靠近已有道路时自动吸附。</p><p>这条道路用于连接建筑与活动场地。完成后选中道路可改宽度；场内装饰小径在组件库选择。</p>';
-    return renderProperties(model.properties,model.mode,model.selectedIds);
+    return renderProperties(model.properties,model.mode,model.selectedIds,model.readOnly);
   }
 
   function createSceneStudioPanel(options) {

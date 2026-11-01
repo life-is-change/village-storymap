@@ -522,7 +522,7 @@
           if (!api) {
             if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
               const script = globalThis.document.createElement("script");
-              script.src = "village_game/integration/loader.js?v=20261030-layout";
+              script.src = "village_game/integration/loader.js?v=20261101-market1";
               script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
               globalThis.document.head.appendChild(script);
             });

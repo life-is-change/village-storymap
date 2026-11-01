@@ -1,5 +1,5 @@
 (function(root,factory){const c=typeof module==='object'&&module.exports,api=factory(c?require('../views/characters'):root.VillageCharacters,c?require('../views/catalog'):root.VillageCatalog,c?require('../views/observation'):root.VillageObservation,c?require('./plan-adapter'):root.VillagePlanAdapter,c?require('./market-overlay'):root.VillageMarketOverlay);if(c)module.exports=api;if(root)root.VillagePlanOverlay=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Characters,Catalog,Observation,Adapter,MarketOverlay){
- function create({Cesium:C,viewer,onPick,onInspect,pickGround,onDrawProgress,createImage}){
+ function create({Cesium:C,viewer,onPick,onInspect,pickGround,onDrawProgress,createImage,clampToGround=true}){
   const actors=new Map(),decorations=[],areaPoints=[],areaPreview=[];let pendingPick=null,disposed=false,selected=null,sourceItems=[];
   const source=new C.CustomDataSource('village-simulation'),entities=source.entities;
   const marketView=MarketOverlay.create({Cesium:C,viewer,entities}),positions=new Map(),images=new Map();let imageGeneration=0,lastStamp='',terrain=viewer.terrainProvider;
@@ -11,7 +11,7 @@
   function clearActors(){imageGeneration++;for(const entry of images.values())entry.image.onload=null;images.clear();lastStamp='';positions.clear();marketView.cancelFollow();for(const e of actors.values()){e.show=false;entities.remove(e);}actors.clear();viewer.scene.requestRender();}
   function clearPlan(){marketView.clear();for(const e of decorations)entities.remove(e);decorations.length=0;}
   function clearAreaPreview(){while(areaPreview.length)entities.remove(areaPreview.pop());}
-  function showArea(area){if(area?.type!=='Polygon')return;decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(area.coordinates[0].flat()),width:4,material:color('#8366b1'),clampToGround:true}}));}
+  function showArea(area){if(area?.type!=='Polygon')return;decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(area.coordinates[0].flat()),width:4,material:color('#8366b1'),clampToGround}}));}
   function finishArea(){if(pendingPick!=='area')return;if(areaPoints.length<3){onDrawProgress?.(areaPoints.length);return;}
    const geometry={type:'Polygon',coordinates:[[...areaPoints.map(p=>p.slice()),areaPoints[0].slice()]]};
    const result=onPick?.('area',geometry);if(result?.ok===false)return;pendingPick=null;areaPoints.length=0;clearAreaPreview();viewer.scene.requestRender();
@@ -31,12 +31,12 @@
    e.simulationKey=key;e.simulationEntrance=key;decorations.push(e);
    if(d.roadPoint&&d.distance>.1){
     const stroke=color(shade),material=d.reason!=='connected'&&C.PolylineDashMaterialProperty?new C.PolylineDashMaterialProperty({color:stroke,dashLength:12}):stroke;
-    const line=entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray([...p,...projection.toDegrees(d.roadPoint)]),width:3,material,clampToGround:true}});
+    const line=entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray([...p,...projection.toDegrees(d.roadPoint)]),width:3,material,clampToGround}});
     line.simulationKey=key;line.simulationConnection=d.reason;decorations.push(line);
    }
   }
   handler.setInputAction(e=>{
-   if(pendingPick==='area'){const p=pickGround({Cesium:C,viewer,screenPosition:e.position,skipDepth:true});if(!p)return;const q=p.slice(0,2);if(areaPoints.at(-1)?.every((n,i)=>Math.abs(n-q[i])<1e-9))return;areaPoints.push(q);clearAreaPreview();for(const point of areaPoints)areaPreview.push(entities.add({position:C.Cartesian3.fromDegrees(...point),point:{pixelSize:11,color:color('#8366b1'),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity}}));if(areaPoints.length>1)areaPreview.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray([...areaPoints,...(areaPoints.length>2?[areaPoints[0]]:[])].flat()),width:4,material:color('#8366b1'),clampToGround:true}}));onDrawProgress?.(areaPoints.length);viewer.scene.requestRender();return;}
+   if(pendingPick==='area'){const p=pickGround({Cesium:C,viewer,screenPosition:e.position,skipDepth:true});if(!p)return;const q=p.slice(0,2);if(areaPoints.at(-1)?.every((n,i)=>Math.abs(n-q[i])<1e-9))return;areaPoints.push(q);clearAreaPreview();for(const point of areaPoints)areaPreview.push(entities.add({position:C.Cartesian3.fromDegrees(...point),point:{pixelSize:11,color:color('#8366b1'),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity}}));if(areaPoints.length>1)areaPreview.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray([...areaPoints,...(areaPoints.length>2?[areaPoints[0]]:[])].flat()),width:4,material:color('#8366b1'),clampToGround}}));onDrawProgress?.(areaPoints.length);viewer.scene.requestRender();return;}
    if(pendingPick&&pendingPick!=='source'){const p=pickGround({Cesium:C,viewer,screenPosition:e.position,skipDepth:true});if(!p)return;const purpose=pendingPick;pendingPick=null;onPick?.(purpose,p.slice(0,2));return;}
    const picked=viewer.scene.pick(e.position),hit=picked?.id;
    if(hit?.simulationPerson){selected=hit.simulationPerson.id;onInspect?.({kind:'person',person:hit.simulationPerson});return;}
@@ -52,7 +52,7 @@
    clearActors();clearPlan();
    marketView.setPlan(plan);sourceItems=plan.items||sourceItems;showArea(plan.area);
    for(const b of plan.scene.buildings){const p=plan.projection.toDegrees(b.entrance),e=entities.add({position:C.Cartesian3.fromDegrees(...p),billboard:{image:Catalog.billboardImage(b.type,!plan.network.connected[b.id]),width:26,height:26,heightReference:C.HeightReference.CLAMP_TO_GROUND,pixelOffset:new C.Cartesian2(0,-8),verticalOrigin:C.VerticalOrigin.BOTTOM,disableDepthTestDistance:Infinity},label:{text:b.name,font:'12px sans-serif',show:false}});e.simulationKey=b.sourceKey;decorations.push(e);}
-   for(const r of plan.scene.roads){const coords=r.points.flatMap(p=>plan.projection.toDegrees(p));decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(coords),width:2,material:color('#ddaa54').withAlpha(.7),clampToGround:true}}));}
+   for(const r of plan.scene.roads){const coords=r.points.flatMap(p=>plan.projection.toDegrees(p));decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(coords),width:2,material:color('#ddaa54').withAlpha(.7),clampToGround}}));}
    for(const b of plan.scene.buildings)showAccess(b.sourceKey,plan.network?.accessDiagnostics?.[b.id]||{point:b.entrance,reason:'unchecked'},plan.projection);
    const gates=plan.scene.scenario.entries||[plan.scene.scenario.entry];gates.forEach((p,i)=>showEntry(plan.projection.toDegrees(p),gates.length>1?'对外口 '+(i+1):'村口 · 游客进出'));
    viewer.scene.requestRender();
@@ -83,7 +83,7 @@
      e.position=positionFor(p);e.simulationPerson=a;
      e.simulationImage=Characters.image(a,(s.minute+s.progress)*4);e.billboard={show:!a.indoor,image:imageFor(e.simulationImage),height,width:height*Characters.width/Characters.height,verticalOrigin:C.VerticalOrigin.BOTTOM,horizontalOrigin:C.HorizontalOrigin.CENTER,pixelOffset:new C.Cartesian2(0,0),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:0};
      e.point={show:!!a.indoor,pixelSize:5,color:color('#66877c').withAlpha(.2),outlineColor:color('#66877c'),outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
-     e.label={show:!!a.marketRole||selected===a.id||a.interaction?.status==='active',text:a.marketRole?MarketOverlay.label(a,s,speakers):selected===a.id?a.name:'···',font:'12px sans-serif',fillColor:color('#314b42'),showBackground:true,backgroundColor:color('#fff8e5').withAlpha(.92),pixelOffset:new C.Cartesian2(0,-height-12),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
+     e.label={show:!!a.marketRole&&!a.indoor||selected===a.id||a.interaction?.status==='active',text:a.marketRole?MarketOverlay.label(a,s,speakers):selected===a.id?a.name:'···',font:'12px sans-serif',fillColor:color('#314b42'),showBackground:true,backgroundColor:color('#fff8e5').withAlpha(.92),pixelOffset:new C.Cartesian2(0,-height-12),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
     }
     for(const [id,e] of actors)if(!ids.has(id)){entities.remove(e);actors.delete(id);}viewer.scene.requestRender();
    },dispose(){if(disposed)return;disposed=true;marketView.dispose();pendingPick=null;handler.destroy();clearAreaPreview();clearActors();clearPlan();viewer.dataSources.remove(source,true);viewer.scene.requestRender();}};

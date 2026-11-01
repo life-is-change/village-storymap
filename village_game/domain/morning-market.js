@@ -7,7 +7,7 @@
   const market=scene.morningMarket;if(!market?.layout||!market.roles?.length)throw Error('早市布局和角色尚未编译');
   const times=market.times,layout=market.layout,network=Network.buildNetwork(scene),buildings=new Map(scene.buildings.map(b=>[b.id,b]));
   const roleMap=new Map(market.roles.map(r=>[r.personId,r]));if(roleMap.size!==market.roles.length)throw Error('早市人物角色重复');
-  const failures={missing:0,unreachable:0,closed:0,capacity:0,time:0},marketFailures={unavailable:0,waitTimeout:0,capacity:0,closed:0,unreachable:0,end:0},events=[],transactions=[],purchases=new Set();
+  const failures={missing:0,unreachable:0,closed:0,capacity:0,time:0},marketFailures={unavailable:0,waitTimeout:0,capacity:0,closed:0,unreachable:0,end:0},events=[],transactions=[],purchases=new Set(),waits=new Map(),aisleUsage=Object.fromEntries((layout.aisles||[]).map((a,i)=>[a.id||'aisle-'+i,0]));
   let minute=times.startMinute,carry=0,done=false,walkMinutes=0,walkTrips=0,arrivals=0;
   const stalls=layout.stalls.map(s=>({...s,queuePoints:s.queue,vendorId:market.roles.find(r=>r.marketRole==='vendor'&&r.stallId===s.id)?.personId||null,queue:[],customerId:null,served:0,status:'awaiting-vendor'}));
   const byStall=new Map(stalls.map(s=>[s.id,s]));let vendorIndex=0,customerIndex=0;
@@ -21,14 +21,15 @@
   const uniquePoints=points=>points.filter((p,i)=>i===0||distance(p,points[i-1])>1e-7).map(p=>p.slice());
   function move(a,points,after,target){
    if(!points){fail(a,'unreachable');a.state='blocked';a.marketState='blocked';a._phase='blocked';return false;}
-   a.route=uniquePoints([[a.x,a.y],...points]);a.pathIndex=1;a.state='moving';a._phase='moving';a._after=after;a.target=target;a.marketState=after==='vendor-prepare'?'arriving':after==='choose'?'entering':after==='home'?'leaving':after==='service'?'approaching':'queueing';walkTrips++;
+   a.route=uniquePoints([[a.x,a.y],...points]);a.pathIndex=1;a.state='moving';a._phase='moving';a._after=after;a._aisleSeen=new Set();a.target=target;a.marketState=after==='vendor-prepare'?'arriving':after==='choose'?'entering':after==='home'?'leaving':after==='service'?'approaching':'queueing';walkTrips++;
    if(a.route.length<2)arrive(a);return true;
   }
   function external(a,reverse=false){const p=Network.route(network,network.access[a.home],network.access[market.marketId]);return p?(reverse?[...p.points].reverse():p.points):null;}
   function insidePath(from,to){return Layout.route(layout,from,to)?.points||null;}
+  function recordWait(a){if(a.marketRole==='customer'&&a._wait>0&&!waits.has(a.id))waits.set(a.id,Math.max(0,minute-a._wait));}
   function removeQueue(a){for(const s of stalls){s.queue=s.queue.filter(id=>id!==a.id);if(s.customerId===a.id){s.customerId=null;const v=byId.get(s.vendorId);if(v&&v.marketState==='conversing'){v.marketState='open';v.state='working';v.dialogue=null;}}}}
   function returnHome(a){
-   removeQueue(a);a.dialogue=null;
+   if(a.purchaseStatus==='waiting')recordWait(a);removeQueue(a);a.dialogue=null;
    const outdoor=external(a,true);if(!outdoor){fail(a,'unreachable');a.state='blocked';a.marketState='blocked';a._phase='blocked';return;}
    const inner=insidePath([a.x,a.y],layout.gate);if(!inner){fail(a,'unreachable');a.state='blocked';a.marketState='blocked';a._phase='blocked';return;}
    move(a,[...inner,...outdoor],'home',a.home);
@@ -52,11 +53,12 @@
    if(a._after==='service'){
     const s=byStall.get(a.stallId),v=byId.get(s?.vendorId);
     if(!s||!v||!['open','conversing'].includes(v.marketState)){fail(a,'unavailable');returnHome(a);return;}
-    a.state='serving';a.marketState='conversing';a._phase='conversing';a._serviceStart=minute;a._transaction=market.marketId+':'+a.id+':'+s.id;
+    recordWait(a);a.state='serving';a.marketState='conversing';a._phase='conversing';a._serviceStart=minute;a._transaction=market.marketId+':'+a.id+':'+s.id;
     v.marketState='conversing';v.state='serving';log('dialogue',a,{stallId:s.id,vendorId:v.id,transactionId:a._transaction});
    }
   }
-  function advance(a){let left=45*(a.mobility||1);while(a.route&&a.pathIndex<a.route.length&&left>1e-8){const next=a.route[a.pathIndex],length=distance([a.x,a.y],next);if(length<=left+1e-8){a.x=next[0];a.y=next[1];left-=length;a.pathIndex++;}else{const t=left/length;a.x+=(next[0]-a.x)*t;a.y+=(next[1]-a.y)*t;left=0;}}walkMinutes++;if(a.route&&a.pathIndex>=a.route.length)arrive(a);}
+  function recordAisles(a,from,to){for(const [i,aisle] of (layout.aisles||[]).entries()){const id=aisle.id||'aisle-'+i;if(a._aisleSeen.has(id))continue;const points=[from,to,from.map((n,k)=>(n+to[k])/2)];if(points.some(p=>aisle.points.slice(1).some((b,j)=>distance(p,Network.project(p,aisle.points[j],b).point)<=(aisle.width||2)/2))){a._aisleSeen.add(id);aisleUsage[id]++;}}}
+  function advance(a){let left=45*(a.mobility||1);while(a.route&&a.pathIndex<a.route.length&&left>1e-8){const before=[a.x,a.y],next=a.route[a.pathIndex],length=distance([a.x,a.y],next);if(length<=left+1e-8){a.x=next[0];a.y=next[1];left-=length;a.pathIndex++;}else{const t=left/length;a.x+=(next[0]-a.x)*t;a.y+=(next[1]-a.y)*t;left=0;}recordAisles(a,before,[a.x,a.y]);}walkMinutes++;if(a.route&&a.pathIndex>=a.route.length)arrive(a);}
   function completePurchase(a){const s=byStall.get(a.stallId);if(!s?.vendorId||!byId.get(s.vendorId)||purchases.has(a.id)){fail(a,'unavailable');returnHome(a);return;}
    const transaction={id:a._transaction,customerId:a.id,vendorId:s.vendorId,stallId:s.id,produceKind:s.produceKind,minute};transactions.push(transaction);purchases.add(a.id);s.served++;a.purchaseStatus='purchased';a.completed++;log('purchase',a,{transactionId:transaction.id,stallId:s.id});returnHome(a);
   }
@@ -85,13 +87,13 @@
     done=true;minute=times.endMinute;carry=0;
    }
   }
-  function marketSummary(){return {purchases:transactions.length,servedCustomers:purchases.size,returnedCustomers:agents.filter(a=>a.marketRole==='customer'&&a.state==='home'&&a.history.some(e=>e.type==='customer-home')).length,returnedVendors:agents.filter(a=>a.marketRole==='vendor'&&a.state==='home'&&a.history.some(e=>e.type==='vendor-home')).length,failures:copy(marketFailures),transactions:copy(transactions),events:copy(events),unreturned:agents.filter(a=>a.marketRole&&a.state!=='home').map(a=>({id:a.id,reason:a.failureReason||'end'}))};}
+  function marketSummary(){return {arrivedVendors:events.filter(e=>e.type==='stall-open').length,enteredCustomers:arrivals,conversations:events.filter(e=>e.type==='dialogue').length,averageWaitMinutes:waits.size?Math.round([...waits.values()].reduce((a,b)=>a+b,0)/waits.size*10)/10:0,longestWaitMinutes:Math.max(0,...waits.values()),aisleUsage:copy(aisleUsage),purchases:transactions.length,servedCustomers:purchases.size,returnedCustomers:agents.filter(a=>a.marketRole==='customer'&&a.state==='home'&&a.history.some(e=>e.type==='customer-home')).length,returnedVendors:agents.filter(a=>a.marketRole==='vendor'&&a.state==='home'&&a.history.some(e=>e.type==='vendor-home')).length,failures:copy(marketFailures),transactions:copy(transactions),events:copy(events),unreturned:agents.filter(a=>a.marketRole&&a.state!=='home').map(a=>({id:a.id,reason:a.failureReason||'end'}))};}
   function result(){return {runKind:'morning-market',behaviorVersion:VERSION,ruleVersion:1,revision:scene.revision,seed:scene.scenario.seed,days:0,done,window:copy(times),scenario:copy(scene.scenario),resident:{total:customerIndex,completed:purchases.size},visitor:{total:0,completed:0},failures:copy(failures),housingShortage:0,arrivals,walkMinutes,walkTrips,averageWalkMinutes:walkTrips?Math.round(walkMinutes/walkTrips*10)/10:0,satisfaction:{average:customerIndex?Math.round(purchases.size/customerIndex*100):0},encounters:events.filter(e=>e.type==='dialogue').length,market:marketSummary()};}
   function snapshot(){return {runKind:'morning-market',day:1,minute,progress:carry,done,calendar:{label:'一次早市',weekday:scene.scenario.startWeekday,weekend:false},agents:agents.map(a=>{
    const clean=Object.fromEntries(Object.entries(a).filter(([k])=>!k.startsWith('_')));let dialogue=null;
    const customer=a.marketState==='conversing'?(a.marketRole==='customer'?a:byId.get(byStall.get(a.stallId)?.customerId)):null;
    if(customer){const s=byStall.get(customer.stallId),vendor=byId.get(s.vendorId),elapsed=minute-customer._serviceStart,customerTurn=elapsed%2===0,speakerId=customerTurn?customer.id:vendor.id,goods={vegetables:'青菜',fruit:'鲜果',tofu:'豆腐'}[s.produceKind]||'菜';dialogue={partnerId:a.id===customer.id?vendor.id:customer.id,speakerId,transactionId:customer._transaction,text:customerTurn?(elapsed<2?'早上好，今天的'+goods+'新鲜吗？':'麻烦帮我选一份'+goods+'。'):(elapsed<3?'今早刚备好的，您看看。':'好嘞，这份给您，慢走！'),until:customer._serviceStart+6};}
-   return {...copy(clean),dialogue,interaction:dialogue?{status:'active',partnerId:dialogue.partnerId,until:dialogue.until,text:dialogue.text}:null,marketInside:a.node===market.marketId||a.marketState==='leaving',agenda:[],occupation:a.marketRole==='vendor'?'早市摊主':a.marketRole==='customer'?'买菜村民':null};
+   return {...copy(clean),dialogue,interaction:dialogue?{status:'active',partnerId:dialogue.partnerId,until:dialogue.until,text:dialogue.text}:null,marketInside:Layout.contains(layout,[a.x,a.y]),agenda:[],occupation:a.marketRole==='vendor'?'早市摊主':a.marketRole==='customer'?'买菜村民':null};
   }),households:copy(scene.households),facilities:{[market.marketId]:{occupancy:agents.filter(a=>['conversing','queued','preparing','open'].includes(a.marketState)).length,served:transactions.length,queued:stalls.reduce((n,s)=>n+s.queue.length,0)}},market:{...marketSummary(),phase:done?'finished':minute<times.openMinute?'preparing':minute<times.lastEntryMinute?'open':'closing',stalls:stalls.map(s=>({id:s.id,vendorId:s.vendorId,customerId:s.customerId,queue:s.queue.slice(),served:s.served,status:s.status}))},metrics:result(),events:copy(events.slice(-35).reverse()),roadFlows:{}};}
   return {network,step(minutes=1){if(!Number.isFinite(minutes)||minutes<0)throw Error('推进时间无效');if(done)return true;carry+=Math.min(minutes,360);while(carry>=1-1e-9&&!done){carry=Math.max(0,carry-1);tick();}return done;},snapshot,result,runToEnd(){while(!done)tick();return result();}};
  }
