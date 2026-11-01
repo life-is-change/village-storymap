@@ -1,8 +1,8 @@
-(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./scene'):root.VillageScene,typeof module==='object'&&module.exports?require('./network'):root.VillageNetwork,typeof module==='object'&&module.exports?require('./life'):root.VillageLife);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.VillageSimulation=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Network,Life){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./scene'):root.VillageScene,typeof module==='object'&&module.exports?require('./network'):root.VillageNetwork,typeof module==='object'&&module.exports?require('./life'):root.VillageLife,typeof module==='object'&&module.exports?require('./morning-market'):root.VillageMorningMarket);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.VillageSimulation=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Network,Life,MorningMarket){
   'use strict';
   const REASONS={missing:'没有匹配设施',unreachable:'道路或入口不连通',closed:'设施未开放',capacity:'接待容量不足',time:'活动日结束前未完成'};
   const STATES={planned:'尚未出发',moving:'步行途中',serving:'正在活动',waiting:'等候服务',idle:'等待下一项活动',staying:'过夜休息',home:'已回家',departed:'已离村',blocked:'返程道路不通'};
-  function createSimulation(input){if(input?.schemaVersion===2)return Life.createSimulation(input);
+  function createSimulation(input){if(input?.morningMarket)return MorningMarket.createSimulation(input);if(input?.schemaVersion===2)return Life.createSimulation(input);
     const valid=Scene.validate(input);if(!valid.ok)throw new Error(valid.errors[0]);
     const scene=Scene.clone(input),network=Network.buildNetwork(scene),facilities={};
     for(const b of scene.buildings)facilities[b.id]={id:b.id,name:b.name,type:b.type,capacity:Scene.capacity(b),occupancy:0,peak:0,served:0,failed:0,queued:0};
