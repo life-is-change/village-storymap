@@ -2,11 +2,12 @@
   const api = factory(
     typeof module === "object" && module.exports ? require("../domain/scene-document") : root.SceneDocumentModule,
     typeof module === "object" && module.exports ? require("../domain/scene-commands") : root.SceneCommandsModule,
-    typeof module === "object" && module.exports ? require("../domain/geometry-rules") : root.SceneGeometryRulesModule
+    typeof module === "object" && module.exports ? require("../domain/geometry-rules") : root.SceneGeometryRulesModule,
+    typeof module === "object" && module.exports ? require("../domain/market-preset") : root.SceneMarketPreset
   );
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SceneEditorControllerModule = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (SceneDocument, Commands, DefaultGeometryRules) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (SceneDocument, Commands, DefaultGeometryRules, MarketPreset) {
   const TOOLS = Object.freeze(["select", "box-select", "draw-boundary", "edit-boundary", "draw-surface", "draw-rectangle", "draw-line", "place-asset", "move", "rotate", "scale", "measure", "pan", "edit-nodes", "edit-road-nodes"]);
   const SNAP_PRIORITY = Object.freeze({ endpoint: 0, edge: 1, center: 2, baseline: 3 });
 
@@ -237,6 +238,20 @@
     return {
       setTool(nextTool) { if (!TOOLS.includes(nextTool)) throw new Error(`Unknown tool: ${nextTool}`); tool = nextTool; render(); },
       createObject,
+      placeMorningMarket(assets) {
+        const field = selectedIds.length === 1 && history.present.objects.find(o => o.id === selectedIds[0]);
+        if (!field || !isField(field)) return reject('MARKET_FIELD_REQUIRED', '请先选择一个活动场地，再布置早市');
+        if (layerFor(field.layerId)?.locked) return reject('LAYER_LOCKED', '图层已锁定');
+        const boundaryError = checkBoundary(field, field.geometry);
+        if (boundaryError) return reject(boundaryError.code, boundaryError.message);
+        if (rules.intersectsAny(field.geometry, baselineBuildings)) return reject('BASELINE_COLLISION', '早市场地与现状建筑相交，请调整范围');
+        if (history.present.objects.some(o => o.id !== field.id && rules.containsGeometry(field.geometry, o.geometry))) return reject('MARKET_OCCUPIED', '场地内已有组件，请先移开后布置早市');
+        const preset = MarketPreset.createMarketPreset({field, idPrefix:idFactory(), assets});
+        if (!preset.ok) return reject('INVALID_MARKET', preset.errors.join('；'));
+        apply(preset.command);
+        onStatus({level:'info',message:'早市已布置：6个摊位、入口和通道；可逐个调整组件'});
+        return {ok:true,marketId:preset.marketId};
+      },
       setSimulationConfig(config) { apply({ type: "setSimulation", config }); return { ok: true }; },
       setSelectionBoundary(geometry) {
         const validation = rules.validateSelectionBoundary(geometry, { villageBoundary, baselineBuildings });

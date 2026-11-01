@@ -281,3 +281,9 @@ test("frame scheduler coalesces repeated expensive renders into the latest frame
   frames[0]();
   assert.deepEqual(values, ["latest"]);
 });
+
+test('market placement dispatch passes the live catalog and refreshes selection',async()=>{
+ let received,refreshed=0;const assets=[{id:'seed:stall:morning-vegetables'}];
+ const dispatch=Studio.createActionDispatcher({controller:{placeMorningMarket(a){received=a;return {ok:true};}},lifecycle:{},getAssets:()=>assets,onSelectionChange(){refreshed++;}});
+ assert.equal((await dispatch({type:'place-market'})).ok,true);assert.equal(received,assets);assert.equal(refreshed,1);
+});

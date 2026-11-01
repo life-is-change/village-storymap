@@ -174,6 +174,7 @@
       if (action.type === "milestone") return lifecycle.createMilestone();
       if (action.type === "simulation") return lifecycle.openSimulation();
       if (action.type === "draw-road") return lifecycle.drawRoad();
+      if (action.type === "place-market") return refreshed(controller.placeMorningMarket(options.getAssets?.()));
       if (action.type === "draw-field") return lifecycle.drawField();
       if (action.type === "browse-assets") return lifecycle.browseAssets();
       if (action.type === "finish-drawing") return lifecycle.finishDrawing();
@@ -192,7 +193,7 @@
   async function loadSeedAssets(fetchImpl) {
     if (!fetchImpl) return [];
     try {
-      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20260920-library");
+      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261101-market1");
       if (!response.ok) return [];
       return (await response.json()).assets || [];
     } catch (_error) {
@@ -715,7 +716,7 @@
       cancel() { activeAsset=null;interactionStatus="已返回选择；已完成的对象保留，可用撤销退回。";controller.setTool("select"); if (mode === "3d") interactionBridge?.activate?.("select"); else mapInteractionBridge?.activate?.("select"); render(); },
       close() { options.onClose?.(); }
     };
-    const dispatchAction = createActionDispatcher({ controller, lifecycle, onSelectionChange: render });
+    const dispatchAction = createActionDispatcher({ controller, lifecycle, getAssets: () => assets, onSelectionChange: render });
     const dispatch = action => simulationWorkspace ? { ok: false, code: "SIMULATION_ACTIVE" } : dispatchAction(action);
     const dispose = () => { studioDisposed = true; simulationWorkspace?.dispose?.(); simulationWorkspace = null; options.root.classList?.remove("simulation-active"); autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); options.services?.dispose?.(); };
     try {

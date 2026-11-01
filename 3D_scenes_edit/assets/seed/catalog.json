@@ -38,6 +38,9 @@
     { "id": "seed:bus-stop:simple", "kind": "structure", "category": "bus-stop", "label": "候车亭", "footprintM": [5, 2], "defaultHeightM": 3, "renderer": "procedural-shelter" },
     { "id": "seed:stall:market", "kind": "structure", "category": "stall", "label": "市集摊位", "footprintM": [3, 2.5], "defaultHeightM": 2.8, "renderer": "procedural-shelter" },
     { "id": "seed:stage:small", "kind": "structure", "category": "stage", "label": "小舞台", "footprintM": [6, 4], "defaultHeightM": 0.6, "renderer": "procedural-stage" },
-    { "id": "seed:play-equipment:climber", "kind": "structure", "category": "play-equipment", "label": "攀爬设施", "footprintM": [5, 4], "defaultHeightM": 3.5, "renderer": "glb", "fileType": "glb", "url": "3D_scenes_edit/assets/models/play.glb?v=20260916-y-up", "status": "published" }
+    { "id": "seed:play-equipment:climber", "kind": "structure", "category": "play-equipment", "label": "攀爬设施", "footprintM": [5, 4], "defaultHeightM": 3.5, "renderer": "glb", "fileType": "glb", "url": "3D_scenes_edit/assets/models/play.glb?v=20260916-y-up", "status": "published" },
+    {"id":"seed:stall:morning-vegetables","kind":"structure","category":"stall","label":"早市 · 时蔬摊","footprintM":[3.4,2.6],"defaultHeightM":2.9,"renderer":"glb","fileType":"glb","url":"3D_scenes_edit/assets/models/market-vegetables.glb?v=20261101-market1","status":"published"},
+    {"id":"seed:stall:morning-fruit","kind":"structure","category":"stall","label":"早市 · 鲜果摊","footprintM":[3.4,2.6],"defaultHeightM":2.9,"renderer":"glb","fileType":"glb","url":"3D_scenes_edit/assets/models/market-fruit.glb?v=20261101-market1","status":"published"},
+    {"id":"seed:stall:morning-tofu","kind":"structure","category":"stall","label":"早市 · 豆品干货摊","footprintM":[3.4,2.6],"defaultHeightM":2.9,"renderer":"glb","fileType":"glb","url":"3D_scenes_edit/assets/models/market-tofu.glb?v=20261101-market1","status":"published"}
   ]
 }
