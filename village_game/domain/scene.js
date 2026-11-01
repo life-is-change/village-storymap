@@ -108,7 +108,7 @@
       else if(b.entrance&&!b.footprint){const a=-b.rotation*Math.PI/180,dx=b.entrance[0]-b.x,dy=b.entrance[1]-b.y,x=Math.abs(dx*Math.cos(a)-dy*Math.sin(a)),y=Math.abs(dx*Math.sin(a)+dy*Math.cos(a));const gap=(x<=b.width/2&&y<=b.depth/2)?Math.min(b.width/2-x,b.depth/2-y):Math.hypot(Math.max(0,x-b.width/2),Math.max(0,y-b.depth/2));if(gap>3)errors.push('自定义入口须位于建筑边缘 3 米内');}
       if(b.footprint&&(!Array.isArray(b.footprint)||b.footprint.length<4||b.footprint.length>1000||b.footprint.some(p=>!point(p))))errors.push('真实设施边界无效');
     }
-    if(!Array.isArray(scene.roads)||scene.roads.length>200)errors.push('道路列表无效');
+    if(!Array.isArray(scene.roads)||scene.roads.length>(scene.source?.kind==='platform'?800:200))errors.push('道路列表无效');
     else for(const r of scene.roads){checkID(r);if(!r)continue;if(!['road','path'].includes(r.kind)||!bounded(r.width,1,12))errors.push('道路类型或宽度无效');if(!Array.isArray(r.points)||r.points.length<2||r.points.length>(scene.source?.kind==='platform'?801:80)||r.points.some(p=>!point(p)))errors.push('道路节点无效');}
     if(Array.isArray(scene.roads)&&scene.roads.reduce((n,r)=>n+Math.max(0,(r?.points?.length||0)-1),0)>roadSegmentLimit(scene))errors.push('道路过于复杂，请将总线段数简化到 '+roadSegmentLimit(scene)+' 段以内');
     if(!Array.isArray(scene.zones)||scene.zones.length>40)errors.push('区域列表无效');

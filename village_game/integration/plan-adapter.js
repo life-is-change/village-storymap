@@ -37,6 +37,21 @@
   }
   return items;
  }
+ function solidComponentRings(object,toLocal){
+  const geometry=object.geometry,properties=object.properties||{};
+  if(geometry?.type==='Point'&&['asset','structure'].includes(object.kind)){
+   const center=toLocal(geometry.coordinates),size=(properties.footprintM||[1,1]).map((n,i)=>Number(n)*(object.transform?.scale?.[i]||1)),angle=-(object.transform?.headingDeg||0)*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle);
+   if(size.length!==2||size.some(n=>!Number.isFinite(n)||n<=0))throw Error('组件占地无效：'+object.id);
+   return [[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]].map(([x,y])=>[center[0]+x*size[0]/2*c-y*size[1]/2*s,center[1]+x*size[0]/2*s+y*size[1]/2*c])];
+  }
+  if(geometry?.type==='Polygon'&&(['water','planter','planting'].includes(object.category)||Number(properties.extrusionHeightM)>.2))return [geometry.coordinates[0].map(toLocal)];
+  if(geometry?.type==='LineString'&&['fence','low-wall','hedge'].includes(object.category)){
+   const points=geometry.coordinates.map(toLocal),radius=Math.max(.05,Number(properties.widthM)||.4)/2,rings=[];
+   for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(!length)continue;const ux=dx/length,uy=dy/length;const corner=(p,t,k)=>[p[0]+t*radius*ux-k*radius*uy,p[1]+t*radius*uy+k*radius*ux];const ring=[corner(a,-1,-1),corner(b,1,-1),corner(b,1,1),corner(a,-1,1)];ring.push(ring[0].slice());rings.push(ring);}
+   return rings;
+  }
+  return [];
+ }
  function setup(config,items,checked=null){
   const byKey=new Map(items.map(i=>[i.key,i])),facilities=config.assignments.filter(a=>byKey.has(a.key)&&Area.contains(config.area,byKey.get(a.key).geometry));
   const auto=config.area&&config.entryMode!=='manual',gates=auto?Area.clipRoads(items.filter(i=>i.kind==='road'&&config.roads.includes(i.key)),config.area).entries:[];
@@ -91,7 +106,7 @@
   const s=c.settings;
   if(!integer(s.population,0,180)||!integer(s.visitorsPerDay,0,80)||!integer(s.seed,0,2147483647)||!integer(s.days,1,7)||!integer(s.startWeekday,0,6))fail('人口0—180、日潜在客源0—80、周期1—7天；种子与星期须有效');
   if(c.entry!==null&&!coordinate(c.entry))fail('村口坐标无效');
-  if(c.assignments.length>240||c.roads.length>200||c.runs.length>5||JSON.stringify(c).length>180000)fail('配置或结果超过首版规模上限');
+  if(c.assignments.length>240||c.roads.length>800||c.runs.length>5||JSON.stringify(c).length>180000)fail('配置或结果超过首版规模上限');
   const keys=new Set(),validKey=k=>typeof k==='string'&&(k===BOUNDARY_KEY||/^(baseline|object):/.test(k))&&k.length<=240&&!/[\x00-\x1f]/.test(k);
   if(new Set(c.roads).size!==c.roads.length||c.roads.some(k=>!validKey(k)))fail('道路选择无效或重复');
   for(const a of c.assignments){
@@ -193,12 +208,19 @@
     const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
     const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
     if(stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
-    const layout=MarketLayout.compileMarketLayout({field:{type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},stalls,aisles:children.filter(o=>o.properties.marketRole==='aisle').map(o=>({id:o.id,points:o.geometry.coordinates.map(toLocal),width:o.properties.widthM})),obstacles:[...scene.obstacles,...scene.buildings.filter(b=>b.id!==market.id&&!b.passable&&b.footprint).map(b=>b.footprint)],gate:market.entrance});
+    const localField={type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},components=[];
+    const intersectsField=ring=>Geometry.intersectsAny(localField,[{type:'Polygon',coordinates:[ring]}]);
+    try{for(const object of document.objects){if(object.id===marketObject.id||object.properties?.marketId===marketObject.id&&['stall','aisle'].includes(object.properties?.marketRole))continue;components.push(...solidComponentRings(object,toLocal).filter(intersectsField));}}catch(error){errors.push(error.message);}
+    const localObstacles=[...scene.obstacles,...scene.buildings.filter(b=>b.id!==market.id&&!b.passable&&b.footprint).map(b=>b.footprint),...components].filter(intersectsField);
+    const layout=MarketLayout.compileMarketLayout({field:localField,stalls,aisles:children.filter(o=>o.properties.marketRole==='aisle').map(o=>({id:o.id,points:o.geometry.coordinates.map(toLocal),width:o.properties.widthM})),obstacles:localObstacles,gate:market.entrance});
     if(!layout.ok)errors.push(...layout.errors);
     const eligible=scene.people.filter(p=>p.age>=18&&homes[p.householdId]).sort((a,b)=>shortId(scene.scenario.seed+':'+a.id).localeCompare(shortId(scene.scenario.seed+':'+b.id))||a.id.localeCompare(b.id));
     if(eligible.length<m.vendorCount+m.customerCount||housingShortage)errors.push('早市角色或住宅容量不足：需容纳全部教学家庭，请补充住宅或增加容量');
     const roles=eligible.slice(0,m.vendorCount+m.customerCount).map((p,i)=>({personId:p.id,homeId:homes[p.householdId],marketRole:i<m.vendorCount?'vendor':'customer',...(i<m.vendorCount?{stallId:stalls[i]?.id}:{})}));
-    if(layout.ok){scene.obstacles.push(...layout.layout.stalls.map(s=>s.footprint));network=Network.buildNetwork(scene);}
+    if(layout.ok){const marketObstacles=[...layout.layout.stalls.map(s=>s.footprint),...components];
+     for(const road of scene.roads)if(Geometry.intersectsAny({type:'LineString',coordinates:road.points},marketObstacles.map(ring=>({type:'Polygon',coordinates:[ring]}))))errors.push('早市实体占用了已选道路：'+road.name+'；请移动摊位/组件或重新选择道路');
+     scene.obstacles.push(...marketObstacles);network=Network.buildNetwork(scene);
+    }
     for(const role of roles)if(!Network.route(network,network.access[role.homeId],network.access[market.id]))errors.push('早市人物住宅未接通市场入口：'+role.homeId);
     if(layout.ok)scene.morningMarket={version:'morning-market-1',marketId:market.id,layout:layout.layout,roles,times:{startMinute:m.startMinute,openMinute:m.openMinute,lastEntryMinute:m.lastEntryMinute,endMinute:m.endMinute}};
    }

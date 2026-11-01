@@ -51,6 +51,7 @@
    if(a._after==='choose'){arrivals++;log('customer-enter',a);choose(a);return;}
    if(a._after==='queue'){a.state='waiting';a.marketState='queued';a._phase='queued';return;}
    if(a._after==='service'){
+    if(minute>=times.lastEntryMinute){fail(a,'closed');returnHome(a);return;}
     const s=byStall.get(a.stallId),v=byId.get(s?.vendorId);
     if(!s||!v||!['open','conversing'].includes(v.marketState)){fail(a,'unavailable');returnHome(a);return;}
     recordWait(a);a.state='serving';a.marketState='conversing';a._phase='conversing';a._serviceStart=minute;a._transaction=market.marketId+':'+a.id+':'+s.id;
@@ -58,13 +59,14 @@
    }
   }
   function recordAisles(a,from,to){for(const [i,aisle] of (layout.aisles||[]).entries()){const id=aisle.id||'aisle-'+i;if(a._aisleSeen.has(id))continue;const points=[from,to,from.map((n,k)=>(n+to[k])/2)];if(points.some(p=>aisle.points.slice(1).some((b,j)=>distance(p,Network.project(p,aisle.points[j],b).point)<=(aisle.width||2)/2))){a._aisleSeen.add(id);aisleUsage[id]++;}}}
-  function advance(a){let left=45*(a.mobility||1);while(a.route&&a.pathIndex<a.route.length&&left>1e-8){const before=[a.x,a.y],next=a.route[a.pathIndex],length=distance([a.x,a.y],next);if(length<=left+1e-8){a.x=next[0];a.y=next[1];left-=length;a.pathIndex++;}else{const t=left/length;a.x+=(next[0]-a.x)*t;a.y+=(next[1]-a.y)*t;left=0;}recordAisles(a,before,[a.x,a.y]);}walkMinutes++;if(a.route&&a.pathIndex>=a.route.length)arrive(a);}
+  function advance(a){a.travelledPath={minute,points:[[a.x,a.y]]};let left=45*(a.mobility||1);while(a.route&&a.pathIndex<a.route.length&&left>1e-8){const before=[a.x,a.y],next=a.route[a.pathIndex],length=distance([a.x,a.y],next);if(length<=left+1e-8){a.x=next[0];a.y=next[1];left-=length;a.pathIndex++;}else{const t=left/length;a.x+=(next[0]-a.x)*t;a.y+=(next[1]-a.y)*t;left=0;}if(distance(before,[a.x,a.y])>1e-8)a.travelledPath.points.push([a.x,a.y]);recordAisles(a,before,[a.x,a.y]);}walkMinutes++;if(a.route&&a.pathIndex>=a.route.length)arrive(a);}
   function completePurchase(a){const s=byStall.get(a.stallId);if(!s?.vendorId||!byId.get(s.vendorId)||purchases.has(a.id)){fail(a,'unavailable');returnHome(a);return;}
    const transaction={id:a._transaction,customerId:a.id,vendorId:s.vendorId,stallId:s.id,produceKind:s.produceKind,minute};transactions.push(transaction);purchases.add(a.id);s.served++;a.purchaseStatus='purchased';a.completed++;log('purchase',a,{transactionId:transaction.id,stallId:s.id});returnHome(a);
   }
   function tick(){
    minute++;
    for(const a of agents){
+    a.travelledPath=null;
     if(!a.marketRole)continue;
     if(a._phase==='scheduled'&&minute>=a._depart){
      if(minute>=times.lastEntryMinute){fail(a,'closed');a._phase='finished';continue;}
@@ -72,6 +74,7 @@
      if(!outdoor||!inner){fail(a,'unreachable');a.state='blocked';a.marketState='blocked';a._phase='blocked';continue;}
      log('departure',a);move(a,[...outdoor,...inner],a.marketRole==='vendor'?'vendor-prepare':'choose',market.marketId);
     }else if(a._phase==='moving')advance(a);
+    else if(a._phase==='preparing'&&minute>=times.lastEntryMinute){fail(a,'closed');returnHome(a);}
     else if(a._phase==='preparing'&&minute>=a._ready&&minute>=times.openMinute){const s=byStall.get(a.stallId);if(s){a.marketState='open';a._phase='open';s.status='open';log('stall-open',a,{stallId:s.id});}}
     else if(a._phase==='waiting-opening'){if(minute-a._wait>=15){fail(a,'unavailable');returnHome(a);}else choose(a);}
     else if(a._phase==='conversing'&&minute-a._serviceStart>=6)completePurchase(a);
@@ -79,8 +82,8 @@
    }
    for(const s of stalls){
     const vendor=byId.get(s.vendorId);s.status=!vendor?'absent':vendor._phase==='finished'?'closed':['open','conversing'].includes(vendor.marketState)?'open':vendor.marketState;
-    if(s.customerId===null&&vendor&&['open','conversing'].includes(vendor.marketState)&&s.queue.length){const next=byId.get(s.queue[0]);if(next?._phase==='queued'){s.queue.shift();s.customerId=next.id;move(next,insidePath([next.x,next.y],s.service),'service',market.marketId);}}
-    if(minute>=times.lastEntryMinute){for(const id of [...s.queue]){const a=byId.get(id);fail(a,'closed');returnHome(a);}if(vendor&&vendor._phase==='open'&&!s.customerId&&minute>=times.lastEntryMinute+stalls.indexOf(s)*2+3){s.status='closed';log('stall-closed',vendor,{stallId:s.id});returnHome(vendor);}}
+    if(minute<times.lastEntryMinute&&s.customerId===null&&vendor&&['open','conversing'].includes(vendor.marketState)&&s.queue.length){const next=byId.get(s.queue[0]);if(next?._phase==='queued'){s.queue.shift();s.customerId=next.id;move(next,insidePath([next.x,next.y],s.service),'service',market.marketId);}}
+    if(minute>=times.lastEntryMinute){const reserved=byId.get(s.customerId);if(reserved&&reserved._phase!=='conversing'){fail(reserved,'closed');returnHome(reserved);}for(const id of [...s.queue]){const a=byId.get(id);fail(a,'closed');returnHome(a);}if(vendor&&vendor._phase==='open'&&!s.customerId&&minute>=times.lastEntryMinute+stalls.indexOf(s)*2+3){s.status='closed';log('stall-closed',vendor,{stallId:s.id});returnHome(vendor);}}
    }
    if(minute>=times.endMinute){
     for(const a of agents)if(a.marketRole&&!['finished','blocked'].includes(a._phase)){fail(a,'end');removeQueue(a);a.dialogue=null;a.route=null;a.state='idle';a.marketState='unfinished';a._phase='finished';}

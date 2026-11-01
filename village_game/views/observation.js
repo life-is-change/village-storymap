@@ -6,7 +6,14 @@
   if(!previous||previous.day!==current.day||current.minute-previous.minute!==1||current.done)return current;
   const before=new Map(previous.agents.map(a=>[a.id,a]));alpha=Math.max(0,Math.min(1,alpha));
   return {...current,agents:current.agents.map(a=>{
-   const old=before.get(a.id);if(!old||old.state!=='moving'||!old.route||old.target!==a.target&&a.state==='moving')return {...a};
+   const old=before.get(a.id);
+   const travelled=a.travelledPath?.minute===current.minute?a.travelledPath.points:null;
+   if(old&&travelled?.length>1&&distance(travelled[0],[old.x,old.y])<1e-6&&distance(travelled.at(-1),[a.x,a.y])<1e-6){
+    let total=0;for(let i=1;i<travelled.length;i++)total+=distance(travelled[i-1],travelled[i]);let left=total*alpha,position=travelled.at(-1);
+    for(let i=1;i<travelled.length;i++){const len=distance(travelled[i-1],travelled[i]);if(left<=len&&len>0){position=travelled[i-1].map((v,j)=>v+(travelled[i][j]-v)*left/len);break;}left-=len;}
+    return {...a,x:position[0],y:position[1],inTransit:alpha<1,displayRoute:travelled.map(p=>p.slice())};
+   }
+   if(!old||old.state!=='moving'||!old.route||old.target!==a.target&&a.state==='moving')return {...a};
    const end=a.route&&a.target===old.target?a.pathIndex:a.node===old.target?old.route.length:old.pathIndex;
    const points=[[old.x,old.y],...old.route.slice(old.pathIndex,Math.max(old.pathIndex,end)),[a.x,a.y]];
    let total=0;for(let i=1;i<points.length;i++)total+=distance(points[i-1],points[i]);let left=total*alpha,position=points.at(-1);
