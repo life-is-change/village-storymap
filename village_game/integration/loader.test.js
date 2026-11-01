@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+test('browser loader registers market layout and runner before their consumers',async()=>{
+ const root=path.join(__dirname,'../..'),loaded=[],context=vm.createContext({console,setTimeout,clearTimeout,TextEncoder,crypto:globalThis.crypto});
+ const doc={querySelector(){return null;},createElement(tag){return {tag,dataset:{}};},head:{appendChild(el){if(el.tag!=='script')return;const file=el.src.split('?')[0];loaded.push(file);try{vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context);el.onload();}catch(e){el.onerror();throw e;}}}};context.document=doc;vm.runInContext(fs.readFileSync(path.join(root,'3D_scenes_edit/domain/geometry-rules.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(__dirname,'loader.js'),'utf8'),context);await context.loadVillageSimulation();assert.ok(context.VillageMarketLayout);assert.ok(context.VillageMorningMarket);assert.ok(loaded.indexOf('village_game/domain/morning-market.js')<loaded.indexOf('village_game/domain/simulation.js'));
+});
