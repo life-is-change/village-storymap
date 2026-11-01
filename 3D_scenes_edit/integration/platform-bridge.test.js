@@ -98,3 +98,23 @@ test("failed studio startup leaves focus mode and restores the workspace", async
   assert.equal(mount.hidden, true);
   assert.deepEqual(focusChanges, [true, false]);
 });
+
+test('duplicate dataset identities retain each geometry with order-independent keys and ambiguous old aliases',()=>{
+ const A=require('../../village_game/integration/plan-adapter');
+ const features=JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname,'../../data/buildings.geojson'),'utf8')).features.map(f=>({...f,properties:{...f.properties,layerKey:'building'}}));
+ const build=features=>Bridge.buildSceneEditContext(state({baselineFeatures:features,serializeFeature:undefined}));
+ const first=build(features),second=build([...features].reverse());
+ assert.equal(first.ok,true);assert.equal(second.ok,true);
+ assert.equal(new Set(first.context.baselineFeatures.map(f=>f.id)).size,features.length);
+ const keys=r=>r.context.baselineFeatures.map(f=>[JSON.stringify(f.geometry),f.id]).sort((a,b)=>a[0].localeCompare(b[0]));
+ assert.deepEqual(keys(first),keys(second));
+ const items=A.catalog({objects:[]},first.context);assert.ok(items.length>=features.length);
+ const old={roads:[],assignments:[{key:'baseline:building:2:0',components:[]}]};
+ assert.equal(A.reconcileConfig(old,items).assignments[0].key,old.assignments[0].key);
+ assert.equal(items.filter(i=>(i.aliases||[]).includes('baseline:building:2:0')).length,2);
+});
+test('identical repeated source records are explicitly rejected rather than silently dropped',()=>{
+ const f={properties:{id:2,layerKey:'building'},geometry:{type:'Polygon',coordinates:[[[113,23],[113.01,23],[113,23]]]}};
+ const result=Bridge.buildSceneEditContext(state({baselineFeatures:[f,f],serializeFeature:undefined}));
+ assert.equal(result.ok,false);assert.match(result.message,/重复/);
+});

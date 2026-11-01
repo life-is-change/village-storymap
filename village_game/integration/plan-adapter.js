@@ -25,7 +25,7 @@
    const kind=['building','buildings'].includes(layer)?'building':['road','roads','path'].includes(layer)?'road':layer==='water'?'water':null;
    if(!kind)continue;
    const g=f.geometry;
-   const aliases=[...new Set([f.legacyId??f.properties?.id??f.properties?.osm_id??rootId,'geometry-'+shortId(stable(g))].filter(x=>x!=null).map(x=>'baseline:'+x))];
+   const aliases=[...new Set([...(f.identityAliases||[]),f.legacyId??f.properties?.id??f.properties?.osm_id??rootId,'geometry-'+shortId(stable(g))].filter(x=>x!=null).map(x=>'baseline:'+x))];
    if(g?.type==='MultiLineString')g.coordinates.forEach((c,i)=>add(key+':'+i,{type:'LineString',coordinates:c},kind,f.properties?.name||'现状道路',layer,f.properties,aliases.map(k=>k+':'+i)));
    else if(g?.type==='MultiPolygon')g.coordinates.forEach((c,i)=>add(key+':'+i,{type:'Polygon',coordinates:c},kind,f.properties?.name||'现状建筑',layer,f.properties,aliases.map(k=>k+':'+i)));
    else add(key,g,kind,f.properties?.displayName||f.properties?.name||f.properties?.building_name||(['building','buildings'].includes(layer)?'建筑 '+id:'现状道路 '+id),layer,f.properties,aliases);

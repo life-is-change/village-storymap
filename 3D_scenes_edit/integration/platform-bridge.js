@@ -11,6 +11,42 @@
     return { ok: false, code, message };
   }
 
+  function stable(value) {
+    if (Array.isArray(value)) return '[' + value.map(stable).join(',') + ']';
+    if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + stable(value[k])).join(',') + '}';
+    return JSON.stringify(value);
+  }
+  function geometryId(text) {
+    let a = 2166136261, b = 5381;
+    for (const c of text) { a = Math.imul(a ^ c.charCodeAt(0), 16777619); b = Math.imul(b, 33) ^ c.charCodeAt(0); }
+    return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+  }
+  function distinguishIdentities(features) {
+    const groups = new Map();
+    for (const f of features) if (f.id != null) {
+      const key = String(f.id);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(f);
+    }
+    const identities = new Set();
+    for (const [id, group] of groups) {
+      const geometries = new Set(), hashes = new Map();
+      for (const f of group) {
+        if (group.length > 1) {
+          const text = stable(f.geometry), hash = geometryId(text);
+          if (geometries.has(text)) throw Error('现状源记录重复：' + id + '，请检查重复导入');
+          if (hashes.has(hash) && hashes.get(hash) !== text) throw Error('现状几何摘要碰撞：' + id);
+          geometries.add(text); hashes.set(hash, text);
+          f.identityAliases = [id];
+          f.id = id + ':geometry-' + hash;
+        }
+        if (identities.has(String(f.id))) throw Error('现状源编号重复：' + f.id);
+        identities.add(String(f.id));
+      }
+    }
+    return features;
+  }
+
   function buildSceneEditContext(state) {
     if (state?.activeView === "overview") return fail("OVERVIEW_ACTIVE", "请先进入村庄的二维或三维视图");
     if (!state?.user?.id) return fail("USER_REQUIRED", "请先登录后再进入公共空间设计");
@@ -20,7 +56,7 @@
     if (!spaceId) return fail("SPACE_REQUIRED", "请先选择一个小组空间");
     if (!state.teachingProjectId || !state.courseId || !state.villageId) return fail("PROJECT_CONTEXT_REQUIRED", "当前教学项目上下文不完整");
     try {
-      const baselineFeatures = (state.baselineFeatures || []).map((feature) => {
+      const baselineFeatures = distinguishIdentities((state.baselineFeatures || []).map((feature) => {
         const geojson = state.serializeFeature ? state.serializeFeature(feature) : feature;
         const plain = clone(geojson);
         const layerKey = plain?.layerKey || plain?.properties?.layerKey || feature?.layerKey || feature?.get?.("layerKey") || "baseline";
@@ -39,7 +75,7 @@
           geometry: plain?.geometry || null,
           properties: plain?.properties || {}
         };
-      }).filter((feature) => feature.geometry);
+      }).filter((feature) => feature.geometry));
       return {
         ok: true,
         context: {
