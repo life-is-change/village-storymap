@@ -4,7 +4,7 @@
  'use strict';
  const CATEGORIES=Object.freeze([
   {id:'living',label:'居住 · 住宿',color:'#567766',types:['home','inn']},
-  {id:'economy',label:'生产 · 经营',color:'#a67543',types:['farm','workshop','food','shop','night']},
+  {id:'economy',label:'生产 · 经营',color:'#a67543',types:['farm','workshop','food','shop','market','night']},
   {id:'care',label:'教育 · 照护',color:'#54878e',types:['kindergarten','school','care','clinic','meal']},
   {id:'public',label:'公共 · 文化',color:'#896784',types:['park','play','culture','ancestral']},
   {id:'visit',label:'旅游 · 游憩',color:'#6c84a4',types:['center','attraction']}
@@ -17,6 +17,7 @@
   workshop:'M6 6h9l3 5-5 4-5-3Z M13 15 24 27l4-4-11-11',
   food:'M6 5v9 M10 5v9 M14 5v9 M6 11h8v4l-4 3v10 M25 5c-7 0-7 13 0 13V5 M25 18v10',
   shop:'M5 12h22l-2 15H7Z M11 12V8a5 5 0 0 1 10 0v4 M11 19h10',
+  market:'M3 13 6 5h20l3 8Z M5 13v14h22V13 M9 18h14 M10 5v8 M16 5v8 M22 5v8',
   night:'M5 18h22v10H5Z M3 18l3-5h20l3 5 M12 28v-6h8v6 M20 4a5 5 0 0 0 7 6 6 6 0 1 1-7-6',
   kindergarten:'M6 28V14l10-7 10 7v14Z M13 28v-8h6v8 M5 5h4 M7 3v4 M23 8c1-5 5-6 6-4 0 3-3 5-6 4',
   school:'M16 9C10 5 6 6 3 8v18c4-3 8-2 13 1 5-3 9-4 13-1V8c-4-2-8-2-13 1Z M16 9v18 M7 12l5 1 M21 13l4-1 M7 17l5 1 M21 18l4-1',
@@ -37,7 +38,7 @@
   field:{wall:'#c6c58a',roof:'#959b60'},visitor:{wall:'#b5c7cb',roof:'#698995'}
  };
  const registry={
-  home:['house','居住位'],inn:['house','床位'],food:['commerce','餐位'],shop:['commerce','服务位'],night:['commerce','活动人数'],
+  home:['house','居住位'],inn:['house','床位'],food:['commerce','餐位'],shop:['commerce','服务位'],market:['commerce','在场人数'],night:['commerce','活动人数'],
   farm:['field','作业位'],workshop:['commerce','体验位'],kindergarten:['learning','学前名额'],school:['learning','学位'],
   care:['support','照料名额'],clinic:['support','服务名额'],meal:['support','餐位'],culture:['hall','活动人数'],ancestral:['hall','活动人数'],
   park:['landscape','舒适人数'],play:['landscape','活动人数'],center:['visitor','服务位'],attraction:['visitor','活动人数']

@@ -14,7 +14,7 @@
   const envelope={type:'Polygon',coordinates:[[[-8.5,-7],[8.5,-7],[8.5,7],[-8.5,7],[-8.5,-7]].map(geo)]};
   if(!G.containsGeometry(field.geometry,envelope))return fail('早市需要场地内连续约17×14米的空地，请扩大或调整范围');
   const properties={marketId,presetVersion:VERSION};
-  const parent={...JSON.parse(JSON.stringify(field)),properties:{...field.properties,...properties,marketRole:'market',displayName:field.properties?.displayName||'村庄早市',marketGate:geo([0,-7])}};
+  const parent={...JSON.parse(JSON.stringify(field)),properties:{...field.properties,...properties,marketRole:'market',displayName:field.properties?.displayName||'村庄早市',marketGate:geo([2.5,-7])}};
   const objects=[parent],assetRefs=[];
   ['vegetables','vegetables','vegetables','vegetables','fruit','tofu'].forEach((kind,i)=>{
    const assetId='seed:stall:morning-'+kind,asset=assets.find(a=>a.id===assetId);
@@ -23,7 +23,7 @@
    objects.push({id:idPrefix+'-stall-'+(i+1),kind:'structure',category:'stall',geometry:{type:'Point',coordinates:geo([(i%3-1)*5,i<3?4:-4])},transform:{headingDeg:i<3?0:180,pitchDeg:0,rollDeg:0,scale:[1,1,1],heightOffsetM:0},layerId:field.layerId,groupId:null,zIndex:field.zIndex+i+1,
     properties:{...properties,marketRole:'stall',sceneRole:'site-component',produceKind:kind,assetRef:assetId,footprintM:[3.4,2.6],heightM:2.9,displayName:(i+1)+'号 · '+({vegetables:'时蔬',fruit:'鲜果',tofu:'豆品干货'}[kind])}});
   });
-  [[[0,-7],[0,0]],[[-7.5,0],[7.5,0]]].forEach((line,i)=>objects.push({id:idPrefix+'-aisle-'+i,kind:'line',category:'path',geometry:{type:'LineString',coordinates:line.map(geo)},properties:{...properties,marketRole:'aisle',sceneRole:'site-component',widthM:2,displayName:'早市通道'},layerId:field.layerId,groupId:null,zIndex:field.zIndex+7+i}));
+  [[[2.5,-7],[2.5,0]],[[-7.5,0],[7.5,0]]].forEach((line,i)=>objects.push({id:idPrefix+'-aisle-'+i,kind:'line',category:'path',geometry:{type:'LineString',coordinates:line.map(geo)},properties:{...properties,marketRole:'aisle',sceneRole:'site-component',widthM:2,displayName:'早市通道'},layerId:field.layerId,groupId:null,zIndex:field.zIndex+7+i}));
   return {ok:!errors.length,errors,marketId,command:{type:'addMarketPreset',fieldId:field.id,objects,assetRefs}};
  }
  return {VERSION,createMarketPreset};

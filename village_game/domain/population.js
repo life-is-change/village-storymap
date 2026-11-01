@@ -9,6 +9,7 @@
  const JOBS={farm:'农业劳动',service:'村内服务',external:'村外就业',flex:'弹性事务',retired:'自主养老',student:'学生'};
  const group=age=>age<18?'child':age>=60?'senior':'adult';
  function generate(buildings,count,options={}){
+  if(options.preset==='morning-market')return generateMarket(buildings,count);
   if(options.preset==='lingnan')return generateLingnan(buildings,count);
   const homes=buildings.filter(b=>b.type==='home'),people=[],households=[];let adults=0;
   for(let h=0;people.length<count;h++){
@@ -20,6 +21,16 @@
     people.push(person);household.members.push(person.id);
    }
    households.push(household);
+  }
+  return {people,households};
+ }
+ function generateMarket(buildings,count){
+  const homes=buildings.filter(b=>b.type==='home'),people=[],households=[];
+  for(let i=0;i<count;i++){
+   const h=Math.floor(i/3),id='market-family-'+(h+1),sex=i%2?'female':'male',age=i%6===5?64:28+i%28,ageGroup=group(age);
+   if(!households[h])households.push({id,name:'早市教学家庭 '+(h+1),kind:'teaching',description:'为早市流程构造的成年合成人口，非真实村民资料',homeId:homes[h%Math.max(1,homes.length)]?.id||null,members:[],resources:'middle'});
+   const person={id:'market-resident-'+(i+1),name:['林','陈','吴'][h%3]+(sex==='male'?'阿明':'阿兰')+' '+(i+1),age,sex,ageGroup,profile:ageGroup+'-'+sex,householdId:id,job:ageGroup==='senior'?'retired':'flex',schoolStage:'secondary',mobility:ageGroup==='senior'?.8:1,needsEscort:false,social:true,lightWork:false};
+   people.push(person);households[h].members.push(person.id);
   }
   return {people,households};
  }

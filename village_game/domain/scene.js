@@ -7,6 +7,7 @@
     inn:{label:'民宿',color:'#d89c65',roof:'#835d46',need:'stay',minutes:60,area:28,defaultCapacity:4,description:'为过夜游客提供床位；入住后占用到次日早晨。'},
     food:{label:'乡村餐饮',color:'#e3a886',roof:'#a4664b',need:'food',minutes:40,area:8,defaultCapacity:4,description:'居民与游客共享就餐位，服务时间较长，易产生等候。'},
     shop:{label:'生活商店',color:'#ccbc89',roof:'#777050',need:'shop',minutes:20,area:10,defaultCapacity:3,description:'居民日常购物；沿生活路线设置可以缩短出行。'},
+    market:{label:'村庄早市',color:'#9fba78',roof:'#59896d',need:'shop',minutes:8,area:6,defaultCapacity:18,limit:60,description:'早市教学情境：摊主到岗、村民交流购买与沿路返家；使用可编辑的精细摊位。'},
     workshop:{label:'手作工坊',color:'#b69ed0',roof:'#766483',need:'craft',minutes:60,area:15,defaultCapacity:2,description:'游客参与手作体验，也承担一部分居民工作。'},
     center:{label:'游客服务',color:'#82b5b9',roof:'#527e81',need:'info',minutes:15,area:10,defaultCapacity:4,description:'提供问询与路线了解，不凭空增加外部游客。'},
     park:{label:'公共休憩',color:'#a4bd83',roof:'#748957',need:'rest',minutes:30,area:8,defaultCapacity:6,description:'居民与游客休息、停留的共享公共空间。'},

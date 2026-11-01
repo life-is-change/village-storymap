@@ -1,9 +1,9 @@
 (function(root,factory){const common=typeof module==='object'&&module.exports;
- const api=factory(common?require('../domain/scene'):root.VillageScene,common?require('../domain/population'):root.VillagePopulation,common?require('../domain/network'):root.VillageNetwork,common?require('../../3D_scenes_edit/domain/geometry-rules'):root.SceneGeometryRulesModule,common?require('../domain/schedule'):root.VillageSchedule,common?require('./experiment-area'):root.VillageExperimentArea);
+ const api=factory(common?require('../domain/scene'):root.VillageScene,common?require('../domain/population'):root.VillagePopulation,common?require('../domain/network'):root.VillageNetwork,common?require('../../3D_scenes_edit/domain/geometry-rules'):root.SceneGeometryRulesModule,common?require('../domain/schedule'):root.VillageSchedule,common?require('./experiment-area'):root.VillageExperimentArea,common?require('../domain/market-layout'):root.VillageMarketLayout);
  if(common)module.exports=api;if(root)root.VillagePlanAdapter=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Population,Network,Geometry,Schedule,Area){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Population,Network,Geometry,Schedule,Area,MarketLayout){
  'use strict';
- const RULE_VERSION='platform-village-4',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
+ const RULE_VERSION='platform-village-5',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
  const capLimit=type=>Scene.TYPES[type]?.limit||({home:12,inn:32,food:60,park:80,attraction:60})[type]||40;
  const coordinate=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=85;
  function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
@@ -82,7 +82,10 @@
  function validateConfig(c){
   const errors=[],fail=m=>errors.push(m),number=(v,lo,hi)=>Number.isFinite(v)&&v>=lo&&v<=hi,integer=(v,lo,hi)=>Number.isInteger(v)&&number(v,lo,hi);
   if(!c||c.version!==1||!c.settings||!Array.isArray(c.assignments)||!Array.isArray(c.roads)||!Array.isArray(c.runs))return {ok:false,errors:['模拟配置格式无效']};
-  if(Object.keys(c).some(k=>!['version','settings','entry','roads','assignments','runs','area','entryMode'].includes(k)))fail('模拟配置包含未知字段');
+  if(Object.keys(c).some(k=>!['version','settings','entry','roads','assignments','runs','area','entryMode','morningMarket'].includes(k)))fail('模拟配置包含未知字段');
+  if(c.morningMarket!==undefined){const m=c.morningMarket,fields=['marketKey','vendorCount','customerCount','startMinute','openMinute','lastEntryMinute','endMinute'];
+   if(!m||typeof m!=='object'||Object.keys(m).some(k=>!fields.includes(k))||typeof m.marketKey!=='string'||!m.marketKey.startsWith('object:')||!integer(m.vendorCount,1,6)||!integer(m.customerCount,1,60)||!fields.slice(3).every(k=>integer(m[k],360,720))||!(m.startMinute<m.openMinute&&m.openMinute<m.lastEntryMinute&&m.lastEntryMinute<m.endMinute)||m.endMinute-m.startMinute>360)fail('早市配置无效：检查人数、市场和营业时段');
+  }
   if(c.area!=null){const valid=Area.validate(c.area);if(!valid.ok)errors.push(...valid.errors);}
   if(c.entryMode!==undefined&&!['auto','manual'].includes(c.entryMode))fail('对外出入口模式无效');
   const s=c.settings;
@@ -148,7 +151,7 @@
   const distanceToRing=(p,ring)=>Math.min(...ring.slice(1).map((b,i)=>Network.distance(Network.project(p,ring[i],b).point,p)));
   for(const {a,item} of selected){
    const polygon=item.geometry.type==='Polygon'?item.geometry.coordinates[0].map(toLocal):null,center=polygon?polygon.slice(0,-1).reduce((p,q)=>[p[0]+q[0]/(polygon.length-1),p[1]+q[1]/(polygon.length-1)],[0,0]):toLocal(item.geometry.coordinates);
-   let entrance=a.entrance?toLocal(a.entrance):null;
+   let entrance=a.type==='market'&&config.morningMarket?.marketKey===a.key&&item.properties.marketGate?toLocal(item.properties.marketGate):a.entrance?toLocal(a.entrance):null;
    if(!entrance){
     let best=null;
     for(const [r,s] of segments){const roadPoint=Network.project(center,r,s).point;
@@ -171,7 +174,7 @@
   }
   // Unconfigured buildings remain visible background and also block access shortcuts.
   for(const item of items.filter(i=>i.kind==='water'||i.kind==='building'&&!config.assignments.some(a=>a.key===i.key))){const points=item.geometry.type==='Polygon'?item.geometry.coordinates[0].map(toLocal):null;if(points&&points.every(p=>p.every((v,i)=>v>=0&&v<=size[i])))scene.obstacles.push(points);}
-  Object.assign(scene,Population.generate(scene.buildings,scene.scenario.population,{preset:'lingnan'}));
+  Object.assign(scene,Population.generate(scene.buildings,scene.scenario.population,{preset:config.morningMarket?'morning-market':'lingnan'}));
   // Scale synthetic employment to this plan; the demonstration village's fixed
   // first-twelve-farmers rule would leave a small real plan without any staff.
   const adults=scene.people.filter(p=>p.ageGroup==='adult'),slots=scene.buildings.reduce((n,b)=>n+b.staff,0),hasFarm=scene.buildings.some(b=>b.type==='farm');
@@ -183,7 +186,23 @@
   if(!network.connected.entry)errors.push('村口未接通选中的道路，请在道路上重新设置');
   const homes=Schedule.bindHousing(scene),housingShortage=scene.households.filter(h=>!homes[h.id]).length;
   if(housingShortage)warnings.push(housingShortage+'户家庭无法按人数分配住宅；请增加可容纳该家庭的住宅容量、增加住宅或减少人口');
-  const payload={source:scene.source,scene,config:{settings:config.settings,entry:config.entry,roads:config.roads,assignments:config.assignments,...(config.area?{area:config.area,entryMode:config.entryMode||'auto'}:{})}};
+  if(config.morningMarket){
+   const m=config.morningMarket,market=scene.buildings.find(b=>b.sourceKey===m.marketKey&&b.type==='market'),field=byKey.get(m.marketKey),marketObject=document.objects.find(o=>'object:'+o.id===m.marketKey);
+   if(!market||!marketObject?.properties?.marketId||field?.geometry.type!=='Polygon')errors.push('请将已布置早市的活动场地定义为村庄早市');
+   else{
+    const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
+    const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
+    if(stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
+    const layout=MarketLayout.compileMarketLayout({field:{type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},stalls,aisles:children.filter(o=>o.properties.marketRole==='aisle').map(o=>({points:o.geometry.coordinates.map(toLocal),width:o.properties.widthM})),obstacles:[...scene.obstacles,...scene.buildings.filter(b=>b.id!==market.id&&!b.passable&&b.footprint).map(b=>b.footprint)],gate:market.entrance});
+    if(!layout.ok)errors.push(...layout.errors);
+    const eligible=scene.people.filter(p=>p.age>=18&&homes[p.householdId]).sort((a,b)=>shortId(scene.scenario.seed+':'+a.id).localeCompare(shortId(scene.scenario.seed+':'+b.id))||a.id.localeCompare(b.id));
+    if(eligible.length<m.vendorCount+m.customerCount||housingShortage)errors.push('早市角色或住宅容量不足：需容纳全部教学家庭，请补充住宅或增加容量');
+    const roles=eligible.slice(0,m.vendorCount+m.customerCount).map((p,i)=>({personId:p.id,homeId:homes[p.householdId],marketRole:i<m.vendorCount?'vendor':'customer',...(i<m.vendorCount?{stallId:stalls[i]?.id}:{})}));
+    for(const role of roles)if(!Network.route(network,network.access[role.homeId],network.access[market.id]))errors.push('早市人物住宅未接通市场入口：'+role.homeId);
+    if(layout.ok)scene.morningMarket={version:'morning-market-1',marketId:market.id,layout:layout.layout,roles,times:{startMinute:m.startMinute,openMinute:m.openMinute,lastEntryMinute:m.lastEntryMinute,endMinute:m.endMinute}};
+   }
+  }
+  const payload={source:scene.source,scene,config:{settings:config.settings,entry:config.entry,roads:config.roads,assignments:config.assignments,...(config.morningMarket?{morningMarket:config.morningMarket}:{}),...(config.area?{area:config.area,entryMode:config.entryMode||'auto'}:{})}};
   return {ok:!errors.length,errors,warnings,extent,scene,network,items,area:config.area||null,entries,projection:{toLocal,toDegrees},payload};
  }
  return {RULE_VERSION,BOUNDARY_KEY,assignment,capLimit,catalog,createConfig,reconcileConfig,validateConfig,compile,digest,stable,pickSource,setup,areaContains:Area.contains,areaRoads:Area.clipRoads};

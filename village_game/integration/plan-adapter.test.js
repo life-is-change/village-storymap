@@ -143,3 +143,17 @@ test('small village employment adapts to configured services and amenities must 
 test('large areas preserve their perimeter and configured capacity without proxy-box clipping',()=>{
  const f=fixture();f.document.objects[0].geometry=polygon(113.0004,23.0001,.001,.001);const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,true,JSON.stringify(r.errors));const area=r.scene.buildings[1];assert.ok(area.areaM2>10000);assert.equal(Scene.capacity(area),area.capacity);
 });
+
+test('explicit morning market compiles one shared population, gate and obstacle-safe interior layout',()=>{
+ const f=require('./tests/market-fixture').marketFixture(),r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,true,JSON.stringify(r.errors));assert.equal(r.scene.morningMarket.roles.length,18);assert.equal(r.scene.people.length,18);assert.equal(new Set(r.scene.morningMarket.roles.map(p=>p.personId)).size,18);
+ assert.deepEqual(r.scene.buildings.find(b=>b.id===r.scene.morningMarket.marketId).entrance,r.scene.morningMarket.layout.gate);
+ assert.ok(r.scene.morningMarket.roles.every(p=>r.scene.people.some(a=>a.id===p.personId)&&p.homeId));assert.ok(r.payload.config.morningMarket);
+ const before=A.stable(r.payload);f.document.objects.find(o=>o.properties.marketRole==='stall').transform.headingDeg=20;const edited=A.compile(f.document,f.context,f.cfg);assert.ok(!edited.ok||A.stable(edited.payload)!==before);
+});
+test('morning market rejects invalid counts, missing role housing, unconfigured market and disconnected gate',()=>{
+ const fixture=require('./tests/market-fixture').marketFixture;for(const change of [f=>f.cfg.morningMarket.vendorCount=7,f=>f.cfg.morningMarket.customerCount=30,f=>f.cfg.assignments[0].capacity=1,f=>f.cfg.assignments.pop(),f=>f.cfg.morningMarket.untrusted=true,f=>f.cfg.morningMarket.endMinute=380]){const f=fixture();change(f);const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,false);assert.ok(r.errors.length);}
+});
+
+test('market rejects an actual disconnected village route',()=>{
+ const f=require('./tests/market-fixture').marketFixture();f.context.baselineFeatures.find(x=>x.layerKey==='road').geometry.coordinates=[[112.9999,22.999],[113.001,22.999]];f.cfg.entry=[112.9999,22.999];const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,false);assert.match(r.errors.join(' '),/未接通/);
+});
