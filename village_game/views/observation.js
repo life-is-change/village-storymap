@@ -14,10 +14,10 @@
    return {...a,x:position[0],y:position[1],inTransit:alpha<1,displayRoute:old.route};
   })};
  }
- function location(scene,a){const b=scene.buildings.find(b=>b.id===(a.state==='moving'?a.target:a.node||a.target||a.home)),indoor=a.interaction?.status!=='active'&&!a.inTransit&&!['moving','outside','planned','departed'].includes(a.state)&&b&&!['farm','park','play','attraction','night'].includes(b.type);return {name:a.state==='outside'?'村外学习／工作':a.state==='planned'?'尚未到村':a.state==='departed'?'已经离村':a.state==='moving'?'道路上，前往'+(b?.name||'村口'):b?.name||'村口',indoor:!!indoor};}
+ function location(scene,a){if(a.marketRole&&a.node===scene.morningMarket?.marketId||a.marketRole&&['preparing','open','queued','queueing','approaching','conversing','waiting-opening'].includes(a.marketState)||a.marketRole&&scene.buildings.some(b=>b.id===a.node&&b.type==='market'))return {name:'早市 · '+(a.marketRole==='vendor'?'摊主':'买菜村民'),indoor:false};const b=scene.buildings.find(b=>b.id===(a.state==='moving'?a.target:a.node||a.target||a.home)),indoor=a.interaction?.status!=='active'&&!a.inTransit&&!['moving','outside','planned','departed'].includes(a.state)&&b&&!['farm','park','play','attraction','night'].includes(b.type);return {name:a.state==='outside'?'村外学习／工作':a.state==='planned'?'尚未到村':a.state==='departed'?'已经离村':a.state==='moving'?'道路上，前往'+(b?.name||'村口'):b?.name||'村口',indoor:!!indoor};}
  function layout(scene,snapshot){
   if(!snapshot)return null;
-  return {...snapshot,agents:snapshot.agents.map(a=>{let hash=0;for(const c of a.id)hash=(hash*31+c.charCodeAt(0))>>>0;const x=(hash%5-2)*1.4,y=(Math.floor(hash/5)%3-1)*1.4;return {...a,x:a.x+x,y:a.y+y,indoor:location(scene,a).indoor};})};
+  return {...snapshot,agents:snapshot.agents.map(a=>{if(a.marketRole)return {...a,indoor:location(scene,a).indoor};let hash=0;for(const c of a.id)hash=(hash*31+c.charCodeAt(0))>>>0;const x=(hash%5-2)*1.4,y=(Math.floor(hash/5)%3-1)*1.4;return {...a,x:a.x+x,y:a.y+y,indoor:location(scene,a).indoor};})};
  }
  function facility(scene,snapshot,network,id,expectedType='food'){
   const b=scene.buildings.find(b=>b.id===id),f=snapshot?.facilities[id],related=(snapshot?.agents||[]).filter(a=>a.target===id);

@@ -3,7 +3,7 @@
  function cells(a,phase=0){
   const palette=a.kind==='visitor'?({family:['#8a6599','#b698be','#674a76'],overnight:['#b76d80','#dfa2ad','#884e63']}[a.profile]||['#bd783b','#e3b574','#895631']):a.ageGroup==='senior'?['#7f8d64','#b2bd92','#5c684b']:a.ageGroup==='child'?['#568aa6','#95bdd0','#3e647e']:['#4d8477','#91b7a0','#355c54'];
   const outline='#3d3733',hair=a.ageGroup==='senior'?'#c5c2b5':'#594538',hairLight=a.ageGroup==='senior'?'#eee8d6':'#836049',skin='#e5b48a',skinLight='#f6d2a8',skinShade='#c78968';
-  const seated=['resting','eating','staying','home'].includes(a.state),working=['working','cooking'].includes(a.state),chat=a.interaction?.status==='active',moving=a.state==='moving',frame=moving?Math.floor(phase)%2:0;
+  const seated=['resting','eating','staying','home'].includes(a.state),working=['working','cooking'].includes(a.state)&&a.marketRole!=='vendor',chat=a.interaction?.status==='active',moving=a.state==='moving',frame=moving?Math.floor(phase)%2:0;
   const r=[],add=(x,y,w,h,color)=>r.push({x,y,w,h,color}),drop=seated?3:0;
   // Original code-native pixel art. The last shoe row and contact shadow share y=24.
   // Keep that foot anchor fixed across walking frames and seated/working poses.
@@ -22,6 +22,7 @@
   else{add(11,13+drop,2,5-drop,outline);add(12,14+drop,1,3-drop,palette[2]);add(11,17,2,2,skin);}
   if(seated){add(3,19,10,2,outline);add(4,19,8,1,'#686b79');add(3,20,3,3,outline);add(10,20,3,3,outline);add(4,20,1,2,'#8c8e99');add(11,20,1,2,'#8c8e99');add(2,22,4,2,outline);add(10,22,4,2,outline);add(2,22,3,1,'#8c7153');add(10,22,3,1,'#8c7153');}
   else{add(5,19,3,4-frame,outline);add(8,19,3,3+frame,outline);add(6,19,1,3-frame,'#7b7f8b');add(9,19,1,2+frame,'#616570');add(4,22-frame,4,2,outline);add(8,21+frame,4,2,outline);add(4,22-frame,3,1,'#8c7153');add(8,21+frame,3,1,'#8c7153');}
+  if(a.marketRole==='vendor'){add(6,13+drop,4,5-drop,'#e8d6a1');add(7,14+drop,2,1,'#8b7252');}
   if(working){add(13,13,1,10,outline);add(13,14,1,8,'#b08c58');add(12,12,3,2,'#687968');add(12,12,2,1,'#a6b1a0');}
   if(a.state==='eating'){add(9,16,5,1,'#f1e2bb');add(10,17,3,2,'#9f7c52');add(11,17,1,1,'#d9c095');}
   if(a.state==='waiting'){add(14,3,1,3,'#bd783b');add(14,7,1,1,'#bd783b');}

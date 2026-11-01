@@ -1,12 +1,15 @@
-(function(root,factory){const c=typeof module==='object'&&module.exports,api=factory(c?require('../views/characters'):root.VillageCharacters,c?require('../views/catalog'):root.VillageCatalog,c?require('../views/observation'):root.VillageObservation,c?require('./plan-adapter'):root.VillagePlanAdapter);if(c)module.exports=api;if(root)root.VillagePlanOverlay=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Characters,Catalog,Observation,Adapter){
- function create({Cesium:C,viewer,onPick,onInspect,pickGround,onDrawProgress}){
+(function(root,factory){const c=typeof module==='object'&&module.exports,api=factory(c?require('../views/characters'):root.VillageCharacters,c?require('../views/catalog'):root.VillageCatalog,c?require('../views/observation'):root.VillageObservation,c?require('./plan-adapter'):root.VillagePlanAdapter,c?require('./market-overlay'):root.VillageMarketOverlay);if(c)module.exports=api;if(root)root.VillagePlanOverlay=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Characters,Catalog,Observation,Adapter,MarketOverlay){
+ function create({Cesium:C,viewer,onPick,onInspect,pickGround,onDrawProgress,createImage}){
   const actors=new Map(),decorations=[],areaPoints=[],areaPreview=[];let pendingPick=null,disposed=false,selected=null,sourceItems=[];
   const source=new C.CustomDataSource('village-simulation'),entities=source.entities;
+  const marketView=MarketOverlay.create({Cesium:C,viewer,entities}),positions=new Map(),images=new Map();let imageGeneration=0,lastStamp='',terrain=viewer.terrainProvider;
+  function imageFor(uri){if(images.has(uri))return images.get(uri).ready?images.get(uri).image:uri;const make=createImage||(typeof Image==='function'?()=>new Image():null);if(!make)return uri;const generation=imageGeneration,image=make(),entry={image,ready:false};images.set(uri,entry);image.onload=()=>{if(disposed||generation!==imageGeneration)return;entry.ready=true;for(const e of actors.values())if(e.simulationImage===uri)e.billboard.image=image;viewer.scene.requestRender();};image.src=uri;return uri;}
+  function positionFor(p){const key=p.join(',');if(!positions.has(key)){if(positions.size>=2048)positions.clear();positions.set(key,C.Cartesian3.fromDegrees(...p));}return positions.get(key);}
   Promise.resolve(viewer.dataSources.add(source)).then(()=>{if(disposed)viewer.dataSources.remove(source,true);});
   const color=s=>C.Color.fromCssColorString(s);
   const handler=new C.ScreenSpaceEventHandler(viewer.scene.canvas);
-  function clearActors(){for(const e of actors.values()){e.show=false;entities.remove(e);}actors.clear();viewer.scene.requestRender();}
-  function clearPlan(){for(const e of decorations)entities.remove(e);decorations.length=0;}
+  function clearActors(){imageGeneration++;for(const entry of images.values())entry.image.onload=null;images.clear();lastStamp='';positions.clear();marketView.cancelFollow();for(const e of actors.values()){e.show=false;entities.remove(e);}actors.clear();viewer.scene.requestRender();}
+  function clearPlan(){marketView.clear();for(const e of decorations)entities.remove(e);decorations.length=0;}
   function clearAreaPreview(){while(areaPreview.length)entities.remove(areaPreview.pop());}
   function showArea(area){if(area?.type!=='Polygon')return;decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(area.coordinates[0].flat()),width:4,material:color('#8366b1'),clampToGround:true}}));}
   function finishArea(){if(pendingPick!=='area')return;if(areaPoints.length<3){onDrawProgress?.(areaPoints.length);return;}
@@ -47,7 +50,7 @@
   if(C.ScreenSpaceEventType.LEFT_DOUBLE_CLICK!==undefined)handler.setInputAction(finishArea,C.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   function setPlan(plan){
    clearActors();clearPlan();
-   sourceItems=plan.items||sourceItems;showArea(plan.area);
+   marketView.setPlan(plan);sourceItems=plan.items||sourceItems;showArea(plan.area);
    for(const b of plan.scene.buildings){const p=plan.projection.toDegrees(b.entrance),e=entities.add({position:C.Cartesian3.fromDegrees(...p),billboard:{image:Catalog.billboardImage(b.type,!plan.network.connected[b.id]),width:26,height:26,heightReference:C.HeightReference.CLAMP_TO_GROUND,pixelOffset:new C.Cartesian2(0,-8),verticalOrigin:C.VerticalOrigin.BOTTOM,disableDepthTestDistance:Infinity},label:{text:b.name,font:'12px sans-serif',show:false}});e.simulationKey=b.sourceKey;decorations.push(e);}
    for(const r of plan.scene.roads){const coords=r.points.flatMap(p=>plan.projection.toDegrees(p));decorations.push(entities.add({polyline:{positions:C.Cartesian3.fromDegreesArray(coords),width:2,material:color('#ddaa54').withAlpha(.7),clampToGround:true}}));}
    for(const b of plan.scene.buildings)showAccess(b.sourceKey,plan.network?.accessDiagnostics?.[b.id]||{point:b.entrance,reason:'unchecked'},plan.projection);
@@ -71,19 +74,19 @@
    }
    viewer.scene.requestRender();
   }
-  return {setPlan,setSources,clearActors,finishArea,clear(){clearActors();clearPlan();},pick(purpose){pendingPick=purpose;areaPoints.length=0;clearAreaPreview();},cancelPick(){pendingPick=null;areaPoints.length=0;clearAreaPreview();},
+  return {setPlan,setSources,clearActors,finishArea,focusMarket:()=>marketView.focus(),followPerson:id=>marketView.follow(actors.get(id)),cancelFollow:()=>marketView.cancelFollow(),clear(){clearActors();clearPlan();},pick(purpose){pendingPick=purpose;areaPoints.length=0;clearAreaPreview();},cancelPick(){pendingPick=null;areaPoints.length=0;clearAreaPreview();},
    focus(item){if(!item)return;let p=item.geometry.coordinates;while(Array.isArray(p[0]))p=p[0];viewer.camera.flyTo({destination:C.Cartesian3.fromDegrees(p[0],p[1],150),duration:.7});},
    render(s,plan){
-    if(disposed)return;const ids=new Set();
+    if(disposed)return;if(terrain!==viewer.terrainProvider){terrain=viewer.terrainProvider;positions.clear();lastStamp='';}const stamp=JSON.stringify([s.minute,s.progress,selected,s.agents.map(a=>[a.id,a.x,a.y,a.state,a.indoor,a.marketState,a.purchaseStatus,a.dialogue])]);if(stamp===lastStamp)return;lastStamp=stamp;const ids=new Set(),speakers=MarketOverlay.bubbles(s);marketView.render(s);
     for(const a of s.agents){if(!Observation.visible(a))continue;ids.add(a.id);let e=actors.get(a.id);if(!e){e=entities.add({});actors.set(a.id,e);}
      const p=plan.projection.toDegrees([a.x,a.y]),height=selected===a.id?34:a.ageGroup==='child'?24:30;
-     e.position=C.Cartesian3.fromDegrees(...p);e.simulationPerson=a;
-     e.billboard={show:!a.indoor,image:Characters.image(a,(s.minute+s.progress)*4),height,width:height*Characters.width/Characters.height,verticalOrigin:C.VerticalOrigin.BOTTOM,horizontalOrigin:C.HorizontalOrigin.CENTER,pixelOffset:new C.Cartesian2(0,0),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:0};
+     e.position=positionFor(p);e.simulationPerson=a;
+     e.simulationImage=Characters.image(a,(s.minute+s.progress)*4);e.billboard={show:!a.indoor,image:imageFor(e.simulationImage),height,width:height*Characters.width/Characters.height,verticalOrigin:C.VerticalOrigin.BOTTOM,horizontalOrigin:C.HorizontalOrigin.CENTER,pixelOffset:new C.Cartesian2(0,0),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:0};
      e.point={show:!!a.indoor,pixelSize:5,color:color('#66877c').withAlpha(.2),outlineColor:color('#66877c'),outlineWidth:1,heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
-     e.label={show:selected===a.id||a.interaction?.status==='active',text:selected===a.id?a.name:'···',font:'12px sans-serif',fillColor:color('#314b42'),showBackground:true,pixelOffset:new C.Cartesian2(0,-height-12),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
+     e.label={show:!!a.marketRole||selected===a.id||a.interaction?.status==='active',text:a.marketRole?MarketOverlay.label(a,s,speakers):selected===a.id?a.name:'···',font:'12px sans-serif',fillColor:color('#314b42'),showBackground:true,backgroundColor:color('#fff8e5').withAlpha(.92),pixelOffset:new C.Cartesian2(0,-height-12),heightReference:C.HeightReference.CLAMP_TO_GROUND,disableDepthTestDistance:Infinity};
     }
     for(const [id,e] of actors)if(!ids.has(id)){entities.remove(e);actors.delete(id);}viewer.scene.requestRender();
-   },dispose(){if(disposed)return;disposed=true;pendingPick=null;handler.destroy();clearAreaPreview();clearActors();clearPlan();viewer.dataSources.remove(source,true);viewer.scene.requestRender();}};
+   },dispose(){if(disposed)return;disposed=true;marketView.dispose();pendingPick=null;handler.destroy();clearAreaPreview();clearActors();clearPlan();viewer.dataSources.remove(source,true);viewer.scene.requestRender();}};
  }
  return {create};
 });
