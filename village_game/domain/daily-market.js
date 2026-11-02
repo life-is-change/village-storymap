@@ -30,7 +30,7 @@
    if(m.admitted.size>=Scene.capacity(m.b)){leave(a,m,'capacity');return;}
    const options=m.stalls.filter(s=>s.status==='open'&&s.queue.length<s.queuePoints.length).sort((x,y)=>x.queue.length+!!x.customerId-y.queue.length-!!y.customerId||x.id.localeCompare(y.id));
    if(!options.length){if(minute<m.b.open*60+15){a._marketPhase='opening';a.marketState='waiting-opening';a.state='waiting';return;}leave(a,m,'unavailable');return;}
-   const s=options[0],slot=s.queuePoints.findIndex((p,i)=>!s.queue.some(id=>agents.find(a=>a.id===id)?._marketSlot===i));m.admitted.add(a.id);a.stallId=s.id;a._marketSlot=slot;s.queue.push(a.id);a.purchaseStatus='waiting';a._marketWait=minute;a.marketState='queueing';if(!route(a,m,s.queuePoints[slot],'queue-walk'))leave(a,m,'unreachable');
+   const s=options[0],slot=s.queuePoints.findIndex((p,i)=>!s.queue.some(id=>agents.find(a=>a.id===id)?._marketSlot===i));m.admitted.add(a.id);a.stallId=s.id;a.stallName=s.name||s.id;a._marketSlot=slot;s.queue.push(a.id);a.purchaseStatus='waiting';a._marketWait=minute;a.marketState='queueing';if(!route(a,m,s.queuePoints[slot],'queue-walk'))leave(a,m,'unreachable');
   }
   function enter(a,minute){const m=market(a);if(!m)return false;
    if(!m.layout){reject(a,'unreachable');return true;}
@@ -69,13 +69,13 @@
     if(!v||v.marketState!=='conversing'){leave(a,m,'unavailable');return true;}
     const speaker=elapsed<3?a:v,text=elapsed<3?'这些菜今天新鲜吗？':'都是今早的，给你挑这一份。';
     a.dialogue={partnerId:v.id,speakerId:speaker.id,transactionId:a._marketTransaction,text};v.dialogue={...a.dialogue,partnerId:a.id};
-    if(elapsed>=6){const tx={id:a._marketTransaction,day,minute,customerId:a.id,vendorId:v.id,householdId:a.householdId,stallId:s.id,marketId:m.b.id,produceKind:s.produceKind};transactions.push(tx);households.set(day+':'+a.householdId,tx.id);m.purchases++;a.purchaseStatus='purchased';log(a.name+'买好菜，沿村路返家。','market');leave(a,m);}
+    if(elapsed>=6){const tx={id:a._marketTransaction,day,minute,customerId:a.id,vendorId:v.id,householdId:a.householdId,stallId:s.id,stallName:s.name||s.id,marketId:m.b.id,produceKind:s.produceKind};transactions.push(tx);households.set(day+':'+a.householdId,tx.id);m.purchases++;a.purchaseStatus='purchased';log(a.name+'买好菜，沿村路返家。','market');leave(a,m);}
    }
    
    return true;
   }
   function sync(){for(const m of runtime.values()){const f=facilities[m.b.id];if(!f)continue;f.staffPresent=m.stalls.filter(s=>s.status==='open').length;f.occupancy=m.admitted?.size||0;f.peak=Math.max(f.peak,f.occupancy);f.served=transactions.filter(t=>t.marketId===m.b.id).length;}}
-  function result(){return {purchases:transactions.length,conversations,householdsSupplied:households.size,failures:{...failures},transactions:clone(transactions),markets:[...runtime.values()].map(m=>({id:m.b.id,name:m.b.name,stalls:m.stalls.length,vendors:m.stalls.filter(s=>s.vendorId).length,arrivals:arrivals.get(m.b.id)||0,todayArrivals:m.arrivals,purchases:transactions.filter(t=>t.marketId===m.b.id).length,todayPurchases:m.purchases,window:{openMinute:m.b.open*60,lastEntryMinute:m.b.marketLastEntryMinute??m.b.close*60-30,endMinute:m.b.close*60}}))};}
+  function result(){return {purchases:transactions.length,conversations,householdsSupplied:households.size,failures:{...failures},transactions:clone(transactions),markets:[...runtime.values()].map(m=>({id:m.b.id,name:m.b.name,stalls:m.stalls.length,vendors:m.stalls.filter(s=>s.vendorId).length,localVendors:m.stalls.filter(s=>s.vendorId&&!s.vendorId.startsWith('market-vendor:')).length,externalVendors:m.stalls.filter(s=>s.vendorId?.startsWith('market-vendor:')).length,arrivals:arrivals.get(m.b.id)||0,todayArrivals:m.arrivals,purchases:transactions.filter(t=>t.marketId===m.b.id).length,todayPurchases:m.purchases,window:{openMinute:m.b.open*60,lastEntryMinute:m.b.marketLastEntryMinute??m.b.close*60-30,endMinute:m.b.close*60}}))};}
   function reject(a,reason){failures[reason]=(failures[reason]||0)+1;a.marketRole=null;a.marketState='failed';finish(a,reason);}
   return {reset,enter,tick,result,sync,reject};
  }

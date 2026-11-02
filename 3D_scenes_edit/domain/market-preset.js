@@ -10,12 +10,12 @@
   const ring=field.geometry.coordinates[0],origin=ring[0],points=ring.map(p=>G.toLocalMeters(p,origin));
   const center=[(Math.min(...points.map(p=>p[0]))+Math.max(...points.map(p=>p[0])))/2,(Math.min(...points.map(p=>p[1]))+Math.max(...points.map(p=>p[1])))/2];
   const geo=([x,y])=>G.fromLocalMeters([center[0]+x,center[1]+y],origin),marketId=field.id;
-  const properties={marketId,presetVersion:VERSION};
+  const properties={marketId,siteId:field.id,presetVersion:VERSION};
   const width=Math.min(60,Math.max(...points.map(p=>p[0]))-Math.min(...points.map(p=>p[0]))),depth=Math.min(40,Math.max(...points.map(p=>p[1]))-Math.min(...points.map(p=>p[1])));
   const layout=Design.stalls(width,depth);
   if(!layout.length)return fail('早市需要至少9×10米的连续空间');
   for(const stall of layout){const envelope={type:'Polygon',coordinates:[[[-stall.width/2,-stall.depth/2],[stall.width/2,-stall.depth/2],[stall.width/2,stall.depth/2],[-stall.width/2,stall.depth/2],[-stall.width/2,-stall.depth/2]].map(p=>geo([p[0]+stall.x,p[1]+stall.y]))]};if(!G.containsGeometry(field.geometry,envelope))return fail('当前凹形场地无法容纳完整摊位，请调整场地或手动布置');}
-  const parent={...JSON.parse(JSON.stringify(field)),properties:{...field.properties,...properties,marketRole:'market',displayName:field.properties?.displayName||'村庄早市',marketGate:geo([width/2-.6,-depth/2+.4])}};
+  const parent={...JSON.parse(JSON.stringify(field)),properties:{...field.properties,...properties,siteId:null,marketRole:'market',displayName:field.properties?.displayName||'村庄早市',marketGate:geo([width/2-.6,-depth/2+.4])}};
   const objects=[parent],assetRefs=[];
   layout.forEach((stall,i)=>{const kind=stall.produceKind;
    const assetId='seed:stall:morning-'+kind+(stall.style==='canopy'?'':'-'+stall.style),asset=assets.find(a=>a.id===assetId);

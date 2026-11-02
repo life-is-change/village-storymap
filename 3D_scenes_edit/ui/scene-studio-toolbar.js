@@ -35,7 +35,7 @@
       }
       if(count&&model.mode==='2d'&&['line','surface','boundary'].includes(object?.kind)&&object?.category!=='path')actions+=button('tool','编辑节点','edit-nodes');
       if(model.mode==='2d')actions+='<details class="scene-map-options"><summary>辅助工具</summary>'+button('tool','框选对象','box-select')+button('tool','测量距离','measure')+button('tool','平移视图','pan')+'</details>';
-      guide=count?'右侧调整所选对象的参数；范围与组件独立编辑。':'从左侧依次设定范围、规划道路、放置组件，或点击已有对象编辑。';
+      guide=count?'右侧调整所选对象的参数；范围与组件独立编辑。':'从右侧选择规划范围、规划道路或放置组件，或点击已有对象编辑。';
     }
     return `<div class="scene-studio-contextual-tools" aria-label="当前场景操作"><nav class="scene-studio-tool-strip"><strong>${title}</strong><div class="scene-studio-tool-group">${actions}</div></nav><div class="scene-studio-canvas-guide" role="status"><span data-operation-guide>${escapeHtml(guide)}</span><small data-scene-status>${escapeHtml(model?.interactionStatus||"")}</small></div></div>`;
   }

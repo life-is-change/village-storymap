@@ -32,6 +32,7 @@
     site: { label: "地面与铺装", categories: ["paving", "grass", "water", "planter", "planting"] },
     planting: { label: "绿化", categories: ["tree", "shrub", "hedge"] },
     furniture: { label: "家具设施", categories: ["bench", "table", "light", "bin", "sign", "sculpture", "fitness", "play-equipment"] },
+    market: { label: "市场组件", categories: ["stall", "path"] },
     structure: { label: "构筑物", categories: ["pavilion", "pergola", "bus-stop", "stall", "stage", "structure"] },
     boundary: { label: "场内小径与围护", categories: ["path", "curb", "low-wall", "fence", "drainage"] }
   });
@@ -57,6 +58,7 @@
       mode: state?.mode || "2d",
       activeTool: state?.activeTool || "select",
       hasBoundary: !!state?.selectionBoundary,
+      placementSiteId: state?.placementSiteId || null,
       readOnly: phase === "readonly",
       banner: { level, message },
       save: {
@@ -119,7 +121,7 @@
     return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || ""}</svg>`;
   }
 
-  function renderLayers(layers) {
+  function renderLayers(layers,readOnly=false) {
     if (!layers.length) return '<p class="scene-studio-empty">暂无方案图层</p>';
     return layers.map((layer) => {
       const isDefault = layer.id === "design";
@@ -152,23 +154,27 @@
     for(const object of objects||[]){
       if(sites.some(s=>s.object.id===object.id))continue;
       if(object.kind==='line'&&object.category==='path'&&object.properties?.sceneRole!=='site-component'){roads.push(object);continue;}
+      const explicit=Object.hasOwn(object.properties||{},'siteId');
+      if(explicit){const parent=sites.find(s=>s.object.id===object.properties.siteId);if(parent)parent.children.push(object);else unassigned.push(object);continue;}
       const parents=sites.filter(s=>object.geometry&&s.object.geometry&&Geometry.containsGeometry(s.object.geometry,object.geometry)).sort((a,b)=>Geometry.measureAreaM2(a.object.geometry)-Geometry.measureAreaM2(b.object.geometry)||a.object.id.localeCompare(b.object.id));
       if(parents.length)parents[0].children.push(object);else unassigned.push(object);
     }
     return {sites,roads,unassigned};
   }
 
-  function renderSiteTree(model) {
-    const tree=model.siteTree;
-    return tree.sites.map((site,index)=>`<div class="scene-site-branch"><small>活动场地 ${index+1} · ${site.children.length} 个内部组件</small>${renderObjects([site.object],model.selectedIds)}${site.children.length?`<div class="scene-site-children">${renderObjects(site.children,model.selectedIds)}</div>`:''}</div>`).join('')+
-      (tree.roads.length?`<h4>连接道路</h4>${renderObjects(tree.roads,model.selectedIds)}`:'')+
-      (tree.unassigned.length?`<h4>未归属场地的组件</h4>${renderObjects(tree.unassigned,model.selectedIds)}`:'')+
-      (!model.sections.objects.length?'<p class="scene-studio-empty">先设定一处活动场地范围</p>':'');
+  function renderSiteTree(model,renamingId=null) {
+    const tree=model.siteTree,disabled=model.readOnly?'disabled':'';
+    const rows=objects=>objects.map(o=>'<div class="scene-tree-object">'+renderObjects([o],model.selectedIds)+'<button type="button" class="scene-rename-button" data-action="start-rename" data-value="'+escapeHtml(o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'>✎</button><input '+(renamingId===o.id?'':'hidden')+' type="text" maxlength="60" data-action="object-rename" data-value="'+escapeHtml(o.id)+'" value="'+escapeHtml(o.properties?.displayName||o.category||o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'></div>').join('');
+    return tree.sites.map(site=>'<details class="scene-site-branch" data-branch-id="'+escapeHtml(site.object.id)+'" open><summary>场地 · '+site.children.length+' 个组件</summary>'+rows([site.object])+'<div class="scene-site-children">'+rows(site.children)+'</div></details>').join('')+
+      '<details data-branch-id="roads" open><summary>连接道路 · '+tree.roads.length+'</summary>'+rows(tree.roads)+'</details>'+
+      '<details data-branch-id="independent" open><summary>独立组件 · '+tree.unassigned.length+'</summary>'+rows(tree.unassigned)+'</details>';
   }
-
+  function siteOptions(model,value) {
+    return '<option value="" '+(!value?'selected':'')+'>独立组件</option>'+model.siteTree.sites.map(s=>'<option value="'+escapeHtml(s.object.id)+'" '+(value===s.object.id?'selected':'')+'>'+escapeHtml(s.object.properties?.displayName||'未命名场地')+'</option>').join('');
+  }
   function renderAssets(groups, activeCategory, query, activeGroup = "site") {
     const entries = Object.entries(groups);
-    if (!entries.length) return '<p class="scene-studio-empty">正在载入素材…</p>';
+
     const normalizedQuery = String(query || "").trim().toLocaleLowerCase();
     const groupDefinition = ASSET_GROUPS[activeGroup] || ASSET_GROUPS.site;
     const availableCategories = entries.map(([category]) => category).filter((category) => groupDefinition.categories.includes(category));
@@ -189,6 +195,7 @@
     const transform = object.transform || {};
     const properties = object.properties || {};
     return `
+      <label>名称<input type="text" maxlength="60" data-action="property" data-path="properties.displayName" data-value-type="string" value="${escapeHtml(properties.displayName||object.category||object.id)}" ${readOnly?'disabled':''}></label>
       <dl><dt>对象</dt><dd>${escapeHtml(properties.displayName || object.category || object.id)}</dd><dt>类型</dt><dd>${escapeHtml(({asset:"组件",structure:"构筑物",surface:"场地面域",line:"线状设施"})[object.kind]||object.kind)}</dd></dl>
       ${!["line","surface"].includes(object.kind) ? `<label>朝向（°）<input type="number" data-action="property" data-path="transform.headingDeg" value="${Number(transform.headingDeg) || 0}"></label>
       <label>高度偏移（m）<input type="number" step="0.1" data-action="property" data-path="transform.heightOffsetM" value="${Number(transform.heightOffsetM) || 0}"></label>
@@ -199,7 +206,7 @@
       <label>翻滚（°）<input type="number" data-action="property" data-path="transform.rollDeg" value="${Number(transform.rollDeg) || 0}"></label>
       <label>材质标识<input type="text" data-action="property" data-value-type="string" data-path="properties.materialRef" value="${escapeHtml(properties.materialRef || "")}"></label>` : ""}
       ${object.kind === "line" ? `<label>宽度（m）<input type="number" step="0.1" min="0.05" data-action="property" data-path="properties.widthM" value="${Number(properties.widthM) || 1}"></label>` : ""}
-      ${object.category==='activity-field'?'<p class="scene-studio-empty">这是贴地的设施范围。内部组件在左侧缩进显示；移动或旋转范围只修改边界，组件位置独立保留。</p><button data-action="'+(properties.marketId?'refresh-market':'place-market')+'" '+(readOnly?'disabled':'')+'>'+(properties.marketId?'重新布置混合早市':'布置混合早市')+'</button><p class="scene-studio-empty">按场地长度安排棚摊、长摊台与地摊，建议24×12米。重新布置会替换该市场的摊位和通道，可撤销。</p>':object.kind === "surface" ? `<label>拉伸高度（m）<input type="number" step="0.05" data-action="property" data-path="properties.extrusionHeightM" value="${Number(properties.extrusionHeightM) || 0}"></label>` : ""}${selectedIds.length > 1 ? `<details class="scene-multiple-actions"><summary>多对象整理（${selectedIds.length}个）</summary><button data-action="group">成组</button><button data-action="align" data-value="left">左对齐</button><button data-action="distribute" data-value="horizontal">水平等距</button></details>` : ""}`;
+      ${object.category==='activity-field'?'<p class="scene-studio-empty">这是贴地的设施范围。内部组件在下方对象树缩进显示；移动或旋转范围只修改边界，组件位置独立保留。</p><button data-action="'+(properties.marketId?'refresh-market':'place-market')+'" '+(readOnly?'disabled':'')+'>'+(properties.marketId?'重新布置混合早市':'布置混合早市')+'</button><p class="scene-studio-empty">按场地长度安排棚摊、长摊台与地摊，建议24×12米。重新布置会替换该市场的摊位和通道，可撤销。</p>':object.kind === "surface" ? `<label>拉伸高度（m）<input type="number" step="0.05" data-action="property" data-path="properties.extrusionHeightM" value="${Number(properties.extrusionHeightM) || 0}"></label>` : ""}${selectedIds.length > 1 ? `<details class="scene-multiple-actions"><summary>多对象整理（${selectedIds.length}个）</summary><button data-action="group">成组</button><button data-action="align" data-value="left">左对齐</button><button data-action="distribute" data-value="horizontal">水平等距</button></details>` : ""}`;
   }
 
   function renderVersions(versions, comparisonIds) {
@@ -225,6 +232,7 @@
     root.setAttribute("role", "application");
     root.setAttribute("aria-label", "公共空间设计工作室");
     let activeInspector = "assets";
+    let versionsOpen=false,renamingId=null;const branchState=new Map();
     let inspectorCollapsed = false;
     let activeAssetCategory = "all";
     let activeAssetGroup = "site";
@@ -246,6 +254,8 @@
     function onClick(event) {
       const action = actionFromTarget(event.target);
       if (!action) return;
+      if(action.type === "start-rename"){renamingId=action.value;if(lastModel)renderPanel(lastModel);const input=root.querySelector?.('[data-action="object-rename"]:not([hidden])');input?.focus();input?.select();return;}
+      if(action.type === "toggle-versions"){versionsOpen=!versionsOpen;if(lastModel)renderPanel(lastModel);return;}
       if (action.type === "panel-tab") {
         activeInspector = ["assets", "properties", "versions"].includes(action.value) ? action.value : "assets";
         inspectorCollapsed = false;
@@ -281,13 +291,17 @@
         if (!updateAssetBrowser() && lastModel) renderPanel(lastModel);
         return;
       }
-      if (action?.type === "property") onAction({ ...action, value: event.target.dataset?.valueType === "string" ? event.target.value : Number(event.target.value) });
+      if (action?.type === "property" && event.target.dataset?.valueType !== "string") onAction({ ...action, value: event.target.dataset?.valueType === "string" ? event.target.value : Number(event.target.value) });
     }
     function onChange(event) {
       const action = actionFromTarget(event.target);
+      if(action?.type === "placement-site")onAction({...action,value:event.target.value||null});
+      if(action?.type === "object-rename"){renamingId=null;if(event.target.value.trim())onAction({...action,name:event.target.value.trim()});if(lastModel)renderPanel(lastModel);}
+      if(action?.type === "property" && event.target.dataset?.valueType === "string")onAction({...action,value:action.path==='properties.siteId'?(event.target.value||null):event.target.value});
       if (action?.type === "layer-rename") onAction({ ...action, name: event.target.value || "" });
     }
     function onKeydown(event) {
+      if(event.target.dataset?.action==='object-rename'&&['Enter','Escape'].includes(event.key)){event.preventDefault?.();if(event.key==='Enter')onChange(event);else{renamingId=null;if(lastModel)renderPanel(lastModel);}return;}
       const type = shortcutForEvent(event);
       if (!type) return;
       event.preventDefault?.();
@@ -308,6 +322,7 @@
               <div class="scene-header-controls">
                 <span class="scene-save-chip" data-status="${escapeHtml(model.save.status)}">${escapeHtml(model.save.label)}${model.save.revision !== null ? ` · R${escapeHtml(model.save.revision)}` : ""}</span>
                 <div class="scene-studio-mode" aria-label="二维三维视图"><button type="button" data-action="mode" data-value="2d" aria-pressed="${model.mode === "2d"}">2D 校核</button><button type="button" data-action="mode" data-value="3d" aria-pressed="${model.mode === "3d"}">3D 设计</button></div>
+                <button class="scene-header-action" type="button" data-action="toggle-versions" aria-expanded="${versionsOpen}">方案版本</button>
                 <button class="scene-header-action" type="button" data-action="toggle-inspector" aria-pressed="${!inspectorCollapsed}">${inspectorCollapsed ? "展开素材与属性" : "收起素材与属性"}</button>
 
 
@@ -318,35 +333,37 @@
             </header>
             <div class="scene-studio-banner is-${escapeHtml(model.banner.level)}" role="status">${escapeHtml(model.banner.message)}${model.phase === "conflict" ? `<div class="scene-studio-conflict"><strong>远端版本 R${escapeHtml(model.conflict?.remoteRevision ?? "?")} 与本机草稿不同</strong><button type="button" data-action="conflict-local">保留本地副本</button><button type="button" data-action="conflict-remote">载入远端版本</button><button type="button" data-action="conflict-copy">另存为新方案</button></div>` : ""}</div>
             <nav class="scene-studio-tools" aria-label="场景编辑工具" hidden></nav>
-            <aside class="scene-studio-left" aria-label="场景结构">
-              <div class="scene-panel-heading"><span>设计内容</span><small>${model.sections.objects.length} 个对象</small></div>
-              <section class="scene-create-actions" aria-label="新增内容"><h3>新增内容</h3>
-                <button data-action="draw-field" ${model.readOnly?'disabled':''}><b>① 设定范围</b><small>创建公园、广场等活动场地</small></button>
-                <button data-action="draw-road" ${model.readOnly?'disabled':''}><b>② 规划道路</b><small>连接建筑、场地与现状路网</small></button>
-                <button data-action="browse-assets" ${model.readOnly?'disabled':''}><b>③ 放置组件</b><small>在场地内添加铺装、小径、树木和家具</small></button>
-              </section>
-              <section data-panel="objects"><h3>场地与组件</h3>${renderSiteTree(model)}</section>
-              ${model.hasBoundary?`<details class="scene-local-boundary"><summary>旧版放置范围</summary><p>蓝框为原方案的组件放置范围，独立保留；不是活动场地。</p><button class="scene-object-row" data-action="select-object" data-value="selection-boundary">选择旧蓝框</button><button data-action="tool" data-value="edit-boundary" ${model.readOnly?'disabled':''}>调整蓝框顶点${model.mode==='2d'?'（进入3D）':''}</button></details>`:''}
-              <details class="scene-studio-layers" ${layersExpanded?"open":""}><summary>图层管理（高级）</summary><section data-panel="layers"><h3><span>图层</span><button class="scene-icon-button" type="button" data-action="add-layer" aria-label="添加图层" title="添加图层">${icon("plus")}</button></h3>${renderLayers(model.sections.layers)}</section></details>
-            </aside>
             <main class="scene-studio-canvas" aria-label="场景地图编辑区">${Toolbar?.renderToolbarHtml?.(model) || ""}</main>
             <aside class="scene-studio-right" aria-label="设计资源与属性">
               <nav class="scene-inspector-tabs" aria-label="右侧面板">
-                <button type="button" data-action="panel-tab" data-value="assets" aria-pressed="${activeInspector === "assets"}">添加素材</button>
-                <button type="button" data-action="panel-tab" data-value="properties" aria-pressed="${activeInspector === "properties"}">对象属性</button>
-                <button type="button" data-action="panel-tab" data-value="versions" aria-pressed="${activeInspector === "versions"}">方案版本</button>
+                <button type="button" data-action="panel-tab" data-value="assets" aria-pressed="${activeInspector === "assets"}">设计</button>
+                <button type="button" data-action="panel-tab" data-value="properties" aria-pressed="${activeInspector === "properties"}">属性</button>
+
               </nav>
               <div class="scene-inspector-body">
-                <section data-panel="assets" data-inspector-panel="assets" ${activeInspector === "assets" ? "" : "hidden"}><div class="scene-section-title"><div><h3>场地组件</h3><p>铺装、小径、围护也是组件；连接设施的道路请用左侧“规划道路”。</p></div><button type="button" data-action="upload-asset">上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></section>
-                <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderInspectorProperties(model)}</div></section>
-                <section data-panel="versions" data-inspector-panel="versions" ${activeInspector === "versions" ? "" : "hidden"}><h3>方案版本</h3><button data-action="milestone" ${model.phase === "editing" ? "" : "disabled"}>保存一个版本</button>${renderVersions(model.versions, model.comparisonIds)}</section>
+                <section data-panel="assets" data-inspector-panel="assets" ${activeInspector === "assets" ? "" : "hidden"}>
+                  <section class="scene-create-actions" aria-label="设计操作"><h3>设计</h3>
+                    <button data-action="draw-field" ${model.readOnly?'disabled':''}><b>① 规划范围</b><small>创建菜市场、公园、广场等场地</small></button>
+                    ${model.properties?.category==='activity-field'?'<button data-action="add-to-site" data-value="'+escapeHtml(model.properties.id)+'" '+(model.readOnly?'disabled':'')+'>向此范围添加组件</button>':''}
+                    <button data-action="draw-road" ${model.readOnly?'disabled':''}><b>② 规划道路</b><small>连接场地与现状道路</small></button>
+                    <button data-action="browse-assets" ${model.readOnly?'disabled':''}><b>③ 放置组件</b><small>选择组件，连续放置到地图</small></button>
+                  </section>
+                  <label>添加到<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></section>
+                <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderInspectorProperties(model)}${model.properties&&!['boundary'].includes(model.properties.kind)&&model.properties.category!=='activity-field'?'<label>所属范围<select data-action="property" data-path="properties.siteId" data-value-type="string" '+(model.readOnly?'disabled':'')+'>'+siteOptions(model,model.properties.properties?.siteId)+'</select></label>':''}</div></section>
+
               </div>
+              <section class="scene-object-dock" aria-label="图层与对象"><div class="scene-panel-heading"><span>图层与对象</span><small>${model.sections.objects.length} 个对象</small></div><section data-panel="objects">${renderSiteTree(model,renamingId)}</section>
+                ${model.hasBoundary?`<details class="scene-local-boundary"><summary>旧版放置范围</summary><button data-action="select-object" data-value="selection-boundary">选择旧蓝框</button></details>`:''}
+                <details class="scene-studio-layers" ${layersExpanded?'open':''}><summary>图层管理</summary><section data-panel="layers"><button data-action="add-layer" ${model.readOnly?'disabled':''}>添加图层</button>${renderLayers(model.sections.layers,model.readOnly)}</section></details>
+              </section>
             </aside>
+            <section class="scene-versions-popover" data-panel="versions" ${versionsOpen?'':'hidden'} aria-label="方案版本"><div class="scene-section-title"><h3>方案版本</h3><button data-action="toggle-versions">关闭</button></div><button data-action="milestone" ${model.phase==='editing'?'':'disabled'}>保存一个版本</button>${renderVersions(model.versions,model.comparisonIds)}</section>
             <footer class="scene-studio-footer">
               <div class="scene-history-actions"><button type="button" data-action="undo" ${model.canUndo ? "" : "disabled"}>撤销</button><button type="button" data-action="redo" ${model.canRedo ? "" : "disabled"}>重做</button></div>
               <div class="scene-studio-save"><span data-scene-save-status>当前方案自动保存 · ${escapeHtml(model.save.label)}；Esc 返回选择</span></div>
             </footer>
           </div>`;
+        for(const el of root.querySelectorAll?.("[data-branch-id]")||[])if(branchState.has(el.dataset.branchId))el.open=branchState.get(el.dataset.branchId);
         options.onRendered?.(model, root);
     }
 

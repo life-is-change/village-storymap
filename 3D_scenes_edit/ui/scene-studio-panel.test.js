@@ -11,7 +11,7 @@ test('sites contain components while circulation and legacy range remain separat
  const tree=Panel.buildSiteTree(objects);assert.deepEqual(tree.sites[0].children.map(o=>o.id),['bench','garden-path']);assert.deepEqual(tree.roads.map(o=>o.id),['road']);
  const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){}};
  const panel=Panel.createSceneStudioPanel({root});panel.render(Panel.buildViewModel({phase:'editing',mode:'3d',objects,selectionBoundary:polygon(113,23,.001),selectedIds:['selection-boundary']}));
- assert.match(root.innerHTML,/设定范围/);assert.match(root.innerHTML,/规划道路/);assert.match(root.innerHTML,/旧版放置范围/);assert.doesNotMatch(root.innerHTML,/拉伸高度/);
+ assert.match(root.innerHTML,/规划范围/);assert.match(root.innerHTML,/规划道路/);assert.match(root.innerHTML,/旧版放置范围/);assert.doesNotMatch(root.innerHTML,/拉伸高度/);
  assert.match(root.innerHTML,/data-action="rotate-geometry"/);
 });
 
@@ -150,7 +150,7 @@ test("editor groups scene structure and switches one inspector panel at a time",
     assets: [{ id: "bench", kind: "asset", category: "bench", label: "木座椅" }]
   }));
 
-  assert.match(root.innerHTML, /aria-label="场景结构"/);
+  assert.match(root.innerHTML, /aria-label="图层与对象"/);
   assert.match(root.innerHTML, /class="scene-studio-layer-name"[^>]*>方案要素/);
   assert.match(root.innerHTML, /默认图层/);
   assert.doesNotMatch(root.innerHTML, /data-action="layer-delete" data-value="design"/);
@@ -345,4 +345,22 @@ test("conflict state offers exactly the three explicit recovery choices and vers
   assert.match(root.innerHTML, /在2D叠加对比/);
   assert.match(root.innerHTML, /data-action="restore-version"/);
   assert.match(root.innerHTML, /data-action="submit-version"/);
+});
+
+test('explicit independent ownership wins over containment and assigned ownership survives geometry edits',()=>{
+ const field={id:'site',kind:'surface',category:'activity-field',geometry:{type:'Polygon',coordinates:[[[113,23],[114,23],[114,24],[113,24],[113,23]]]},properties:{displayName:'村口早市'}};
+ const inside={id:'free',kind:'asset',geometry:{type:'Point',coordinates:[113.5,23.5]},properties:{siteId:null}};
+ const outside={id:'owned',kind:'asset',geometry:{type:'Point',coordinates:[115,25]},properties:{siteId:'site'}};
+ const tree=Panel.buildSiteTree([field,inside,outside]);assert.deepEqual(tree.sites[0].children.map(o=>o.id),['owned']);assert.deepEqual(tree.unassigned.map(o=>o.id),['free']);
+});
+test('workspace has only right sidebar, design/property tabs, top versions and collapsible named objects',()=>{
+ const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){}};const panel=Panel.createSceneStudioPanel({root});
+ panel.render(Panel.buildViewModel({phase:'editing',objects:[{id:'site',kind:'surface',category:'activity-field',properties:{displayName:'村口早市'}}],selectedIds:['site']}));
+ assert.doesNotMatch(root.innerHTML,/<aside class="scene-studio-left"/);assert.match(root.innerHTML,/data-action="toggle-versions"/);assert.match(root.innerHTML,/>设计</);assert.match(root.innerHTML,/>属性</);assert.match(root.innerHTML,/data-action="add-to-site"/);assert.match(root.innerHTML,/data-branch-id="site"/);assert.match(root.innerHTML,/data-action="object-rename"/);assert.match(root.innerHTML,/市场组件/);
+});
+
+test('Enter commits object rename without relying on a browser blur change event',()=>{
+ const listeners={},actions=[],root={innerHTML:'',setAttribute(){},addEventListener(n,fn){listeners[n]=fn;},removeEventListener(){}};
+ Panel.createSceneStudioPanel({root,onAction:a=>actions.push(a)});
+ const target={dataset:{action:'object-rename',value:'site'},value:'村口早市',blur(){},closest(){return this;}};listeners.keydown({key:'Enter',target,preventDefault(){}});assert.equal(actions[0]?.type,'object-rename');assert.equal(actions[0]?.name,'村口早市');
 });

@@ -8,6 +8,7 @@
     { "id": "seed:planter:brick", "kind": "surface", "category": "planter", "label": "砖砌花坛", "footprintM": [2, 1], "defaultHeightM": 0.45, "renderer": "extruded-surface" },
     { "id": "seed:planting:mixed", "kind": "surface", "category": "planting", "label": "混合种植区", "footprintM": [3, 2], "defaultHeightM": 0.2, "renderer": "surface" },
     { "id": "seed:activity-field:flex", "kind": "surface", "category": "activity-field", "label": "活动场地", "footprintM": [8, 6], "defaultHeightM": 0.05, "renderer": "surface" },
+    { "id": "seed:path:morning-market", "kind": "line", "category": "path", "label": "早市通道", "footprintM": [2, 4], "defaultHeightM": 0.04, "renderer": "wide-line", "sceneRole": "site-component" },
     { "id": "seed:path:gravel", "kind": "line", "category": "path", "label": "碎石步道", "footprintM": [1.5, 4], "defaultHeightM": 0.04, "renderer": "wide-line" },
     { "id": "seed:curb:stone", "kind": "line", "category": "curb", "label": "石质路缘", "footprintM": [0.15, 4], "defaultHeightM": 0.15, "renderer": "extruded-line" },
     { "id": "seed:low-wall:brick", "kind": "line", "category": "low-wall", "label": "砖砌矮墙", "footprintM": [0.3, 4], "defaultHeightM": 0.8, "renderer": "extruded-line" },

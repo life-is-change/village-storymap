@@ -208,7 +208,7 @@
    if(!market||!marketObject?.properties?.marketId||field?.geometry.type!=='Polygon')errors.push('请将已布置早市的活动场地定义为村庄早市');
    else{
     const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
-    const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
+    const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,name:o.properties.displayName||o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
     if(stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
     const localField={type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},components=[];
     const intersectsField=ring=>Geometry.intersectsAny(localField,[{type:'Polygon',coordinates:[ring]}]);

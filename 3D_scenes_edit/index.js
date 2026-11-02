@@ -97,7 +97,7 @@
         kind: asset.kind === "structure" ? "structure" : "asset",
         category: asset.category,
         geometry,
-        properties: { assetRef: asset.id, displayName: asset.label || asset.displayName, footprintM: asset.footprintM || [1, 1], heightM: asset.defaultHeightM || 0 }
+        properties: { ...(asset.category==='stall'?{produceKind:asset.id.includes('fruit')?'fruit':asset.id.includes('tofu')?'tofu':'vegetables'}:{}), assetRef: asset.id, displayName: asset.label || asset.displayName, footprintM: asset.footprintM || [1, 1], heightM: asset.defaultHeightM || 0 }
       };
     }
     return null;
@@ -130,6 +130,7 @@
     const lifecycle = options.lifecycle;
     const refreshed = result => { options.onSelectionChange?.();return result; };
     return async function dispatch(action) {
+      if(options.isReadOnly?.()&&!['mode','select-object','inspect-properties','compare-version','close','cancel'].includes(action.type))return {ok:false,code:'READ_ONLY'};
       if (action.type === "tool") {
         controller.setTool(action.value);
         return lifecycle.activateTool?.(action.value);
@@ -153,6 +154,9 @@
       if (action.type === "layer-visible") return controller.toggleLayerVisible(action.value);
       if (action.type === "layer-lock") return controller.toggleLayerLocked(action.value);
       if (action.type === "add-layer") return controller.addLayer();
+      if(action.type === "placement-site"){const r=controller.setPlacementSite(action.value);options.onSelectionChange?.();return r;}
+      if(action.type === "add-to-site"){controller.setPlacementSite(action.value);return lifecycle.browseAssets(false);}
+      if(action.type === "object-rename"){controller.select([action.value]);return refreshed(controller.updateSelection({properties:{displayName:String(action.name||'').trim().slice(0,80)}}));}
       if (action.type === "layer-rename") return controller.renameLayer(action.value, action.name);
       if (action.type === "layer-delete") return controller.deleteLayer(action.value);
       if (action.type === "inspect-properties") return lifecycle.inspectProperties?.();
@@ -194,7 +198,7 @@
   async function loadSeedAssets(fetchImpl) {
     if (!fetchImpl) return [];
     try {
-      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261102-daily1");
+      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261102-studio2");
       if (!response.ok) return [];
       return (await response.json()).assets || [];
     } catch (_error) {
@@ -311,7 +315,7 @@
       const selectedObject = document.objects.find((object) => state.selectedIds.includes(object.id)) || null;
       return Panel.buildViewModel({
         phase: phase(), title: context.title || "公共空间方案", mode, activeTool: state.tool,
-        selectedIds: state.selectedIds, selectedObject, layers: document.layers, objects: document.objects,
+        placementSiteId: state.placementSiteId, selectedIds: state.selectedIds, selectedObject, layers: document.layers, objects: document.objects,
         selectionBoundary: document.selectionBoundary,
         assets, canUndo: state.canUndo, canRedo: state.canRedo, saveStatus: autosave.getState().status,
         revision: document.revision, updatedAt: document.updatedAt,
@@ -492,7 +496,7 @@
         if(mode==='3d')interactionBridge?.activate?.('draw-surface');else mapInteractionBridge?.activate?.('draw-surface');
         interactionStatus='点击地图勾画一处场地范围，再点上方“完成绘制”。';render();panel.showProperties?.();return {ok:true};
       },
-      browseAssets() { lifecycle.cancel();interactionStatus='从右侧选一个组件，再点击地图放置；可连续放置，完成后点“结束放置”。';render();panel.showAssets?.('furniture'); },
+      browseAssets(infer=true) { if(infer){const st=controller.getState(),field=st.document.objects.find(o=>st.selectedIds.includes(o.id)&&o.category==='activity-field');if(field)controller.setPlacementSite(field.id);}lifecycle.cancel();interactionStatus='从右侧选一个组件，再点击地图放置；可连续放置，完成后点“结束放置”。';render();panel.showAssets?.(); },
       async editShape() { controller.setTool('edit-nodes');await lifecycle.switchMode('2d');mapInteractionBridge?.activate?.('edit-nodes');interactionStatus='点击需要修改的线或面，再拖动节点。完成后点“结束编辑”。';render();panel.showProperties?.(); },
       async moveShape() { controller.setTool('move');await lifecycle.switchMode('2d');interactionStatus='拖动所选范围或道路；范围与组件位置独立修改。';render();panel.showProperties?.(); },
       editRoad() {
@@ -523,7 +527,7 @@
           if (!api) {
             if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
               const script = globalThis.document.createElement("script");
-              script.src = "village_game/integration/loader.js?v=20261102-daily1";
+              script.src = "village_game/integration/loader.js?v=20261102-studio2";
               script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
               globalThis.document.head.appendChild(script);
             });
@@ -559,6 +563,7 @@
       selectObject(id) {
         enterPropertyInspection();
         controller.select(id ? [id] : []);
+        const selected=controller.getState().document.objects.find(o=>o.id===id);if(selected?.category==='activity-field')controller.setPlacementSite(id);
         return updateSelectionUI(undefined, true);
       },
       inspectProperties() { return enterPropertyInspection(); },
@@ -717,7 +722,8 @@
       cancel() { activeAsset=null;interactionStatus="已返回选择；已完成的对象保留，可用撤销退回。";controller.setTool("select"); if (mode === "3d") interactionBridge?.activate?.("select"); else mapInteractionBridge?.activate?.("select"); render(); },
       close() { options.onClose?.(); }
     };
-    const dispatchAction = createActionDispatcher({ controller, lifecycle, getAssets: () => assets, onSelectionChange: render });
+    controller.setPlacementSite(null);
+    const dispatchAction = createActionDispatcher({ controller, lifecycle, isReadOnly:()=>phase()==='readonly', getAssets: () => assets, onSelectionChange: render });
     const dispatch = action => simulationWorkspace ? { ok: false, code: "SIMULATION_ACTIVE" } : dispatchAction(action);
     const dispose = () => { studioDisposed = true; simulationWorkspace?.dispose?.(); simulationWorkspace = null; options.root.classList?.remove("simulation-active"); autosave.dispose(); comparisonAdapters.forEach((item) => item.dispose()); previewAdapter?.dispose?.(); interactionBridge?.dispose?.(); mapInteractionBridge?.dispose?.(); controller.dispose(); panel.dispose(); options.services?.dispose?.(); };
     try {

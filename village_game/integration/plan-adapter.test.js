@@ -167,3 +167,9 @@ test('nonblocking rotated components remain editable but become real market obst
 
 test('a fresh large-village config retains 235 roads and can be edited before area clipping',()=>{const f=fixture();for(let i=1;i<235;i++)f.context.baselineFeatures.push({id:'additional-'+i,layerKey:'road',properties:{},geometry:{type:'LineString',coordinates:[[113,23+i*.000001],[113.001,23+i*.000001]]}});const c=A.createConfig(f.document,f.context);assert.equal(c.roads.length,235);assert.equal(A.validateConfig(c).ok,true,'a fresh config must allow choosing its simulation area without silently removing roads');});
 test('platform road object count follows its 800-segment cap while standalone scenes keep their original cap',()=>{const s=Scene.createLivingVillage();s.source.kind='platform';s.roads=Array.from({length:235},(_,i)=>({id:'many-road-'+i,name:'村路 '+i,kind:'path',width:2,points:[[10,10+i],[20,10+i]]}));assert.equal(Scene.validate(s).ok,true,JSON.stringify(Scene.validate(s).errors));s.source.kind='fictional';assert.equal(Scene.validate(s).ok,false);});
+
+test('renamed scene fields and stalls keep their display names in daily simulation',()=>{
+ const f=require('./tests/market-fixture').marketFixture();delete f.cfg.morningMarket.mode;
+ const field=f.document.objects.find(o=>o.properties.marketRole==='market'),stall=f.document.objects.find(o=>o.properties.marketRole==='stall');field.properties.displayName='村口早市';stall.properties.displayName='阿婆鲜果';
+ const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,true,JSON.stringify(r.errors));const b=r.scene.buildings.find(b=>b.type==='market');assert.equal(b.name,'村口早市');assert.equal(r.scene.marketLayouts[b.id].stalls.find(s=>s.id===stall.id).name,'阿婆鲜果');
+});

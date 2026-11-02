@@ -258,3 +258,17 @@ test("selection uses the adapter fast path without rebuilding every map feature"
   assert.equal(renders, 1);
   assert.deepEqual(selections, [["o1"]]);
 });
+
+test('explicit placement ownership persists, rejects outside site and supports independent placement',()=>{
+ const {controller:c}=createController({withoutBoundary:true});const field=c.createObject({kind:'surface',category:'activity-field',geometry:square()}).object;
+ c.setPlacementSite(field.id);const p={kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.3001,30.5001]}};
+ const a=c.createObject(p);assert.equal(a.object.properties.siteId,field.id);
+ assert.equal(c.createObject({...p,geometry:{type:'Point',coordinates:[114.302,30.502]}}).code,'OUTSIDE_SITE');
+ c.setPlacementSite(null);const b=c.createObject(p);assert.equal(b.object.properties.siteId,null);
+ c.select([a.object.id]);assert.equal(c.updateSelection({properties:{siteId:null,displayName:'街边座椅'}}).ok,true);assert.equal(c.getState().document.objects.find(o=>o.id===a.object.id).properties.displayName,'街边座椅');c.undo();assert.equal(c.getState().document.objects.find(o=>o.id===a.object.id).properties.siteId,field.id);
+ c.setLayerLocked('design',true);assert.equal(c.createObject(p).code,'LAYER_LOCKED');
+});
+
+test('independent components can be placed outside the legacy blue range but stay inside the village',()=>{
+ const {controller:c}=createController();c.setPlacementSite(null);const p={kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.302,30.502]}};assert.equal(c.createObject(p).ok,true);assert.equal(c.createObject({...p,geometry:{type:'Point',coordinates:[114.4,30.6]}}).ok,false);
+});

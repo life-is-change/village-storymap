@@ -76,6 +76,7 @@
     let selectedIds = [];
     let tool = "select";
     let errorIds = [];
+    let placementSiteId;
 
     function render() {
       adapter.render(history.present, { selectedIds, errorIds, tool });
@@ -107,7 +108,13 @@
       return snapPathEndpoints(geometry, [...(options.baselineRoads || []), ...history.present.objects.filter(o => o.id !== object.id && isPath(o)).map(o => o.geometry)], rules);
     }
     function checkBoundary(object, geometry) {
-      const villagePath = (isPath(object) || isField(object)) && villageBoundary;
+      const siteId = object.properties?.siteId;
+      if (siteId) {
+        const site = history.present.objects.find(o => o.id === siteId && isField(o));
+        if (!site || !rules.containsGeometry(site.geometry, geometry)) return {code:'OUTSIDE_SITE',message:'组件超出所选场地，请移回范围内或将归属改为独立组件'};
+        if (layerFor(site.layerId)?.locked) return {code:'LAYER_LOCKED',message:'所属场地图层已锁定'};
+      }
+      const villagePath = (isPath(object) || isField(object) || Object.hasOwn(object.properties||{},'siteId')&&object.properties.siteId===null) && villageBoundary;
       const boundary = villagePath || history.present.selectionBoundary;
       if (!villagePath && history.present.objects.some(o => isField(o) && rules.containsGeometry(o.geometry, geometry))) return null;
       if (boundary && !rules.containsGeometry(boundary, geometry)) return villagePath
@@ -117,8 +124,11 @@
     }
 
     function createObject(input) {
+      if (placementSiteId !== undefined && !isPath(input) && !isField(input)) input = {...input,properties:{siteId:placementSiteId,...input.properties}};
       const layerId = isPath(input) ? 'circulation' : input.layerId || "design";
       if (layerFor(layerId)?.locked) return reject("LAYER_LOCKED", "图层已锁定");
+      const site=history.present.objects.find(o=>o.id===input.properties?.siteId&&o.properties?.marketId===o.id);
+      if(site&&['stall','path'].includes(input.category))input={...input,properties:{...input.properties,marketId:site.id,marketRole:input.category==='stall'?'stall':'aisle',sceneRole:'site-component'}};
       const geometry = prepareGeometry(input, input.geometry), boundaryError = checkBoundary(input, geometry);
       if (boundaryError) return reject(boundaryError.code, boundaryError.message);
       const object = {
@@ -172,6 +182,12 @@
         const valid = SceneDocument.validateObject({ ...object, ...patch, geometry });
         if (!valid.ok) return reject('INVALID_OBJECT', valid.errors.join('; '), object.id);
         patch = { ...patch, geometry };
+      }
+      for (const id of editable) {
+        const object=history.present.objects.find(o=>o.id===id);
+        const updated={...object,...patch,properties:{...object.properties,...patch.properties}};
+        const error=checkBoundary(updated,updated.geometry);
+        if(error)return reject(error.code,error.message,id);
       }
       apply({ type: "updateObjects", ids: editable, patch });
       return { ok: true };
@@ -236,6 +252,10 @@
 
     render();
     return {
+      setPlacementSite(id) {
+        if(id && !history.present.objects.some(o=>o.id===id&&isField(o)))return reject('INVALID_SITE','请选择有效场地');
+        placementSiteId=id||null;return {ok:true,siteId:placementSiteId};
+      },
       setTool(nextTool) { if (!TOOLS.includes(nextTool)) throw new Error(`Unknown tool: ${nextTool}`); tool = nextTool; render(); },
       createObject,
       placeMorningMarket(assets, options={}) {
@@ -325,7 +345,7 @@
       },
       undo,
       redo,
-      getState: () => ({ document: history.present, selectedIds: selectedIds.slice(), tool, errorIds: errorIds.slice(), canUndo: history.past.length > 0, canRedo: history.future.length > 0 }),
+      getState: () => ({ document: history.present, placementSiteId, selectedIds: selectedIds.slice(), tool, errorIds: errorIds.slice(), canUndo: history.past.length > 0, canRedo: history.future.length > 0 }),
       dispose() { adapter.dispose?.(); }
     };
   }
