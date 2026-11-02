@@ -216,6 +216,10 @@ test('camera motion reuses stationary model terrain height and tile completion r
   const before = samples;
   for (let i = 0; i < 30; i++) h.change();
   assert.equal(samples, before, 'camera changes must not ray-pick terrain for stationary objects');
+  height = 49;
+  for (const fn of tileListeners) fn(7);
+  assert.equal(primitive.modelMatrix.position.z, 52,
+    'loaded terrain must update models even while other imagery or terrain tiles remain pending');
   height = 52;
   for (const fn of tileListeners) fn(0);
   assert.equal(primitive.modelMatrix.position.z, 55);

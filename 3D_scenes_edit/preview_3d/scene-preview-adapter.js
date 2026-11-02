@@ -220,8 +220,11 @@
     function updateResidency() {
       if (!disposed && residency) residency.update(viewportCandidates());
     }
-    function refreshTerrain(remaining) {
-      if (disposed || (typeof remaining === 'number' && remaining > 0)) return;
+    function refreshTerrain() {
+      // Loaded tiles can already refine the ground while unrelated tiles remain
+      // pending. Waiting for the entire globe queue to empty leaves models at
+      // stale heights, especially with streaming imagery.
+      if (disposed) return;
       terrainRevision++;
       updateResidency();
       viewer.scene?.requestRender?.();
