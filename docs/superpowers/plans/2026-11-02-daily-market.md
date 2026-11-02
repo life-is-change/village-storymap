@@ -1,6 +1,6 @@
 # 村庄日常早市实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 在真实和虚拟村庄的完整一天内运行具有真实尺度的乡村早市。
 
@@ -29,28 +29,28 @@
 
 Files: village_game/domain/market-design.js及测试；views/catalog.js及测试；3D_scenes_edit/domain/market-preset.js及测试；assets/market生成器与模型。
 Interfaces: MarketDesign.stalls(width,depth)返回{id,x,y,width,depth,height,style,produceKind,headingDeg}[]；Catalog.structure消费相同数据。
-- [ ] 先测试不同尺寸数量变化、三种摊型、边界和开放市场无建筑体积，确认失败。
-- [ ] 实现共用布局和多种高度的细节模型；真实预设引用相同尺寸与摊型。
-- [ ] 运行布局、模型、目录和预设检查，通过后提交。
+- [x] 先测试不同尺寸数量变化、三种摊型、边界和开放市场无建筑体积，确认失败。
+- [x] 实现共用布局和多种高度的细节模型；真实预设引用相同尺寸与摊型。
+- [x] 运行布局、模型、目录和预设检查，通过后提交。
 
 ### Task 2: 全日人物与早市行为
 
 Files: domain/daily-market.js及测试、schedule.js、life.js、simulation.js、observation.js。
 Interfaces: DailyMarket.create({scene,agents,move,finish,path,log})；reset(day)、enter(agent,minute)、tick(agent,minute)、result()；不创建人物或推进时钟。Schedule生成market-vendor和market-shop任务。
-- [ ] 先测试同人口、06—24时、早餐后买菜、交流后返家及继续作息、多天重置、缺经营者与断路，确认失败。
-- [ ] 在Life任务状态机接入控制器，实际路径穿过入口与场内避障；购买计入家庭与市场摘要。
-- [ ] 运行全日、家庭、学校、确定性和早市回归，通过后提交。
+- [x] 先测试同人口、06—24时、早餐后买菜、交流后返家及继续作息、多天重置、缺经营者与断路，确认失败。
+- [x] 在Life任务状态机接入控制器，实际路径穿过入口与场内避障；购买计入家庭与市场摘要。
+- [x] 运行全日、家庭、学校、确定性和早市回归，通过后提交。
 
 ### Task 3: 两个平台的日常入口、绘制与保存
 
 Files: app.js、index.html、domain/scene.js、views/scene3d.js、integration/plan-adapter.js、workspace.js、session.js、loader.js及相关测试、根index.html。
 Interfaces: 编译真实市场为dailyMarkets描述并交给Life；工作区保留完整周期结果并附带市场摘要；虚拟主视图绘制混合市场并支持定位。
-- [ ] 先测试启用市场不改人口/天数/游客、无独立实验按钮、旧保存市场使用开放模型，确认失败。
-- [ ] 删除产品的独立早市入口，配置内嵌市场；补充默认市场和早市观察时段，不覆盖保存设计。
-- [ ] 运行完整npm test、两种场景浏览器实测，记录结果。
+- [x] 先测试启用市场不改人口/天数/游客、无独立实验按钮、旧保存市场使用开放模型，确认失败。
+- [x] 删除产品的独立早市入口，配置内嵌市场；补充默认市场和早市观察时段，不覆盖保存设计。
+- [x] 运行完整npm test、两种场景浏览器实测，记录结果。
 
 ### Task 4: 复核与发布
 
-- [ ] 一次独立整体代码复核，修复重要问题并运行回归。
-- [ ] 固定提交、哈希预检、备份和可回滚发布；不得覆盖线上方案或服务器专用配置。
-- [ ] 正式页面核验两个入口、尺寸、买菜后继续生活；记录发布版本与验证边界。
+- [x] 一次独立整体代码复核，修复重要问题并运行回归。
+- [x] 固定提交、哈希预检、备份和可回滚发布；不得覆盖线上方案或服务器专用配置。
+- [x] 正式页面核验两个入口、尺寸、买菜后继续生活；记录发布版本与验证边界。
