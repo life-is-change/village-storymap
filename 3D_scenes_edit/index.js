@@ -174,6 +174,7 @@
       if (action.type === "milestone") return lifecycle.createMilestone();
       if (action.type === "simulation") return lifecycle.openSimulation();
       if (action.type === "draw-road") return lifecycle.drawRoad();
+      if (action.type === "refresh-market") return refreshed(controller.placeMorningMarket(options.getAssets?.(),{replace:true}));
       if (action.type === "place-market") return refreshed(controller.placeMorningMarket(options.getAssets?.()));
       if (action.type === "draw-field") return lifecycle.drawField();
       if (action.type === "browse-assets") return lifecycle.browseAssets();
@@ -193,7 +194,7 @@
   async function loadSeedAssets(fetchImpl) {
     if (!fetchImpl) return [];
     try {
-      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261101-market1");
+      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261102-daily1");
       if (!response.ok) return [];
       return (await response.json()).assets || [];
     } catch (_error) {
@@ -522,7 +523,7 @@
           if (!api) {
             if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
               const script = globalThis.document.createElement("script");
-              script.src = "village_game/integration/loader.js?v=20261101-market1";
+              script.src = "village_game/integration/loader.js?v=20261102-daily1";
               script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
               globalThis.document.head.appendChild(script);
             });

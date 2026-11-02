@@ -238,18 +238,18 @@
     return {
       setTool(nextTool) { if (!TOOLS.includes(nextTool)) throw new Error(`Unknown tool: ${nextTool}`); tool = nextTool; render(); },
       createObject,
-      placeMorningMarket(assets) {
+      placeMorningMarket(assets, options={}) {
         const field = selectedIds.length === 1 && history.present.objects.find(o => o.id === selectedIds[0]);
         if (!field || !isField(field)) return reject('MARKET_FIELD_REQUIRED', '请先选择一个活动场地，再布置早市');
         if (layerFor(field.layerId)?.locked) return reject('LAYER_LOCKED', '图层已锁定');
         const boundaryError = checkBoundary(field, field.geometry);
         if (boundaryError) return reject(boundaryError.code, boundaryError.message);
         if (rules.intersectsAny(field.geometry, baselineBuildings)) return reject('BASELINE_COLLISION', '早市场地与现状建筑相交，请调整范围');
-        if (history.present.objects.some(o => o.id !== field.id && rules.containsGeometry(field.geometry, o.geometry))) return reject('MARKET_OCCUPIED', '场地内已有组件，请先移开后布置早市');
-        const preset = MarketPreset.createMarketPreset({field, idPrefix:idFactory(), assets});
+        if (history.present.objects.some(o => o.id !== field.id && !(options.replace&&o.properties?.marketId===field.id&&['stall','aisle'].includes(o.properties?.marketRole)) && rules.containsGeometry(field.geometry, o.geometry))) return reject('MARKET_OCCUPIED', '场地内已有组件，请先移开后布置早市');
+        const preset = MarketPreset.createMarketPreset({field:options.replace?{...field,properties:{...field.properties,marketId:undefined}}:field, idPrefix:idFactory(), assets});
         if (!preset.ok) return reject('INVALID_MARKET', preset.errors.join('；'));
-        apply(preset.command);
-        onStatus({level:'info',message:'早市已布置：6个摊位、入口和通道；可逐个调整组件'});
+        apply({...preset.command,replace:!!options.replace});
+        onStatus({level:'info',message:'混合早市已布置：棚摊、长摊台与地摊按米排列；可逐个调整，撤销可恢复原布置'});
         return {ok:true,marketId:preset.marketId};
       },
       setSimulationConfig(config) { apply({ type: "setSimulation", config }); return { ok: true }; },

@@ -14,7 +14,7 @@ test('morning preparation starts at six and both farm lunch chains include a rea
  const sim=Sim.createSimulation(s),seen=Object.fromEntries([home,packed].map(p=>[p.id,new Set()])),last={};
  for(let m=360;m<1030;m++){const snap=sim.snapshot();for(const p of [home,packed]){const a=snap.agents.find(a=>a.id===p.id);assert.ok(a.lunchPlan?.reason);if(a.state==='eating'&&a.need==='lunch')seen[p.id].add('eat:'+a.node);if(a.state==='resting')seen[p.id].add('rest:'+a.node);if(a.state==='working'&&m>810)seen[p.id].add('afternoon');if(last[a.id])assert.ok(Math.hypot(a.x-last[a.id].x,a.y-last[a.id].y)<=a.speed+.01,'physical position must not jump');last[a.id]={x:a.x,y:a.y};}sim.step(1);}
  assert.ok(seen[home.id].has('eat:'+bindings.homes[home.householdId]));assert.ok(seen[packed.id].has('eat:'+bindings.jobs[packed.id]));for(const p of [home,packed]){assert.ok([...seen[p.id]].some(v=>v.startsWith('rest:')));assert.ok(seen[p.id].has('afternoon'));}
- assert.equal(sim.result().behaviorVersion,5);
+ assert.equal(sim.result().behaviorVersion,6);
 });
 test('farm packed meals cannot succeed without household preparation',()=>{
  const s=Scene.createIdealVillage(),b=Schedule.bind(s),p=s.people.find(p=>p.job==='farm'&&b.farmLunch?.[p.id]?.mode==='packed');assert.ok(p);const h=s.households.find(h=>h.id===p.householdId);for(const id of h.members){const q=s.people.find(p=>p.id===id);if(q.age>=18)q.mobility=.6;}const sim=Sim.createSimulation(s);sim.step(470);const a=sim.snapshot().agents.find(a=>a.id===p.id);assert.ok(a.history.some(t=>t.need==='lunch'&&t.reason==='household'));

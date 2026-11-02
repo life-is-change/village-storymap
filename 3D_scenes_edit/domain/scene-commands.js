@@ -34,14 +34,15 @@
       next.metadata = { ...next.metadata, simulation: SceneDocument.clone(command.config) };
     } else if (type === "addMarketPreset") {
       const field = next.objects.find(o => o.id === command.fieldId);
-      if (!field || field.properties?.marketId || !Array.isArray(command.objects)) throw Error('Invalid market preset field');
-      const ids = new Set(next.objects.filter(o => o.id !== field.id).map(o => o.id));
+      if (!field || field.properties?.marketId&&!command.replace || !Array.isArray(command.objects)) throw Error('Invalid market preset field');
+      const removed=o=>o.id===field.id||command.replace&&o.properties?.marketId===field.id&&['stall','aisle'].includes(o.properties?.marketRole);
+      const ids = new Set(next.objects.filter(o => !removed(o)).map(o => o.id));
       for (const object of command.objects) {
         if (ids.has(object.id) || !SceneDocument.validateObject(object).ok) throw Error('Invalid or duplicate market object');
         ids.add(object.id);
       }
       if (!command.objects.some(o => o.id === field.id)) throw Error('Market field missing');
-      next.objects = [...next.objects.filter(o => o.id !== field.id), ...SceneDocument.clone(command.objects)];
+      next.objects = [...next.objects.filter(o => !removed(o)), ...SceneDocument.clone(command.objects)];
       next.assetRefs = [...new Set([...(next.assetRefs || []), ...(command.assetRefs || [])])];
     } else if (type === "addObject") {
       if (command.layer && !next.layers.some(layer => layer.id === command.layer.id)) next.layers.push(SceneDocument.clone(command.layer));

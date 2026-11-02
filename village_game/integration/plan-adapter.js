@@ -3,14 +3,14 @@
  if(common)module.exports=api;if(root)root.VillagePlanAdapter=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Population,Network,Geometry,Schedule,Area,MarketLayout){
  'use strict';
- const RULE_VERSION='platform-village-5',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
+ const RULE_VERSION='platform-village-6-daily-market',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
  const capLimit=type=>Scene.TYPES[type]?.limit||({home:12,inn:32,food:60,park:80,attraction:60})[type]||40;
  const coordinate=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=85;
  function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
  function shortId(text){let n=2166136261;for(const c of text)n=Math.imul(n^c.charCodeAt(0),16777619);return (n>>>0).toString(16);}
  async function digest(value){const bytes=new TextEncoder().encode(stable(value)),hash=await globalThis.crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('');}
  function assignment(key,type='home'){
-  const t=Scene.TYPES[type];return {key,type,capacity:t?.defaultCapacity||4,staff:['home','farm','park','attraction','play','ancestral'].includes(type)?0:1,open:type==='inn'?0:6,close:22,attraction:50,components:[]};
+  const t=Scene.TYPES[type];return {key,type,capacity:t?.defaultCapacity||4,staff:type==='market'?3:['home','farm','park','attraction','play','ancestral'].includes(type)?0:1,open:type==='market'?6.5:type==='inn'?0:6,close:type==='market'?10:22,attraction:50,components:[]};
  }
  function catalog(document,context){
   const items=[],seen=new Set();
@@ -56,7 +56,7 @@
   const byKey=new Map(items.map(i=>[i.key,i])),facilities=config.assignments.filter(a=>byKey.has(a.key)&&Area.contains(config.area,byKey.get(a.key).geometry));
   const auto=config.area&&config.entryMode!=='manual',gates=auto?Area.clipRoads(items.filter(i=>i.kind==='road'&&config.roads.includes(i.key)),config.area).entries:[];
   const homes=facilities.filter(a=>a.type==='home').map(a=>({...a,id:a.key,modelVersion:2,capacityMode:'configured'}));
-  const households=Population.generate(homes,config.settings.population,{preset:'lingnan'}).households;
+  const households=Population.generate(homes,config.settings.population,{preset:config.morningMarket?.mode==='legacy'?'morning-market':'lingnan'}).households;
   const boundHomes=Schedule.bindHousing({buildings:homes,households});
   const shortage=households.filter(h=>!boundHomes[h.id]).length,roads=config.roads.filter(k=>byKey.get(k)?.kind==='road');
   const disconnected=(checked?.scene?.buildings||[]).filter(b=>!checked.network?.connected?.[b.id]);
@@ -99,7 +99,7 @@
   if(!c||c.version!==1||!c.settings||!Array.isArray(c.assignments)||!Array.isArray(c.roads)||!Array.isArray(c.runs))return {ok:false,errors:['模拟配置格式无效']};
   if(Object.keys(c).some(k=>!['version','settings','entry','roads','assignments','runs','area','entryMode','morningMarket'].includes(k)))fail('模拟配置包含未知字段');
   if(c.morningMarket!==undefined){const m=c.morningMarket,fields=['marketKey','vendorCount','customerCount','startMinute','openMinute','lastEntryMinute','endMinute'];
-   if(!m||typeof m!=='object'||Object.keys(m).some(k=>!fields.includes(k))||typeof m.marketKey!=='string'||!m.marketKey.startsWith('object:')||!integer(m.vendorCount,1,6)||!integer(m.customerCount,1,60)||!fields.slice(3).every(k=>integer(m[k],360,720))||!(m.startMinute<m.openMinute&&m.openMinute<m.lastEntryMinute&&m.lastEntryMinute<m.endMinute)||m.endMinute-m.startMinute>360)fail('早市配置无效：检查人数、市场和营业时段');
+   if(!m||typeof m!=='object'||Object.keys(m).some(k=>!fields.includes(k)&&k!=='mode')||m.mode!==undefined&&!['daily','legacy'].includes(m.mode)||typeof m.marketKey!=='string'||!m.marketKey.startsWith('object:')||!integer(m.vendorCount,1,6)||!integer(m.customerCount,1,60)||!fields.slice(3).every(k=>integer(m[k],360,720))||!(m.startMinute<m.openMinute&&m.openMinute<m.lastEntryMinute&&m.lastEntryMinute<m.endMinute)||m.endMinute-m.startMinute>360)fail('早市配置无效：检查人数、市场和营业时段');
   }
   if(c.area!=null){const valid=Area.validate(c.area);if(!valid.ok)errors.push(...valid.errors);}
   if(c.entryMode!==undefined&&!['auto','manual'].includes(c.entryMode))fail('对外出入口模式无效');
@@ -189,7 +189,7 @@
   }
   // Unconfigured buildings remain visible background and also block access shortcuts.
   for(const item of items.filter(i=>i.kind==='water'||i.kind==='building'&&!config.assignments.some(a=>a.key===i.key))){const points=item.geometry.type==='Polygon'?item.geometry.coordinates[0].map(toLocal):null;if(points&&points.every(p=>p.every((v,i)=>v>=0&&v<=size[i])))scene.obstacles.push(points);}
-  Object.assign(scene,Population.generate(scene.buildings,scene.scenario.population,{preset:config.morningMarket?'morning-market':'lingnan'}));
+  Object.assign(scene,Population.generate(scene.buildings,scene.scenario.population,{preset:config.morningMarket?.mode==='legacy'?'morning-market':'lingnan'}));
   // Scale synthetic employment to this plan; the demonstration village's fixed
   // first-twelve-farmers rule would leave a small real plan without any staff.
   const adults=scene.people.filter(p=>p.ageGroup==='adult'),slots=scene.buildings.reduce((n,b)=>n+b.staff,0),hasFarm=scene.buildings.some(b=>b.type==='farm');
@@ -201,8 +201,10 @@
   if(!network.connected.entry)errors.push('村口未接通选中的道路，请在道路上重新设置');
   const homes=Schedule.bindHousing(scene),housingShortage=scene.households.filter(h=>!homes[h.id]).length;
   if(housingShortage)warnings.push(housingShortage+'户家庭无法按人数分配住宅；请增加可容纳该家庭的住宅容量、增加住宅或减少人口');
-  if(config.morningMarket){
-   const m=config.morningMarket,market=scene.buildings.find(b=>b.sourceKey===m.marketKey&&b.type==='market'),field=byKey.get(m.marketKey),marketObject=document.objects.find(o=>'object:'+o.id===m.marketKey);
+  const marketConfigs=config.morningMarket?.mode==='legacy'?[config.morningMarket]:config.assignments.filter(a=>a.type==='market').map(a=>config.morningMarket?.marketKey===a.key?config.morningMarket:{marketKey:a.key,vendorCount:a.staff,customerCount:12,startMinute:360,openMinute:a.open*60,lastEntryMinute:a.close*60-30,endMinute:a.close*60});
+  scene.marketLayouts={};
+  for(const m of marketConfigs){
+   const market=scene.buildings.find(b=>b.sourceKey===m.marketKey&&b.type==='market'),field=byKey.get(m.marketKey),marketObject=document.objects.find(o=>'object:'+o.id===m.marketKey);
    if(!market||!marketObject?.properties?.marketId||field?.geometry.type!=='Polygon')errors.push('请将已布置早市的活动场地定义为村庄早市');
    else{
     const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
@@ -215,14 +217,16 @@
     const layout=MarketLayout.compileMarketLayout({field:localField,stalls,aisles:children.filter(o=>o.properties.marketRole==='aisle').map(o=>({id:o.id,points:o.geometry.coordinates.map(toLocal),width:o.properties.widthM})),obstacles:localObstacles,gate:market.entrance});
     if(!layout.ok)errors.push(...layout.errors);
     const eligible=scene.people.filter(p=>p.age>=18&&homes[p.householdId]).sort((a,b)=>shortId(scene.scenario.seed+':'+a.id).localeCompare(shortId(scene.scenario.seed+':'+b.id))||a.id.localeCompare(b.id));
-    if(eligible.length<m.vendorCount+m.customerCount||housingShortage)errors.push('早市角色或住宅容量不足：需容纳全部教学家庭，请补充住宅或增加容量');
+    if(m.mode==='legacy'&&(eligible.length<m.vendorCount+m.customerCount||housingShortage))errors.push('早市角色或住宅容量不足');else if(housingShortage)warnings.push('部分家庭缺少住宅，市场与其他日常活动将受到影响');
     const roles=eligible.slice(0,m.vendorCount+m.customerCount).map((p,i)=>({personId:p.id,homeId:homes[p.householdId],marketRole:i<m.vendorCount?'vendor':'customer',...(i<m.vendorCount?{stallId:stalls[i]?.id}:{})}));
     if(layout.ok){const marketObstacles=[...layout.layout.stalls.map(s=>s.footprint),...components];
      for(const road of scene.roads)if(Geometry.intersectsAny({type:'LineString',coordinates:road.points},marketObstacles.map(ring=>({type:'Polygon',coordinates:[ring]}))))errors.push('早市实体占用了已选道路：'+road.name+'；请移动摊位/组件或重新选择道路');
      scene.obstacles.push(...marketObstacles);network=Network.buildNetwork(scene);
     }
-    for(const role of roles)if(!Network.route(network,network.access[role.homeId],network.access[market.id]))errors.push('早市人物住宅未接通市场入口：'+role.homeId);
-    if(layout.ok)scene.morningMarket={version:'morning-market-1',marketId:market.id,layout:layout.layout,roles,times:{startMinute:m.startMinute,openMinute:m.openMinute,lastEntryMinute:m.lastEntryMinute,endMinute:m.endMinute}};
+    if(m.mode==='legacy')for(const role of roles)if(!Network.route(network,network.access[role.homeId],network.access[market.id]))errors.push('早市人物住宅未接通市场入口：'+role.homeId);
+    market.marketStartMinute=m.startMinute;market.marketLastEntryMinute=m.lastEntryMinute;market.staff=m.vendorCount;market.open=m.openMinute/60;market.close=m.endMinute/60;scene.dailyMarketMode=m.mode!=='legacy';
+    if(!network.connected[market.id])warnings.push('市场入口未接通村路，运行时无法到访');
+    if(layout.ok){scene.marketLayouts[market.id]=layout.layout;scene.morningMarket= {version:'morning-market-1',marketId:market.id,layout:layout.layout,roles,times:{startMinute:m.startMinute,openMinute:m.openMinute,lastEntryMinute:m.lastEntryMinute,endMinute:m.endMinute}};}
    }
   }
   const payload={source:scene.source,scene,config:{settings:config.settings,entry:config.entry,roads:config.roads,assignments:config.assignments,...(config.morningMarket?{morningMarket:config.morningMarket}:{}),...(config.area?{area:config.area,entryMode:config.entryMode||'auto'}:{})}};

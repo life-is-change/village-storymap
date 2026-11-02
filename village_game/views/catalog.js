@@ -1,6 +1,6 @@
 (function(root,factory){
- const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.VillageCatalog=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+ const api=factory(typeof module==='object'&&module.exports?require('../domain/market-design'):root.VillageMarketDesign);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.VillageCatalog=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(MarketDesign){
  'use strict';
  const CATEGORIES=Object.freeze([
   {id:'living',label:'居住 · 住宿',color:'#567766',types:['home','inn']},
@@ -46,7 +46,7 @@
  function info(type){
   const entry=registry[type],category=CATEGORIES.find(c=>c.types.includes(type));
   if(!entry||!category)throw new Error('未定义的设施表达：'+type);
-  const form=type==='farm'?'field':type==='night'?'market':type==='attraction'?'platform':['park','play'].includes(type)?'open':'building';
+  const form=type==='farm'?'field':['night','market'].includes(type)?'market':type==='attraction'?'platform':['park','play'].includes(type)?'open':'building';
   return {type,category:category.id,categoryLabel:category.label,color:category.color,model:entry[0],unit:entry[1],form,formLabel:({field:'生产田地',market:'临时摊位场',platform:'开放观景平台',open:'开放活动场',building:'固定建筑'})[form],useLabel:type==='night'?'按时开市':'按日程使用',...MODELS[entry[0]]};
  }
  // Parts are local to the facility footprint; both map renderers consume this structure.
@@ -58,7 +58,16 @@
   if(t.form==='open'&&b.type==='park')add('bench',0,b.depth*.3,.8,b.width*.35,2,1.2,'#b19774');
   if(b.type==='play'){add('play-tower',-b.width*.2,0,1.7,b.width*.13,b.depth*.25,3.4,'#8da9a2');add('slide',b.width*.12,0,.8,b.width*.5,b.depth*.16,1.6,'#d9b387');add('sand',0,b.depth*.3,.4,b.width*.55,b.depth*.22,.3,'#e2d4a6');}
   if(t.form==='platform'){for(const x of [-.43,.43])for(const y of [-.4,.4])add('rail-post',b.width*x,b.depth*y,1.1,.6,.6,1.7,'#927b59');for(const x of [-.43,.43])add('rail',b.width*x,0,1.8,.5,b.depth*.85,.3,'#ae9571');add('bench',0,-b.depth*.28,.9,b.width*.42,2,1.2,'#9e835f');}
-  if(t.form==='market'){for(let i=0;i<4;i++){const x=(-.375+i*.25)*b.width;add('counter',x,0,.7,b.width*.2,b.depth*.35,1.2,i%2?'#b8ab89':'#c2a17f');add('awning',x,0,2.7,b.width*.23,b.depth*.5,.35,i%2?'#d7bd91':'#b78e87');for(const y of [-.2,.2])add('stall-post',x,b.depth*y,1.4,.35,.35,2.8,'#9c8265');}}
+  if(b.type==='market'){
+   for(const s of MarketDesign.stalls(b.width,b.depth)){
+    const x=s.x,y=s.y,low=s.style==='ground',top=low?.2:.78;
+    add(low?'market-ground':'market-table',x,y,top/2,s.width,s.depth,top,low?'#b5a779':'#98724b');
+    if(!low)for(const dx of [-1,1])for(const dy of [-1,1])add('market-leg',x+dx*(s.width/2-.1),y+dy*(s.depth/2-.1),.35,.06,.06,.7,'#667367');
+    for(let k=0;k<Math.floor(s.width/.45);k++){const xx=x-s.width/2+.25+k*.45;add('market-crate',xx,y,top+.09,.4,s.depth*.75,.16,'#b28a53');for(let n=0;n<3;n++)add('market-produce',xx+(n-1)*.1,y,top+.24,.12,.2,.16,s.produceKind==='fruit'?'#dc923c':s.produceKind==='tofu'?'#e6d5a4':'#729b49');}
+    if(s.style==='canopy'){add('market-awning',x,y,2.3,s.width+.1,s.depth+.1,.12,'#7f9c78');for(const dx of [-1,1])for(const dy of [-1,1])add('market-post',x+dx*s.width/2,y+dy*s.depth/2,1.15,.04,.04,2.3,'#647563');}
+   }
+  }
+  if(t.form==='market'&&b.type!=='market'){for(let i=0;i<4;i++){const x=(-.375+i*.25)*b.width;add('counter',x,0,.7,b.width*.2,b.depth*.35,1.2,i%2?'#b8ab89':'#c2a17f');add('awning',x,0,2.7,b.width*.23,b.depth*.5,.35,i%2?'#d7bd91':'#b78e87');for(const y of [-.2,.2])add('stall-post',x,b.depth*y,1.4,.35,.35,2.8,'#9c8265');}}
   if(b.type==='ancestral'){for(const x of [-.37,.37])add('gate',b.width*x,b.depth*.3,2.5,1.2,1.2,5,'#a96651');add('lintel',0,b.depth*.3,5,b.width*.85,2,.65,'#786b6a');add('plaque',0,b.depth*.33,4.6,b.width*.26,.5,1,'#594c3f');}
   if(b.type==='kindergarten'){for(let i=0;i<3;i++)add('activity',(-.27+i*.27)*b.width,b.depth*.28,.7,b.width*.15,b.depth*.2,1.4,['#ddad76','#96b8b7','#b7bd85'][i]);}
   return {form:t.form,body,parts};

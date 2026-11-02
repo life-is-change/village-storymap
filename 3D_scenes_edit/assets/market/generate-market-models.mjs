@@ -2,10 +2,12 @@
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const colors={frame:[.18,.23,.21,1],canvas:[.92,.88,.71,1],stripe:[.23,.48,.31,1],wood:[.48,.29,.12,1],crate:[.62,.4,.19,1],scale:[.66,.72,.7,1],bag:[.79,.65,.4,1],sign:[.06,.15,.13,1],chalk:[.96,.93,.8,1], 'produce-leaf':[.18,.52,.12,1],'produce-stem':[.39,.66,.14,1],'produce-carrot':[1,.35,.03,1],'produce-tomato':[.86,.1,.035,1],'produce-eggplant':[.25,.07,.32,1],'produce-apple':[.77,.15,.06,1],'produce-orange':[1,.51,.02,1],'produce-tofu':[.94,.88,.64,1],'produce-mushroom':[.36,.22,.13,1]};
-function model(kind){
+function model(kind,style='canopy'){
  const batches=new Map();
  const to=([x,y,z])=>[x,z,-y];
  function triangle(a,b,c,color){
+  if(style!=='canopy'&&[a,b,c].some(p=>p[2]>1.7))return;
+  if(style==='ground')[a,b,c]=[a,b,c].map(p=>[p[0],p[1],p[2]*.25]);
   if(!batches.has(color))batches.set(color,{p:[],n:[],i:[]});const batch=batches.get(color),base=batch.p.length/3;
   const u=b.map((v,i)=>v-a[i]),v=c.map((v,i)=>v-a[i]),n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],length=Math.hypot(...n)||1;
   for(const p of [a,b,c]){batch.p.push(...to(p));batch.n.push(...to(n.map(x=>x/length)));}batch.i.push(base,base+1,base+2);
@@ -55,4 +57,4 @@ function model(kind){
  const source=Buffer.from(JSON.stringify(gltf)),json=Buffer.concat([source,Buffer.alloc((4-source.length%4)%4,32)]),binary=Buffer.concat(chunks),header=Buffer.alloc(20),bin=Buffer.alloc(8);header.write('glTF');header.writeUInt32LE(2,4);header.writeUInt32LE(28+json.length+binary.length,8);header.writeUInt32LE(json.length,12);header.writeUInt32LE(0x4e4f534a,16);bin.writeUInt32LE(binary.length,0);bin.writeUInt32LE(0x004e4942,4);
  return {buffer:Buffer.concat([header,json,bin,binary]),triangles:[...batches.values()].reduce((n,b)=>n+b.i.length/3,0),drawCalls:batches.size};
 }
-for(const kind of ['vegetables','fruit','tofu']){const result=model(kind);fs.writeFileSync(fileURLToPath(new URL('../models/market-'+kind+'.glb',import.meta.url)),result.buffer);console.log(kind,JSON.stringify({triangles:result.triangles,drawCalls:result.drawCalls,bytes:result.buffer.length}));}
+for(const kind of ['vegetables','fruit','tofu'])for(const style of ['canopy','table','ground']){const result=model(kind,style);fs.writeFileSync(fileURLToPath(new URL('../models/market-'+kind+(style==='canopy'?'':'-'+style)+'.glb',import.meta.url)),result.buffer);console.log(kind,JSON.stringify({triangles:result.triangles,drawCalls:result.drawCalls,bytes:result.buffer.length}));}
