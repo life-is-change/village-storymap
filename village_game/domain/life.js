@@ -77,7 +77,7 @@
    if(!options.length)return;const b=adaptive?Decision.choose(options.map(o=>({...o,score:Decision.score(a,o.b,'stay',minute(),o.p.distance/a.speed,(facilities[o.b.id].occupancy+facilities[o.b.id].reservedBeds)/Math.max(1,Scene.capacity(o.b)))})),rngFor(a)).b:options[0].b;reservations.set(a.groupId,{id:b.id,size:a.groupSize,checkedIn:false});facilities[b.id].reservedBeds+=a.groupSize;for(const q of groupMembers(a))q.bookedInn=b.id;
   }
   function start(a){let t=a.tasks[a.taskIndex];if(!t||absolute<t.start){if(!chooseDynamic(a))return;t=a.tasks[a.taskIndex];}else if(adaptive&&a.kind==='resident'&&t.mode==='service'&&['rest','social','play'].includes(t.need)){chooseDynamic(a,true);if(a.flexBlocked){a.active=t;a.target=a.node;finishTask(a,'time');return;}t=a.tasks[a.taskIndex];}a.active=t;a.taskId=t.id;a.need=t.need;a.activityGroup=t.channel;a.returning=t.mode==='return'||t.mode==='leave';
-   if(t.mode.startsWith('market-')){a.marketRole=t.mode==='market-vendor'?'vendor':'customer';a.marketState='arriving';const p=a.node===t.target?{points:[[a.x,a.y]],distance:0}:path(a.node,t.target);if(!p){a.marketRole=null;finishTask(a,'unreachable');return;}moveTo(a,t.target,p);return;}
+   if(t.mode.startsWith('market-')){a.marketRole=t.mode==='market-vendor'?'vendor':'customer';a.marketState='arriving';const p=a.node===t.target?{points:[[a.x,a.y]],distance:0}:path(a.node,t.target);if(!p){dailyMarket.reject(a,'unreachable');return;}moveTo(a,t.target,p);return;}
    if(t.mode==='local-rest'){a.target=a.node;a.state='resting';a.remaining=t.duration;return;}
    if(absolute>t.deadline){finishTask(a,'time');return;}
    if(a.kind==='resident'&&a.needsEscort&&(t.schoolDependent||t.mode==='escort-home')&&!daily.guardians[a.id]){finishTask(a,'household');return;}

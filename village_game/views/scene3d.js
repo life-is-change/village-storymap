@@ -89,7 +89,7 @@
         for(const [id,ent] of agents)if(!ids.has(id)){viewer.entities.remove(ent);agents.delete(id);}
         if(ghost){viewer.entities.remove(ghost);ghost=null;}if(ui.ghost){const b=ui.ghost;ghost=entity({position:point(b.x,b.y,b.height/2),orientation:C.Transforms.headingPitchRollQuaternion(point(b.x,b.y),new C.HeadingPitchRoll(-b.rotation*Math.PI/180,0,0)),box:{dimensions:new C.Cartesian3(b.width,b.depth,b.height),material:color(VillageEditor.placement(scene,b)?'#c57755':'#78a46b',.45),outline:true,outlineColor:C.Color.WHITE}});}
         const selected=ui.selected?.kind==='building'?ui.selected.id:null;if(selected!==selectedId){selectedId=selected;for(const e of staticEntities)if(e.box){e.box.outline=e.gameId===selected;e.box.outlineColor=color('#487753');}}
-        viewer.scene.requestRender();},overview,focus(p,range=165){viewer.camera.lookAt(point(p[0],p[1],0),new C.HeadingPitchRange(-.15,-.65,range));viewer.camera.lookAtTransform(C.Matrix4.IDENTITY);viewer.scene.requestRender();},destroy(){handler.destroy();viewer.destroy();}};
+        viewer.scene.requestRender();},overview,focus(p,range=165){if(!Number.isFinite(range)||range<=0)range=165;viewer.camera.lookAt(point(p[0],p[1],0),new C.HeadingPitchRange(-.15,-.65,range));viewer.camera.lookAtTransform(C.Matrix4.IDENTITY);viewer.scene.requestRender();},destroy(){handler.destroy();viewer.destroy();}};
   }
   root.VillageScene3D={create};
 })(window);

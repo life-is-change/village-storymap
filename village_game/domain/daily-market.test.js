@@ -23,3 +23,15 @@ test('daily market respects facility capacity and fractional stepping is reprodu
  const result=a.runToEnd();for(let i=0;i<500&&!b.snapshot().done;i++)b.step(i%2?.25:7.75);assert.deepEqual(b.result(),result);
  const tx=result.dailyMarkets.transactions;assert.equal(new Set(tx.map(t=>t.day+':'+t.householdId)).size,tx.length);
 });
+
+test('multi-day facility served equals cumulative market purchases and disconnected demand is reported',()=>{
+ const r=Sim.createSimulation(village()).runToEnd(),id=r.dailyMarkets.markets[0].id;
+ assert.equal(r.facilities[id].served,r.dailyMarkets.purchases);
+ const s=village();s.scenario.days=1;s.roads=[];const bad=Sim.createSimulation(s).runToEnd();assert.ok(bad.dailyMarkets.failures.unreachable>0);
+});
+test('market deadline uses the same absolute clock on day two',()=>{
+ const Daily=require('./daily-market'),s=village(),b=s.buildings.find(b=>b.type==='market');let failed;
+ const a={id:'late',name:'late',active:{mode:'market-shop',target:b.id,deadline:1440+560},_marketPhase:'opening',state:'waiting',marketRole:'customer',x:0,y:0};
+ const c=Daily.create({scene:s,agents:[a],bindings:{staff:{}},layouts:{},facilities:{},move(){},finish(a,reason){failed=reason;},path(){},log(){}});
+ c.reset(2);a._marketPhase='opening';a.marketRole='customer';c.tick(a,570);assert.equal(failed,'time');
+});

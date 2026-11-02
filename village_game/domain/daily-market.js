@@ -17,13 +17,13 @@
   return layouts;
  }
  function create({scene,agents,bindings,layouts,facilities,move,finish,path,log}){
-  let day=1,runtime=new Map();const transactions=[],failures={unreachable:0,unavailable:0,closed:0,capacity:0},households=new Map();let conversations=0;
+  let day=1,runtime=new Map();const arrivals=new Map(),transactions=[],failures={unreachable:0,unavailable:0,closed:0,capacity:0,time:0},households=new Map();let conversations=0;
   function reset(nextDay){day=nextDay;runtime=new Map(scene.buildings.filter(b=>b.type==='market').map(b=>[b.id,{b,layout:layouts[b.id],stalls:(layouts[b.id]?.stalls||[]).map((s,i)=>({...s,queuePoints:s.queue,vendorId:bindings.staff[b.id]?.[i]||null,status:'absent',queue:[],customerId:null})),arrivals:0,purchases:0}]));for(const a of agents){a.marketRole=null;a.marketState=null;a.dialogue=null;a.purchaseStatus='none';delete a._marketPhase;delete a._marketFailure;}}
   const market=a=>runtime.get(a.active?.marketId||a.active?.target);
   function route(a,m,to,phase){const r=Layout.route(m.layout,[a.x,a.y],to);if(!r)return false;a._marketPhase=phase;move(a,m.b.id,r);return true;}
   function release(a,m){m.admitted?.delete(a.id);for(const s of m.stalls){s.queue=s.queue.filter(id=>id!==a.id);if(s.customerId===a.id){s.customerId=null;const v=agents.find(p=>p.id===s.vendorId);if(v){v.dialogue=null;if(v.marketState==='conversing')v.marketState='open';}}}}
   function finishHome(a){const failure=a._marketFailure;a.marketState='home';a.dialogue=null;a.marketRole=null;delete a._marketPhase;finish(a,failure==='unavailable'?'staff':failure);}
-  function leave(a,m,reason){if(a.marketRole==='vendor'){const stall=m.stalls.find(s=>s.vendorId===a.id);if(stall)stall.status='closed';}if(reason&&!a._marketFailure){a._marketFailure=reason;failures[reason]=(failures[reason]||0)+1;log(a.name+'本次早市未完成：'+({unreachable:'路径不通',unavailable:'无摊主营业',closed:'已经收市',capacity:'等候超时'}[reason]||reason),'warning');}release(a,m);a.dialogue=null;a.marketState='leaving';if(!m.layout||!route(a,m,m.layout.gate,'gate-out')){a.marketRole=null;delete a._marketPhase;finish(a,reason==='unavailable'?'staff':reason||'unreachable');}}
+  function leave(a,m,reason){if(a.marketRole==='vendor'){const stall=m.stalls.find(s=>s.vendorId===a.id);if(stall)stall.status='closed';}if(reason&&!a._marketFailure){a._marketFailure=reason;failures[reason]=(failures[reason]||0)+1;log(a.name+'本次早市未完成：'+({unreachable:'路径不通',unavailable:'无摊主营业',closed:'已经收市',capacity:'容量或等候不足',time:'活动超时'}[reason]||reason),'warning');}release(a,m);a.dialogue=null;a.marketState='leaving';if(!m.layout||!route(a,m,m.layout.gate,'gate-out')){a.marketRole=null;delete a._marketPhase;finish(a,reason==='unavailable'?'staff':reason||'unreachable');}}
   function choose(a,m,minute){const cutoff=m.b.marketLastEntryMinute??(m.b.close*60)-30;
    if(minute>=cutoff){leave(a,m,'closed');return;}
    if(!m.admitted)m.admitted=new Set();
@@ -33,7 +33,7 @@
    const s=options[0],slot=s.queuePoints.findIndex((p,i)=>!s.queue.some(id=>agents.find(a=>a.id===id)?._marketSlot===i));m.admitted.add(a.id);a.stallId=s.id;a._marketSlot=slot;s.queue.push(a.id);a.purchaseStatus='waiting';a._marketWait=minute;a.marketState='queueing';if(!route(a,m,s.queuePoints[slot],'queue-walk'))leave(a,m,'unreachable');
   }
   function enter(a,minute){const m=market(a);if(!m)return false;
-   if(!m.layout){a.marketRole=null;finish(a,'unreachable');return true;}
+   if(!m.layout){reject(a,'unreachable');return true;}
    const phase=a._marketPhase;
    if(phase==='home-out'){finishHome(a);return true;}
    if(phase==='gate-out'){const p=path(m.b.id,a.home);if(!p){a.marketRole=null;delete a._marketPhase;finish(a,'unreachable');return true;}a._marketPhase='home-out';move(a,a.home,p);return true;}
@@ -48,12 +48,12 @@
    }
    if(!phase){a.marketRole=a.active.mode==='market-vendor'?'vendor':'customer';a.marketState='entering';
     if(a.marketRole==='vendor'){const s=m.stalls.find(s=>s.vendorId===a.id);if(!s){finish(a,'staff');return true;}a.stallId=s.id;if(!route(a,m,s.vendor,'vendor-walk'))leave(a,m,'unreachable');}
-    else{m.arrivals++;choose(a,m,minute);}return true;
+    else{m.arrivals++;arrivals.set(m.b.id,(arrivals.get(m.b.id)||0)+1);choose(a,m,minute);}return true;
    }
    return false;
   }
   function tick(a,minute){const m=market(a);if(!m||!a.active?.mode.startsWith('market-'))return false;
-   if(minute>a.active.deadline&&!['gate-out','home-out'].includes(a._marketPhase)){leave(a,m,'time');return true;}
+   if((day-1)*1440+minute>a.active.deadline&&!['gate-out','home-out'].includes(a._marketPhase)){leave(a,m,'time');return true;}
    if(a.state==='moving')return false;
    if(!m.layout){finish(a,'unreachable');return true;}
    const s=m.stalls.find(s=>s.id===a.stallId);
@@ -74,9 +74,10 @@
    
    return true;
   }
-  function sync(){for(const m of runtime.values()){const f=facilities[m.b.id];if(!f)continue;f.staffPresent=m.stalls.filter(s=>s.status==='open').length;f.occupancy=m.admitted?.size||0;f.peak=Math.max(f.peak,f.occupancy);f.served=m.purchases;}}
-  function result(){return {purchases:transactions.length,conversations,householdsSupplied:households.size,failures:{...failures},transactions:clone(transactions),markets:[...runtime.values()].map(m=>({id:m.b.id,name:m.b.name,stalls:m.stalls.length,vendors:m.stalls.filter(s=>s.vendorId).length,arrivals:m.arrivals,purchases:m.purchases,window:{openMinute:m.b.open*60,lastEntryMinute:m.b.marketLastEntryMinute??m.b.close*60-30,endMinute:m.b.close*60}}))};}
-  return {reset,enter,tick,result,sync};
+  function sync(){for(const m of runtime.values()){const f=facilities[m.b.id];if(!f)continue;f.staffPresent=m.stalls.filter(s=>s.status==='open').length;f.occupancy=m.admitted?.size||0;f.peak=Math.max(f.peak,f.occupancy);f.served=transactions.filter(t=>t.marketId===m.b.id).length;}}
+  function result(){return {purchases:transactions.length,conversations,householdsSupplied:households.size,failures:{...failures},transactions:clone(transactions),markets:[...runtime.values()].map(m=>({id:m.b.id,name:m.b.name,stalls:m.stalls.length,vendors:m.stalls.filter(s=>s.vendorId).length,arrivals:arrivals.get(m.b.id)||0,todayArrivals:m.arrivals,purchases:transactions.filter(t=>t.marketId===m.b.id).length,todayPurchases:m.purchases,window:{openMinute:m.b.open*60,lastEntryMinute:m.b.marketLastEntryMinute??m.b.close*60-30,endMinute:m.b.close*60}}))};}
+  function reject(a,reason){failures[reason]=(failures[reason]||0)+1;a.marketRole=null;a.marketState='failed';finish(a,reason);}
+  return {reset,enter,tick,result,sync,reject};
  }
  return {prepare,create};
 });
