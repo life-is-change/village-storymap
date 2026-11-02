@@ -364,3 +364,12 @@ test('Enter commits object rename without relying on a browser blur change event
  Panel.createSceneStudioPanel({root,onAction:a=>actions.push(a)});
  const target={dataset:{action:'object-rename',value:'site'},value:'村口早市',blur(){},closest(){return this;}};listeners.keydown({key:'Enter',target,preventDefault(){}});assert.equal(actions[0]?.type,'object-rename');assert.equal(actions[0]?.name,'村口早市');
 });
+
+test('collapsed object branches remain collapsed after a complete render',()=>{
+ let html='',branch={dataset:{branchId:'site'},open:false};const root={setAttribute(){},addEventListener(){},removeEventListener(){},querySelectorAll(sel){return sel==='[data-branch-id]'?[branch]:[];},get innerHTML(){return html;},set innerHTML(v){html=v;branch={dataset:{branchId:'site'},open:true};}};
+ const panel=Panel.createSceneStudioPanel({root});panel.render(Panel.buildViewModel({phase:'editing'}));assert.equal(branch.open,false);
+});
+test('selection refresh preserves the full property ownership selector',()=>{
+ const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){},querySelector(selector){return selector==='.scene-properties-content'?{set innerHTML(v){root.innerHTML=v;}}:null;}};
+ const panel=Panel.createSceneStudioPanel({root}),model=Panel.buildViewModel({phase:'editing',objects:[{id:'a',kind:'asset',category:'bench',properties:{siteId:null}}],selectedIds:['a']});panel.render(model);panel.updateSelection(model);assert.match(root.innerHTML,/data-path="properties.siteId"/);
+});

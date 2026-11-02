@@ -183,6 +183,12 @@
         if (!valid.ok) return reject('INVALID_OBJECT', valid.errors.join('; '), object.id);
         patch = { ...patch, geometry };
       }
+      if(patch.properties&&Object.hasOwn(patch.properties,'siteId')){
+        if(editable.length!==1)return reject('ONE_OWNER_REQUIRED','请逐个修改组件归属');
+        const object=history.present.objects.find(o=>o.id===editable[0]),site=history.present.objects.find(o=>o.id===patch.properties.siteId&&isField(o));
+        const market=site&&site.properties?.marketId===site.id;
+        if(['stall','path'].includes(object.category))patch={...patch,properties:{...patch.properties,marketId:market?site.id:null,marketRole:market?(object.category==='stall'?'stall':'aisle'):null,sceneRole:'site-component'}};
+      }
       for (const id of editable) {
         const object=history.present.objects.find(o=>o.id===id);
         const updated={...object,...patch,properties:{...object.properties,...patch.properties}};

@@ -3,7 +3,7 @@
  if(common)module.exports=api;if(root)root.VillagePlanAdapter=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Population,Network,Geometry,Schedule,Area,MarketLayout){
  'use strict';
- const RULE_VERSION='platform-village-6-daily-market',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
+ const RULE_VERSION='platform-village-7-studio-market',BOUNDARY_KEY='boundary:selection',copy=v=>JSON.parse(JSON.stringify(v));
  const capLimit=type=>Scene.TYPES[type]?.limit||({home:12,inn:32,food:60,park:80,attraction:60})[type]||40;
  const coordinate=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=85;
  function stable(value){if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+stable(value[k])).join(',')+'}';return JSON.stringify(value);}
@@ -209,7 +209,7 @@
    else{
     const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
     const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,name:o.properties.displayName||o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
-    if(stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
+    if(m.mode==='legacy'&&stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
     const localField={type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},components=[];
     const intersectsField=ring=>Geometry.intersectsAny(localField,[{type:'Polygon',coordinates:[ring]}]);
     try{for(const object of document.objects){if(object.id===marketObject.id||object.properties?.marketId===marketObject.id&&['stall','aisle'].includes(object.properties?.marketRole))continue;components.push(...solidComponentRings(object,toLocal).filter(intersectsField));}}catch(error){errors.push(error.message);}

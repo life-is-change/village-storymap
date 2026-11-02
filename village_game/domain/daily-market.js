@@ -47,7 +47,7 @@
     conversations++;log(a.name+'与'+v.name+'在摊前交流买菜。','market');return true;
    }
    if(!phase){a.marketRole=a.active.mode==='market-vendor'?'vendor':'customer';a.marketState='entering';
-    if(a.marketRole==='vendor'){const s=m.stalls.find(s=>s.vendorId===a.id);if(!s){finish(a,'staff');return true;}a.stallId=s.id;if(!route(a,m,s.vendor,'vendor-walk'))leave(a,m,'unreachable');}
+    if(a.marketRole==='vendor'){const s=m.stalls.find(s=>s.vendorId===a.id);if(!s){finish(a,'staff');return true;}a.stallId=s.id;a.stallName=s.name||s.id;if(!route(a,m,s.vendor,'vendor-walk'))leave(a,m,'unreachable');}
     else{m.arrivals++;arrivals.set(m.b.id,(arrivals.get(m.b.id)||0)+1);choose(a,m,minute);}return true;
    }
    return false;

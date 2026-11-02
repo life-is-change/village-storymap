@@ -3,7 +3,7 @@ const Scene=require('./scene'),Life=require('./life'),Storage=require('./storage
 test('adaptive run records dynamic choices, state changes and market days reproducibly',()=>{
  const s=Scene.createAdaptiveVillage(),sim=Life.createSimulation(s);sim.step(400);const snap=sim.snapshot();
  assert.ok(snap.metrics.decisions>0);const a=snap.agents.find(a=>a.kind==='visitor'&&a.decision);assert.ok(a);assert.ok(a.needsState);assert.ok(a.decision.options.length>1);assert.ok(Math.abs(a.decision.options.reduce((n,x)=>n+x.probability,0)-1)<1e-6);
- const r=sim.runToEnd();assert.equal(r.marketDays.length,3);assert.equal(r.arrivals,r.marketDays.reduce((n,d)=>n+d.actual,0));assert.ok(r.satisfaction.count>0);assert.deepEqual(r,Life.createSimulation(s).runToEnd());assert.equal(Storage.parse(Storage.serialize(s,r)).result.behaviorVersion,6);
+ const r=sim.runToEnd();assert.equal(r.marketDays.length,3);assert.equal(r.arrivals,r.marketDays.reduce((n,d)=>n+d.actual,0));assert.ok(r.satisfaction.count>0);assert.deepEqual(r,Life.createSimulation(s).runToEnd());assert.equal(Storage.parse(Storage.serialize(s,r)).result.behaviorVersion,7);
 });
 test('tourist groups share dynamic decisions and preserve continuous travel',()=>{
  const s=Scene.createAdaptiveVillage(),sim=Life.createSimulation(s);let previous=sim.snapshot();for(let i=0;i<850;i++){sim.step(1);const next=sim.snapshot();for(const a of next.agents){const old=previous.agents.find(x=>x.id===a.id);if(old&&a.kind==='visitor'&&!['planned','departed'].includes(old.state))assert.ok(Math.hypot(a.x-old.x,a.y-old.y)<=a.speed+1,'movement bounded '+a.id);}

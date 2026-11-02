@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./scene'):root.VillageScene,typeof module==='object'&&module.exports?require('./network'):root.VillageNetwork,typeof module==='object'&&module.exports?require('./schedule'):root.VillageSchedule,typeof module==='object'&&module.exports?require('./decision'):root.VillageDecision,typeof module==='object'&&module.exports?require('./places'):root.VillagePlaces,typeof module==='object'&&module.exports?require('./growth'):root.VillageGrowth,typeof module==='object'&&module.exports?require('./stories'):root.VillageStories,typeof module==='object'&&module.exports?require('./daily-market'):root.VillageDailyMarket);if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.VillageLife=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Scene,Network,Schedule,Decision,Places,Growth,Stories,DailyMarket){
  'use strict';
  const REASONS={missing:'缺少合适服务',unreachable:'道路或入口不通',closed:'开放时间不合适',capacity:'容量或可接受等待不足',time:'活动时间冲突/超时',staff:'经营人员未到岗',household:'家庭准备或陪同不足'};
- const BEHAVIOR_VERSION=6;
+ const BEHAVIOR_VERSION=7;
  const STATES={resting:'午间休息',planned:'尚未到访',home:'在家休息',idle:'等待下一项安排',moving:'步行途中',waiting:'等候服务',working:'工作/生产',studying:'在校学习',serving:'正在活动',cooking:'准备家中餐食',eating:'用餐',escorting:'陪同等候',picking:'放学接送等候',outside:'在村外学习/工作',staying:'住宿休息',departed:'已离村'};
  const perStaff={center:10,shop:12,food:8,inn:10,workshop:6,school:24,kindergarten:12,care:8,clinic:4,culture:20,meal:10,night:20};
  function createSimulation(input){

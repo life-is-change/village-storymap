@@ -219,6 +219,7 @@
     </article>`).join("");
   }
 
+  function renderPropertyContent(model){return `${renderInspectorProperties(model)}${model.properties&&!['boundary'].includes(model.properties.kind)&&model.properties.category!=='activity-field'?'<label>所属范围<select data-action="property" data-path="properties.siteId" data-value-type="string" '+(model.readOnly?'disabled':'')+'>'+siteOptions(model,model.properties.properties?.siteId)+'</select></label>':''}`;}
   function renderInspectorProperties(model) {
     if(model.activeAssetRole==='site-range'&&model.activeTool==='draw-surface')return '<h4>设定活动场地范围</h4><p>沿公园或广场边界点选至少三个节点，再点“完成绘制”。范围本身不铺装，也不生成建筑。</p><p>完成后可为这处场地放置组件，并在村庄模拟中赋予设施功能。</p>';
     if(model.activeAssetRole==='circulation'&&model.activeTool==='draw-line')return '<h4>规划连接道路</h4><p>依次点选道路中心线，再点“完成绘制”。首尾靠近已有道路时自动吸附。</p><p>这条道路用于连接建筑与活动场地。完成后选中道路可改宽度；场内装饰小径在组件库选择。</p>';
@@ -313,6 +314,7 @@
     root.addEventListener("keydown", onKeydown);
 
     function renderPanel(model) {
+        for(const branch of root.querySelectorAll?.('[data-branch-id]')||[])branchState.set(branch.dataset.branchId,branch.open);
         lastModel = model;
         const layerDetails=root.querySelector?.(".scene-studio-layers");if(layerDetails)layersExpanded=!!layerDetails.open;
         root.innerHTML = `
@@ -349,7 +351,7 @@
                     <button data-action="browse-assets" ${model.readOnly?'disabled':''}><b>③ 放置组件</b><small>选择组件，连续放置到地图</small></button>
                   </section>
                   <label>添加到<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></section>
-                <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderInspectorProperties(model)}${model.properties&&!['boundary'].includes(model.properties.kind)&&model.properties.category!=='activity-field'?'<label>所属范围<select data-action="property" data-path="properties.siteId" data-value-type="string" '+(model.readOnly?'disabled':'')+'>'+siteOptions(model,model.properties.properties?.siteId)+'</select></label>':''}</div></section>
+                <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderPropertyContent(model)}</div></section>
 
               </div>
               <section class="scene-object-dock" aria-label="图层与对象"><div class="scene-panel-heading"><span>图层与对象</span><small>${model.sections.objects.length} 个对象</small></div><section data-panel="objects">${renderSiteTree(model,renamingId)}</section>
@@ -391,7 +393,7 @@
           row.setAttribute?.("aria-pressed", String(isSelected));
         }
         const properties = root.querySelector?.(".scene-properties-content");
-        if (properties) properties.innerHTML = renderInspectorProperties(lastModel);
+        if (properties) properties.innerHTML = renderPropertyContent(lastModel);
         const contextual = root.querySelector?.(".scene-studio-contextual-tools");
         if (contextual) contextual.outerHTML = Toolbar.renderToolbarHtml(lastModel);
       },

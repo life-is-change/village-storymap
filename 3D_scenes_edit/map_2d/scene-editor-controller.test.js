@@ -272,3 +272,10 @@ test('explicit placement ownership persists, rejects outside site and supports i
 test('independent components can be placed outside the legacy blue range but stay inside the village',()=>{
  const {controller:c}=createController();c.setPlacementSite(null);const p={kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[114.302,30.502]}};assert.equal(c.createObject(p).ok,true);assert.equal(c.createObject({...p,geometry:{type:'Point',coordinates:[114.4,30.6]}}).ok,false);
 });
+
+test('reassigning a market stall clears stale market membership and undo restores it',()=>{
+ const {controller:c}=createController({withoutBoundary:true});const f=c.createObject({kind:'surface',category:'activity-field',geometry:square(),properties:{}}).object;
+ c.select([f.id]);c.updateSelection({properties:{marketId:f.id,marketRole:'market'}});c.setPlacementSite(f.id);
+ const a=c.createObject({kind:'structure',category:'stall',geometry:{type:'Point',coordinates:[114.3001,30.5001]},properties:{footprintM:[2,1]}}).object;assert.equal(a.properties.marketId,f.id);
+ c.select([a.id]);c.updateSelection({properties:{siteId:null}});let item=c.getState().document.objects.find(o=>o.id===a.id);assert.equal(item.properties.marketId,null);assert.equal(item.properties.marketRole,null);c.undo();assert.equal(c.getState().document.objects.find(o=>o.id===a.id).properties.marketId,f.id);
+});

@@ -173,3 +173,7 @@ test('renamed scene fields and stalls keep their display names in daily simulati
  const field=f.document.objects.find(o=>o.properties.marketRole==='market'),stall=f.document.objects.find(o=>o.properties.marketRole==='stall');field.properties.displayName='村口早市';stall.properties.displayName='阿婆鲜果';
  const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,true,JSON.stringify(r.errors));const b=r.scene.buildings.find(b=>b.type==='market');assert.equal(b.name,'村口早市');assert.equal(r.scene.marketLayouts[b.id].stalls.find(s=>s.id===stall.id).name,'阿婆鲜果');
 });
+
+test('daily markets accept fewer physical stalls than the saved legacy vendor count',()=>{
+ const f=require('./tests/market-fixture').marketFixture();delete f.cfg.morningMarket.mode;let n=0;f.document.objects=f.document.objects.filter(o=>o.properties.marketRole!=='stall'||n++===0);const r=A.compile(f.document,f.context,f.cfg);assert.equal(r.ok,true,JSON.stringify(r.errors));
+});
