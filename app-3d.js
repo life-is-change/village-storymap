@@ -3196,7 +3196,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return roadsLoadTask;
   }
 
-  async function loadBuildingsNow() {
+  async function loadBuildingsNow({ preserveCamera = false } = {}) {
     if (!viewer) {
       await initViewer();
     }
@@ -3218,7 +3218,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const loadKey = get3DLoadKey();
     const isStartupCamera = startupCameraKey === loadKey;
-    if (!isStartupCamera) positionVillageCamera();
+    if (!isStartupCamera && !preserveCamera) positionVillageCamera();
     startupCameraKey = null;
     const isCurrentLoad = () => get3DLoadKey() === loadKey;
     const linkedSpaceId = getActualLinkedSpaceIdFor3D();
@@ -3292,7 +3292,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     // The first overview already uses the village extent. A second flight after
     // asynchronous building reads would overwrite any camera input made meanwhile.
-    if (entities.length && !isStartupCamera) {
+    if (entities.length && !isStartupCamera && !preserveCamera) {
       const focusViewer = viewer;
       const focusSource = buildingsDataSource;
       const focus = () => {
@@ -4524,7 +4524,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
   }
 
-  async function reload(selectCode) {
+  async function reload(selectCode, { preserveView = false } = {}) {
     if (!initialized) {
       await enter();
       return;
@@ -4532,15 +4532,17 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     const savedSelectedCode = selectCode || activeEntity?.__sourceCode;
 
-    activeBasemapGeoref = normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
-      || { ...FALLBACK_BASEMAP_GEOREF };
-    basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
-    const canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
-    positionVillageCamera();
-    void addViewerImageryLayers(canUseIonServices).catch(error => {
-      console.warn("后台刷新 3D 影像图层失败：", error?.message || error);
-    });
-    await loadBuildings();
+    if (!preserveView) {
+      activeBasemapGeoref = normalizeBasemapGeoref(window.__BASEMAP_GEOREF)
+        || { ...FALLBACK_BASEMAP_GEOREF };
+      basemapGeorefResolvePromise = Promise.resolve(activeBasemapGeoref);
+      const canUseIonServices = hasUsableCesiumIonToken() && !ionServicesLikelyBlocked;
+      positionVillageCamera();
+      void addViewerImageryLayers(canUseIonServices).catch(error => {
+        console.warn("后台刷新 3D 影像图层失败：", error?.message || error);
+      });
+    }
+    await loadBuildings({ preserveCamera: preserveView });
     
     if (savedSelectedCode && entityMap.has(normalizeCode(savedSelectedCode))) {
       const entity = entityMap.get(normalizeCode(savedSelectedCode));

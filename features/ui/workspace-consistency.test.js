@@ -102,3 +102,20 @@ test('failed personal saves retain the added feature and dirty state for retry',
 test('a committed personal save is not reported as rejected when only the subsequent view refresh fails',async()=>{
  const f=await geometrySave({refreshFail:true});assert.equal(f.result.success,true);assert.equal(f.state.dirtyCodes.size,0);assert.ok(f.messages.some(x=>x.includes('已保存')));
 });
+
+test('background 3D reload preserves imagery and camera while refreshing scene data', async () => {
+ const source=fs.readFileSync('app-3d.js','utf8');
+ const reload=source.slice(source.indexOf('  async function reload('),source.indexOf('  async function flyToCurrent3DBuildings('));
+ const calls=[];
+ const run=vm.runInNewContext(reload+';reload',{
+  initialized:true,activeEntity:null,window:{},FALLBACK_BASEMAP_GEOREF:{},normalizeBasemapGeoref:()=>null,
+  hasUsableCesiumIonToken:()=>false,positionVillageCamera:()=>calls.push('camera'),
+  addViewerImageryLayers:async()=>calls.push('imagery'),
+  loadBuildings:async options=>calls.push(options?.preserveCamera===true?'data-preserve-camera':'data'),
+  showEmpty3DInfo(){},viewer:{scene:{requestRender(){}}}
+ });
+ await run(undefined,{preserveView:true});
+ assert.deepEqual(calls.splice(0),['data-preserve-camera']);
+ await run();
+ assert.deepEqual(calls,['camera','imagery','data']);
+});

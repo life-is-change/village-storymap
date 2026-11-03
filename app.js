@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261030-startup-surface1", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261103-preserve-view", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -8839,7 +8839,7 @@ async function syncBusinessEventSubscription() {
         else {
           if (plan2dView?.classList.contains('active')) await refresh2DOverlay({forceFullRebuild:true,preserveGeometryDraft:true});
           if (!safe()) return;
-          if (model3dView?.classList.contains('active')) await window.Village3D?.reload?.();
+          if (model3dView?.classList.contains('active')) await window.Village3D?.reload?.(undefined, { preserveView: true });
         }
       });
     }
@@ -8870,7 +8870,7 @@ async function refreshActiveGroupPlan() {
   }
   if (space !== getCurrentSpace() || hasUnsavedGeometryEdits()) return;
   if (model3dView?.classList.contains("active") && window.Village3D?.reload) {
-    await window.Village3D.reload();
+    await window.Village3D.reload(undefined, { preserveView: true });
   }
   await groupBaselinePanel?.refresh?.();
 }
@@ -8966,7 +8966,7 @@ function initRealtimeSubscriptions() {
             window.Village3D &&
             typeof window.Village3D.reload === "function"
           ) {
-            await window.Village3D.reload();
+            await window.Village3D.reload(undefined, { preserveView: true });
           }
         });
       }
