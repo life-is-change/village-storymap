@@ -169,6 +169,25 @@
       '<details data-branch-id="roads" open><summary>连接道路 · '+tree.roads.length+'</summary>'+rows(tree.roads)+'</details>'+
       '<details data-branch-id="independent" open><summary>独立组件 · '+tree.unassigned.length+'</summary>'+rows(tree.unassigned)+'</details>';
   }
+  function renderDrawingTool(model, tool) {
+    const range = tool === "range";
+    const objects = range ? model.siteTree.sites.map(site => site.object) : model.siteTree.roads;
+    const selected = new Set(model.selectedIds);
+    return `<section class="scene-drawing-tool">
+      <div class="scene-drawing-label">绘制方式</div>
+      <button type="button" class="scene-drawing-mode" aria-label="${range ? "规划范围" : "规划道路"}" data-action="${range ? "draw-field" : "draw-road"}" ${model.readOnly ? "disabled" : ""}>${range ? "多边形" : "中心线"}</button>
+      <p>${range ? "在地图上点击添加顶点，双击闭合范围。" : "沿地图点击布置道路中心线，双击结束。"} </p>
+      <div class="scene-drawing-label">${range ? "已划定范围" : "已规划道路"} · ${objects.length} 个</div>
+      <div class="scene-drawing-list">${objects.map(object => {
+        const area = range && object.geometry ? Geometry.measureAreaM2(object.geometry) : 0;
+        const width = object.properties?.widthM;
+        const metric = range ? (area >= 10000 ? (area / 10000).toFixed(1) + " ha" : Math.round(area) + " m²") : (width ? width + " m" : "");
+        return `<div class="scene-drawing-row"><button type="button" data-action="select-object" data-locate="true" data-value="${escapeHtml(object.id)}" aria-pressed="${selected.has(object.id)}"><span>${escapeHtml(object.properties?.displayName || (range ? "未命名范围" : "未命名道路"))}</span><small>${escapeHtml(metric)}</small></button><button type="button" class="scene-drawing-info" data-action="select-object" data-value="${escapeHtml(object.id)}" aria-label="查看属性">?</button></div>`;
+      }).join("")}</div>
+      <button type="button" class="scene-drawing-new" data-action="${range ? "draw-field" : "draw-road"}" ${model.readOnly ? "disabled" : ""}>＋${range ? "新建范围" : "规划道路"}</button>
+      ${range && model.properties?.category === "activity-field" ? `<button data-action="add-to-site" data-value="${escapeHtml(model.properties.id)}" ${model.readOnly ? "disabled" : ""}>向此范围添加组件</button>` : ""}
+    </section>`;
+  }
   function siteOptions(model,value) {
     return '<option value="" '+(!value?'selected':'')+'>独立组件</option>'+model.siteTree.sites.map(s=>'<option value="'+escapeHtml(s.object.id)+'" '+(value===s.object.id?'selected':'')+'>'+escapeHtml(s.object.properties?.displayName||'未命名场地')+'</option>').join('');
   }
@@ -185,8 +204,8 @@
       .filter(([category]) => groupDefinition.categories.includes(category) && (activeCategory === "all" || activeCategory === category))
       .flatMap(([, items]) => items)
       .filter((asset) => !normalizedQuery || String(asset.label || asset.displayName || asset.id).toLocaleLowerCase().includes(normalizedQuery));
-    const cards = assets.map((asset) => `<button class="scene-asset-card" type="button" data-action="choose-asset" data-value="${escapeHtml(asset.id)}"><span class="scene-asset-thumb" aria-hidden="true">${escapeHtml((asset.label || asset.displayName || "组件").slice(0, 1))}</span><span><strong>${escapeHtml(asset.label || asset.displayName || asset.id)}</strong><small>${escapeHtml(CATEGORY_LABELS[asset.category] || asset.category || "组件")}</small></span></button>`).join("");
-    return `<div class="scene-asset-groups" role="tablist" aria-label="素材分组">${groupButtons}</div><div class="scene-asset-filters" role="toolbar" aria-label="素材分类">${categories.join("")}</div><div class="scene-asset-grid">${cards || '<p class="scene-studio-empty">没有符合条件的素材</p>'}</div>`;
+    const cards = assets.map((asset) => `<button class="scene-asset-card" type="button" data-action="choose-asset" data-value="${escapeHtml(asset.id)}"><span class="scene-asset-thumb" data-category="${escapeHtml(asset.category || "")}" aria-hidden="true"></span><span><strong>${escapeHtml(asset.label || asset.displayName || asset.id)}</strong><small>${escapeHtml(CATEGORY_LABELS[asset.category] || asset.category || "组件")}</small></span></button>`).join("");
+    return `<div class="scene-asset-groups" role="tablist" aria-label="素材分组">${groupButtons}</div><div class="scene-asset-filters" role="toolbar" aria-label="素材分类"><span>筛选</span>${categories.join("")}</div><div class="scene-asset-grid">${cards || '<p class="scene-studio-empty">没有符合条件的素材</p>'}</div>`;
   }
 
   function renderProperties(object, mode, selectedIds = [], readOnly = false) {
@@ -234,6 +253,9 @@
     root.setAttribute("aria-label", "公共空间设计工作室");
     let activeInspector = "assets";
     let designTool = "range";
+    let dockCollapsed = false;
+    let dockHeight = 230;
+    let dockDrag;
     let versionsOpen=false,renamingId=null;const branchState=new Map();
     let inspectorCollapsed = false;
     let activeAssetCategory = "all";
@@ -258,6 +280,12 @@
       if (!action || action.type === "object-rename") return;
       if(action.type === "start-rename"){renamingId=action.value;if(lastModel)renderPanel(lastModel);const input=root.querySelector?.('[data-action="object-rename"]:not([hidden])');input?.focus();input?.select();return;}
       if(action.type === "toggle-versions"){versionsOpen=!versionsOpen;if(lastModel)renderPanel(lastModel);return;}
+      if (action.type === "toggle-object-dock") {
+        dockCollapsed = !dockCollapsed;
+        if (lastModel) renderPanel(lastModel);
+        root.querySelector?.('[data-action="toggle-object-dock"]')?.focus?.();
+        return;
+      }
       if (action.type === "design-tool") {
         designTool = action.value;
         if (lastModel) renderPanel(lastModel);
@@ -314,6 +342,24 @@
       event.preventDefault?.();
       onAction({ type, source: event.target });
     }
+    function startDockDrag(event) {
+      const handle = event.target.closest?.(".scene-dock-handle");
+      if (!handle || dockCollapsed || event.button !== 0) return;
+      const sidebar = handle.closest(".scene-studio-right");
+      dockDrag = { id: event.pointerId, y: event.clientY, height: handle.parentElement.offsetHeight, sidebar };
+      handle.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+    function moveDockDrag(event) {
+      if (dockDrag?.id !== event.pointerId) return;
+      const { sidebar, height, y } = dockDrag;
+      dockHeight = Math.max(90, Math.min(sidebar.clientHeight - 170, height + y - event.clientY));
+      sidebar.style.setProperty("--scene-dock-height", dockHeight + "px");
+    }
+    function stopDockDrag() { dockDrag = null; }
+    root.addEventListener("pointerdown", startDockDrag);
+    root.addEventListener("pointermove", moveDockDrag);
+    root.addEventListener("lostpointercapture", stopDockDrag);
     root.addEventListener("click", onClick);
     root.addEventListener("input", onInput);
     root.addEventListener("change", onChange);
@@ -329,7 +375,7 @@
               <div class="scene-studio-title"><span>模块二 · 公共空间</span><h2>${escapeHtml(model.title)}</h2></div>
               <div class="scene-header-controls">
                 <span class="scene-save-chip" data-status="${escapeHtml(model.save.status)}">${escapeHtml(model.save.label)}${model.save.revision !== null ? ` · R${escapeHtml(model.save.revision)}` : ""}</span>
-                <div class="scene-studio-mode" aria-label="二维三维视图"><button type="button" data-action="mode" data-value="2d" aria-pressed="${model.mode === "2d"}">2D 校核</button><button type="button" data-action="mode" data-value="3d" aria-pressed="${model.mode === "3d"}">3D 设计</button></div>
+                <div class="scene-header-divider" aria-hidden="true"></div><div class="scene-studio-mode" aria-label="二维三维视图"><button type="button" data-action="mode" data-value="2d" aria-pressed="${model.mode === "2d"}">2D 校核</button><button type="button" data-action="mode" data-value="3d" aria-pressed="${model.mode === "3d"}">3D 设计</button></div>
                 <button class="scene-header-action" type="button" data-action="toggle-versions" aria-expanded="${versionsOpen}">方案版本</button>
                 <button class="scene-header-action" type="button" data-action="toggle-inspector" aria-pressed="${!inspectorCollapsed}">${inspectorCollapsed ? "展开素材与属性" : "收起素材与属性"}</button>
 
@@ -342,29 +388,27 @@
             <div class="scene-studio-banner is-${escapeHtml(model.banner.level)}" role="status">${escapeHtml(model.banner.message)}${model.phase === "conflict" ? `<div class="scene-studio-conflict"><strong>远端版本 R${escapeHtml(model.conflict?.remoteRevision ?? "?")} 与本机草稿不同</strong><button type="button" data-action="conflict-local">保留本地副本</button><button type="button" data-action="conflict-remote">载入远端版本</button><button type="button" data-action="conflict-copy">另存为新方案</button></div>` : ""}</div>
             <nav class="scene-studio-tools" aria-label="场景编辑工具" hidden></nav>
             <main class="scene-studio-canvas" aria-label="场景地图编辑区">${Toolbar?.renderToolbarHtml?.(model) || ""}</main>
-            <aside class="scene-studio-right" aria-label="设计资源与属性">
+            <aside class="scene-studio-right" aria-label="设计资源与属性" data-dock-collapsed="${dockCollapsed}" style="--scene-dock-height:${dockHeight}px">
               <nav class="scene-inspector-tabs" aria-label="右侧面板">
                 <button type="button" data-action="panel-tab" data-value="assets" aria-pressed="${activeInspector === "assets"}">设计</button>
-                <button type="button" data-action="panel-tab" data-value="properties" aria-pressed="${activeInspector === "properties"}">属性</button>
+                <button type="button" data-action="panel-tab" data-value="properties" aria-pressed="${activeInspector === "properties"}">属性${activeInspector === "properties" && model.properties?.name ? " · " + escapeHtml(model.properties.name) : ""}</button>
 
               </nav>
               <div class="scene-inspector-body">
                 <section data-panel="assets" data-inspector-panel="assets" ${activeInspector === "assets" ? "" : "hidden"}>
                   <nav class="scene-design-tools" aria-label="设计工具">${[["range","范围"],["road","道路"],["components","组件"]].map(([id,label])=>`<button type="button" data-action="design-tool" data-value="${id}" aria-pressed="${designTool===id}">${label}</button>`).join("")}</nav>
-                  <section class="scene-create-actions" aria-label="设计操作">
-                    <button ${designTool==="range"?"":"hidden"} data-action="draw-field" ${model.readOnly?'disabled':''}><b>规划范围</b><small>创建菜市场、公园、广场等场地</small></button>
-                    ${designTool==='range'&&model.properties?.category==='activity-field'?'<button data-action="add-to-site" data-value="'+escapeHtml(model.properties.id)+'" '+(model.readOnly?'disabled':'')+'>向此范围添加组件</button>':''}
-                    <button ${designTool==="road"?"":"hidden"} data-action="draw-road" ${model.readOnly?'disabled':''}><b>规划道路</b><small>连接场地与现状道路</small></button>
-                  </section>
-                  <div ${designTool==="components"?"":"hidden"}><label>添加到<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></div></section>
+                  <div ${designTool==="range"?"":"hidden"}>${renderDrawingTool(model,"range")}</div><div ${designTool==="road"?"":"hidden"}>${renderDrawingTool(model,"road")}</div>
+
+                  <div ${designTool==="components"?"":"hidden"}><label>所属范围<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><input aria-label="搜索素材" type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></div></section>
                 <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderPropertyContent(model)}</div></section>
 
               </div>
-              <section class="scene-object-dock" aria-label="图层与对象"><div class="scene-panel-heading"><span>图层与对象</span><small>${model.sections.objects.length} 个对象</small></div><section data-panel="objects">${renderSiteTree(model,renamingId)}</section>
+              <section class="scene-object-dock" aria-label="图层与对象"><div class="scene-dock-handle" aria-hidden="true"></div><div class="scene-panel-heading"><span>图层与对象</span><small>${model.sections.objects.length}</small><button type="button" data-action="toggle-object-dock" aria-expanded="${!dockCollapsed}" aria-label="${dockCollapsed ? "展开图层与对象" : "收起图层与对象"}">${dockCollapsed ? "›" : "⌄"}</button></div><div class="scene-dock-content" ${dockCollapsed ? "hidden" : ""}><section data-panel="objects">${renderSiteTree(model,renamingId)}</section>
                 ${model.hasBoundary?`<details class="scene-local-boundary"><summary>旧版放置范围</summary><button data-action="select-object" data-value="selection-boundary">选择旧蓝框</button></details>`:''}
                 <details class="scene-studio-layers" ${layersExpanded?'open':''}><summary>图层管理</summary><section data-panel="layers"><button data-action="add-layer" ${model.readOnly?'disabled':''}>添加图层</button>${renderLayers(model.sections.layers,model.readOnly)}</section></details>
+                </div>
               </section>
-              <div class="scene-inspector-status">自动保存 · ${escapeHtml(model.save.label)} <span>Esc 返回选择</span></div>
+              <div class="scene-inspector-status"><span>Esc 返回选择</span></div>
             </aside>
             <section class="scene-versions-popover" data-panel="versions" ${versionsOpen?'':'hidden'} aria-label="方案版本"><div class="scene-section-title"><h3>方案版本</h3><button data-action="toggle-versions">关闭</button></div><button data-action="milestone" ${model.phase==='editing'?'':'disabled'}>保存一个版本</button>${renderVersions(model.versions,model.comparisonIds)}</section>
             <footer class="scene-studio-footer">
@@ -415,6 +459,9 @@
       },
       focus() { root.focus(); },
       dispose() {
+        root.removeEventListener("pointerdown", startDockDrag);
+        root.removeEventListener("pointermove", moveDockDrag);
+        root.removeEventListener("lostpointercapture", stopDockDrag);
         root.removeEventListener("click", onClick);
         root.removeEventListener("input", onInput);
         root.removeEventListener("change", onChange);

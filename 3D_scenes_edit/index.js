@@ -147,7 +147,7 @@
       if (action.type === "align") return controller.alignSelection(action.value);
       if (action.type === "distribute") return controller.distributeSelection(action.value);
       if (action.type === "mode") return lifecycle.switchMode(action.value);
-      if (action.type === "select-object") return lifecycle.selectObject ? lifecycle.selectObject(action.value) : controller.select([action.value]);
+      if (action.type === "select-object") return lifecycle.selectObject ? lifecycle.selectObject(action.value, action.source?.dataset?.locate === "true") : controller.select([action.value]);
       if (action.type === "finish-boundary-edit") return lifecycle.finishBoundaryEdit?.();
       if (action.type === "cancel-boundary-edit") return lifecycle.cancelBoundaryEdit?.();
       if (action.type === "delete-boundary-vertex") return lifecycle.deleteBoundaryVertex?.();
@@ -560,11 +560,11 @@
           return { ok: false, code: "SIMULATION_UNAVAILABLE", message: error.message };
         } finally { simulationLoading = false; }
       },
-      selectObject(id) {
-        enterPropertyInspection();
+      selectObject(id, locate = false) {
+        if (!locate) enterPropertyInspection();
         controller.select(id ? [id] : []);
         const selected=controller.getState().document.objects.find(o=>o.id===id);if(selected?.category==='activity-field')controller.setPlacementSite(id);
-        return updateSelectionUI(undefined, true);
+        return updateSelectionUI(locate ? id : undefined, !locate);
       },
       inspectProperties() { return enterPropertyInspection(); },
       finishBoundaryEdit() {
