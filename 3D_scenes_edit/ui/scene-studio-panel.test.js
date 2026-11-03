@@ -18,7 +18,7 @@ test('sites contain components while circulation and legacy range remain separat
 test('task entries replace the scattered footer tools and layers are optional advanced controls',()=>{
  const root={innerHTML:'',setAttribute(){},addEventListener(){},removeEventListener(){},focus(){}};const panel=Panel.createSceneStudioPanel({root});
  panel.render(Panel.buildViewModel({mode:'3d',phase:'editing',selectionBoundary:{},selectedIds:['one'],objects:[{id:'one',kind:'asset',category:'bench',properties:{}}]}));
- assert.match(root.innerHTML,/data-action="draw-field"/);assert.match(root.innerHTML,/放置组件/);assert.match(root.innerHTML,/图层管理/);
+ assert.match(root.innerHTML,/data-action="draw-field"/);assert.match(root.innerHTML,/data-value="components"/);assert.match(root.innerHTML,/图层管理/);
  assert.doesNotMatch(root.innerHTML,/取消当前工具|data-action="group"|data-action="align"|data-action="distribute"/);
 });
 

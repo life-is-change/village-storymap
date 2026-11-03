@@ -233,6 +233,7 @@
     root.setAttribute("role", "application");
     root.setAttribute("aria-label", "公共空间设计工作室");
     let activeInspector = "assets";
+    let designTool = "range";
     let versionsOpen=false,renamingId=null;const branchState=new Map();
     let inspectorCollapsed = false;
     let activeAssetCategory = "all";
@@ -257,6 +258,11 @@
       if (!action || action.type === "object-rename") return;
       if(action.type === "start-rename"){renamingId=action.value;if(lastModel)renderPanel(lastModel);const input=root.querySelector?.('[data-action="object-rename"]:not([hidden])');input?.focus();input?.select();return;}
       if(action.type === "toggle-versions"){versionsOpen=!versionsOpen;if(lastModel)renderPanel(lastModel);return;}
+      if (action.type === "design-tool") {
+        designTool = action.value;
+        if (lastModel) renderPanel(lastModel);
+        return;
+      }
       if (action.type === "panel-tab") {
         activeInspector = ["assets", "properties", "versions"].includes(action.value) ? action.value : "assets";
         inspectorCollapsed = false;
@@ -344,13 +350,13 @@
               </nav>
               <div class="scene-inspector-body">
                 <section data-panel="assets" data-inspector-panel="assets" ${activeInspector === "assets" ? "" : "hidden"}>
-                  <section class="scene-create-actions" aria-label="设计操作"><h3>设计</h3>
-                    <button data-action="draw-field" ${model.readOnly?'disabled':''}><b>① 规划范围</b><small>创建菜市场、公园、广场等场地</small></button>
-                    ${model.properties?.category==='activity-field'?'<button data-action="add-to-site" data-value="'+escapeHtml(model.properties.id)+'" '+(model.readOnly?'disabled':'')+'>向此范围添加组件</button>':''}
-                    <button data-action="draw-road" ${model.readOnly?'disabled':''}><b>② 规划道路</b><small>连接场地与现状道路</small></button>
-                    <button data-action="browse-assets" ${model.readOnly?'disabled':''}><b>③ 放置组件</b><small>选择组件，连续放置到地图</small></button>
+                  <nav class="scene-design-tools" aria-label="设计工具">${[["range","范围"],["road","道路"],["components","组件"]].map(([id,label])=>`<button type="button" data-action="design-tool" data-value="${id}" aria-pressed="${designTool===id}">${label}</button>`).join("")}</nav>
+                  <section class="scene-create-actions" aria-label="设计操作">
+                    <button ${designTool==="range"?"":"hidden"} data-action="draw-field" ${model.readOnly?'disabled':''}><b>规划范围</b><small>创建菜市场、公园、广场等场地</small></button>
+                    ${designTool==='range'&&model.properties?.category==='activity-field'?'<button data-action="add-to-site" data-value="'+escapeHtml(model.properties.id)+'" '+(model.readOnly?'disabled':'')+'>向此范围添加组件</button>':''}
+                    <button ${designTool==="road"?"":"hidden"} data-action="draw-road" ${model.readOnly?'disabled':''}><b>规划道路</b><small>连接场地与现状道路</small></button>
                   </section>
-                  <label>添加到<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></section>
+                  <div ${designTool==="components"?"":"hidden"}><label>添加到<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><span>搜索素材</span><input type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></div></section>
                 <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderPropertyContent(model)}</div></section>
 
               </div>
@@ -358,6 +364,7 @@
                 ${model.hasBoundary?`<details class="scene-local-boundary"><summary>旧版放置范围</summary><button data-action="select-object" data-value="selection-boundary">选择旧蓝框</button></details>`:''}
                 <details class="scene-studio-layers" ${layersExpanded?'open':''}><summary>图层管理</summary><section data-panel="layers"><button data-action="add-layer" ${model.readOnly?'disabled':''}>添加图层</button>${renderLayers(model.sections.layers,model.readOnly)}</section></details>
               </section>
+              <div class="scene-inspector-status">自动保存 · ${escapeHtml(model.save.label)} <span>Esc 返回选择</span></div>
             </aside>
             <section class="scene-versions-popover" data-panel="versions" ${versionsOpen?'':'hidden'} aria-label="方案版本"><div class="scene-section-title"><h3>方案版本</h3><button data-action="toggle-versions">关闭</button></div><button data-action="milestone" ${model.phase==='editing'?'':'disabled'}>保存一个版本</button>${renderVersions(model.versions,model.comparisonIds)}</section>
             <footer class="scene-studio-footer">
@@ -397,7 +404,7 @@
         const contextual = root.querySelector?.(".scene-studio-contextual-tools");
         if (contextual) contextual.outerHTML = Toolbar.renderToolbarHtml(lastModel);
       },
-      showAssets(group) { activeInspector="assets";inspectorCollapsed=false;if(ASSET_GROUPS[group]){activeAssetGroup=group;activeAssetCategory="all";}if(lastModel)renderPanel(lastModel); },
+      showAssets(group) { designTool="components";activeInspector="assets";inspectorCollapsed=false;if(ASSET_GROUPS[group]){activeAssetGroup=group;activeAssetCategory="all";}if(lastModel)renderPanel(lastModel); },
       showProperties() { activeInspector="properties";inspectorCollapsed=false;if(lastModel)renderPanel(lastModel); },
       updateActiveTool(tool) {
         if(lastModel)lastModel={...lastModel,activeTool:tool};
