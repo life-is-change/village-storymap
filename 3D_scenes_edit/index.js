@@ -156,7 +156,7 @@
       if (action.type === "add-layer") return controller.addLayer();
       if(action.type === "placement-site"){const r=controller.setPlacementSite(action.value);options.onSelectionChange?.();return r;}
       if(action.type === "add-to-site"){controller.setPlacementSite(action.value);return lifecycle.browseAssets(false);}
-      if(action.type === "object-rename"){controller.select([action.value]);return refreshed(controller.updateSelection({properties:{displayName:String(action.name||'').trim().slice(0,80)}}));}
+      if(action.type === "object-rename"){const name=String(action.name||'').trim().slice(0,60);if(!name)return;controller.select([action.value]);return refreshed(controller.updateSelection({properties:{displayName:name}}));}
       if (action.type === "layer-rename") return controller.renameLayer(action.value, action.name);
       if (action.type === "layer-delete") return controller.deleteLayer(action.value);
       if (action.type === "inspect-properties") return lifecycle.inspectProperties?.();
@@ -527,7 +527,7 @@
           if (!api) {
             if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
               const script = globalThis.document.createElement("script");
-              script.src = "village_game/integration/loader.js?v=20261102-studio2";
+              script.src = "village_game/integration/loader.js?v=20261103-studio3";
               script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
               globalThis.document.head.appendChild(script);
             });

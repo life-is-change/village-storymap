@@ -32,5 +32,7 @@ test('platform overlay reuses the viewer, anchors feet to terrain, preserves ind
  assert.ok(entities.some(e=>e.simulationEntrance==='baseline:house'));
  const a={id:'a',name:'居民',kind:'resident',ageGroup:'child',state:'moving',x:113,y:23,indoor:false};overlay.render({agents:[a],minute:500,progress:0},plan);const actor=entities.find(e=>e.simulationPerson);assert.equal(actor.billboard.verticalOrigin,1);assert.equal(actor.billboard.pixelOffset.y,0);assert.equal(actor.billboard.heightReference,3);assert.equal(actor.billboard.disableDepthTestDistance,0);
  overlay.render({agents:[{...a,indoor:true}],minute:501,progress:0},plan);assert.equal(actor.billboard.show,false);assert.equal(actor.point.show,true);assert.equal(actor.point.disableDepthTestDistance,Infinity);
+ overlay.render({agents:[{...a,marketRole:'vendor',marketState:'open'},{...a,id:'gate',node:'entry:1',state:'idle'},{...a,id:'walking',node:'entry:1'}],minute:559,progress:0},plan);
+ assert.equal(actor.billboard.disableDepthTestDistance,Infinity);assert.equal(entities.filter(e=>e.simulationPerson).length,2,'hide off-map idle markers while preserving gate traffic');
  overlay.dispose();assert.equal(entities.length,0);assert.equal(destroyed,true);assert.equal(sourceRemoved,true,'destroy the owned datasource so clamped graphics cannot survive the simulation');
 });

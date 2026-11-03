@@ -165,7 +165,7 @@
   function renderSiteTree(model,renamingId=null) {
     const tree=model.siteTree,disabled=model.readOnly?'disabled':'';
     const rows=objects=>objects.map(o=>'<div class="scene-tree-object">'+renderObjects([o],model.selectedIds)+'<button type="button" class="scene-rename-button" data-action="start-rename" data-value="'+escapeHtml(o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'>✎</button><input '+(renamingId===o.id?'':'hidden')+' type="text" maxlength="60" data-action="object-rename" data-value="'+escapeHtml(o.id)+'" value="'+escapeHtml(o.properties?.displayName||o.category||o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'></div>').join('');
-    return tree.sites.map(site=>'<details class="scene-site-branch" data-branch-id="'+escapeHtml(site.object.id)+'" open><summary>场地 · '+site.children.length+' 个组件</summary>'+rows([site.object])+'<div class="scene-site-children">'+rows(site.children)+'</div></details>').join('')+
+    return tree.sites.map(site=>'<div class="scene-site-branch">'+rows([site.object])+'<details data-branch-id="'+escapeHtml(site.object.id)+'" open><summary>'+site.children.length+' 个组件</summary><div class="scene-site-children">'+rows(site.children)+'</div></details></div>').join('')+
       '<details data-branch-id="roads" open><summary>连接道路 · '+tree.roads.length+'</summary>'+rows(tree.roads)+'</details>'+
       '<details data-branch-id="independent" open><summary>独立组件 · '+tree.unassigned.length+'</summary>'+rows(tree.unassigned)+'</details>';
   }
@@ -254,7 +254,7 @@
     }
     function onClick(event) {
       const action = actionFromTarget(event.target);
-      if (!action) return;
+      if (!action || action.type === "object-rename") return;
       if(action.type === "start-rename"){renamingId=action.value;if(lastModel)renderPanel(lastModel);const input=root.querySelector?.('[data-action="object-rename"]:not([hidden])');input?.focus();input?.select();return;}
       if(action.type === "toggle-versions"){versionsOpen=!versionsOpen;if(lastModel)renderPanel(lastModel);return;}
       if (action.type === "panel-tab") {
