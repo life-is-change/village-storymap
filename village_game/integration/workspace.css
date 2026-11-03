@@ -35,7 +35,8 @@
 .village-simulation-workspace .village-sim-connection button{font-size:12px;padding:5px 8px}
 
 /* Keep the real 3D canvas; controls follow the virtual village's arrangement. */
-.village-simulation-workspace{inset:0;width:auto;padding:12px;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;pointer-events:none;display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr) minmax(220px,300px);grid-template-rows:minmax(0,1fr);gap:12px}
+.village-simulation-workspace{inset:0;width:auto;padding:12px;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;pointer-events:none;display:grid;grid-template-columns:minmax(260px,350px) minmax(0,1fr) minmax(220px,300px);grid-template-rows:minmax(0,1fr);gap:12px}
+.village-sim-sidebar,.village-sim-inspector,.village-sim-palette{pointer-events:auto;background:#fffdf5;border:1px solid #c4cfba;border-radius:16px;box-shadow:0 6px 24px #1d382c20;box-sizing:border-box}
 .village-sim-sidebar{grid-column:1;grid-row:1;min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:18px}
 .village-simulation-workspace .village-sim-sidebar h2{font:600 32px/1.4 Georgia,"Microsoft YaHei",serif;margin:6px 0 12px}
 .village-simulation-workspace .village-sim-steps{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}
@@ -65,4 +66,4 @@
 
 .village-sim-market{margin:12px 0;padding:12px;border:1px solid #bed0af;border-radius:10px;background:#f1f5e9}.village-sim-market>b{display:block;color:#315d43}.village-sim-market p{font-size:12px;line-height:1.6}.village-sim-market button{margin-top:6px}[data-market-live]{padding:10px 0;font-weight:600;color:#315d43}[data-market-people] button{display:block;width:100%;margin:4px 0;text-align:left}
 
-.village-sim-sidebar-header{margin-bottom:12px}.village-sim-sidebar-header>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}.village-sim-sidebar-header a{color:#426856;font-size:12px}.village-sim-sidebar-header nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:10px}.village-sim-sidebar-header button{padding:6px;font-size:12px}
+.village-simulation-workspace .village-sim-sidebar-header{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:16px}.village-sim-sidebar-header>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}.village-sim-sidebar-header a{color:#426856;font-size:12px}.village-sim-sidebar-header nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0}.village-sim-sidebar-header button{padding:6px;font-size:12px;white-space:nowrap}.village-sim-sidebar-header nav button{padding-inline:2px}
