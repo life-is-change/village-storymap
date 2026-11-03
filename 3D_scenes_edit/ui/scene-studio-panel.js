@@ -277,7 +277,7 @@
     }
     function onClick(event) {
       const action = actionFromTarget(event.target);
-      if (!action || action.type === "object-rename") return;
+      if (!action || ["object-rename", "placement-site"].includes(action.type)) return;
       if(action.type === "start-rename"){renamingId=action.value;if(lastModel)renderPanel(lastModel);const input=root.querySelector?.('[data-action="object-rename"]:not([hidden])');input?.focus();input?.select();return;}
       if(action.type === "toggle-versions"){versionsOpen=!versionsOpen;if(lastModel)renderPanel(lastModel);return;}
       if (action.type === "toggle-object-dock") {

@@ -3097,7 +3097,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261103-preserve-view", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261103-market-focus", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");

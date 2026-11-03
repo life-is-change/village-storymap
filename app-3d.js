@@ -1264,9 +1264,13 @@ const ENABLE_SUPABASE_SYNC = (() => {
   async function addViewerImageryLayers(canUseIonServices) {
     const generation = ++imageryLoadGeneration;
     const targetViewer = viewer;
-    const loadKey = get3DLoadKey();
+    const imageryKey = () => {
+      const resources = getMain3DResources();
+      return JSON.stringify([getActiveVillage3DContext().villageId, resources.imageryUrl, resources.initialExtent, getBasemapGeoref()]);
+    };
+    const loadKey = imageryKey();
     const isCurrentImagery = () => viewer === targetViewer && !viewer?.isDestroyed?.()
-      && generation === imageryLoadGeneration && get3DLoadKey() === loadKey;
+      && generation === imageryLoadGeneration && imageryKey() === loadKey;
     if (!viewer) return;
 
     viewer.imageryLayers.removeAll();

@@ -397,7 +397,7 @@
           height: descriptor.elevationM, heightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND,
           extrudedHeight: descriptor.elevationM + descriptor.extrusionHeightM, extrudedHeightReference: Cesium.HeightReference?.RELATIVE_TO_GROUND
         });
-        upsert(descriptor.sourceObjectId, { polygon, polyline: { positions, width: 3, clampToGround: true, material: color('DARKGREEN') } });
+        upsert(descriptor.sourceObjectId, { polygon, polyline: { positions, width: 3, clampToGround: true, material: color('DARKGREEN') } }, null, { surfaceRing: outer });
       }
       for (const descriptor of descriptors.polylines) {
         nextIds.add(descriptor.sourceObjectId);
@@ -502,6 +502,14 @@
       const primitive = record?.modelResource?.primitive;
       if (primitive?.ready && viewer.camera?.flyToBoundingSphere) {
         viewer.camera.flyToBoundingSphere(primitive.boundingSphere, { duration: .45 });
+        return true;
+      }
+      const surfaceRing = record?.focus?.surfaceRing;
+      if (surfaceRing?.length && Cesium.BoundingSphere?.fromPoints && Cesium.HeadingPitchRange && viewer.camera?.flyToBoundingSphere) {
+        const points = surfaceRing.map(([lon, lat]) => Cesium.Cartesian3.fromDegrees(lon, lat, viewer.scene?.globe?.getHeight?.(Cesium.Cartographic.fromDegrees(lon, lat)) ?? 0));
+        const sphere = Cesium.BoundingSphere.fromPoints(points);
+        const heading = Number.isFinite(viewer.camera.heading) ? viewer.camera.heading : 0;
+        viewer.camera.flyToBoundingSphere(sphere, { duration: 0.45, offset: new Cesium.HeadingPitchRange(heading, -0.85, Math.max(35, sphere.radius * 4)) });
         return true;
       }
       if (record?.focus?.positionDegrees && typeof viewer.camera?.flyTo === "function") {
