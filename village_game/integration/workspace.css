@@ -67,3 +67,44 @@
 .village-sim-market{margin:12px 0;padding:12px;border:1px solid #bed0af;border-radius:10px;background:#f1f5e9}.village-sim-market>b{display:block;color:#315d43}.village-sim-market p{font-size:12px;line-height:1.6}.village-sim-market button{margin-top:6px}[data-market-live]{padding:10px 0;font-weight:600;color:#315d43}[data-market-people] button{display:block;width:100%;margin:4px 0;text-align:left}
 
 .village-simulation-workspace .village-sim-sidebar-header{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:16px}.village-sim-sidebar-header>div{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}.village-sim-sidebar-header a{color:#426856;font-size:12px}.village-sim-sidebar-header nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0}.village-sim-sidebar-header button{padding:6px;font-size:12px;white-space:nowrap}.village-sim-sidebar-header nav button{padding-inline:2px}
+
+.village-simulation-workspace {
+  grid-template-columns:min(300px,28vw) minmax(0,1fr) min(328px,29vw);
+  grid-template-rows:62px minmax(0,1fr);
+  gap:0;
+  padding:0;
+}
+.village-sim-topbar {
+  grid-column:1 / -1;
+  grid-row:1;
+  pointer-events:auto;
+  background:#fff;
+  border-bottom:1px solid #e4e1d6;
+  padding:0 18px;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+}
+.village-sim-topbar nav {margin:0;background:#efeee8;padding:3px;border-radius:10px;}
+.village-sim-topbar nav button {border:0;background:transparent;}
+.village-sim-topbar nav button[aria-pressed=true] {background:#fff;}
+.village-sim-topbar > div {display:flex;align-items:center;justify-content:flex-end;gap:8px;}
+.village-sim-topbar a {color:inherit;white-space:nowrap;}
+.village-simulation-workspace .village-sim-primary {background:#2e5740;color:#fff;white-space:nowrap;}
+.village-sim-sidebar,.village-sim-inspector,.village-sim-palette {grid-row:2;border-radius:0;}
+.village-sim-sidebar {background:#fbfaf6;}
+.village-sim-inspector {background:#fff;}
+.village-sim-transport {
+  grid-column:2;grid-row:2;align-self:end;justify-self:center;
+  display:flex;align-items:center;gap:10px;pointer-events:auto;
+  width:min(648px,calc(100% - 24px));box-sizing:border-box;
+  margin-bottom:20px;padding:10px 12px;background:#fff;border-radius:14px;
+  box-shadow:0 6px 24px #1d382c20;font-size:12px;
+}
+.village-sim-transport progress {flex:1;min-width:0;accent-color:#2e5740;}
+.village-simulation-workspace .village-sim-transport button {background:#2e5740;color:#fff;white-space:nowrap;}
+@media(max-width:800px){
+  .village-sim-topbar {grid-template-columns:auto 1fr;gap:4px;padding:0 8px;}
+  .village-sim-topbar > b {display:none;}
+  .village-sim-transport {grid-column:2 / -1;}
+}
+.village-sim-area-inspector {margin-bottom:0;}
