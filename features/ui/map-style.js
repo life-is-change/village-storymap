@@ -127,7 +127,7 @@
             safety_hazard: "#7b1fa2",
             public_space_need: "#2e7d32"
           };
-          color = categoryColors[category] || "#f59e0b";
+          color = globalThis.CommunityProblemTypes?.meta(category).color || categoryColors[category] || "#607d8b";
         } else if (status === "resolved" || status === "verified") {
           color = "#0ea5e9";
         } else if (status === "archived") {

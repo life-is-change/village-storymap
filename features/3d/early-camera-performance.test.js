@@ -17,7 +17,7 @@ test('camera uses current village extent before any building or terrain await',(
  vm.runInNewContext(source.slice(start,end)+';positionVillageCamera()',sandbox);
  assert.deepEqual(Array.from(calls[0].sphere.center),[110.5,20.5]);
  assert.equal(calls[0].options.duration,0);
- const load=source.slice(source.indexOf('  async function loadBuildingsNow()'),source.indexOf('  const loadBuildings ='));
+ const load=source.slice(source.indexOf('  async function loadBuildingsNow('),source.indexOf('  const loadBuildings ='));
  assert.ok(load.indexOf('positionVillageCamera()')<load.indexOf('await Promise.all('));
  assert.ok(load.indexOf('viewer.flyTo(buildingsDataSource')<load.indexOf('await applyTerrainHeights'));
 });

@@ -311,7 +311,7 @@ test("seed catalog covers every first-release public-space category", () => {
   for (const category of ["paving", "grass", "water", "planter", "planting", "activity-field", "path", "curb", "low-wall", "fence", "hedge", "drainage", "tree", "shrub", "bench", "table", "light", "bin", "sign", "sculpture", "fitness", "pavilion", "pergola", "bus-stop", "stall", "stage", "play-equipment"]) {
     assert.equal(categories.has(category), true, category);
   }
-  assert.equal(catalog.assets.every((asset) => asset.id.startsWith(`seed:${asset.category}:`) && asset.renderer), true);
+  assert.equal(catalog.assets.every((asset) => asset.id.startsWith(`seed:${asset.category === "composite" ? "combo" : asset.category}:`) && (asset.renderer || (asset.kind === "group" && asset.children.length > 0))), true);
 });
 
 test("uploads a generated top view beside a GLB and records it in asset metadata", async () => {

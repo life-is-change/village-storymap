@@ -19,6 +19,55 @@ test('reusing a private model reauthorizes with HEAD and avoids downloading iden
 });
 
 const receiptStorage=()=>{const values=new Map();return {getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};};
+test('a rejected photo upload does not reuse its terminal failed session on retry',async()=>{
+ const storage=receiptStorage(),begins=[],puts=[];let next=0,fail=true;
+ const client=api.createBusinessFilesClient({storage,origin:'https://local.example',getAccessToken:async()=> 'token',getIdentityKey:()=> 'owner',uuid:()=> 'rid-'+ ++next,createObjectURL:()=> 'blob:photo',fetchImpl:async(url,o)=>{
+  if(url.endsWith('/sessions')){const request=JSON.parse(o.body);begins.push(request.requestId);return Response.json({data:{id:request.requestId}});}
+  if(o.method==='PUT'){puts.push(url);if(fail){fail=false;return Response.json({error:{code:'INVALID_FILE'}},{status:422});}return Response.json({data:{}});}
+  if(url.endsWith('/commit'))return Response.json({data:{fileId:'10000000-0000-4000-8000-000000000001',photo_path:'ordinary/photo'}});
+  if(url.includes('/sessions/'))return Response.json({data:{id:'rid-1',state:'pending',files:[{state:'failed'}]}});
+  return new Response('photo');
+ }});
+ const target={objectCode:'B1'},file=new File(['png'],'input.png');
+ await assert.rejects(client.uploadPhoto(target,file),{code:'INVALID_FILE'});
+ assert.equal((await client.uploadPhoto(target,file)).photoUrl,'blob:photo');
+ assert.deepEqual(begins,['rid-1','rid-2']);assert.ok(puts[1].includes('/rid-2/'));
+});
+
+test('photo content signatures select PNG JPEG and WebP even when filenames disagree',async()=>{
+ const {png}=await import('../../business-api/test/fixtures/scene-files.mjs');
+ const {validateFile}=await import('../../business-api/scene-files/formats.mjs');
+ const jpeg=Buffer.from([255,216,255,192,0,11,8,0,1,0,1,1,1,17,0,255,218,0,8,1,1,0,0,63,0,1,255,217]);
+ const webp=Buffer.alloc(26);webp.write('RIFF');webp.writeUInt32LE(18,4);webp.write('WEBP',8);webp.write('VP8L',12);webp.writeUInt32LE(5,16);webp[20]=0x2f;
+ for(const [bytes,name,extension,mime] of [[png,'renamed.jpg','png','image/png'],[jpeg,'renamed.png','jpg','image/jpeg'],[jpeg,'photo.jpeg','jpeg','image/jpeg'],[webp,'photo','webp','image/webp']]){
+  let descriptor;
+  const client=api.createBusinessFilesClient({storage:receiptStorage(),origin:'https://local.example',getAccessToken:async()=> 'token',getIdentityKey:()=> 'owner',uuid:()=> 'rid',createObjectURL:()=> 'blob:photo',fetchImpl:async(url,o)=>{
+   if(url.endsWith('/sessions')){descriptor=JSON.parse(o.body).files[0];return Response.json({data:{id:'session'}});}
+   if(o.method==='PUT'){
+    const content=Buffer.from(await o.body.arrayBuffer());
+    await validateFile({...descriptor,handle:{async read(b,off,len,pos){const n=content.copy(b,off,pos,pos+len);return {bytesRead:n};}}});
+    return Response.json({data:{}});
+   }
+   if(url.endsWith('/commit'))return Response.json({data:{fileId:'10000000-0000-4000-8000-000000000001'}});
+   return new Response('photo');
+  }});
+  await client.uploadPhoto({objectCode:'B1'},new File([bytes],name));assert.equal(descriptor.extension,extension);assert.equal(descriptor.mime,mime);
+ }
+});
+
+test('an old receipt whose session contains a failed file is replaced before PUT',async()=>{
+ const storage=receiptStorage();let next=0,attempt=0;const starts=[];
+ const options={storage,origin:'https://local.example',getAccessToken:async()=> 'token',getIdentityKey:()=> 'owner',uuid:()=> 'rid-'+ ++next,createObjectURL:()=> 'blob:photo',fetchImpl:async(url,o)=>{
+  if(url.endsWith('/sessions')){const id=JSON.parse(o.body).requestId;starts.push(id);return Response.json({data:{id}});}
+  if(o.method==='PUT'){if(attempt++===0)throw TypeError('lost response');assert.ok(url.includes('/rid-2/'));return Response.json({data:{}});}
+  if(url.endsWith('/commit'))return Response.json({data:{fileId:'10000000-0000-4000-8000-000000000001'}});
+  if(url.includes('/sessions/'))return Response.json({data:{id:'rid-1',state:'pending',files:[{state:'failed'}]}});
+  return new Response('photo');
+ }};
+ const target={objectCode:'B1'},file=new File(['png'],'input.png');
+ await assert.rejects(api.createBusinessFilesClient(options).uploadPhoto(target,file));
+ await api.createBusinessFilesClient(options).uploadPhoto(target,file);assert.deepEqual(starts,['rid-1','rid-2']);
+});
 test('lost upload commit survives client recreation and does not PUT or commit twice',async()=>{
  const storage=receiptStorage(),requests=[],id='10000000-0000-4000-8000-000000000001';let committed=false,uuidCount=0;
  const options={storage,origin:'https://local.example',getAccessToken:async()=> 'token',getIdentityKey:()=> 'instance:user:project:space',uuid:()=> 'upload-'+ ++uuidCount,createObjectURL:()=> 'blob:ok',fetchImpl:async(url,o)=>{

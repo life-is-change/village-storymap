@@ -802,7 +802,14 @@
         return saveResult;
       } catch (error) {
         console.error(error);
-        deps.showToast(`${layerLabel}保存失败，请查看控制台`, "error");
+        if (error.code === "FILE_IN_USE" || error.message === "FILE_IN_USE") {
+          const source = deps.getPlanVectorSource();
+          for (const feature of state.pendingDeletedFeatures || []) {
+            if (!source.getFeatures().includes(feature)) source.addFeature(feature);
+          }
+          state.pendingDeletedFeatures = [];
+          deps.showToast("有要素已上传照片，不能直接删除；可以继续编辑顶点。", "info");
+        } else deps.showToast(`${layerLabel}保存失败，请稍后重试。`, "error");
         return { success: false, reason: "save_failed", error };
       } finally {
         state.isSaving = false;

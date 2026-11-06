@@ -10,8 +10,8 @@
   }
 
   function buildDraftKey(identity) {
-    const scope = identity?.scopeKind === "admin_sandbox"
-      ? `admin_sandbox:${requirePart(identity, "ownerId")}`
+    const scope = ["admin_sandbox","practice_personal"].includes(identity?.scopeKind)
+      ? `${identity.scopeKind}:${requirePart(identity, "ownerId")}`
       : requirePart(identity, "groupId");
     return `scene-edit:${requirePart(identity, "userId")}:${scope}:${requirePart(identity, "spaceId")}:${requirePart(identity, "projectId")}`;
   }

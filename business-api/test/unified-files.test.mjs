@@ -2,6 +2,31 @@ import test from 'node:test';import assert from 'node:assert/strict';import {mkd
 import {glbHeader,png} from './fixtures/scene-files.mjs';
 let api,storeAPI;try{api=await import('../unified/files.mjs');storeAPI=await import('../unified/file-store.mjs');}catch{api={};storeAPI={};}
 const c={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'A'};
+test('invalid upload aborts the terminal failed session and leaves no private bytes behind',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'invalid-photo-')),id=randomUUID(),fileId=randomUUID();let state='pending',fileState='pending';
+ const database={withIdentity:async(_identity,fn)=>fn({query:async(sql)=>{
+  if(sql.includes('file_claim')){fileState='uploading';return {rows:[{data:{id:fileId,role:'photo',size:png.length,mime:'image/png',extension:'png'}}]};}
+  if(sql.includes('file_fail'))fileState='failed';
+  else if(sql.includes('file_archive'))state='aborted';
+  else throw Error('unexpected database call');
+  return {rows:[]};
+ }})};
+ try{
+  const store=await storeAPI.createBusinessFileStore({root,instanceId:'invalid-photo'}),files=api.createBusinessFilesService({database,store});
+  await assert.rejects(files.put({},id,'photo',Readable.from([Buffer.alloc(png.length)])),{code:'INVALID_FILE'});
+  assert.equal(fileState,'failed');assert.equal(state,'aborted');
+  await assert.rejects(readFile(join(root,'pending',fileId)),{code:'ENOENT'});await assert.rejects(readFile(join(root,'blobs',fileId)),{code:'ENOENT'});
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('status retires an old uncommitted failed session so recovery does not consume its quota',async()=>{
+ const id=randomUUID(),fileId=randomUUID();let archived=false;
+ const snapshot={id,state:'pending',files:[{id:fileId,state:'failed'}]};
+ const database={withIdentity:async(_identity,fn)=>fn({query:async sql=>{
+  if(sql.includes('file_session'))return {rows:[{data:snapshot}]};
+  if(sql.includes('file_archive')){archived=true;return {rows:[]};}throw Error('unexpected database call');
+ }})};
+ assert.deepEqual(await api.createBusinessFilesService({database,store:{}}).status({},id),snapshot);assert.equal(archived,true);
+});
 test('a verified temporary result can atomically adopt its digest-derived identity without copying bytes',async()=>{
  const root=await mkdtemp(join(tmpdir(),'local-cloud-promote-')),from=randomUUID(),to=randomUUID();
  try{const store=await storeAPI.createBusinessFileStore({root,instanceId:'aliyun-test'}),receipt=await store.stage({fileId:from,role:'photo',size:png.length,mime:'image/png',extension:'png',stream:Readable.from([png])});await store.persist(from,to);const file=await store.open(to,receipt);await file.close();await assert.rejects(store.open(from,receipt),{code:'FILE_UNAVAILABLE'});await assert.rejects(store.persist(from,to));

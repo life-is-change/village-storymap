@@ -16,6 +16,34 @@ def evidence():
     ]}
 
 
+def test_photo_proportions_above_typical_floor_height_warn_instead_of_changing_scale(tmp_path):
+    image = tmp_path / 'three-floors.png'
+    Image.new('RGB', (641, 641), '#cccccc').save(image)
+    analysis = {'feature_version': 3,
+        'building_box': [.10048475577939134, .13426178740264844, .8992389553980596, .9513150838533542],
+        'detections': [
+            {'kind': 'roof', 'box': [.09961351701138359, .131245260491572, .9006101992126561, .2268871956050117], 'score': .4497},
+            {'kind': 'window', 'box': [.2181120588, .2712314028, .3574441086, .3873533585], 'score': .7541},
+        ]}
+    result = build_spec(image, analysis, {'buildingWidth': 18.936, 'buildingDepth': 11.652,
+        'modelPurpose': 'design', 'floors': 3})
+    spec = result['spec']
+    assert spec['floor_height'] == pytest.approx(5.724650753393884)
+    assert spec['metrics']['wall_height'] == pytest.approx(17.17395226018165)
+    assert spec['facade']['width'] == 18.936
+    assert spec['facade']['depth'] == 11.652
+    assert any('5.72' in warning and '17.17' in warning for warning in result['warnings'])
+
+
+def test_manual_floor_height_keeps_existing_validation():
+    from rural_house_generator.backend.component_building.app.domain import floor_height
+    with pytest.raises(ValueError):
+        floor_height(5.72)
+    for invalid in (0, -1, float('nan'), float('inf')):
+        with pytest.raises(ValueError):
+            floor_height(invalid, from_photo=True)
+
+
 def test_height_uses_wall_aspect_and_known_front_width_not_nine_meters(tmp_path):
     image = tmp_path / 'photo.png'
     Image.new('RGB', (1000, 1000), '#cccccc').save(image)

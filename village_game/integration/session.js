@@ -3,7 +3,7 @@
  function summarize(result){return {externalVendors:result.externalVendors,arrivals:result.arrivals,averageWalkMinutes:result.averageWalkMinutes,resident:result.resident,visitor:result.visitor,failures:result.failures,housingShortage:result.housingShortage,satisfaction:result.satisfaction.average,encounters:result.encounters,...(result.dailyMarkets?{dailyMarkets:{...clone(result.dailyMarkets),transactions:clone(result.dailyMarkets.transactions.slice(-12)),transactionCount:result.dailyMarkets.transactions.length}}:{}),...(result.runKind==='morning-market'?{runKind:result.runKind,window:clone(result.window),market:{...clone(result.market),events:clone(result.market.events.slice(-12)),eventCount:result.market.events.length}}:{})};}
  function create(options){
   const initial=options.readDocument(),scope=[initial.projectId,initial.villageId,initial.baselineRef.spaceId].join('|');
-  let config=Adapter.reconcileConfig(initial.metadata?.simulation||Adapter.createConfig(initial,options.readContext()),Adapter.catalog(initial,options.readContext())),compiled=null,sim=null,snapshot=null,previous=null,disposed=false,playing=false,finishing=false,serial=0,runIdentity=null,phase='idle',saveSequence=0;
+  let config=Adapter.reconcileConfig(initial.metadata?.simulation||Adapter.createConfig(initial,options.readContext()),Adapter.catalog(initial,options.readContext())),compiled=null,sim=null,snapshot=null,previous=null,disposed=false,playing=false,finishing=false,serial=0,runIdentity=null,phase='idle',saveSequence=0,runScene=null;
   function current(){if(disposed)throw Error('模拟已退出');const d=options.readDocument();if([d.projectId,d.villageId,d.baselineRef.spaceId].join('|')!==scope)throw Error('方案空间已切换，请重新打开模拟');return d;}
   function state(){return {config:clone(config),snapshot,playing,finishing,compiled,phase,done:!!snapshot?.done};}
   function emit(){options.onState?.(state());}
@@ -22,9 +22,25 @@
    phase='preparing';emit();const [inputDigest,comparisonDigest]=await Promise.all([Adapter.digest(frozen),Adapter.digest(comparison)]);phase='idle';
    if(disposed||generation!==serial)return {ok:false,code:'CANCELLED'};
    runIdentity={inputDigest,comparisonDigest,source:clone(compiled.scene.source),revision:compiled.scene.revision,settings:clone(config.settings)};
-   sim=Simulation.createSimulation(compiled.scene);snapshot=sim.snapshot();options.overlay?.setPlan?.(compiled);playing=true;emit();return {ok:true,warnings:compiled.warnings};
+   runScene=compiled.scene;sim=Simulation.createSimulation(runScene);snapshot=sim.snapshot();options.overlay?.setPlan?.(compiled);playing=true;emit();return {ok:true,warnings:compiled.warnings};
   }
   function tick(minutes){current();if(!playing||finishing||!sim)return;const before=snapshot;sim.step(minutes);snapshot=sim.snapshot();if(before.minute!==snapshot.minute||before.day!==snapshot.day)previous=before;if(snapshot.done)playing=false;}
+  function seek(minute){
+   current();
+   if(!sim||finishing||snapshot.runKind==='morning-market'||!Number.isInteger(minute)||minute<360||minute>1320)return false;
+   const scene=runScene;
+   const {startMinute,endMinute}=scene.scenario;
+   const elapsed=(snapshot.day-1)*(endMinute-startMinute)+minute-startMinute;
+   const replay=Simulation.createSimulation(scene);
+   for(let remaining=elapsed;remaining>0;remaining-=60) replay.step(Math.min(60,remaining));
+   sim=replay;
+   snapshot=sim.snapshot();
+   previous=null;
+   playing=false;
+   paint();
+   emit();
+   return true;
+  }
   function paint(){if(snapshot)options.overlay?.render?.(Observation.layout(compiled.scene,Observation.interpolate(previous,snapshot,snapshot.progress)),compiled);}
   async function finish(){
    current();if(!sim)return {ok:false,errors:['请先保存并开始模拟']};if(finishing)return {ok:false,code:'BUSY'};
@@ -34,7 +50,7 @@
     config.runs=[record,...config.runs.filter(r=>r.inputDigest!==record.inputDigest)].slice(0,5);options.writeConfig(clone(config));const saved=await save();if(disposed||generation!==serial)return {ok:false,code:'CANCELLED'};current();return {...saved,record};
    }finally{if(!disposed&&generation===serial){finishing=false;emit();}}
   }
-  return {state,update,save,check,start,tick,paint,finish,pause(){playing=false;emit();},resume(){current();if(sim&&!snapshot.done&&!finishing)playing=true;emit();},dispose(){if(disposed)return;stop();disposed=true;options.overlay?.dispose?.();},compatible(a,b){return a?.comparisonDigest===b?.comparisonDigest&&typeof a?.comparisonDigest==='string';}};
+  return {state,update,save,check,start,tick,seek,paint,finish,pause(){playing=false;emit();},resume(){current();if(sim&&!snapshot.done&&!finishing)playing=true;emit();},dispose(){if(disposed)return;stop();disposed=true;options.overlay?.dispose?.();},compatible(a,b){return a?.comparisonDigest===b?.comparisonDigest&&typeof a?.comparisonDigest==='string';}};
  }
  return {create,summarize};
 });

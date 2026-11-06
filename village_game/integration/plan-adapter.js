@@ -205,14 +205,14 @@
   scene.marketLayouts={};
   for(const m of marketConfigs){
    const market=scene.buildings.find(b=>b.sourceKey===m.marketKey&&b.type==='market'),field=byKey.get(m.marketKey),marketObject=document.objects.find(o=>'object:'+o.id===m.marketKey);
-   if(!market||!marketObject?.properties?.marketId||field?.geometry.type!=='Polygon')errors.push('请将已布置早市的活动场地定义为村庄早市');
+   if(!market||!marketObject||field?.geometry.type!=='Polygon')errors.push('请将已布置早市的活动场地定义为村庄早市');
    else{
-    const children=document.objects.filter(o=>o.id!==marketObject.id&&o.properties?.marketId===marketObject.id);
-    const stalls=children.filter(o=>o.properties.marketRole==='stall').map(o=>({id:o.id,name:o.properties.displayName||o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
+    const children=document.objects.filter(o=>o.id!==marketObject.id&&(o.properties?.siteId===marketObject.id||o.properties?.marketId===marketObject.id&&o.properties?.siteId==null));
+    const stalls=children.filter(o=>o.properties.marketRole==='stall'||o.category==='stall').map(o=>({id:o.id,name:o.properties.displayName||o.id,center:toLocal(o.geometry.coordinates),headingDeg:o.transform?.headingDeg||0,footprint:(o.properties.footprintM||[3.4,2.6]).map((n,i)=>n*(o.transform?.scale?.[i]||1)),produceKind:o.properties.produceKind}));
     if(m.mode==='legacy'&&stalls.length<m.vendorCount)errors.push('早市摊位不足，请补齐摊位或减少摊主人数');
     const localField={type:'Polygon',coordinates:field.geometry.coordinates.map(r=>r.map(toLocal))},components=[];
     const intersectsField=ring=>Geometry.intersectsAny(localField,[{type:'Polygon',coordinates:[ring]}]);
-    try{for(const object of document.objects){if(object.id===marketObject.id||object.properties?.marketId===marketObject.id&&['stall','aisle'].includes(object.properties?.marketRole))continue;components.push(...solidComponentRings(object,toLocal).filter(intersectsField));}}catch(error){errors.push(error.message);}
+    try{for(const object of document.objects){if(object.id===marketObject.id||children.includes(object)&&(object.category==='stall'||['stall','aisle'].includes(object.properties?.marketRole)))continue;components.push(...solidComponentRings(object,toLocal).filter(intersectsField));}}catch(error){errors.push(error.message);}
     const localObstacles=[...scene.obstacles,...scene.buildings.filter(b=>b.id!==market.id&&!b.passable&&b.footprint).map(b=>b.footprint),...components].filter(intersectsField);
     const layout=MarketLayout.compileMarketLayout({field:localField,stalls,aisles:children.filter(o=>o.properties.marketRole==='aisle').map(o=>({id:o.id,points:o.geometry.coordinates.map(toLocal),width:o.properties.widthM})),obstacles:localObstacles,gate:market.entrance});
     if(!layout.ok)errors.push(...layout.errors);

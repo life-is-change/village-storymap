@@ -8,9 +8,9 @@
   <script src="features/ui/homepage-entry-bootstrap.js?v=20261008-entry-auth-lock"></script>
   <!-- 主入口说明：根目录 index.html 是整合平台外壳，homepage/dist 只是被嵌入的首页子页面 -->
 
-  <!-- 本地样式和地图/后端 SDK：style.css 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
-  <link rel="stylesheet" href="style.css?v=20261030-panel-anchor" />
-  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20261103-right-panel-v6" />
+  <!-- 本地样式和地图/后端 SDK：style.css?v=20261104-interviews 控制平台整体布局，OpenLayers 用于 2D 地图，Supabase 用于登录和数据存储 -->
+  <link rel="stylesheet" href="style.css?v=20261106-problem-types" />
+  <link rel="stylesheet" href="3D_scenes_edit/style.css?v=20261105-curated" />
   <link rel="stylesheet" href="assets/vendor/openlayers-10.8.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="features/ui/page-restore-guard.js?v=20260921-home-entry-bfcache"></script>
@@ -27,7 +27,7 @@
       <!-- 顶部栏：显示平台标题、返回首页按钮、当前用户和当前模式 -->
       <header class="topbar">
         <div class="topbar-left">
-          <!-- 返回首页按钮：由 app.js 绑定点击事件，切回首页总览 -->
+          <!-- 返回首页按钮：由 app.js?v=20261104-home-permissions 绑定点击事件，切回首页总览 -->
           <button id="homeBtn" class="home-btn" title="返回首页">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -151,12 +151,12 @@
               <iframe
                 id="homeLandingFrame"
                 class="home-landing-frame"
-                src="./homepage/dist/index.html?v=20261008-entry-auth-lock"
+                src="./homepage/dist/index.html?v=20261104-compact-stat-cards"
                 title="村庄规划互动平台首页"
                 data-entry-role="embedded-homepage-build"
                 data-source-entry="homepage/index.html"
               ></iframe>
-              <!-- 旧版浮动登录按钮，目前由 auth-system.js/app.js 控制显示状态，通常保持隐藏 -->
+              <!-- 旧版浮动登录按钮，目前由 auth-system.js/app.js?v=20261104-home-permissions 控制显示状态，通常保持隐藏 -->
               <button id="authLoginBtn" type="button" class="auth-floating-btn" style="display:none;" title="点击登录/注册"></button>
             </div>
 
@@ -179,7 +179,7 @@
                 <span class="map2d-loading-spinner" aria-hidden="true"></span>
                 <strong>正在加载 2D 地图…</strong>
               </div>
-              <!-- 测量结果显示区：测距时由 app.js 更新文本 -->
+              <!-- 测量结果显示区：测距时由 app.js?v=20261104-home-permissions 更新文本 -->
               <div id="measure2dReadout" class="map-measure-readout"></div>
             </div>
           </section>
@@ -219,7 +219,7 @@
               <div id="measure3dReadout" class="map-measure-readout"></div>
               <!-- 3D 操作提示：告诉用户如何移动、缩放、旋转场景 -->
               <div id="model3dHint" class="model-3d-hint">
-                操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。
+                操作提示：左键拖拽平移，滚轮缩放，按住滚轮或右键旋转。
               </div>
             </div>
           </section>
@@ -340,7 +340,7 @@
     };
   </script>
 
-  <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js 启动；3D 脚本进入 3D 时再按需加载 -->
+  <!-- 业务脚本加载顺序很重要：基础系统先加载，主应用 app.js?v=20261104-home-permissions 启动；3D 脚本进入 3D 时再按需加载 -->
   <script defer src="features/auth/supabase-auth-model.js?v=20261008-entry-auth-lock"></script>
   <script defer src="features/auth/access-control.js?v=20261008-entry-auth-lock"></script>
   <script defer src="deployment-config.js"></script>
@@ -348,9 +348,10 @@
   <script defer src="features/auth/deployment-auth-client.js"></script>
   <script defer src="features/auth/deployment-profile.js"></script>
   <script defer src="auth-system.js?v=20261008-entry-auth-lock"></script>
+  <script defer src="features/community/problem-types.js?v=20261106-problem-types"></script>
   <script defer src="community-tasks.js"></script>
   <script defer src="features/ui/contour-utils.js?v=20260810-contour-fix"></script>
-  <script defer src="features/ui/map-style.js?v=20261029-2d-performance"></script>
+  <script defer src="features/ui/map-style.js?v=20261106-problem-types"></script>
   <script defer src="features/ui/space-panel.js?v=20260903-space-context-fix"></script>
   <script defer src="features/ui/space-panel-events.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/view-switcher.js?v=20261007-wait-chain2"></script>
@@ -373,20 +374,20 @@
   <script defer src="features/data/village-dataset-resolver.js?v=20260907-village-runtime-fix"></script>
   <script defer src="features/data/effective-building-features.js?v=20260810-space-alignment"></script>
   <script defer src="features/3d/village-3d-config.js"></script>
-  <script defer src="features/3d/3d-edit-policy.js?v=20260907-shared-admin-3d"></script>
+  <script defer src="features/3d/3d-edit-policy.js?v=20261104-home-permissions"></script>
   <script defer src="features/data/personal-space-client.js?v=20260810-platform-fix"></script>
   <script defer src="features/ui/personal-layer-versions.js?v=20260810-platform-fix"></script>
   <script defer src="features/geoprocessing/geoprocessing-client.js?v=20260926-aoi-draft-order"></script>
-  <script defer src="features/geoprocessing/geoprocessing-context.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-context.js?v=20261105-processing-repair"></script>
   <script defer src="features/geoprocessing/geoprocessing-aoi.js?v=20260926-aoi-draft-order"></script>
   <script defer src="features/geoprocessing/village-preview.js?v=20260926-aoi-draft-order"></script>
   <script defer src="features/geoprocessing/geoprocessing-result-layers.js?v=20260926-aoi-draft-order"></script>
-  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20260926-aoi-draft-order"></script>
+  <script defer src="features/geoprocessing/geoprocessing-panel.js?v=20261105-processing-repair2"></script>
   <script defer src="features/ui/course-workbench.js?v=20261007-wait-chain2"></script>
   <script defer src="features/survey/survey-review-model.js?v=20261029-object-details"></script>
   <script defer src="features/survey/survey-activity-model.js?v=20260908-survey-markers"></script>
   <script defer src="features/survey/survey-review-client.js?v=20261029-survey-models"></script>
-  <script defer src="features/survey/survey-review-panel.js?v=20260911-survey-layout-fix"></script>
+  <script defer src="features/survey/survey-review-panel.js?v=20261104-interviews"></script>
   <script defer src="features/survey/survey-realtime-controller.js?v=20261030-sync-recovery"></script>
   <script defer src="features/data/data-service.js?v=20260911-photo-security"></script>
   <script defer src="features/data/feature-edit-session.js"></script>
@@ -395,49 +396,50 @@
   <script defer src="features/object-collaboration/object-comments.js"></script>
   <script defer src="features/object-collaboration/object-info-deps.js"></script>
   <script defer src="features/sync/supabase-sync-manager.js"></script>
-  <script defer src="features/map-editing/geometry-editor.js?v=20261029-map-interaction"></script>
+  <script defer src="features/map-editing/geometry-editor.js?v=20261104-interviews"></script>
   <script defer src="features/map-editing/survey-review-overlay.js?v=20260908-survey-status"></script>
   <script defer src="features/mc/mc-bridge.js"></script>
   <script defer src="features/map-editing/map-hover-handler.js?v=20261029-2d-performance"></script>
   <script defer src="features/map-editing/map-hit-policy.js?v=20260810-platform-fix"></script>
-  <script defer src="features/map-editing/map-click-handler.js?v=20260810-platform-fix"></script>
+  <script defer src="features/map-editing/map-click-handler.js?v=20261104-interviews"></script>
   <script defer src="features/map-editing/overlay-renderer.js?v=20261030-main-game1"></script>
-  <script defer src="3D_scenes_edit/domain/scene-document.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20261102-studio2"></script>
+  <script defer src="3D_scenes_edit/domain/scene-document.js?v=20261104-workspace-access"></script>
+  <script defer src="3D_scenes_edit/domain/scene-commands.js?v=20261105-curated"></script>
   <script defer src="3D_scenes_edit/domain/geometry-rules.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/persistence/scene-edit-client.js"></script>
-  <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20261102-studio2"></script>
+  <script defer src="3D_scenes_edit/persistence/scene-edit-client.js?v=20261104-workspace-access"></script>
+  <script defer src="3D_scenes_edit/persistence/local-draft-store.js?v=20261104-workspace-access"></script>
   <script defer src="3D_scenes_edit/persistence/autosave-controller.js"></script>
   <script defer src="features/3d/render-quality.js?v=20261020-unified-routing"></script>
   <script defer src="features/models/glb-normalization.js?v=20261020-unified-routing"></script>
-  <script defer src="features/models/model-residency.js?v=20261020-unified-routing"></script>
+  <script defer src="features/models/model-residency.js?v=20261106-ready-swap"></script>
   <script defer src="features/models/model-view-metrics.js?v=20261020-unified-routing"></script>
   <script defer src="3D_scenes_edit/assets/scene-asset-library.js?v=20261102-studio2"></script>
   <script defer src="3D_scenes_edit/assets/model-top-view-thumbnail.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20261102-studio2"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-layer-adapter.js?v=20261105-curated"></script>
   <script defer src="village_game/domain/market-design.js?v=20261102-studio2"></script>
   <script defer src="3D_scenes_edit/domain/market-preset.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20261103-market-focus"></script>
+  <script defer src="3D_scenes_edit/map_2d/scene-editor-controller.js?v=20261106-market"></script>
+  <script defer src="3D_scenes_edit/map_2d/openlayers-interactions.js?v=20261105-curated"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-toolbar.js?v=20261105-curated"></script>
+  <script defer src="3D_scenes_edit/ui/scene-studio-panel.js?v=20261106-market2"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-to-cesium.js?v=20261102-studio2"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-preview-adapter.js?v=20261103-market-focus"></script>
   <script defer src="3D_scenes_edit/preview_3d/scene-transform-bridge.js"></script>
   <script defer src="3D_scenes_edit/interaction_3d/cesium-ground-picker.js"></script>
   <script defer src="3D_scenes_edit/interaction_3d/cesium-scene-interactions.js?v=20261102-studio2"></script>
   <script defer src="3D_scenes_edit/integration/focus-mode.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20261102-studio2"></script>
-  <script defer src="3D_scenes_edit/index.js?v=20261103-sim-layout"></script>
-  <script defer src="features/data/unified-operation-routes.js"></script>
+  <script defer src="3D_scenes_edit/integration/platform-bridge.js?v=20261104-workspace-access-r2"></script>
+  <script defer src="3D_scenes_edit/index.js?v=20261106-market"></script>
+  <script defer src="features/data/unified-operation-routes.js?v=20261104-home-permissions"></script>
   <script defer src="features/data/unified-api-client.js"></script>
-  <script defer src="features/data/business-files-client.js"></script>
+  <script defer src="features/data/business-files-client.js?v=20261105-processing-repair"></script>
   <script defer src="features/data/business-task-client.js"></script>
   <script defer src="features/sync/business-event-client.js?v=20261030-sync-recovery"></script>
   <script defer src="3D_scenes_edit/persistence/scene-files-api-client.js?v=20261030-scene-open1"></script>
-  <script defer src="features/data/scene-services.js"></script>
+  <script defer src="features/data/scene-services.js?v=20261105-curated"></script>
   <script defer src="features/data/platform-services.js"></script>
-  <script defer src="app.js?v=20261103-market-focus"></script>
+  <script defer src="features/object-collaboration/object-interviews.js?v=20261104-interviews"></script>
+  <script defer src="app.js?v=20261106-problem-types"></script>
   <!-- 自定义确认弹窗模板：替代浏览器原生 confirm，由 JS 控制显示和按钮回调 -->
   <div id="customConfirmModal" class="custom-modal-overlay is-hidden">
     <div class="custom-modal">

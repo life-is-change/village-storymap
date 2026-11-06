@@ -23,9 +23,9 @@
     const errors = [];
     for (const key of REQUIRED_CONTEXT) if (typeof context?.[key] !== "string" || !context[key].trim()) errors.push(`${key} is required`);
     const scopeKind = context?.scopeKind || "group";
-    if (!['group', 'admin_sandbox'].includes(scopeKind)) errors.push("scopeKind is invalid");
+    if (!['group', 'admin_sandbox', 'practice_personal'].includes(scopeKind)) errors.push("scopeKind is invalid");
     if (scopeKind === "group" && (typeof context?.groupId !== "string" || !context.groupId.trim())) errors.push("groupId is required");
-    if (scopeKind === "admin_sandbox" && (typeof context?.ownerId !== "string" || !context.ownerId.trim())) errors.push("ownerId is required");
+    if (scopeKind !== "group" && (typeof context?.ownerId !== "string" || !context.ownerId.trim())) errors.push("ownerId is required");
     if (!Number.isInteger(context?.baselineRevision) || context.baselineRevision < 0) errors.push("baselineRevision must be a non-negative integer");
     if (!Array.isArray(context?.baselineFeatures)) errors.push("baselineFeatures must be an array");
     return { ok: errors.length === 0, errors };
@@ -130,7 +130,7 @@
     const lifecycle = options.lifecycle;
     const refreshed = result => { options.onSelectionChange?.();return result; };
     return async function dispatch(action) {
-      if(options.isReadOnly?.()&&!['mode','select-object','inspect-properties','compare-version','close','cancel'].includes(action.type))return {ok:false,code:'READ_ONLY'};
+      if(options.isReadOnly?.()&&!['mode','select-object','select-group','inspect-properties','compare-version','close','cancel'].includes(action.type))return {ok:false,code:'READ_ONLY'};
       if (action.type === "tool") {
         controller.setTool(action.value);
         return lifecycle.activateTool?.(action.value);
@@ -143,7 +143,9 @@
       if (action.type === "move-shape") return lifecycle.moveShape();
       if (action.type === "edit-road") return lifecycle.editRoad();
       if (action.type === "delete-road-vertex") return lifecycle.deleteRoadVertex();
-      if (action.type === "group") return controller.groupSelection();
+      if (action.type === "group") return refreshed(controller.groupSelection());
+      if (action.type === "ungroup") return refreshed(controller.ungroupSelection());
+      if (action.type === "select-group") { lifecycle.cancel?.();return refreshed(controller.selectGroup(action.value)); }
       if (action.type === "align") return controller.alignSelection(action.value);
       if (action.type === "distribute") return controller.distributeSelection(action.value);
       if (action.type === "mode") return lifecycle.switchMode(action.value);
@@ -197,13 +199,12 @@
 
   async function loadSeedAssets(fetchImpl) {
     if (!fetchImpl) return [];
-    try {
-      const response = await fetchImpl("3D_scenes_edit/assets/seed/catalog.json?v=20261102-studio2");
-      if (!response.ok) return [];
-      return (await response.json()).assets || [];
-    } catch (_error) {
-      return [];
-    }
+    const lists = await Promise.all(['seed','curated'].map(async folder => {
+      try { const response=await fetchImpl(`3D_scenes_edit/assets/${folder}/catalog.json?v=20261106-market`);
+        return response.ok ? (await response.json()).assets || [] : [];
+      } catch (_error) { return []; }
+    }));
+    return lists.flat();
   }
 
   async function loadStudioResources({ loadSeeds, loadAssets, loadVersions } = {}) {
@@ -234,7 +235,7 @@
       const loaded = await client.loadProject(context.projectId);
       if (!loaded.ok) return { ...loaded, dispose: () => panel.dispose() };
       document = loaded.data;
-      if (needsBaselineBranch(document, context) && client.branchFromBaseline && await options.confirmBaselineUpgrade?.(document, context)) {
+      if (context.scopeKind !== "practice_personal" && needsBaselineBranch(document, context) && client.branchFromBaseline && await options.confirmBaselineUpgrade?.(document, context)) {
         const branch = await client.branchFromBaseline({ projectId: document.projectId, baselineRevision: context.baselineRevision, title: `${context.title || "公共空间方案"} · 新现状分支` });
         if (!branch.ok) return { ...branch, dispose: () => panel.dispose() };
         context.projectId = branch.data.id;
@@ -270,6 +271,9 @@
     let identity = buildDraftIdentity(context, document.projectId);
     const localStore = options.services?.localStore || DraftStore.createLocalDraftStore(options.storage || globalThis.localStorage);
     document = chooseInitialDocument(document, localStore.read(identity));
+    if (context.scopeKind === "practice_personal") {
+      document.metadata = { ...document.metadata, practiceBaseline: { source: "personal" } };
+    }
     const adapter = options.services?.adapter || Layers.createSceneLayerAdapter({ ol: options.ol || globalThis.ol, map: options.map });
     adapter.mount?.();
     let controller;
@@ -315,7 +319,7 @@
       const selectedObject = document.objects.find((object) => state.selectedIds.includes(object.id)) || null;
       return Panel.buildViewModel({
         phase: phase(), title: context.title || "公共空间方案", mode, activeTool: state.tool,
-        placementSiteId: state.placementSiteId, selectedIds: state.selectedIds, selectedObject, layers: document.layers, objects: document.objects,
+        placementSiteId: state.placementSiteId, selectedIds: state.selectedIds, selectedObject, layers: document.layers, objects: document.objects, groups:document.groups,
         selectionBoundary: document.selectionBoundary,
         assets, canUndo: state.canUndo, canRedo: state.canRedo, saveStatus: autosave.getState().status,
         revision: document.revision, updatedAt: document.updatedAt,
@@ -407,7 +411,7 @@
             mapInteractionBridge.activate("select");
           } else {
             const input = createObjectInputForTool(drawTool, geometry, activeAsset);
-            const result = input ? controller.createObject(input) : null;
+            const result = activeAsset?.kind==='group'&&drawTool==='place-asset' ? controller.createComponent(activeAsset,geometry.coordinates,assets) : input ? controller.createObject(input) : null;
             if (result?.ok && drawTool !== 'place-asset') finishCreation();
             return result;
           }
@@ -416,6 +420,13 @@
         onGeometryChange(id, geometry) {
           controller.select([id]);const result=controller.updateSelection({ geometry });
           mapInteractionBridge.activate(controller.getState().tool);updateSelectionUI();return result;
+        },
+        onTranslate(items) {
+          const state=controller.getState(),first=items[0];
+          const group=state.document.groups.find(g=>g.objectIds.every(id=>state.selectedIds.includes(id))&&g.objectIds.includes(first?.id));
+          if(group&&first.geometry.type==='Point')controller.moveObject(first.id,first.geometry.coordinates);
+          else for(const item of items){controller.select([item.id]);controller.updateSelection({geometry:item.geometry});}
+          mapInteractionBridge.activate(controller.getState().tool);updateSelectionUI();
         },
         onMeasure(geometry) { options.onStatus?.({ level: "info", code: "MEASUREMENT", measurements: Editor.measureGeometry(geometry, Geometry) }); }
       });
@@ -451,7 +462,7 @@
           },
           onPlace({ asset, coordinate }) {
             const input = createObjectInputForTool("place-asset", { type: "Point", coordinates: coordinate }, asset);
-            const result = input ? controller.createObject(input) : null;
+            const result = asset?.kind==='group' ? controller.createComponent(asset,coordinate,assets) : input ? controller.createObject(input) : null;
             previewAdapter?.clearGhost?.();
             if (result?.ok) updateSelectionUI();
             return result;
@@ -462,7 +473,11 @@
             if (result?.ok) finishCreation();
             return result;
           },
-          onSelect(ids) { controller.select(ids); updateSelectionUI(undefined, true); },
+          onSelect(ids) {
+            const state=controller.getState();
+            if(!(state.tool==='move'&&ids.length===1&&state.selectedIds.length>1&&state.selectedIds.includes(ids[0])))controller.select(ids);
+            updateSelectionUI(undefined, true);
+          },
           onMove({ id, coordinate }) { controller.moveObject(id, coordinate); updateSelectionUI(); },
           onStatus(status) {
             interactionStatus = status?.message || "";
@@ -527,7 +542,7 @@
           if (!api) {
             if (!globalThis.loadVillageSimulation) await new Promise((resolve, reject) => {
               const script = globalThis.document.createElement("script");
-              script.src = "village_game/integration/loader.js?v=20261103-sim-layout";
+              script.src = "village_game/integration/loader.js?v=20261103-village-market";
               script.onload = resolve; script.onerror = () => { script.remove(); reject(Error("模拟入口加载失败，请刷新重试")); };
               globalThis.document.head.appendChild(script);
             });

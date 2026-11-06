@@ -47,3 +47,28 @@ test('real GLB processing hands high, low, original and top bytes to the C2a bun
  assert.equal((await service.uploadAsset({file:new File([bytes],'Bench.glb',{type:'application/octet-stream'}),displayName:'Bench',kind:'model',topViewBlob:new Blob(['preview'],{type:'image/png'}),metadata:{category:'bench'},license:'student-provided'})).ok,true);
  assert.deepEqual(uploaded.files.map(f=>f.role),['original','display','low','top']);assert.equal(uploaded.context.scopeKind,'group');assert.equal(uploaded.record.metadata.normalized,true);service.dispose();
 });
+
+test('practice scenes reopen on the latest personal baseline while retaining design objects',async()=>{
+ const Studio=require('../../3D_scenes_edit/index.js'),documents=require('../../3D_scenes_edit/domain/scene-document.js');
+ const personal={...context,groupId:null,scopeKind:'practice_personal',ownerId:context.userId,projectId:'project',seedAssets:[]};
+ let doc=documents.create({...personal,spaceId:personal.spaceId,baselineRevision:0});
+ doc.metadata.practiceBaseline={source:'shared',features:[{id:'old-shared',layerKey:'building',geometry:{type:'Point',coordinates:[113,23]},properties:{}}]};
+ doc.revision=2;
+ doc.objects=[{id:'design',kind:'asset',category:'bench',geometry:{type:'Point',coordinates:[113,23]},layerId:doc.layers[0].id,properties:{},transform:{headingDeg:0,pitchDeg:0,rollDeg:0,heightOffsetM:0,scale:[1,1,1]}}];
+ let opened;
+ for(const id of ['personal-before','personal-after']){
+  const root={innerHTML:'',dataset:{},setAttribute(){},focus(){},addEventListener(){},removeEventListener(){}};
+  const feature={id,layerKey:'building',geometry:{type:'Point',coordinates:[113,23]},properties:{}};
+  const studio=await Studio.create({root,context:{...personal,baselineRevision:3,baselineFeatures:[feature]},storage:storage(),
+   services:{client:{loadProject:async()=>({ok:true,data:structuredClone(doc)}),listAssets:async()=>({ok:true,data:[]}),listVersions:async()=>({ok:true,data:[]}),branchFromBaseline(){throw Error('unexpected branch');}},
+    adapter:{mount(){},render(){},setAssets(){},dispose(){}},interactions:{activate(){},dispose(){}},preview:{async render(){},select(){},dispose(){}}},
+   choosePracticeBaseline(){throw Error('unexpected shared baseline choice');},confirmBaselineUpgrade(){throw Error('unexpected upgrade prompt');},
+   ensure3D:async()=>({viewer:{}}),simulationApi:{open(options){opened=options.context;return {dispose(){}};}}});
+  assert.equal(studio.ok,true);
+  assert.equal((await studio.dispatch({type:'simulation'})).ok,true);
+  assert.equal(opened.baselineFeatures[0].id,id);
+  assert.equal(studio.getDocument().objects[0].id,'design');
+  assert.equal(studio.getDocument().metadata.practiceBaseline.source,'personal');
+  studio.dispose();
+ }
+});

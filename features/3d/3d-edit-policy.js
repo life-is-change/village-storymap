@@ -13,7 +13,7 @@
     return {
       actualSpaceId,
       shared,
-      canEditModel: !readonly && (shared ? Boolean(isAdmin && canManage) : Boolean(canManage))
+      canEditModel: !readonly && Boolean(canManage)
     };
   }
 

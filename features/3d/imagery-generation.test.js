@@ -3,7 +3,7 @@ const source=fs.readFileSync(path.join(__dirname,'../../app-3d.js'),'utf8');
 const body=source.slice(source.indexOf('  async function addViewerImageryLayers('),source.indexOf('\n  function parseCSV',source.indexOf('  async function addViewerImageryLayers(')));
 test('late imagery from the previous village cannot cover the new village',async()=>{
  let village='A';const layers=[],pending={};
- const s={imageryLoadGeneration:0,get3DLoadKey:()=>village,
+ const s={imageryLoadGeneration:0,getActiveVillage3DContext:()=>({villageId:village}),
   viewer:{imageryLayers:{removeAll:()=>layers.splice(0),addImageryProvider:provider=>{const l={id:provider};layers.push(l);return l;},raiseToTop(){}},scene:{globe:{}}},
   getMain3DResources:()=>({imageryUrl:village,initialExtent:[110,20,111,21]}),
   getBasemapGeoref:()=>{throw Error('fallback');},

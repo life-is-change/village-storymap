@@ -252,6 +252,12 @@ begin
     select 1 from public.course_personal_spaces personal_space
     where personal_space.id::text = p_space_id
       and personal_space.owner_id = auth.uid()
+  ) and not exists (
+    select 1 from public.planning_spaces personal_space
+    where personal_space.id = p_space_id
+      and personal_space.space_type in ('practice_personal', 'formal_personal')
+      and personal_space.owner_id = auth.uid()
+      and personal_space.owner_id = v_asset.owner_id
   ) then
     raise exception 'MODEL_SPACE_FORBIDDEN';
   end if;

@@ -17,7 +17,7 @@
    },
    async uploadAsset({file,...input}){
     try{const c=context();if(!file)return {ok:false,code:'CANCELLED'};
-     const result=await library.upload(file,{...input,kind:input.kind||'model',scope:c.scopeKind==='admin_sandbox'?'personal':'group',ownerId:c.scopeKind==='admin_sandbox'?c.userId:c.groupId,courseId:c.courseId,groupId:c.groupId??null,ownerUserId:c.userId});context();return result;
+     const result=await library.upload(file,{...input,kind:input.kind||'model',scope:['admin_sandbox','practice_personal'].includes(c.scopeKind)?'personal':'group',ownerId:['admin_sandbox','practice_personal'].includes(c.scopeKind)?c.userId:c.groupId,courseId:c.courseId,groupId:c.groupId??null,ownerUserId:c.userId});context();return result;
     }catch(e){return {ok:false,code:['CONTEXT_CHANGED','CLIENT_DISPOSED'].includes(e.message)?e.message:'UPLOAD_FAILED'};}
    },
    async createMilestone({document,label,description='',previewBlob}){
@@ -27,7 +27,7 @@
    },
    async resolveAssetUrl(asset,{variant='display'}={}){
     context();if(typeof asset?.id!=='string'||!asset.id)throw Error('ASSET_ID_REQUIRED');
-    if(asset.id.startsWith('seed:')){if(!/^3D_scenes_edit\/assets\/models\/[a-zA-Z0-9_-]+\.glb(?:\?v=[a-zA-Z0-9_-]+)?$/.test(asset.url||''))throw Error('UNTRUSTED_ASSET_URL');return asset.url;}
+    if(asset.id.startsWith('seed:')){if(!/^3D_scenes_edit\/assets\/(?:models\/[a-zA-Z0-9_-]+|curated\/models\/asset-\d{3})\.glb(?:\?v=[a-zA-Z0-9_-]+)?$/.test(asset.url||''))throw Error('UNTRUSTED_ASSET_URL');return asset.url;}
     const result=await api.resolveAsset(asset.id,variant);context();if(!result.ok)throw Object.assign(Error(result.code),{code:result.code});return result.url;
    },
    createObjectURL(blob){context();const url=createObjectURL(blob);owned.add(url);return url;},

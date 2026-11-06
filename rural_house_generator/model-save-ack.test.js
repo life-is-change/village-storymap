@@ -11,7 +11,7 @@ function fixture() {
       addEventListener: (type, listener) => replies.set(type, listener), removeEventListener: type => replies.delete(type),
       setTimeout: (callback, delay) => { const id = ++nextTimerId; timers.set(id, { callback, at: elapsed + delay, delay }); return id; },
       clearTimeout: id => timers.delete(id) }, crypto: require('node:crypto').webcrypto, console,
-    PhotoWorkflow: require('./photo-workflow'), setStatus: message => statuses.push(message) };
+    prepareModelForPlatform: async blob => blob.arrayBuffer(), PhotoWorkflow: require('./photo-workflow'), setStatus: message => statuses.push(message) };
   const first = source.indexOf('async function replaceOriginalBuilding(');
   const send = vm.runInNewContext(source.slice(first, source.indexOf('function loadImage(', first)) + ';replaceOriginalBuilding', sandbox);
   const advance = milliseconds => {

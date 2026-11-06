@@ -12,6 +12,24 @@ const {
 } = require("./geoprocessing-panel.js");
 const { formatAoiValidationMessage, formatSubmissionError } = require("./geoprocessing-panel.js");
 
+test('completed task automatically reloads an initially empty artifact list and cancels retries on destroy',async()=>{
+ const timers=new Map();let timerId=0,calls=0,ready=false;
+ const artifactSlot={innerHTML:''},form={addEventListener(){}},runSlot={innerHTML:''};
+ const container={innerHTML:'',addEventListener(){},removeEventListener(){},querySelector(selector){return {
+   '[data-geoprocessing-form]':form,'[data-geoprocessing-run-slot]':runSlot,'[data-artifact-list]':artifactSlot
+ }[selector]||null;}};
+ const panel=createGeoprocessingPanel({container,villageId:'v',aoiController:{},client:{
+   listMine:async()=>[{id:'run',status:'completed',progress:100}],
+   listArtifacts:async()=>{calls++;return ready?[{artifact_type:'buildings',storage_path:'file',feature_count:2}]:[];},
+   createArtifactUrl:async()=>({signedUrl:'https://example.test/result'}),subscribe:()=>()=>{}
+ },schedule:(fn)=>{const id=++timerId;timers.set(id,fn);return id;},cancelSchedule:id=>timers.delete(id)});
+ panel.mount();await new Promise(resolve=>setImmediate(resolve));
+ assert.match(artifactSlot.innerHTML,/成果正在同步/);assert.equal(timers.size,1);
+ ready=true;const [id,fn]=[...timers][0];timers.delete(id);await fn();
+ assert.equal(calls,2);assert.match(artifactSlot.innerHTML,/建筑轮廓/);assert.equal(timers.size,0);
+ panel.destroy();assert.equal(timers.size,0);
+});
+
 test("panel defaults to all processors and safe parameters", () => {
   const html = renderGeoprocessingForm({ availability: "available" });
   assert.match(html, /value="buildings"[^>]*checked/);
@@ -37,6 +55,8 @@ test("completed run offers map preview and explicit personal-space save", () => 
   assert.match(html, /data-save-run/);
   assert.match(html, /保存到我的个人空间/);
   assert.match(html, /geoprocessing-result-card/);
+  assert.match(html, /处理完成/);
+  assert.doesNotMatch(html, /等待领取/);
 });
 
 test("saved run renders a disabled saved state instead of another import action", () => {

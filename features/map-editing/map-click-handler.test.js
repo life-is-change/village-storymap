@@ -50,3 +50,15 @@ test('direct geometry shortcut keeps selection unchanged when lock is occupied',
   assert.equal(state.mode, 'idle');
   assert.ok(calls.some((call) => call[0] === 'toast' && /同学甲/.test(call[1])));
 });
+
+test('a photographed vector stays on the map when deletion is denied',async()=>{
+ const {deps,feature,state,calls}=createHarness();
+ state.mode='delete';state.pendingDeletedFeatures=[];
+ let removed=false;let locked=false;
+ deps.acquireFeatureEditLock=async()=>{locked=true;return {success:true};};
+ Object.assign(deps,{getCommunityTaskEditState:()=>({}),getCurrentGeometryEditLayer:()=> 'building',
+  getPlanVectorSource:()=>({removeFeature(){removed=true;}}),canDeleteFeature:async()=>false});
+ global.window.MapHitPolicyModule={pickFeatureAtPixel:()=>feature};
+ await handler.handlePlanMapSingleClick(deps,{pixel:[0,0]});
+ assert.equal(removed,false);assert.equal(locked,false);assert.equal(state.pendingDeletedFeatures.length,0);
+});

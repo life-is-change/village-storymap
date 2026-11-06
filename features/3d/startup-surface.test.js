@@ -21,7 +21,7 @@ test('first building load never pulls an already adjusted camera back to the ove
   const start = source.indexOf('    if (entities.length', source.indexOf('  async function loadBuildingsNow()'));
   const end = source.indexOf('    await applyTerrainHeights(entities);', start);
   const calls = [], viewer = { flyTo: () => calls.push('fly') };
-  const context = { entities: [{}], viewer, buildingsDataSource: {}, isStartupCamera: true,
+  const context = { entities: [{}], viewer, buildingsDataSource: {}, isStartupCamera: true, preserveCamera: false,
     startupCameraPending: false, startupCameraCancelled: false, startupCameraFocus: null,
     isCurrentLoad: () => true, is3DViewActive: () => true, getOverviewCameraOffset: () => ({}) };
   vm.runInNewContext(source.slice(start, end), context);
@@ -67,7 +67,7 @@ test('concurrent entries resolve terrain once and position the camera before ena
     ionServicesLikelyBlocked: false, console: { warn() {}, error() {} },
     ensureBasemapGeorefResolved: async () => {},
     resolvePreferredTerrainProvider: () => { terrainCalls++; return terrainTask; },
-    Cesium: { Viewer: function (_id, options) {
+    Cesium: { CameraEventType: {MIDDLE_DRAG:1,RIGHT_DRAG:2,WHEEL:3,PINCH:4}, Viewer: function (_id, options) {
       creations++; assert.equal(options.terrainProvider, provider);
       assert.equal(options.useDefaultRenderLoop, false);
       this.scene = { requestRender() {}, globe: {}, renderError: { addEventListener() {} },
@@ -84,4 +84,6 @@ test('concurrent entries resolve terrain once and position the camera before ena
   assert.equal(creations, 0); assert.equal(terrainCalls, 1);
   release(provider); await Promise.all([a, b]);
   assert.equal(creations, 1); assert.deepEqual(events, ['camera', 'render']);
+  assert.deepEqual(Array.from(context.viewer.scene.screenSpaceCameraController.tiltEventTypes),[1,2]);
+  assert.deepEqual(Array.from(context.viewer.scene.screenSpaceCameraController.zoomEventTypes),[3,4]);
 });

@@ -51,7 +51,8 @@
     if (state?.activeView === "overview") return fail("OVERVIEW_ACTIVE", "请先进入村庄的二维或三维视图");
     if (!state?.user?.id) return fail("USER_REQUIRED", "请先登录后再进入公共空间设计");
     const isAdminSandbox = String(state?.role || "").toLowerCase() === "admin" && !state?.group?.id;
-    if (!isAdminSandbox && !state?.group?.id) return fail("GROUP_REQUIRED", "当前课程尚未分配小组");
+    const isPersonal = state?.space?.spaceType === "practice_personal" && state.space.ownerId === state.user.id;
+    if (!isAdminSandbox && !isPersonal && !state?.group?.id) return fail("GROUP_REQUIRED", "当前课程尚未分配小组");
     const spaceId = state?.space?.actualSpaceId || state?.space?.id;
     if (!spaceId) return fail("SPACE_REQUIRED", "请先选择一个小组空间");
     if (!state.teachingProjectId || !state.courseId || !state.villageId) return fail("PROJECT_CONTEXT_REQUIRED", "当前教学项目上下文不完整");
@@ -81,10 +82,10 @@
         context: {
           userId: String(state.user.id), userName: String(state.user.name || ""),
           teachingProjectId: String(state.teachingProjectId), courseId: String(state.courseId), villageId: String(state.villageId),
-          scopeKind: isAdminSandbox ? "admin_sandbox" : "group",
+          scopeKind: isAdminSandbox ? "admin_sandbox" : isPersonal ? "practice_personal" : "group",
           ownerId: String(state.user.id),
-          groupId: isAdminSandbox ? null : String(state.group.id), spaceId: String(spaceId),
-          title: isAdminSandbox ? "管理员试用方案" : (state.space.title ? `${state.space.title} · 公共空间方案` : "公共空间方案"),
+          groupId: isAdminSandbox || isPersonal ? null : String(state.group.id), spaceId: String(spaceId),
+          title: isAdminSandbox ? "管理员试用方案" : !isPersonal && state.space.spaceType === "formal_shared" ? `${state.group.name || "本小组"} · 公共空间方案` : (state.space.title ? `${state.space.title} · 公共空间方案` : "公共空间方案"),
           baselineRevision: Number.isInteger(state.space.baselineRevision) ? state.space.baselineRevision : Math.max(0, Number(state.baselineRevision) || 0),
           baselineFeatures,
           villageBoundary: clone(state.villageBoundary || null), selectionBoundary: clone(state.selectionBoundary || null), projectId: state.projectId || null

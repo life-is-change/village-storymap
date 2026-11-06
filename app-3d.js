@@ -31,7 +31,6 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const DEFAULT_HEIGHT = 9;
 
   const MODEL_EDITABLE_FIELDS = [
-    { key: "房屋编码", label: "房屋编码", type: "text" },
     { key: "户主信息", label: "户主信息", type: "text" },
     { key: "建成年代", label: "建成年代", type: "text" },
     { key: "房屋结构信息", label: "房屋结构", type: "text" },
@@ -65,7 +64,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
   const ONLINE_RESOURCE_TIMEOUT_MS = 6000;
   const ENABLE_ION_WORLD_IMAGERY = false;
   const TDT_TOKEN = "a2a034ff8616a35957abf8951339fedb";
-  const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮旋转。";
+  const DEFAULT_3D_HINT_TEXT = "操作提示：左键拖拽平移，滚轮缩放，按住滚轮或右键旋转。";
 
   const supabaseClient = window.VillageBusinessServices?.businessClient || window.VillageSupabaseClient || null;
 
@@ -1266,7 +1265,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     const targetViewer = viewer;
     const imageryKey = () => {
       const resources = getMain3DResources();
-      return JSON.stringify([getActiveVillage3DContext().villageId, resources.imageryUrl, resources.initialExtent, getBasemapGeoref()]);
+      return JSON.stringify([getActiveVillage3DContext().villageId, resources.imageryUrl?.split("?")[0], resources.initialExtent, resources.imageryUrl && Array.isArray(resources.initialExtent) ? null : getBasemapGeoref()]);
     };
     const loadKey = imageryKey();
     const isCurrentImagery = () => viewer === targetViewer && !viewer?.isDestroyed?.()
@@ -1397,6 +1396,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       viewer.imageryLayers.raiseToTop(localLayer);
       // 正射影像只覆盖 world file 所定义的米埗村范围，并始终压在全球底图之上。
       localLayer.alpha = 1.0;
+      viewer.scene.requestRender?.();
       hasImagery = true;
     } catch (error) {
       if (!isCurrentImagery()) return;
@@ -2256,7 +2256,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     if (statusBadge) {
       if (currentSelectedEntityCode && activeEntity) {
-        const name = activeEntity.__displayName || activeEntity.__sourceCode || "Unnamed Building";
+        const name = activeEntity.__displayName && activeEntity.__displayName !== activeEntity.__sourceCode ? activeEntity.__displayName : "已选建筑";
         statusBadge.textContent = `当前模式：村庄 3D 模型｜空间：${currentSpace?.title || "村庄现状"}｜已选建筑：${name}`;
       } else {
         statusBadge.textContent = `当前模式：村庄 3D 模型｜空间：${currentSpace?.title || "村庄现状"}`;
@@ -2265,7 +2265,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
 
     if (detailSubtitle) {
       if (currentSelectedEntityCode && activeEntity) {
-        const name = activeEntity.__displayName || activeEntity.__sourceCode || "Unnamed Building";
+        const name = activeEntity.__displayName && activeEntity.__displayName !== activeEntity.__sourceCode ? activeEntity.__displayName : "已选建筑";
         detailSubtitle.textContent = `当前查看：3D 建筑 - ${name}`;
       } else {
         detailSubtitle.textContent = "当前显示地形与可点击建筑白模";
@@ -2610,7 +2610,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
     };
   }
 
-  async function addOrUpdateReplacementModel(entity, modelState = {}) {
+  function waitForReplacementModelReady(primitive, requestRender, timeoutMs = 30000) {
+    if (primitive.ready) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let removeReady, removeError, timer;
+      const finish = error => {
+        clearTimeout(timer); removeReady?.(); removeError?.();
+        if (error) reject(error); else resolve();
+      };
+      removeReady = primitive.readyEvent.addEventListener(() => finish());
+      removeError = primitive.errorEvent.addEventListener(error => finish(error || new Error('MODEL_GPU_FAILED')));
+      timer = setTimeout(() => finish(new Error('MODEL_READY_TIMEOUT')), timeoutMs);
+      requestRender();
+    });
+  }
+
+  async function addOrUpdateReplacementModel(entity, modelState = {}, { isCurrent = () => true } = {}) {
     if (!viewer || !entity) return false;
 
     const key = normalizeCode(entity.__sourceCode || "");
@@ -2622,7 +2637,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return false;
     }
 
-    removeReplacementModel(key, true);
+    const previousResource = replacementModelMap.get(key);
 
     const requestToken = Symbol(`request_${key}_${Date.now()}`);
     replacementRequestTokenMap.set(key, requestToken);
@@ -2676,9 +2691,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
     pointEntity.__isReplacementAnchor = true;
     pointEntity.__sourceCode = key;
 
+    let primitive;
     try {
       let normalizedAnchor = modelState.modelNormalized === true;
-      const primitive = await Cesium.Model.fromGltfAsync({
+      primitive = await Cesium.Model.fromGltfAsync({
         url: modelUrl,
         gltfCallback: (gltf) => {
           const metadata=gltf.extras?.villageModel;
@@ -2698,7 +2714,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         runAnimations: false
       });
 
-      if (replacementRequestTokenMap.get(key) !== requestToken) {
+      if (replacementRequestTokenMap.get(key) !== requestToken || !isCurrent()) {
         try {
           if (pointEntity) viewer.entities.remove(pointEntity);
         } catch (_) {}
@@ -2717,10 +2733,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
       primitive.__sourceCode = key;
 
       viewer.scene.primitives.add(primitive);
+      // fromGltfAsync finishes parsing before the GPU resources can render.
+      // Keep the old replacement (or the white model) until readyEvent.
+      await waitForReplacementModelReady(primitive, () => viewer.scene.requestRender());
+      if (replacementRequestTokenMap.get(key) !== requestToken || !isCurrent()) {
+        viewer.scene.primitives.remove(primitive);
+        viewer.entities.remove(pointEntity);
+        return false;
+      }
 
       const applyPostLoadAdjustments = () => {
         try {
-          if (replacementRequestTokenMap.get(key) !== requestToken) {
+          if (replacementRequestTokenMap.get(key) !== requestToken || !isCurrent()) {
             try {
               viewer.scene.primitives.remove(primitive);
               if (typeof primitive.destroy === "function" && !primitive.isDestroyed?.()) {
@@ -2794,13 +2818,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
         }
       };
 
-      if (primitive.ready) {
-        applyPostLoadAdjustments();
-      } else {
-        primitive.readyEvent.addEventListener(() => {
-          applyPostLoadAdjustments();
-        });
-      }
+      applyPostLoadAdjustments();
 
       primitive.errorEvent.addEventListener((error) => {
         console.error("GLB loading failed:", modelUrl, error);
@@ -2825,6 +2843,10 @@ const ENABLE_SUPABASE_SYNC = (() => {
         pointEntity
       });
 
+      if (previousResource) {
+        if (previousResource.primitive && !previousResource.primitive.isDestroyed?.()) viewer.scene.primitives.remove(previousResource.primitive);
+        if (previousResource.pointEntity) viewer.entities.remove(previousResource.pointEntity);
+      }
       refreshAllEntityVisualStates();
       refreshReplacementAnchorVisibility();
       viewer.scene.requestRender();
@@ -2833,18 +2855,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
     } catch (error) {
       console.error("Cesium.Model.fromGltfAsync failed:", modelUrl, error);
 
+      try {
+        if (primitive && !primitive.isDestroyed?.()) viewer.scene.primitives.remove(primitive);
+        viewer.entities.remove(pointEntity);
+      } catch (_) {}
       if (replacementRequestTokenMap.get(key) === requestToken) {
-        replacementModelMap.set(key, {
-          primitive: null,
-          pointEntity
-        });
-
-        setEntityReplacementVisual(entity, true, false);
+        const retained = replacementModelMap.get(key);
+        setEntityReplacementVisual(entity, !!retained?.primitive, !!retained?.primitive);
         viewer.scene.requestRender();
-      } else {
-        try {
-          if (pointEntity) viewer.entities.remove(pointEntity);
-        } catch (_) {}
       }
 
       return false;
@@ -2898,19 +2916,22 @@ const ENABLE_SUPABASE_SYNC = (() => {
         const isCurrent = () => {
           const current=replacementModelDescriptors.get(entry.key);
           return !!current && current.revision===entry.revision && (!current.entity||current.entity===entry.entity)
-            && getActualLinkedSpaceIdFor3D() === entry.spaceId;
+            && getActualLinkedSpaceIdFor3D() === entry.spaceId && entry.isCurrent?.() !== false;
         };
         if (!isCurrent()) throw new Error('STALE_MODEL_SCOPE');
         const storagePath=entry.url.startsWith('storage:')?entry.url.slice(8)
           :entry.variant==='detail'?entry.modelState.modelStoragePath:null;
         const url=storagePath?await getGroupModelLibrary().createSignedUrlForPath(storagePath):entry.url;
         if (!isCurrent()) throw new Error('STALE_MODEL_SCOPE');
-        if (!await addOrUpdateReplacementModel(entry.entity, {...entry.modelState,modelUrl:url})) throw new Error('MODEL_LOAD_FAILED');
+        if (!await addOrUpdateReplacementModel(entry.entity, {...entry.modelState,modelUrl:url}, {isCurrent})) throw new Error('MODEL_LOAD_FAILED');
         return replacementModelMap.get(entry.key);
       },
       unload: (resource, entry) => {
         if (replacementModelMap.get(entry.key) === resource) removeReplacementModel(entry.key, true);
-        else if (resource?.primitive && !resource.primitive.isDestroyed?.()) viewer?.scene.primitives.remove(resource.primitive);
+        else {
+          if (resource?.primitive && !resource.primitive.isDestroyed?.()) viewer?.scene.primitives.remove(resource.primitive);
+          if (resource?.pointEntity) viewer?.entities.remove(resource.pointEntity);
+        }
       },
       setVisible: (resource, visible, entry) => {
         if (resource?.primitive) resource.primitive.show = visible;
@@ -3340,7 +3361,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     update3DStatusText();
     infoPanel.classList.remove("empty");
     infoPanel.innerHTML = `<div class="info-card" role="status" aria-live="polite">
-      <h3 class="house-title">建筑 ${escapeHtml(sourceCode)}</h3>
+      <h3 class="house-title">建筑信息</h3>
       <p>正在加载建筑属性与模型信息…</p>
     </div>`;
 
@@ -4434,7 +4455,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
       // Static village scenes have no clock-driven animation. Camera, data and
       // async model/imagery changes still explicitly request their own frames.
       viewer.scene.maximumRenderTimeChange = Infinity;
-      viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+      const cameraController = viewer.scene.screenSpaceCameraController;
+      cameraController.enableCollisionDetection = true;
+      cameraController.tiltEventTypes = [...(cameraController.tiltEventTypes || [Cesium.CameraEventType.MIDDLE_DRAG]), Cesium.CameraEventType.RIGHT_DRAG];
+      cameraController.zoomEventTypes = (cameraController.zoomEventTypes || [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH])
+        .filter(event => event !== Cesium.CameraEventType.RIGHT_DRAG);
       // Disable post-process anti-aliasing and cap render scale to reduce first-open jank.
       viewer.scene.fxaa = false;
       if (viewer.scene.postProcessStages && viewer.scene.postProcessStages.fxaa) {

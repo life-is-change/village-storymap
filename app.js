@@ -284,41 +284,8 @@ const communityTaskEditState = {
   hintText: "",
   pendingPayload: null
 };
-const communityTaskVisibleCategories = new Set([
-  "garbage",
-  "road_damage",
-  "drainage_issue",
-  "safety_hazard",
-  "public_space_need"
-]);
-
-const COMMUNITY_TASK_TYPE_META = {
-  garbage: {
-    label: "垃圾点",
-    promptTitle: "垃圾点",
-    hintText: "点击地图标记垃圾点位置。"
-  },
-  road_damage: {
-    label: "道路破损",
-    promptTitle: "道路破损",
-    hintText: "点击地图标记道路破损位置。"
-  },
-  drainage_issue: {
-    label: "排水问题",
-    promptTitle: "排水问题",
-    hintText: "点击地图标记积水/排水问题位置。"
-  },
-  safety_hazard: {
-    label: "安全隐患",
-    promptTitle: "安全隐患",
-    hintText: "点击地图标记安全隐患位置。"
-  },
-  public_space_need: {
-    label: "公共空间需求",
-    promptTitle: "公共空间需求",
-    hintText: "点击地图标记需要增设公共空间的位置。"
-  }
-};
+const COMMUNITY_TASK_TYPE_META = window.CommunityProblemTypes.types;
+const communityTaskVisibleCategories = new Set(Object.keys(COMMUNITY_TASK_TYPE_META));
 
 // 统一侧边栏展开状态（默认展开，空间列表常驻显示）
 let isSpaceSidebarExpanded = true;
@@ -873,6 +840,7 @@ async function syncSpacesFromSupabase({application = false} = {}) {
       isToolboxExpanded,
       isCommunityCompact,
       isTeachingExpanded,
+      communityTaskCategoryVersion: 2,
       communityTaskVisibleCategories: Array.from(communityTaskVisibleCategories)
     }));
   } catch (error) {
@@ -902,7 +870,7 @@ function loadAppState() {
     if (typeof state.isTeachingExpanded === "boolean") isTeachingExpanded = state.isTeachingExpanded;
     if (Array.isArray(state.communityTaskVisibleCategories)) {
       communityTaskVisibleCategories.clear();
-      state.communityTaskVisibleCategories.forEach((c) => communityTaskVisibleCategories.add(c));
+      window.CommunityProblemTypes.restoreFilters(state.communityTaskVisibleCategories, state.communityTaskCategoryVersion).forEach((c) => communityTaskVisibleCategories.add(c));
     }
     return true;
   } catch (error) {
@@ -1146,6 +1114,8 @@ function openProfileCenterPage() {
   window.location.href = "./profile.html";
 }
 
+let homepageStatistics = null;
+let homepageStatisticsKey = "";
 function broadcastHomepageContext(context = activeVillageContext) {
   const frame = document.getElementById("homeLandingFrame");
   if (!window.VillageModelModule || !window.HomepageContextModule) return;
@@ -1157,6 +1127,15 @@ function broadcastHomepageContext(context = activeVillageContext) {
     context, window.VillageModelModule, cachedSelectedVillageId
   );
   if (!payload) return;
+  const statisticsKey = payload.villages.map(v => v.id).sort().join(",");
+  if (homepageStatisticsKey !== statisticsKey && window.VillageBusinessServices?.catalog) {
+    homepageStatisticsKey = statisticsKey;
+    homepageStatistics = null;
+    window.VillageBusinessServices.catalog.execute("catalog.homeStats", {})
+      .then(stats => { if (homepageStatisticsKey === statisticsKey) { homepageStatistics = stats; broadcastHomepageContext(); } })
+      .catch(error => { homepageStatisticsKey = ""; console.warn("首页统计暂未加载", error); });
+  }
+  payload.statistics = homepageStatistics;
   try {
     localStorage.setItem("village_home_context_v1", JSON.stringify(payload));
   } catch (_) { /* optional fast-start cache */ }
@@ -2444,7 +2423,8 @@ async function ensureCourseWorkbenchInitialized() {
             teachingProjectId: activeVillageContext?.teachingProjectId,
             getSpaceById,
             getCurrentSpaceId: () => currentSpaceId,
-            selectSpace: handleSpaceSelect
+            selectSpace: handleSpaceSelect,
+            switchTo2D: switchTo2DView
           });
           try {
             await villagePreviewController.show(
@@ -3097,7 +3077,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261103-market-focus", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261106-ready-swap", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -3437,6 +3417,24 @@ function ensureSceneStudioPlatformBridge() {
 }
 
 async function openSceneStudioWorkspace() {
+  const user = window.VillageAuth?.getCurrentUser?.();
+  if (user?.id && !isAdminIdentity(user.name)) {
+    const inContext = space => space.teachingProjectId === activeVillageContext?.teachingProjectId
+      && space.villageId === activeVillageContext?.villageId;
+    const isPractice = activeVillageContext?.villageRole === "practice";
+    const groupId = courseWorkbench?.getContext?.()?.group?.id;
+    if (!isPractice && !groupId) return showToast("请先加入本学期小组，再进入正式村庄场景设计。", "info");
+    const target = isPractice
+      ? spaces.find(space => inContext(space) && space.spaceType === "practice_personal" && space.ownerId === user.id)
+      : spaces.find(space => inContext(space) && space.spaceType === "group_plan" && space.courseGroupId === groupId)
+        || spaces.find(space => inContext(space) && space.spaceType === "formal_shared");
+    if (!target) return showToast(isPractice ? "请先创建个人体验空间，再进入场景设计。" : "当前村庄缺少可用的方案基底，请刷新村庄后重试。", "info");
+    if (getCurrentSpace()?.id !== target.id) {
+      if (hasUnsavedGeometryEdits()) return showToast("请先处理当前地图草稿，再进入场景设计。", "info");
+      await handleSpaceSelect(target.id);
+    }
+    if (getCurrentSpace()?.id !== target.id) return;
+  }
   const previousView = getSceneStudioActiveView();
   sceneStudioMapHome ||= map2dEl?.parentNode || null;
   sceneStudioCesiumHome ||= cesiumContainerEl?.parentNode || null;
@@ -4557,6 +4555,23 @@ function scrollToAndHighlightMessage(messageId) {
 
 function buildMapClickHandlerDeps() {
   return {
+    async canDeleteFeature(layerKey, objectCode) {
+      try {
+        const space = getCurrentSpace();
+        const state = await window.VillageBusinessServices.survey.execute("survey.featurePhotoState", {
+          teachingProjectId: activeVillageContext.teachingProjectId, villageId: activeVillageContext.villageId,
+          spaceId: space.actualSpaceId || space.id, layerKey, objectCode
+        });
+        if (state.hasPhotos) {
+          showToast("该要素已有上传照片，不能直接删除；可以继续编辑顶点。", "info");
+          return false;
+        }
+        return true;
+      } catch (error) {
+        showToast("暂时无法核对照片，未删除要素。请稍后重试。", "error");
+        return false;
+      }
+    },
     COMMUNITY_TASKS_TABLE,
     COMMUNITY_TASK_PHOTO_OBJECT_TYPE,
     services: window.VillageBusinessServices,
@@ -4850,7 +4865,6 @@ function findFeatureBySourceCode(sourceCode) {
 }
 
 const BUILDING_INFO_FIELDS = [
-  { key: "房屋编码", label: "房屋编码" },
   { key: "户主信息", label: "户主信息" },
   { key: "建成年代", label: "建成年代" },
   { key: "房屋结构信息", label: "房屋结构" },
@@ -4859,7 +4873,6 @@ const BUILDING_INFO_FIELDS = [
 ];
 
 const ROAD_INFO_FIELDS = [
-  { key: "道路编码", label: "道路编码" },
   { key: "道路名称", label: "道路名称" },
   { key: "道路类型", label: "道路类型" },
   { key: "道路宽度", label: "道路宽度", suffix: "m" },
@@ -5530,7 +5543,7 @@ function ensureBuildingEditorToolbar() {
 }
 
 function getCommunityTaskTypeMeta(category) {
-  return COMMUNITY_TASK_TYPE_META[category] || COMMUNITY_TASK_TYPE_META.garbage;
+  return window.CommunityProblemTypes.meta(category);
 }
 
 function syncCommunityTaskUiState() {
@@ -5565,7 +5578,7 @@ function startCommunityTaskReport({ requireLocation = false } = {}) {
         communityTaskEditState.mode = "report";
         communityTaskEditState.category = category;
         communityTaskEditState.pendingPayload = { category, description, photoFile };
-        const meta = COMMUNITY_TASK_TYPE_META[category];
+        const meta = getCommunityTaskTypeMeta(category);
         showToast(`请在地图上点击选择【${meta?.label || category}】位置`, "info");
         syncCommunityTaskUiState();
       } else {
@@ -5583,7 +5596,7 @@ function startCommunityTaskReport({ requireLocation = false } = {}) {
 }
 
 async function submitCommunityMessage({ category, description, photoFile, lng, lat }) {
-  const taskMeta = category ? COMMUNITY_TASK_TYPE_META[category] : null;
+  const taskMeta = category ? getCommunityTaskTypeMeta(category) : null;
   try {
     const createdTask = await createCommunityTask({
       spaceId: currentSpaceId,
@@ -5667,13 +5680,7 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = f
   const typeMeta = COMMUNITY_TASK_TYPE_META;
   const typeEntries = Object.entries(typeMeta);
   const initialCategory = requireLocation ? (typeEntries[0]?.[0] || "") : "";
-  const typeColors = {
-    garbage: "#c64040",
-    road_damage: "#ef6c00",
-    drainage_issue: "#2196f3",
-    safety_hazard: "#7b1fa2",
-    public_space_need: "#2e7d32"
-  };
+  const typeColors = Object.fromEntries(Object.entries(COMMUNITY_TASK_TYPE_META).map(([key, meta]) => [key, meta.color]));
 
   const overlay = document.createElement("div");
   overlay.className = "community-report-dialog-overlay";
@@ -5686,7 +5693,7 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = f
           <textarea id="reportDescInput" class="dialog-textarea" rows="3" maxlength="200" placeholder="写下你想说的话（最多200字）"></textarea>
         </div>
         <div class="dialog-field">
-          <label class="dialog-label">任务类型（可选，选择后需在地图上标记位置）</label>
+          <label class="dialog-label">${requireLocation ? "问题类型（选择后在地图上标记位置）" : "问题类型（可选，选择后在地图上标记位置）"}</label>
           <div class="dialog-type-grid">
             ${requireLocation ? "" : `
               <label class="dialog-type-option is-selected" data-type="">
@@ -5703,6 +5710,10 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = f
               </label>
             `).join('')}
           </div>
+        </div>
+        <div class="dialog-field" id="reportOtherTypeField" hidden>
+          <label class="dialog-label" for="reportOtherTypeInput">问题类型名称<span id="reportOtherTypeError" class="dialog-field-error" style="display:none">请填写问题类型</span></label>
+          <input type="text" id="reportOtherTypeInput" class="dialog-custom-type" maxlength="40" placeholder="例如：噪声扰民（最多40字）" autocomplete="off">
         </div>
         <div class="dialog-field">
           <label class="dialog-label">现场照片（可选）</label>
@@ -5725,12 +5736,20 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = f
   let selectedPhotoFile = null;
   let selectedCategory = initialCategory;
 
+  const otherField = overlay.querySelector("#reportOtherTypeField");
+  const otherInput = overlay.querySelector("#reportOtherTypeInput");
+  const otherError = overlay.querySelector("#reportOtherTypeError");
+  otherInput.addEventListener("input", () => { otherError.style.display = "none"; otherInput.removeAttribute("aria-invalid"); });
   const typeOptions = overlay.querySelectorAll(".dialog-type-option");
   typeOptions.forEach((opt) => {
     opt.addEventListener("click", () => {
       typeOptions.forEach((o) => o.classList.remove("is-selected"));
       opt.classList.add("is-selected");
       selectedCategory = opt.dataset.type;
+      otherField.hidden = selectedCategory !== "other";
+      otherInput.required = selectedCategory === "other";
+      otherError.style.display = "none";
+      if (selectedCategory === "other") otherInput.focus();
       const radio = opt.querySelector('input[type="radio"]');
       if (radio) radio.checked = true;
     });
@@ -5776,11 +5795,20 @@ function showCommunityTaskReportDialog({ onSubmit, onCancel, requireLocation = f
       return;
     }
 
+    let category;
+    try { category = window.CommunityProblemTypes.categoryFor(selectedCategory, otherInput.value); }
+    catch (error) {
+      otherError.textContent = error.message === "PROBLEM_TYPE_TOO_LONG" ? "问题类型最多40字" : "请填写问题类型";
+      otherError.style.display = "";
+      otherInput.setAttribute("aria-invalid", "true");
+      otherInput.focus();
+      return;
+    }
     overlay.querySelector("#reportSubmitBtn").disabled = true;
     overlay.querySelector("#reportSubmitBtn").textContent = "发布中...";
 
     try {
-      await onSubmit({ category: selectedCategory || null, description: desc, photoFile: selectedPhotoFile });
+      await onSubmit({ category, description: desc, photoFile: selectedPhotoFile });
       cleanup();
     } catch (error) {
       overlay.querySelector("#reportSubmitBtn").disabled = false;
@@ -5802,13 +5830,7 @@ function ensureCommunityBuildPanel() {
   if (!mount) return;
 
   const typeMeta = COMMUNITY_TASK_TYPE_META;
-  const typeColors = {
-    garbage: "#c64040",
-    road_damage: "#ef6c00",
-    drainage_issue: "#2196f3",
-    safety_hazard: "#7b1fa2",
-    public_space_need: "#2e7d32"
-  };
+  const typeColors = Object.fromEntries(Object.entries(COMMUNITY_TASK_TYPE_META).map(([key, meta]) => [key, meta.color]));
 
   mount.innerHTML = `
     <div id="communityBuildPanel" class="community-build-panel">
@@ -5987,13 +6009,7 @@ async function refreshCommunityMessageBoard() {
     }
 
     const typeMeta = COMMUNITY_TASK_TYPE_META;
-    const typeColors = {
-      garbage: "#c64040",
-      road_damage: "#ef6c00",
-      drainage_issue: "#2196f3",
-      safety_hazard: "#7b1fa2",
-      public_space_need: "#2e7d32"
-    };
+    const typeColors = Object.fromEntries(Object.entries(COMMUNITY_TASK_TYPE_META).map(([key, meta]) => [key, meta.color]));
 
     const cardsHtml = await Promise.all(
       messageMeta.map(async (meta) => {
@@ -6004,8 +6020,8 @@ async function refreshCommunityMessageBoard() {
         const likeCount = meta.likeCount;
         const hasLiked = currentUserName ? likers.includes(currentUserName) : false;
         const isOwner = currentUserName && currentUserName === msg.reporter_name;
-        const categoryLabel = msg.category ? (typeMeta[msg.category]?.label || msg.category) : null;
-        const categoryColor = msg.category ? (typeColors[msg.category] || "#999") : null;
+        const categoryLabel = msg.category ? getCommunityTaskTypeMeta(msg.category).label : null;
+        const categoryColor = msg.category ? getCommunityTaskTypeMeta(msg.category).color : null;
 
         const photoHtml = photos.length
           ? `<div class="community-message-photos">${photos.map((p) => `<img src="${escapeHtml(p.photo_url || "")}" alt="照片" onclick="window.open('${escapeHtml(p.photo_url || "")}','_blank')">`).join("")}</div>`
@@ -6988,7 +7004,7 @@ async function refreshCommunityTasksOnMap(format) {
   const rows = await listCommunityTasksCached(currentSpaceId, { force: true });
   rows.forEach((row) => {
     try {
-      if (!communityTaskVisibleCategories.has(row.category)) return;
+      if (!communityTaskVisibleCategories.has(window.CommunityProblemTypes.filterKey(row.category))) return;
       addCommunityTaskFeatureToMap(row, format);
     } catch (taskError) {
       console.warn("渲染社区留言失败（已跳过单条）：", taskError, row);
@@ -7289,13 +7305,23 @@ function bindCourseTaskSidebarToggle() {
 function bindMapSidePanelToggleButtons() {
   if (rightPanelToggleBtn && !rightPanelToggleBtn.dataset.anchorBound) {
     rightPanelToggleBtn.dataset.anchorBound = "true";
+    const syncOverlays = () => {
+      syncRightPanelTogglePosition();
+      if (isProjectSettingsOpen && workspaceContextBar && projectSettingsDrawer) {
+        projectSettingsDrawer.style.top = `${workspaceContextBar.getBoundingClientRect().bottom + 12}px`;
+      }
+    };
     const panel = document.querySelector(".detail-panel");
-    if (panel && typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(syncRightPanelTogglePosition);
-      observer.observe(panel);
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(syncOverlays);
+      if (panel) observer.observe(panel);
+      if (workspaceContextBar) observer.observe(workspaceContextBar);
     }
-    window.addEventListener("resize", syncRightPanelTogglePosition);
-    syncRightPanelTogglePosition();
+    mainLayout?.addEventListener("transitionend", (event) => {
+      if (event.target === mainLayout && event.propertyName === "grid-template-columns") syncOverlays();
+    });
+    window.addEventListener("resize", syncOverlays);
+    syncOverlays();
   }
   if (leftPanelToggleBtn && !leftPanelToggleBtn.dataset.bound) {
     leftPanelToggleBtn.dataset.bound = "1";
@@ -7666,8 +7692,8 @@ function buildEditableDetailHtml(row, layerKey, allowEdit) {
     }).join("");
   }
 
-  const entries = Object.entries(row || {}).filter(([_, value]) => {
-    return String(value ?? "").trim() !== "";
+  const entries = Object.entries(row || {}).filter(([key, value]) => {
+    return !/^(?:_|id$|fid$|uuid$|sourceCode$|object_code$|space_id$|village_id$|teaching_project_id$)|编码$/i.test(key) && String(value ?? "").trim() !== "";
   });
 
   if (!entries.length) {
@@ -8007,11 +8033,21 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     ? window.ObjectCommentsModule.list(objectCommentDeps, sourceCode, editObjectType)
     : Promise.resolve([]);
 
-  const [surveyReviewResult, editResult, photosResult, commentsResult] = await Promise.allSettled([
+  const interviewTarget = {
+    teachingProjectId: activeVillageContext?.teachingProjectId,
+    villageId: activeVillageContext?.villageId,
+    spaceId: getCurrentSpace()?.actualSpaceId || currentSpaceId,
+    layerKey, objectCode: sourceCode
+  };
+  const interviewsPromise = sourceCode && window.VillageBusinessServices?.survey
+    ? window.VillageBusinessServices.survey.execute("survey.listInterviews", interviewTarget)
+    : Promise.resolve([]);
+  const [surveyReviewResult, editResult, photosResult, commentsResult, interviewsResult] = await Promise.allSettled([
     surveyReviewPromise,
     editPromise,
     photosPromise,
-    commentsPromise
+    commentsPromise,
+    interviewsPromise
   ]);
   if (requestSerial !== objectInfoRequestSerial) return;
   if (surveyReviewResult.status === "rejected") console.warn("读取几何校核状态失败：", surveyReviewResult.reason);
@@ -8213,11 +8249,18 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
       }).join("")
     : `<div class="object-comment-empty">暂无针对该要素的留言。</div>`;
 
+  const interviewsHtml = window.ObjectInterviewsModule.render({
+    records: interviewsResult.status === "fulfilled" ? interviewsResult.value : [],
+    loadFailed: interviewsResult.status === "rejected",
+    canSubmit: Boolean(currentUserName && canEditCurrentSpace() && surveyDownstreamReady),
+    blockedMessage: surveyGateApplies && !surveyDownstreamReady
+      ? "请先完成几何校核，再记录访谈。"
+      : "登录并取得当前空间编辑权限后可提交访谈。"
+  });
   const objectDiscussionHtml = `
     <div class="info-card object-discussion-card">
       <div class="photo-header-row">
         <h3 class="house-title">要素讨论</h3>
-        <span class="object-discussion-code">${escapeHtml(sourceCode || "")}</span>
       </div>
       ${currentUserName && surveyDownstreamReady ? `
         <form id="objectCommentForm" class="object-comment-form">
@@ -8243,10 +8286,34 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     </div>
 
     ${uploadBlockHtml}
+    ${interviewsHtml}
     ${objectDiscussionHtml}
   `;
 
   bindInlineEdit(context);
+  const interviewForm = infoPanel.querySelector("#objectInterviewForm");
+  let pendingInterview = null;
+  interviewForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = interviewForm.querySelector('button[type="submit"]');
+    const status = interviewForm.querySelector("[data-interview-status]");
+    button.disabled = true;
+    try {
+      const fields = Object.fromEntries(new FormData(interviewForm));
+      const input = window.ObjectInterviewsModule.validate({ ...interviewTarget, ...fields });
+      const fingerprint = JSON.stringify(input);
+      if (pendingInterview?.fingerprint !== fingerprint) pendingInterview = { fingerprint, requestId: crypto.randomUUID() };
+      status.textContent = "正在提交…";
+      await window.VillageBusinessServices.survey.execute("survey.addInterview", { ...input, requestId: pendingInterview.requestId });
+      status.textContent = "访谈已保存";
+      if (requestSerial === objectInfoRequestSerial) await showObjectInfo(baseRow, layerKey, sourceCode);
+    } catch (error) {
+      status.textContent = error.message === "FORBIDDEN" ? "当前对象或空间暂不可提交，请核对几何校核和编辑权限。" : "提交失败，请检查填写内容后重试。";
+      console.warn("提交访谈失败", error);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   const confirmSurveyButton = infoPanel.querySelector("[data-survey-confirm]");
   confirmSurveyButton?.addEventListener("click", async () => {

@@ -44,3 +44,8 @@ test("练习村与正式村共用可校核的进度面板", () => {
   assert.match(html, /data-survey-filter="photo" aria-pressed="true"/);
   assert.match(html, /仅显示未校核/);
 });
+
+test('geometry review metadata omits account identifiers',()=>{
+ const html=panel.renderObjectReview({geometryStatus:'modified',geometryRevision:1,latestModifiedBy:'43b40c9-4bea-4c32-b616-9e30ea676b48'});
+ assert.ok(!html.includes('43b40c9'));assert.ok(!html.includes('最近处理'));assert.ok(html.includes('修订 1'));
+});

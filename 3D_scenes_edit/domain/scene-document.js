@@ -124,10 +124,10 @@
       if (typeof document[key] !== "string" || !document[key].trim()) errors.push(`${key} is required`);
     }
     const scopeKind = document.metadata?.scopeKind || "group";
-    if (!['group', 'admin_sandbox'].includes(scopeKind)) errors.push("metadata.scopeKind is invalid");
+    if (!['group', 'admin_sandbox', 'practice_personal'].includes(scopeKind)) errors.push("metadata.scopeKind is invalid");
     if (scopeKind === "group" && (typeof document.groupId !== "string" || !document.groupId.trim())) errors.push("groupId is required");
-    if (scopeKind === "admin_sandbox" && document.groupId !== null) errors.push("groupId must be null for admin sandbox");
-    if (scopeKind === "admin_sandbox" && (typeof document.metadata?.ownerId !== "string" || !document.metadata.ownerId.trim())) errors.push("metadata.ownerId is required for admin sandbox");
+    if (scopeKind !== "group" && document.groupId !== null) errors.push("groupId must be null for admin sandbox");
+    if (scopeKind !== "group" && (typeof document.metadata?.ownerId !== "string" || !document.metadata.ownerId.trim())) errors.push("metadata.ownerId is required for admin sandbox");
     if (!document.baselineRef || typeof document.baselineRef.spaceId !== "string" || !document.baselineRef.spaceId.trim()) {
       errors.push("baselineRef.spaceId is required");
     }

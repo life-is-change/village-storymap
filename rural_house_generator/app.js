@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const PhotoWorkflow = window.PhotoWorkflow;
@@ -263,7 +264,7 @@ function renderGenerationMode() {
   if(components){els.roofCropShade.hidden=true;els.roofCropHandle.hidden=true;}
   els.generateBtn.textContent=components?'生成构件建筑':'生成正立面贴图建筑';
   els.photoGenerateBtn.textContent=components?'识别完整建筑并生成构件模型':'按当前主体范围生成模型';
-  els.configHint.textContent=components?'墙体高度按正面长度与图中墙身比例计算，不使用白模默认9m。':'填写白模正面长度与进深；墙体高度按正立面比例计算。';
+  els.configHint.textContent=components?'长度与进深初始继承地图白模，并非照片识别尺寸；层数初始默认为3层，未从照片自动识别，请按图确认。墙体高度按正面长度与图中墙身比例计算。':'填写白模正面长度与进深；墙体高度按正立面比例计算。';
   const labels=GenerationMode.stepLabels(state.generationMethod,state.modelPurpose);
   els.photoSteps?.querySelectorAll('[data-step]').forEach(item=>{
     const step=labels.find(value=>value.key===item.dataset.step);item.hidden=!step;
@@ -725,13 +726,16 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   frameModel(group);
   state.currentBlob = blob;
   state.currentUrl = URL.createObjectURL(blob);
-  let generatedBuilding;
+  let generatedBuilding, generatedScaleWarning = '';
   if (run.generation_method === 'components') {
     const metadata = await facadeArtifact(run.id, 'model_manifest', queue);
     if (!metadata) throw new Error('构件任务缺少尺寸清单，请核对Worker版本。');
     const response = await fetch(await queue.createArtifactUrl(metadata.storage_path));
     if (!response.ok) throw new Error('模型尺寸清单读取失败');
-    generatedBuilding = (await response.json()).building;
+    const manifest = await response.json();
+    generatedBuilding = manifest.building;
+    generatedScaleWarning = (manifest.warnings || []).find(warning => typeof warning === 'string'
+      && warning.startsWith('按照片比例估算墙高')) || '';
     if (!isCurrentFacadeResult(run, queue, revision)) return;
   }
   const componentCenter=new THREE.Box3().setFromObject(group).getCenter(new THREE.Vector3());
@@ -756,7 +760,7 @@ async function loadCompletedFacadeModel(run, queue = state.facadeQueue, revision
   els.downloadLink.replaceChildren(link);
   setProgress(100, run.generation_method==='components'?'构件建筑生成完成':'标准正立面贴图建筑生成完成');
   els.activeLabel.textContent=run.generation_method==='components'?'本地构件建筑：已生成，可旋转查看阳台与侧面':'正立面贴图建筑：已生成';
-  setStatus(buildGenerateCompleteMessage(state.generationMethod === 'components' ? '本地构件模型' : '标准正立面贴图模型'));
+  setStatus(buildGenerateCompleteMessage(state.generationMethod === 'components' ? '本地构件模型' : '标准正立面贴图模型', generatedScaleWarning));
   renderGenerationMode();
   els.photoHeightSummary.hidden = false;
   els.photoHeightSummary.querySelector('strong').textContent = PhotoWorkflow.photoHeightSummary(building);
@@ -1203,11 +1207,12 @@ function parseGlb(arrayBuffer) {
   });
 }
 
-function buildGenerateCompleteMessage(modelLabel) {
+function buildGenerateCompleteMessage(modelLabel, scaleWarning = '') {
+  const note = typeof scaleWarning === 'string' && scaleWarning ? `\n${scaleWarning}` : '';
   if (state.targetCode && window.opener) {
-    return `生成完成：${modelLabel}\n可下载 GLB，也可点击“替换原建筑”同步到主平台。`;
+    return `生成完成：${modelLabel}\n可下载 GLB，也可点击“替换原建筑”同步到主平台。${note}`;
   }
-  return `生成完成：${modelLabel}\n可下载 GLB。`;
+  return `生成完成：${modelLabel}\n可下载 GLB。${note}`;
 }
 
 function createPreviewRenderLoop({ controls, render, requestFrame, cancelFrame, visible = true }) {
@@ -1426,6 +1431,31 @@ function downloadGlb() {
   link.click();
 }
 
+function hasDracoCompression(buffer) {
+  if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 20) throw new Error('生成模型的 GLB 数据无效。');
+  const view = new DataView(buffer);
+  const jsonLength = view.getUint32(12, true);
+  if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2
+      || view.getUint32(8, true) !== buffer.byteLength || view.getUint32(16, true) !== 0x4e4f534a
+      || jsonLength % 4 || jsonLength > buffer.byteLength - 20) throw new Error('生成模型的 GLB 数据无效。');
+  const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, jsonLength)).replace(/[\s\0]+$/g, ''));
+  const extension = 'KHR_draco_mesh_compression';
+  return (json.extensionsUsed || []).includes(extension)
+    || (json.extensionsRequired || []).includes(extension)
+    || (json.meshes || []).some(mesh => (mesh.primitives || []).some(primitive => primitive.extensions?.[extension]));
+}
+
+async function prepareModelForPlatform(blob, decodedGroup) {
+  const buffer = await blob.arrayBuffer();
+  if (!hasDracoCompression(buffer)) return buffer;
+  if (!decodedGroup) throw new Error('模型预览尚未加载完成，请稍后重试。');
+  // The preview already contains DRACOLoader-decoded geometry. Export ordinary
+  // vertex buffers for platform normalization; keep the source Blob for download.
+  const exported = await new GLTFExporter().parseAsync(decodedGroup, { binary: true, onlyVisible: false });
+  if (hasDracoCompression(exported)) throw new Error('模型解码失败，导出结果仍含 Draco 压缩。');
+  return exported;
+}
+
 async function replaceOriginalBuilding() {
   if (!state.currentBlob || !state.currentModelInfo) {
     setStatus('请先生成 GLB 模型，再替换原建筑。', true);
@@ -1448,7 +1478,12 @@ async function replaceOriginalBuilding() {
     els.sendBtn.disabled = true;
     setStatus('正在自动准备轻量版本并保存到主平台，请稍候…');
 
-    const glbBuffer = await state.currentBlob.arrayBuffer();
+    const sourceBlob = state.currentBlob;
+    const modelInfo = state.currentModelInfo;
+    const glbBuffer = await prepareModelForPlatform(sourceBlob, state.currentGroup);
+    if (state.currentBlob !== sourceBlob || state.currentModelInfo !== modelInfo) {
+      throw new Error('当前模型已更新，请重新点击“替换原建筑”。');
+    }
 
     const message = PhotoWorkflow.buildModelReadyMessage({
       targetCode: state.targetCode,

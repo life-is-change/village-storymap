@@ -28,11 +28,21 @@ export function createBusinessFilesService({database,store,legacyReader,spaceAva
    if(await available()-Number(budget.bytes)-total<2*1024**3)throw fault('QUOTA_EXCEEDED');
    const files=spec.files.map(f=>({...f,id:randomUUID()}));return one(c,'SELECT api_private.file_begin($1,$2,$3::jsonb,$4::jsonb) AS data',[sessionId,digest,JSON.stringify(spec),JSON.stringify(files)]);
   });},
-  async status(identity,id){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,c=>lock(c,id));},
+  async status(identity,id){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,async c=>{
+   const session=await lock(c,id);
+   // Failed files cannot be claimed again. Retire old sessions before the
+   // browser creates a replacement so they no longer occupy upload quota.
+   const failed=session.state!=='committed'&&session.files?.find(f=>f.state==='failed');
+   if(failed)await c.query('SELECT api_private.file_archive($1)',[failed.id]);
+   return session;
+  });},
   async put(identity,id,role,stream){if(!uuid(id)||typeof role!=='string')throw fault('INVALID_INPUT');const f=await tx(identity,c=>one(c,'SELECT api_private.file_claim($1,$2) AS data',[id,role]));
    if(f.state==='ready'){const hash=createHash('sha256');let bytes=0;for await(const part of stream){bytes+=part.length;if(bytes>Number(f.size))throw fault('UPLOAD_CONFLICT');hash.update(part);}if(bytes!==Number(f.size)||hash.digest('hex')!==f.sha256)throw fault('UPLOAD_CONFLICT');return {id:f.id,size:bytes,sha256:f.sha256};}
    try{const rec=await store.stage({fileId:f.id,role:f.role,size:Number(f.size),mime:f.mime,extension:f.extension,stream});await store.persist(f.id);await tx(identity,c=>one(c,'SELECT api_private.file_finish($1,$2,$3,$4::jsonb) AS data',[id,f.id,rec.sha256,JSON.stringify(rec.validation)]));return {id:f.id,size:rec.size,sha256:rec.sha256};}
-   catch(e){await tx(identity,c=>c.query('SELECT api_private.file_fail($1,$2)',[id,f.id])).catch(()=>{});throw e;}
+   catch(e){await tx(identity,async c=>{
+    await c.query('SELECT api_private.file_fail($1,$2)',[id,f.id]);
+    if(['INVALID_FILE','FILE_TOO_LARGE'].includes(e.code))await c.query('SELECT api_private.file_archive($1)',[f.id]);
+   }).catch(()=>{});throw e;}
   },
   async commit(identity,id,input){if(!uuid(id))throw fault('INVALID_INPUT');return tx(identity,async c=>{
    const s=await lock(c,id),record=parseBusinessCommit(s.purpose,input),digest=requestDigest(record);

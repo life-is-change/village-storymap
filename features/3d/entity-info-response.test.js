@@ -22,7 +22,7 @@ test('building click exposes loading panel and starts all reads before remote da
  await new Promise(r=>setImmediate(r));
  const panelBefore=f.panel.innerHTML, readsBefore=[...f.reads];
  f.release();await pending;
- assert.match(panelBefore,/H001/);assert.match(panelBefore,/正在|加载/);
+ assert.match(panelBefore,/建筑信息/);assert.match(panelBefore,/正在|加载/);
  assert.deepEqual(readsBefore.sort(),['3d','library','shared']);assert.match(f.panel.innerHTML,/READY H001/);
 });
 test('old building details cannot replace a newer selection or overwrite library state',async()=>{

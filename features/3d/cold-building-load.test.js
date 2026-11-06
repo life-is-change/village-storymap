@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../../app-3d.js'),'utf8');
-const body=source.slice(source.indexOf('  async function loadBuildingsNow()'),source.indexOf('  const loadBuildings ='));
+const body=source.slice(source.indexOf('  async function loadBuildingsNow('),source.indexOf('  const loadBuildings ='));
 test('cold building load overlaps CSV, geometry and scoped edit reads; stale result is discarded',async()=>{
  let release;const gate=new Promise(r=>release=r),events=[];
  const s={viewer:{dataSources:{remove(){}}},clearAllReplacementModels(){},clearActiveEntity(){},buildingsDataSource:null,roadsDataSource:null,

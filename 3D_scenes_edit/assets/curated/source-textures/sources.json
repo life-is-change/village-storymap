@@ -1,0 +1,56 @@
+{
+  "license": "CC0 1.0",
+  "creator": "Kenney",
+  "textures": [
+    {
+      "file": "city-roads/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/city-roads/Textures/colormap.png",
+      "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    },
+    {
+      "file": "coaster/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/coaster/Textures/colormap.png",
+      "sha256": "0d4947d34ff32acf4a359c7f22ca784e057e7e72f622170a9a77b6fc88fdb70e"
+    },
+    {
+      "file": "fantasy-town/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/fantasy-town/Textures/colormap.png",
+      "sha256": "4aac939dc33195e35caf8c382ee3cb170054da763577f22d3c22692ec6afccdf"
+    },
+    {
+      "file": "city-suburban/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/city-suburban/Textures/colormap.png",
+      "sha256": "9b5de86078c25ef02351a80d35ff3c978693a1044565b73eedd9ae9b5b80665d"
+    },
+    {
+      "file": "city-commercial/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/city-commercial/Textures/colormap.png",
+      "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+      "file": "mini-forest/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/mini-forest/Textures/colormap.png",
+      "sha256": "319f1087d8ed50a8794f9a8179f64671d5595f2365fdf3e47ec2d4eb74dba20f"
+    },
+    {
+      "file": "survival/colormap.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/survival/Textures/colormap.png",
+      "sha256": "6ca023be9f12e8c2358fcf94320c8a894b4c05a3dd0bad1f5c268312053caca1"
+    },
+    {
+      "file": "retro-urban/metal.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/retro-urban/Textures/metal.png",
+      "sha256": "3893724d52a5788341345e16319fb8f5f7182d588b5d5b2babf577176ca3d701"
+    },
+    {
+      "file": "retro-urban/planks.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/retro-urban/Textures/planks.png",
+      "sha256": "1da26c7f5094b1164b22b7b8c63baf1a824ef9845ab0f6bef0ee6d59f31a6a0f"
+    },
+    {
+      "file": "retro-urban/roof.png",
+      "url": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/retro-urban/Textures/roof.png",
+      "sha256": "50a09bac9a57a1732af6b6e4de0192efaba3627a997e0b1dc5fc1c1c6369acd6"
+    }
+  ]
+}

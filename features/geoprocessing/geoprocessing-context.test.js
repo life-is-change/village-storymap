@@ -7,6 +7,18 @@ const catalog = require("../../assets/villages/catalog.json");
 
 const MIBU_ID = "00000000-0000-4000-8000-000000000001";
 
+test("AOI entry awaits 2D even when the personal space is already selected", async () => {
+  const events=[];let finishView;
+  const pending=enterPersonalGeoprocessingSpace({
+    spaces:[{id:'personal',spaceType:'practice_personal',villageId:'v',teachingProjectId:'p'}],
+    villageId:'v',teachingProjectId:'p',getCurrentSpaceId:()=> 'personal',
+    selectSpace:async()=>events.push('select'),
+    switchTo2D:()=>new Promise(resolve=>{events.push('switch');finishView=resolve;})
+  }).then(()=>events.push('ready'));
+  await Promise.resolve();assert.deepEqual(events,['switch']);
+  finishView();await pending;assert.deepEqual(events,['switch','ready']);
+});
+
 test("legacy Mibu dataset uses the existing preview, worker, and personal result space", () => {
   const context = resolveGeoprocessingContext({
     teachingProjectId: "project-1", villageId: MIBU_ID,

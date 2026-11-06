@@ -108,3 +108,46 @@
   .village-sim-transport {grid-column:2 / -1;}
 }
 .village-sim-area-inspector {margin-bottom:0;}
+
+.village-simulation-workspace {font:13px/1.55 system-ui,"Microsoft YaHei",sans-serif;color:#26342c;}
+.village-sim-topbar > b {font-size:16px;color:#18251e;}
+.village-simulation-workspace .village-sim-sidebar {padding:16px;border:0;border-right:1px solid #e4e1d6;box-shadow:none;}
+.village-sim-rail-heading {font-size:12px;color:#68746a;font-weight:600;margin:12px 0 6px;}
+.village-simulation-workspace .village-sim-steps {display:grid;grid-template-columns:1fr;gap:4px;margin:0 0 16px;padding-bottom:14px;border-bottom:1px solid #e4e1d6;}
+.village-simulation-workspace .village-sim-steps button {display:grid;grid-template-columns:24px 1fr;align-items:start;gap:9px;text-align:left;padding:8px;border:1px solid transparent;background:transparent;font-size:13px;}
+.village-sim-steps button strong {display:block;font-weight:600;}
+.village-sim-steps button small {font-size:11px;margin-top:2px;}
+.village-sim-step-number {display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#e7efe5;color:#2e5740;font-size:11px;}
+.village-simulation-workspace .village-sim-steps button[aria-pressed=true] {background:#fff;border-color:#dedace;border-left:2px solid #2e5740;box-shadow:0 1px 3px #1d382c12;}
+.village-sim-steps button[aria-pressed=true] .village-sim-step-number {background:#2e5740;color:#fff;}
+.village-simulation-workspace .village-sim-sidebar h3 {font-size:17px;color:#18251e;margin:14px 0 6px;}
+.village-simulation-workspace .village-sim-sidebar p {margin:8px 0;}
+.village-simulation-workspace .village-sim-inspector {border:0;border-left:1px solid #e4e1d6;box-shadow:none;padding:16px;}
+.village-sim-transport button {min-width:60px;}
+
+.village-simulation-workspace {font-size:12px;line-height:1.5;}
+.village-sim-topbar > .village-sim-brand {display:grid;justify-content:start;gap:0;}
+.village-sim-brand b {font-size:15px;line-height:1.25;}
+.village-sim-brand small {font-size:11px;color:#777f71;}
+.village-simulation-workspace .village-sim-topbar nav button {font-size:12px;padding:4px 14px;}
+.village-simulation-workspace .village-sim-topbar > div > button {font-size:12px;padding:5px 9px;}
+.village-simulation-workspace .village-sim-sidebar h3 {font-size:17px;}
+.village-simulation-workspace .village-sim-steps button {font-size:12px;padding:6px 8px;}
+.village-simulation-workspace [data-live-message] {font-size:11px;padding:6px 8px;}
+.village-simulation-workspace .village-sim-context {margin-bottom:0;padding:0 16px 16px;}
+.village-sim-context h3 {font-size:13px !important;margin:0 -16px 14px !important;padding:14px 16px;border-bottom:1px solid #e4e1d6;}
+.village-sim-context-card {padding:12px;border:1px solid #e4e1d6;border-radius:9px;background:#fbfaf6;}
+.village-sim-facts {margin:12px 0;}
+.village-sim-facts > div {display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #efeee8;}
+.village-sim-facts dd {margin:0;font-variant-numeric:tabular-nums;}
+.village-sim-context-dock {justify-content:space-between;}
+.village-simulation-workspace .village-sim-palette {grid-column:2;justify-self:center;width:min(648px,calc(100% - 24px));height:auto;max-height:min(175px,34vh);margin-bottom:16px;border-radius:14px;background:#fff;}
+.village-simulation-workspace .village-sim-inspector {margin-bottom:0;}
+.village-simulation-workspace .village-sim-palette .village-sim-types button {height:78px;min-width:100px;width:100px;font-size:11px;}
+.village-sim-palette .village-sim-types button>svg:nth-child(2) {height:34px;}
+@media(max-width:800px){.village-sim-topbar > .village-sim-brand {display:none;}}
+
+.village-sim-transport input[type="range"] {flex:1;min-width:0;padding:0;border:0;accent-color:#2e5740;cursor:pointer;}
+.village-sim-transport [data-transport-time] {font-variant-numeric:tabular-nums;}
+.village-sim-transport select {flex:0 0 auto;width:auto;font-size:11px;}
+.village-simulation-workspace [data-live-message]:empty {display:none;}

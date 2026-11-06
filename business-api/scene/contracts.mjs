@@ -27,7 +27,7 @@ export function validateDocument(d){
  ['schemaVersion','projectId','villageId','groupId','baselineRef','revision','layers','objects','groups','assetRefs','metadata']);
  if(d.schemaVersion!==1||!uuid(d.projectId)||!uuid(d.villageId)||!revision(d.revision))fail();
  keys(d.baselineRef,['spaceId','revision']);if(!text(d.baselineRef.spaceId)||!revision(d.baselineRef.revision))fail();
- if(!object(d.metadata)||!['group','admin_sandbox'].includes(d.metadata.scopeKind)||!(d.groupId===null||text(d.groupId)))fail();
+ if(!object(d.metadata)||!['group','admin_sandbox','practice_personal'].includes(d.metadata.scopeKind)||!(d.groupId===null||text(d.groupId)))fail();
  if((d.metadata.scopeKind==='group')!==(d.groupId!==null))fail();
  if(!Array.isArray(d.objects)||d.objects.length>5000||!Array.isArray(d.layers)||!d.layers.length||d.layers.length>100||!Array.isArray(d.groups)||d.groups.length>1000||!Array.isArray(d.assetRefs))fail();
  jsonTree(d);
@@ -67,7 +67,7 @@ export function parseOperation(op,input){
  for(const [k,n] of [['title',100],['label',40],['spaceId',200]])if(k in input&&!text(input[k],n))fail();
  if('description' in input&&(typeof input.description!=='string'||input.description.length>500))fail();
  if(input.previewPath!==undefined&&input.previewPath!==null)throw error('FILES_NOT_READY');
- if('scopeKind' in input&&(!['group','admin_sandbox'].includes(input.scopeKind)||(input.scopeKind==='group'? !text(input.groupId):input.groupId!==null)))fail();
+ if('scopeKind' in input&&(!['group','admin_sandbox','practice_personal'].includes(input.scopeKind)||(input.scopeKind==='group'? !text(input.groupId):input.groupId!==null)))fail();
  if(op==='save')validateDocument(input.document);
  return {input,readOnly:['find','load','versions'].includes(op)};
 }

@@ -22,10 +22,10 @@ test('camera helper respects an explicitly requested flight duration',()=>{
 
 
 test('later reloads only focus the current data source in the active view',()=>{
- const start=source.indexOf('    if (entities.length',source.indexOf('  async function loadBuildingsNow()'));
+ const start=source.indexOf('    if (entities.length',source.indexOf('  async function loadBuildingsNow('));
  const end=source.indexOf('    await applyTerrainHeights(entities);',start);
  const calls=[],dataSource={},viewer={flyTo:(s,o)=>calls.push({s,o})};
- const s={entities:[{}],viewer,buildingsDataSource:dataSource,isStartupCamera:false,
+ const s={entities:[{}],viewer,buildingsDataSource:dataSource,isStartupCamera:false,preserveCamera:false,
   isCurrentLoad:()=>false,is3DViewActive:()=>true,getOverviewCameraOffset:()=>({})};
  vm.runInNewContext(source.slice(start,end),s);
  assert.equal(calls.length,0);
@@ -36,7 +36,7 @@ test('later reloads only focus the current data source in the active view',()=>{
 });
 
 test('the initial village overview is preserved when buildings arrive',()=>{
- const start=source.indexOf('    if (entities.length',source.indexOf('  async function loadBuildingsNow()'));
+ const start=source.indexOf('    if (entities.length',source.indexOf('  async function loadBuildingsNow('));
  const end=source.indexOf('    await applyTerrainHeights(entities);',start);
  const calls=[],s={entities:[{}],viewer:{flyTo:()=>calls.push('fly')},buildingsDataSource:{},
  isStartupCamera:true,

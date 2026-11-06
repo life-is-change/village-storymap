@@ -118,3 +118,13 @@ test('identical repeated source records are explicitly rejected rather than sile
  const result=Bridge.buildSceneEditContext(state({baselineFeatures:[f,f],serializeFeature:undefined}));
  assert.equal(result.ok,false);assert.match(result.message,/重复/);
 });
+
+test("practice students may open their own scene without a group", () => {
+  const space = { id: "personal", spaceType: "practice_personal", ownerId: "user-1" };
+  const own = Bridge.buildSceneEditContext(state({ space, group: null }));
+  assert.equal(own.ok, true);
+  assert.equal(own.context.scopeKind, "practice_personal");
+  assert.equal(own.context.groupId, null);
+  assert.equal(own.context.spaceId, "personal");
+  assert.equal(Bridge.buildSceneEditContext(state({ space: { ...space, ownerId: "user-2" }, group: null })).ok, false);
+});

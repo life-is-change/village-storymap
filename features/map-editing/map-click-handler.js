@@ -199,6 +199,7 @@
 
       if (buildingEditState.mode === "delete") {
         if (!clicked || clicked.get("layerKey") !== editLayerKey) return;
+        if (deps.canDeleteFeature && !(await deps.canDeleteFeature(editLayerKey, clicked.get("sourceCode")))) return;
         if (!(await acquireSelectedFeatureLock(deps, clicked, editLayerKey))) return;
         planVectorSource.removeFeature(clicked);
         buildingEditState.pendingDeletedFeatures.push(clicked);

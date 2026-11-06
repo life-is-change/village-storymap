@@ -83,7 +83,8 @@ def safe_split(openings, width, target):
 
 def facade_draft(building, analysis, photo_path, params, photo_id):
     floors=number(params.get('floors',3),1,6,'层数',True)
-    fh=number(params.get('floor_height',3.4),2.4,5,'层高');height=floors*fh
+    from ..app.domain import floor_height
+    fh=floor_height(params.get('floor_height',3.4),from_photo=params.get('height_source')=='rectified-wall-aspect');height=floors*fh
     ds=[d for d in analysis.get('detections',[]) if valid_box(d.get('box'))]
     box=analysis.get('building_box',[0,0,1,1])
     if not valid_box(box):raise ValueError('建筑识别范围无效')
@@ -193,7 +194,7 @@ def facade_draft(building, analysis, photo_path, params, photo_id):
         assumptions.append('底层候选较少，可能漏掉卷帘门或开敞空间；当前草案不能视为完整还原，可在照片上补画漏检。')
     ring=building['local_rings'][0]
     front=int(params.get('front_edge',max(range(len(ring)-1),key=lambda i:math.dist(ring[i],ring[i+1]))))
-    spec=normalize_facade(building,{'engine':'facade-v2','floors':floors,'floor_height':fh,'front_edge':front,
+    spec=normalize_facade(building,{'engine':'facade-v2','floors':floors,'floor_height':fh,'height_source':params.get('height_source'),'front_edge':front,
         'facade':{'width':width,'depth':depth,'masses':masses,'openings':openings,'balconies':balconies,
             'accessories':accessories,'entrance_support_version':1,'feature_version':min(3,analysis.get('feature_version',0)),'appearance':appearance_evidence(rgb,crop,ds,roofs[0]['box'] if roofs else None),
             'structure':structure,'component_retrieval':retrieval,

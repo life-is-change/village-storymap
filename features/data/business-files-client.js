@@ -25,16 +25,28 @@
    while(urls.size>32||bytes>100*1024**2&&urls.size>1){const first=urls.keys().next().value,entry=urls.get(first);revokeObjectURL(entry.url);bytes-=entry.size;urls.delete(first);}return url;
   }
   async function upload(purpose,context,fileMap,record){
-   const owner=identity(),files=Object.entries(fileMap).map(([role,file])=>{const extension=purpose==='group-model'?'glb':purpose==='dataset'?role.split('.').at(-1):String(file.name||'').split('.').at(-1).toLowerCase();const mime={glb:'model/gltf-binary',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',json:'application/json',geojson:'application/geo+json'}[extension];if(!mime)throw Error('FILE_TYPE_UNSUPPORTED');return {role,size:file.size,mime,extension};});
+   const owner=identity();let photoExtension;
+   if(purpose==='photo'){
+    const header=new Uint8Array(await fileMap.photo.slice(0,12).arrayBuffer()),starts=signature=>signature.every((v,i)=>header[i]===v);
+    if(starts([137,80,78,71,13,10,26,10]))photoExtension='png';
+    else if(starts([255,216,255]))photoExtension=/\.jpeg$/i.test(fileMap.photo.name||'')?'jpeg':'jpg';
+    else if(starts([82,73,70,70])&&[87,69,66,80].every((v,i)=>header[i+8]===v))photoExtension='webp';
+   }
+   const files=Object.entries(fileMap).map(([role,file])=>{const extension=purpose==='group-model'?'glb':purpose==='dataset'?role.split('.').at(-1):photoExtension||String(file.name||'').split('.').at(-1).toLowerCase();const mime={glb:'model/gltf-binary',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',json:'application/json',geojson:'application/geo+json'}[extension];if(!mime)throw Error('FILE_TYPE_UNSUPPORTED');return {role,size:file.size,mime,extension};});
    const hashes=await Promise.all(files.map(async f=>[f.role,await hash(await fileMap[f.role].arrayBuffer())]));
    if(owner!==identity())throw Error('UNAUTHORIZED');
    const receiptKey='village:pending-file:'+await hash(new TextEncoder().encode(canonical({owner,purpose,context,record,files,hashes})));
    if(owner!==identity())throw Error('UNAUTHORIZED');
-   const receipt=load(receiptKey)||{requestId:uuid()};save(receiptKey,receipt);
-   const session=receipt.sessionId?await request('/files/sessions/'+encodeURIComponent(receipt.sessionId)):await request('/files/sessions',{method:'POST',body:{purpose,context,requestId:receipt.requestId,files}});
+   let receipt=load(receiptKey)||{requestId:uuid()};save(receiptKey,receipt);
+   let session;
+   if(receipt.sessionId){
+    try{session=await request('/files/sessions/'+encodeURIComponent(receipt.sessionId));}catch(e){if(e.code!=='UPLOAD_EXPIRED')throw e;}
+    if(!session||session.state!=='committed'&&(session.state==='aborted'||Date.parse(session.expires_at)<=Date.now()||session.files?.some(f=>f.state==='failed'))){receipt={requestId:uuid()};save(receiptKey,receipt);session=null;}
+   }
+   if(!session)session=await request('/files/sessions',{method:'POST',body:{purpose,context,requestId:receipt.requestId,files}});
    receipt.sessionId=session.id;save(receiptKey,receipt);
    if(session.state==='committed')return {result:session.result,finish:()=>save(receiptKey,null)};
-   for(const f of files){if(owner!==identity())throw Error('UNAUTHORIZED');await request('/files/sessions/'+encodeURIComponent(session.id)+'/'+encodeURIComponent(f.role),{method:'PUT',body:fileMap[f.role],binary:true});}
+   for(const f of files){if(owner!==identity())throw Error('UNAUTHORIZED');try{await request('/files/sessions/'+encodeURIComponent(session.id)+'/'+encodeURIComponent(f.role),{method:'PUT',body:fileMap[f.role],binary:true});}catch(e){if(['INVALID_FILE','FILE_TOO_LARGE','UPLOAD_EXPIRED'].includes(e.code))save(receiptKey,null);throw e;}}
    if(owner!==identity())throw Error('UNAUTHORIZED');return {result:await request('/files/sessions/'+encodeURIComponent(session.id)+'/commit',{method:'POST',body:record}),finish:()=>save(receiptKey,null)};
   }
   return {

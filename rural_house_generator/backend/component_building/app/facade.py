@@ -1,6 +1,6 @@
 """Validated, data-driven front elevation. No photo-specific building template."""
 import math
-from .domain import number
+from .domain import number, floor_height
 from .completion import hidden_openings
 
 
@@ -9,7 +9,7 @@ def normalize_facade(building, payload):
     if not isinstance(f, dict):
         raise ValueError('缺少标准立面结构')
     floors = number(payload.get('floors', 3), 1, 6, '层数', True)
-    fh = number(payload.get('floor_height', 3.4), 2.4, 5, '层高')
+    fh = floor_height(payload.get('floor_height', 3.4), from_photo=payload.get('height_source') == 'rectified-wall-aspect')
     h = floors * fh
     width = number(f.get('width'), 3, 40, '设计宽度')
     depth = number(f.get('depth', 8), 2, 30, '设计进深')

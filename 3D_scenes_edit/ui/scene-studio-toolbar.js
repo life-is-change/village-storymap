@@ -30,7 +30,8 @@
         const shape=['line','surface','boundary'].includes(object?.kind);
         const road=object?.kind==='line'&&object.category==='path';
         actions+=road?button('edit-road','编辑顶点')+button('tool','整体移动','move'):(model.mode==='2d'||!shape)?button('tool','拖动位置','move'):button('move-shape','平移（2D）')+button('edit-shape','调整形状（2D）');
-        if(count===1)actions+=button('rotate-geometry','旋转90°','90');
+        if(count===1||model.properties?.geometry?.type==='Point'||model.groups?.some(g=>g.objectIds.every(id=>model.selectedIds.includes(id))))actions+=button('rotate-geometry','旋转90°','90');
+        if(model.groups?.some(g=>g.objectIds.some(id=>model.selectedIds.includes(id))))actions+=button('ungroup','解组');
         actions+=button('inspect-properties','修改属性')+(object?.kind==='boundary'?'':button('duplicate','复制'))+button('delete',object?.kind==='boundary'?'清除旧蓝框':'删除');
       }
       if(count&&model.mode==='2d'&&['line','surface','boundary'].includes(object?.kind)&&object?.category!=='path')actions+=button('tool','编辑节点','edit-nodes');

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { VillageMapSection } from '@/features/village-map/VillageMapSection';
 import { DEFAULT_VILLAGE_ID, VILLAGES, getVillageById, mergeRuntimeVillages } from '@/features/village-map/village-data.js';
 import { readHomeContext, writeHomeContext } from '@/features/village-map/home-context-cache.js';
+import { overviewStats, CASE_STUDIES } from '@/features/village-map/platform-overview.js';
 import { buildTheoryPracticeMessage, getTheoryTaskStatus, resolveTheoryPracticeOpened } from '@/features/theory/theory-practice.js';
 import { 
   MapPin, 
@@ -281,6 +282,7 @@ function App() {
   const [showBackTop, setShowBackTop] = useState(false);
   const [selectedVillageId, setSelectedVillageId] = useState(initialVillageId);
   const [villages, setVillages] = useState(initialVillages);
+  const [platformStats, setPlatformStats] = useState(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [currentLessonStep, setCurrentLessonStep] = useState('intro');
   const [lessonGuideOpen, setLessonGuideOpen] = useState(true);
@@ -315,6 +317,7 @@ function App() {
         return;
       }
       if (event.data?.type === 'village-home-context') {
+        setPlatformStats(event.data.payload?.statistics || null);
         const nextVillages = mergeRuntimeVillages(event.data.payload?.villages);
         const preferredId = String(event.data.payload?.selectedVillageId || '');
         const nextSelectedVillageId = nextVillages.some((village) => village.id === preferredId)
@@ -992,16 +995,13 @@ function App() {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {[
-              { label: '本学期村庄', value: String(villages.length) },
-              { label: '参与用户', value: '1000+' },
-              { label: '规划方案', value: '200+' },
-              { label: '覆盖面积', value: '5000亩' },
+              ...overviewStats(platformStats),
             ].map((stat, index) => (
               <div
                 key={index} 
-                className="text-center p-4 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10"
+                className="min-w-0 text-center px-3 py-4 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10"
               >
-                <div className="text-2xl sm:text-3xl font-bold text-white mb-1">{stat.value}</div>
+                <div className="whitespace-nowrap text-xl sm:text-2xl font-bold text-white mb-1">{stat.value}</div>
                 <div className="text-white/60 text-sm">{stat.label}</div>
               </div>
             ))}
@@ -1184,6 +1184,21 @@ function App() {
               ))}
             </div>
           </div>
+
+          <section className="mt-20" aria-labelledby="case-studies-title">
+            <div className="inline-flex items-center gap-2 text-green-700 font-semibold mb-3"><BookOpen className="w-5 h-5" />规划案例集</div>
+            <h3 id="case-studies-title" className="text-2xl sm:text-3xl font-bold text-gray-800">从案例中寻找设计启发</h3>
+            <p className="mt-3 text-gray-600">结合当前村庄的调查结果，比较空间组织、公共服务与实施方式。</p>
+            <div className="mt-8 grid md:grid-cols-3 gap-6">
+              {CASE_STUDIES.map(item=><a key={item.url} href={item.url} target="_blank" rel="noopener noreferrer" className="group rounded-2xl bg-white/85 border border-green-100 p-6 transition hover:shadow-lg hover:border-green-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-600">
+                <span className="text-xs font-medium text-green-700 bg-green-50 rounded-full px-3 py-1">{item.tag}</span>
+                <h4 className="mt-4 text-lg font-semibold text-gray-800 leading-7">{item.title}</h4>
+                <p className="mt-3 text-sm text-gray-600 leading-6">{item.description}</p>
+                <p className="mt-5 text-xs text-gray-500">{item.source}</p>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-green-700">阅读案例<ArrowRight className="w-4 h-4" /></span>
+              </a>)}
+            </div>
+          </section>
 
           <div className="relative mt-20 overflow-hidden rounded-3xl bg-gradient-hero p-12 sm:p-16 text-center">
             {/* Background Decoration */}

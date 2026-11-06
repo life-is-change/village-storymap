@@ -2,7 +2,7 @@
 import math
 from PIL import Image
 
-from .app.domain import number
+from .app.domain import number, floor_height
 from .vision.facade import facade_draft, valid_box
 from .vision.facade_calibration import calibrate
 
@@ -33,13 +33,12 @@ def build_spec(image_path, analysis, options):
     with Image.open(image_path) as image:
         wall_height = width * (crop[3]-crop[1]) * image.height / ((crop[2]-crop[0]) * image.width)
     floors = settings['floors']
-    if not 2.4 <= wall_height/floors <= 5:
-        raise ValueError('按立面比例推算的层高不合理，请核对建筑正面长度、层数和主体识别范围。')
+    inferred_floor_height = floor_height(wall_height/floors, from_photo=True)
     # Centered source footprint. Orientation is preserved by the platform's existing binding.
     building = {'id': 'platform-building', 'geometry_revision': 1, 'origin': [0, 0],
                 'local_rings': [[[-width/2, -depth/2], [width/2, -depth/2],
                                  [width/2, depth/2], [-width/2, depth/2], [-width/2, -depth/2]]]}
-    params = {'floors': floors, 'floor_height': wall_height/floors, 'width': width, 'depth': depth,
+    params = {'floors': floors, 'floor_height': inferred_floor_height, 'height_source': 'rectified-wall-aspect', 'width': width, 'depth': depth,
               'front_edge': 0, 'front_offset': 0, 'render_profile': 'rural-realistic'}
     if settings['roof_count']:
         params['roof_count'] = settings['roof_count']
@@ -51,6 +50,10 @@ def build_spec(image_path, analysis, options):
                         'footprint_rectangularity':rectangularity,'dimension_source':'opposite-edge-means'}
     spec['assumptions'] = [s for s in spec['assumptions'] if '不强制匹配' not in s or settings['model_purpose'] == 'design']
     spec['assumptions'].append('墙身高度由正面长度及立面比例估算；侧背面和构件进深为规则补全。')
+    if not 2.4 <= inferred_floor_height <= 5:
+        spec['assumptions'].append(
+            f'按照片比例估算墙高 {wall_height:.2f} m，{floors} 层平均层高 {inferred_floor_height:.2f} m；'
+            '超出常见住宅层高参考范围 2.4–5 m。已保留推算尺寸，请结合实测核对，不代表实测高度。')
     if spec['platform']['footprint_approximation']:
         spec['assumptions'].append('原占地按两组对边长度均值近似矩形；保留位置与朝向，边界并非逐点复刻。')
     spec['warnings'] = result['warnings'] = spec['assumptions']

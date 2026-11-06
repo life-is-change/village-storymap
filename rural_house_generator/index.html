@@ -40,7 +40,7 @@
           <p id="generationConstraint" class="generation-constraint" role="alert" hidden></p>
           <button id="cancelGenerationTask" type="button" hidden>取消当前任务以更换方式 / 照片</button>
           <div id="componentParameters" class="form-grid" hidden>
-            <label><span>建筑层数</span><select id="componentFloors"><option value="1">1 层</option><option value="2">2 层</option><option value="3" selected>3 层</option><option value="4">4 层</option><option value="5">5 层</option><option value="6">6 层</option></select></label>
+            <label><span>建筑层数（请按照片确认）</span><select id="componentFloors"><option value="1">1 层</option><option value="2">2 层</option><option value="3" selected>3 层</option><option value="4">4 层</option><option value="5">5 层</option><option value="6">6 层</option></select></label>
             <label><span>主屋顶数量</span><select id="componentRoofs"><option value="">自动候选</option><option value="1">1 个</option><option value="2">2 个</option></select></label>
           </div>
         </section>
@@ -55,11 +55,11 @@
           <h2>基础参数</h2>
           <div class="form-grid">
             <label>
-              <span>建筑长度 L</span>
+              <span>正面长度 L（米）</span>
               <input id="lengthInput" type="number" min="3" step="0.1" />
             </label>
             <label>
-              <span>建筑宽度 W</span>
+              <span>进深 W（米）</span>
               <input id="widthInput" type="number" min="3" step="0.1" />
             </label>
           </div>
@@ -190,6 +190,6 @@
   <script src="./facade-source-mode.js?v=20260911-three-sources"></script>
   <script src="./facade-cloud-client.js?v=20260911-qwen-adapter"></script>
   <script src="../features/3d/render-quality.js?v=20261013-device-quality"></script>
-  <script type="module" src="./app.js?v=20261027-quality-v1"></script>
+  <script type="module" src="./app.js?v=20261106-draco-handoff"></script>
 </body>
 </html>

@@ -37,7 +37,7 @@
           geometry: GeometryRules.rotatedFootprint(object.geometry.coordinates, {
             widthM: object.properties.footprintM[0] * scale[0],
             depthM: object.properties.footprintM[1] * scale[1]
-          }, object.transform?.headingDeg || 0),
+          }, (String(object.properties?.assetRef||'').startsWith('seed:curated:')?-1:1)*(object.transform?.headingDeg || 0)),
           layerId: object.layerId,
           styleToken,
           headingDeg: object.transform?.headingDeg || 0,

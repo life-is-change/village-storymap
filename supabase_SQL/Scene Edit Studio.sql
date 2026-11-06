@@ -8,7 +8,7 @@ create table if not exists public.scene_edit_projects (
   village_id uuid not null references public.villages(id) on delete restrict,
   space_id text not null references public.planning_spaces(id) on delete restrict,
   group_id text references public.course_groups(id) on delete restrict,
-  scope_kind text not null default 'group' check (scope_kind in ('group', 'admin_sandbox')),
+  scope_kind text not null default 'group' check (scope_kind in ('group', 'admin_sandbox', 'practice_personal')),
   title text not null check (length(trim(title)) between 1 and 100),
   baseline_revision bigint not null check (baseline_revision >= 0),
   selection_boundary jsonb,
@@ -25,7 +25,7 @@ create table if not exists public.scene_edit_projects (
   updated_at timestamptz not null default now(),
   check (
     (scope_kind = 'group' and group_id is not null)
-    or (scope_kind = 'admin_sandbox' and group_id is null)
+    or (scope_kind in ('admin_sandbox', 'practice_personal') and group_id is null)
   )
 );
 
@@ -155,6 +155,7 @@ as $$
           public.is_scene_edit_staff()
           or public.is_scene_edit_group_member(project.group_id, teaching.course_id)
         ))
+        or (project.scope_kind = 'practice_personal' and project.created_by = auth.uid())
         or (project.scope_kind = 'admin_sandbox'
           and project.created_by = auth.uid()
           and public.current_profile_role() = 'admin')
@@ -285,9 +286,9 @@ declare
   v_course_id text;
   v_project public.scene_edit_projects;
 begin
-  if p_scope_kind not in ('group', 'admin_sandbox') then raise exception 'SCENE_EDIT_SCOPE_INVALID'; end if;
+  if p_scope_kind not in ('group', 'admin_sandbox', 'practice_personal') then raise exception 'SCENE_EDIT_SCOPE_INVALID'; end if;
   if (p_scope_kind = 'group' and p_group_id is null)
-     or (p_scope_kind = 'admin_sandbox' and p_group_id is not null) then
+     or (p_scope_kind <> 'group' and p_group_id is not null) then
     raise exception 'SCENE_EDIT_SCOPE_INVALID';
   end if;
   select teaching.course_id into v_course_id
@@ -299,11 +300,13 @@ begin
     and (
       (p_scope_kind = 'group' and space.group_id = p_group_id and space.space_type = 'group_plan')
       or p_scope_kind = 'admin_sandbox'
+      or (p_scope_kind = 'practice_personal' and space.space_type = 'practice_personal' and space.owner_id = auth.uid())
     );
   if v_course_id is null then raise exception 'SCENE_EDIT_CONTEXT_INVALID'; end if;
   if not (
     (p_scope_kind = 'group' and (public.is_scene_edit_staff() or public.is_scene_edit_group_member(p_group_id, v_course_id)))
     or (p_scope_kind = 'admin_sandbox' and public.current_profile_role() = 'admin')
+    or p_scope_kind = 'practice_personal'
   ) then
     raise exception 'SCENE_EDIT_FORBIDDEN';
   end if;
@@ -377,6 +380,7 @@ begin
   select course_id into v_course_id from public.teaching_projects where id = v_project.teaching_project_id;
   if not (
     (v_project.scope_kind = 'group' and (public.is_scene_edit_staff() or public.is_scene_edit_group_member(v_project.group_id, v_course_id)))
+    or (v_project.scope_kind = 'practice_personal' and v_project.created_by = auth.uid())
     or (v_project.scope_kind = 'admin_sandbox' and v_project.created_by = auth.uid() and public.current_profile_role() = 'admin')
   ) then raise exception 'SCENE_EDIT_FORBIDDEN'; end if;
   if v_project.status <> 'draft' then raise exception 'SCENE_EDIT_PROJECT_SUBMITTED'; end if;

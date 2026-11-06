@@ -80,7 +80,7 @@
     const label = STATUS_LABELS[normalized.geometryStatus] || STATUS_LABELS.pending;
     return `<section class="survey-object-review" data-survey-object-review>
       <div><span>几何状态</span><strong>${escapeHtml(label)}</strong></div>
-      <div class="survey-object-review-meta">修订 ${normalized.geometryRevision}${normalized.latestModifiedBy ? ` · 最近处理 ${escapeHtml(normalized.latestModifiedBy)}` : ""}</div>
+      <div class="survey-object-review-meta">修订 ${normalized.geometryRevision}</div>
       <div class="survey-object-review-actions">
         ${normalized.geometryStatus === "pending"
           ? '<button type="button" data-survey-confirm>确认几何无误</button>'

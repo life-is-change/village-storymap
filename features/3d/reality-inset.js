@@ -847,13 +847,13 @@
           setStatus("该建筑缺少实景定位坐标", "warning");
           return false;
         }
-        setStatus(`正在定位建筑 ${code}`, "loading");
+        setStatus("正在定位建筑", "loading");
         await flyToRealityCloseup(closeup);
         if (!focusGate.isCurrent(token)) return false;
         setStatus(
           closeup.sampled
-            ? `已定位建筑 ${code}`
-            : `已按近似高度定位建筑 ${code}`,
+            ? "已定位建筑"
+            : "已按近似高度定位建筑",
           closeup.sampled ? "ready" : "warning"
         );
         viewer.scene.requestRender();

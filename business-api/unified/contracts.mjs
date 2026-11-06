@@ -50,6 +50,7 @@ for(const [name,fields,readOnly,source] of [
  ['getProgress',{courseId:id,...semester},true,'task_progress'],['setProgress',{courseId:id,...semester,taskId:id,complete:bool,...replay},false,'task_progress'],
  ['listActivity',{courseId:id,...semester,limit:optional(integer(1,200))},true,'activity_events'],
  ['recordActivity',{courseId:id,...context,taskId:optional(id),action:str(100),targetType:optional(displayField(100)),targetId:optional(displayField(200)),viewMode:optional(displayField(30)),metadata:optional(json),...replay},false,'activity_events'],
+ ['homeStats',{},true,'aggregate account and village statistics'],
  ['getActiveContext',{},true,'get_active_project_context'],['listVillages',{},true,'villages'],
  ['listSpaces',{teachingProjectId:uuid,villageId:uuid},true,'planning_spaces;course_personal_spaces'],
  ['getSpace',context,true,'planning_spaces;course_personal_spaces'],
@@ -74,6 +75,9 @@ for(const [name,fields,readOnly,source] of [
 const objectTarget={...context,objectCode:str(200),objectType:str(100)};
 const featureTarget={...context,layerKey:choice('building','road','water','cropland','openSpace'),objectCode:str(200)};
 for(const [name,fields,readOnly,source] of [
+ ['listInterviews',featureTarget,true,'vector interviews'],
+ ['addInterview',{...featureTarget,interviewedAt:field(v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v,'2026-11-04T01:30:00.000Z'),interviewee:str(100),content:multiline(5000),...replay},false,'vector interviews'],
+ ['featurePhotoState',featureTarget,true,'photo-protected vector deletion'],
  ['activity',context,true,'survey activity overlays'],
  ['listAttributes',{...context,objectType:str(100)},true,'object_attribute_edits'], ['getAttributes',objectTarget,true,'object_attribute_edits'],['saveAttributes',{...objectTarget,data:json,surveyLayerKey:optional(nullable(choice('building','road','water'))),...replay},false,'object_attribute_edits'],
  ['listComments',objectTarget,true,'object_comments'],['addComment',{...objectTarget,surveyLayerKey:optional(nullable(choice('building','road','water'))),body:multiline(200),...replay},false,'object_comments'],

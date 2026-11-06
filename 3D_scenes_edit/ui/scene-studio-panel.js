@@ -26,21 +26,29 @@
     curb: "路缘", "low-wall": "矮墙", fence: "栅栏", hedge: "绿篱", drainage: "排水",
     bin: "环卫", sign: "标识", sculpture: "景观小品", fitness: "健身设施", pavilion: "亭",
     pergola: "廊架", "bus-stop": "候车亭", stall: "摊位", stage: "舞台", "play-equipment": "儿童设施",
-    other: "其他"
+    composite: "场景组合", 'boundary-fixture':'围栏与绿篱', bridge:'桥与栈道', 'paving-module':'步道铺装块', 'traffic-fixture':'交通设施', 'culture-display':'文化展示', 'event-equipment':'活动设备', 'planter-fixture':'花盆花箱', 'landscape-fixture':'景观设施', 'market-equipment':'市场设备', other: "其他"
   });
   const ASSET_GROUPS = Object.freeze({
-    site: { label: "地面与铺装", categories: ["paving", "grass", "water", "planter", "planting"] },
-    planting: { label: "绿化", categories: ["tree", "shrub", "hedge"] },
-    furniture: { label: "家具设施", categories: ["bench", "table", "light", "bin", "sign", "sculpture", "fitness", "play-equipment"] },
-    market: { label: "市场组件", categories: ["stall", "path"] },
-    structure: { label: "构筑物", categories: ["pavilion", "pergola", "bus-stop", "stall", "stage", "structure"] },
-    boundary: { label: "场内小径与围护", categories: ["path", "curb", "low-wall", "fence", "drainage"] }
+    site: { label: "绿化与水景", categories: ["grass", "water", "planter", "planting", "tree", "shrub", "hedge", "planter-fixture"] },
+    furniture: { label: "家具设施", categories: ["bench", "table", "light", "bin", "sign", "sculpture", "fitness", "play-equipment", "traffic-fixture", "culture-display", "event-equipment", "landscape-fixture", "other"] },
+    market: { label: "市场组件", categories: ["stall", "market-equipment"] },
+    structure: { label: "构筑物", categories: ["pavilion", "pergola", "bus-stop", "stage", "structure"] },
+    boundary: { label: "围护与桥梁", categories: ["low-wall", "fence", "drainage", "boundary-fixture", "bridge"] },
+    combinations: { label: "场景组合", categories: ["composite"] }
   });
+  const HIDDEN_ADD_CATEGORIES = new Set(["path", "paving", "paving-module", "curb"]);
+  function assetGroupId(id) {
+    return id === "planting" ? "site" : ASSET_GROUPS[id] ? id : "site";
+  }
 
   function groupAssets(assets) {
     const grouped = {};
+    const seen = new Set();
     for (const asset of assets || []) {
-      const category = asset.category || "other";
+      // Only the add browser is filtered; source records remain available to saved scenes.
+      if (HIDDEN_ADD_CATEGORIES.has(asset.category) || HIDDEN_ADD_CATEGORIES.has(asset.catalogCategory) || seen.has(asset.id)) continue;
+      if (asset.id) seen.add(asset.id);
+      const category = asset.catalogCategory || asset.category || "other";
       (grouped[category] ||= []).push(asset);
     }
     return grouped;
@@ -71,6 +79,7 @@
       sections: { layers: state?.layers || [], objects, assets: groupAssets(state?.assets || []) },
       siteTree: buildSiteTree(objects),
       selectedIds: state?.selectedIds || [],
+      groups: state?.groups || [],
       properties: selected,
       canUndo: !!state?.canUndo,
       canRedo: !!state?.canRedo,
@@ -164,8 +173,20 @@
 
   function renderSiteTree(model,renamingId=null) {
     const tree=model.siteTree,disabled=model.readOnly?'disabled':'';
-    const rows=objects=>objects.map(o=>'<div class="scene-tree-object">'+renderObjects([o],model.selectedIds)+'<button type="button" class="scene-rename-button" data-action="start-rename" data-value="'+escapeHtml(o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'>✎</button><input '+(renamingId===o.id?'':'hidden')+' type="text" maxlength="60" data-action="object-rename" data-value="'+escapeHtml(o.id)+'" value="'+escapeHtml(o.properties?.displayName||o.category||o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'></div>').join('');
-    return tree.sites.map(site=>'<div class="scene-site-branch">'+rows([site.object])+'<details data-branch-id="'+escapeHtml(site.object.id)+'" open><summary>'+site.children.length+' 个组件</summary><div class="scene-site-children">'+rows(site.children)+'</div></details></div>').join('')+
+    const objectRows=objects=>objects.map(o=>'<div class="scene-tree-object">'+renderObjects([o],model.selectedIds)+'<button type="button" class="scene-rename-button" data-action="start-rename" data-value="'+escapeHtml(o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'>✎</button><input '+(renamingId===o.id?'':'hidden')+' type="text" maxlength="60" data-action="object-rename" data-value="'+escapeHtml(o.id)+'" value="'+escapeHtml(o.properties?.displayName||o.category||o.id)+'" aria-label="重命名 '+escapeHtml(o.properties?.displayName||o.id)+'" '+disabled+'></div>').join('');
+    const rows=(objects,parentGroupId=null)=>{
+      const seen=new Set();return objects.map(o=>{
+        const group=(model.groups||[]).find(g=>g.id===o.groupId);if(!group||group.id===parentGroupId)return objectRows([o]);
+        if(seen.has(group.id))return '';seen.add(group.id);
+        const children=objects.filter(child=>child.groupId===group.id);
+        return `<details class="scene-combination-branch" data-branch-id="group:${escapeHtml(group.id)}" open><summary><button type="button" data-action="select-group" data-value="${escapeHtml(group.id)}">${escapeHtml(group.name||'场景组合')}</button><small>${children.length} 个组件</small></summary><div class="scene-combination-children">${objectRows(children)}</div></details>`;
+      }).join('');
+    };
+    return tree.sites.map(site=>{
+      let header=objectRows([site.object]);
+      if(site.object.groupId)header=header.replace('data-action="select-object" data-value="'+escapeHtml(site.object.id)+'"','data-action="select-group" data-value="'+escapeHtml(site.object.groupId)+'"');
+      return '<details class="scene-site-branch" data-branch-id="'+escapeHtml(site.object.id)+'" open><summary>'+header+'<span class="scene-site-count">'+site.children.length+' 个组件</span></summary><div class="scene-site-children">'+rows(site.children,site.object.groupId)+'</div></details>';
+    }).join('')+
       '<details data-branch-id="roads" open><summary>连接道路 · '+tree.roads.length+'</summary>'+rows(tree.roads)+'</details>'+
       '<details data-branch-id="independent" open><summary>独立组件 · '+tree.unassigned.length+'</summary>'+rows(tree.unassigned)+'</details>';
   }
@@ -192,6 +213,7 @@
     return '<option value="" '+(!value?'selected':'')+'>独立组件</option>'+model.siteTree.sites.map(s=>'<option value="'+escapeHtml(s.object.id)+'" '+(value===s.object.id?'selected':'')+'>'+escapeHtml(s.object.properties?.displayName||'未命名场地')+'</option>').join('');
   }
   function renderAssets(groups, activeCategory, query, activeGroup = "site") {
+    activeGroup = assetGroupId(activeGroup);
     const entries = Object.entries(groups);
 
     const normalizedQuery = String(query || "").trim().toLocaleLowerCase();
@@ -204,8 +226,12 @@
       .filter(([category]) => groupDefinition.categories.includes(category) && (activeCategory === "all" || activeCategory === category))
       .flatMap(([, items]) => items)
       .filter((asset) => !normalizedQuery || String(asset.label || asset.displayName || asset.id).toLocaleLowerCase().includes(normalizedQuery));
-    const cards = assets.map((asset) => `<button class="scene-asset-card" type="button" data-action="choose-asset" data-value="${escapeHtml(asset.id)}"><span class="scene-asset-thumb" data-category="${escapeHtml(asset.category || "")}" aria-hidden="true"></span><span><strong>${escapeHtml(asset.label || asset.displayName || asset.id)}</strong><small>${escapeHtml(CATEGORY_LABELS[asset.category] || asset.category || "组件")}</small></span></button>`).join("");
-    return `<div class="scene-asset-groups" role="tablist" aria-label="素材分组">${groupButtons}</div><div class="scene-asset-filters" role="toolbar" aria-label="素材分类"><span>筛选</span>${categories.join("")}</div><div class="scene-asset-grid">${cards || '<p class="scene-studio-empty">没有符合条件的素材</p>'}</div>`;
+    const cards = assets.map((asset) => {
+      const size=asset.footprintM?.map(n=>Number(n).toFixed(1)).join(' × ');
+      const detail=[asset.kind==='group'?`${asset.children.length} 个组件`:CATEGORY_LABELS[asset.catalogCategory||asset.category]||asset.category,size?`${size} 米`:''].filter(Boolean).join(' · ');
+      return `<button class="scene-asset-card" type="button" data-action="choose-asset" data-value="${escapeHtml(asset.id)}"><span class="scene-asset-thumb" data-category="${escapeHtml(asset.category || "")}" aria-hidden="true">${asset.thumbnailUrl?`<img loading="lazy" src="${escapeHtml(asset.thumbnailUrl)}" alt="">`:asset.kind==='group'?'▦':''}</span><span><strong>${escapeHtml(asset.label || asset.displayName || asset.id)}</strong><small>${escapeHtml(detail)}</small></span></button>`;
+    }).join("");
+    return `<div class="scene-asset-groups" role="tablist" aria-label="素材分组">${groupButtons}</div><div class="scene-asset-filters" role="toolbar" aria-label="素材分类"><span>筛选</span>${categories.join("")}</div><div class="scene-asset-grid">${cards || '<p class="scene-studio-empty">没有符合条件的素材</p>'}</div><a class="scene-asset-credits" href="3D_scenes_edit/assets/curated/ATTRIBUTION.md" target="_blank" rel="noopener">素材来源与许可</a>`;
   }
 
   function renderProperties(object, mode, selectedIds = [], readOnly = false) {
@@ -241,7 +267,7 @@
   function renderPropertyContent(model){return `${renderInspectorProperties(model)}${model.properties&&!['boundary'].includes(model.properties.kind)&&model.properties.category!=='activity-field'?'<label>所属范围<select data-action="property" data-path="properties.siteId" data-value-type="string" '+(model.readOnly?'disabled':'')+'>'+siteOptions(model,model.properties.properties?.siteId)+'</select></label>':''}`;}
   function renderInspectorProperties(model) {
     if(model.activeAssetRole==='site-range'&&model.activeTool==='draw-surface')return '<h4>设定活动场地范围</h4><p>沿公园或广场边界点选至少三个节点，再点“完成绘制”。范围本身不铺装，也不生成建筑。</p><p>完成后可为这处场地放置组件，并在村庄模拟中赋予设施功能。</p>';
-    if(model.activeAssetRole==='circulation'&&model.activeTool==='draw-line')return '<h4>规划连接道路</h4><p>依次点选道路中心线，再点“完成绘制”。首尾靠近已有道路时自动吸附。</p><p>这条道路用于连接建筑与活动场地。完成后选中道路可改宽度；场内装饰小径在组件库选择。</p>';
+    if(model.activeAssetRole==='circulation'&&model.activeTool==='draw-line')return '<h4>规划连接道路</h4><p>依次点选道路中心线，再点“完成绘制”。首尾靠近已有道路时自动吸附。</p><p>这条道路用于连接建筑与活动场地，完成后选中道路可改宽度。</p>';
     return renderProperties(model.properties,model.mode,model.selectedIds,model.readOnly);
   }
 
@@ -252,7 +278,7 @@
     root.setAttribute("role", "application");
     root.setAttribute("aria-label", "公共空间设计工作室");
     let activeInspector = "assets";
-    let designTool = "range";
+    let designTool = "components";
     let dockCollapsed = false;
     let dockHeight = 230;
     let dockDrag;
@@ -312,7 +338,7 @@
         return;
       }
       if (action.type === "asset-group") {
-        activeAssetGroup = ASSET_GROUPS[action.value] ? action.value : "site";
+        activeAssetGroup = assetGroupId(action.value);
         activeAssetCategory = "all";
         if (!updateAssetBrowser() && lastModel) renderPanel(lastModel);
         return;
@@ -399,7 +425,7 @@
                   <nav class="scene-design-tools" aria-label="设计工具">${[["range","范围"],["road","道路"],["components","组件"]].map(([id,label])=>`<button type="button" data-action="design-tool" data-value="${id}" aria-pressed="${designTool===id}">${label}</button>`).join("")}</nav>
                   <div ${designTool==="range"?"":"hidden"}>${renderDrawingTool(model,"range")}</div><div ${designTool==="road"?"":"hidden"}>${renderDrawingTool(model,"road")}</div>
 
-                  <div ${designTool==="components"?"":"hidden"}><label>所属范围<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>铺装、小径、围护也是组件；可选市场摊位、家具、绿化和小径；连接设施请用“规划道路”。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><input aria-label="搜索素材" type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、铺装…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></div></section>
+                  <div ${designTool==="components"?"":"hidden"}><label>所属范围<select data-action="placement-site" ${model.readOnly?'disabled':''}>${siteOptions(model,model.placementSiteId)}</select></label><div class="scene-section-title"><div><h3>组件库</h3><p>选择组件或场景组合，再点击地图放置。默认作为独立组件；也可在上方选择已有范围归属。</p></div><button type="button" data-action="upload-asset" ${model.readOnly?'disabled':''}>上传 GLB</button></div><label class="scene-asset-search"><input aria-label="搜索素材" type="search" data-action="asset-search" value="${escapeHtml(assetQuery)}" placeholder="座椅、乔木、场景组合…"></label><div class="scene-asset-browser">${renderAssets(model.sections.assets, activeAssetCategory, assetQuery, activeAssetGroup)}</div></div></section>
                 <section data-panel="properties" data-inspector-panel="properties" ${activeInspector === "properties" ? "" : "hidden"}><h3>${['site-range','circulation'].includes(model.activeAssetRole)?'当前操作':'对象属性'}</h3><div class="scene-properties-content">${renderPropertyContent(model)}</div></section>
 
               </div>
@@ -448,7 +474,7 @@
         const contextual = root.querySelector?.(".scene-studio-contextual-tools");
         if (contextual) contextual.outerHTML = Toolbar.renderToolbarHtml(lastModel);
       },
-      showAssets(group) { designTool="components";activeInspector="assets";inspectorCollapsed=false;if(ASSET_GROUPS[group]){activeAssetGroup=group;activeAssetCategory="all";}if(lastModel)renderPanel(lastModel); },
+      showAssets(group) { designTool="components";activeInspector="assets";inspectorCollapsed=false;if(group){activeAssetGroup=assetGroupId(group);activeAssetCategory="all";}if(lastModel)renderPanel(lastModel); },
       showProperties() { activeInspector="properties";inspectorCollapsed=false;if(lastModel)renderPanel(lastModel); },
       updateActiveTool(tool) {
         if(lastModel)lastModel={...lastModel,activeTool:tool};
@@ -471,5 +497,5 @@
     };
   }
 
-  return { TOOL_LABELS, buildViewModel, buildSiteTree, shortcutForEvent, createSceneStudioPanel };
+  return { TOOL_LABELS, buildViewModel, buildSiteTree, groupAssets, renderAssets, shortcutForEvent, createSceneStudioPanel };
 });

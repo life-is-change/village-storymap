@@ -40,10 +40,6 @@
     "method": "POST",
     "path": "/api/v1/spaces/get-course-context"
   },
-  "catalog.groupRoster": {
-    "method": "POST",
-    "path": "/api/v1/spaces/group-roster"
-  },
   "catalog.listGroups": {
     "method": "POST",
     "path": "/api/v1/courses/list-groups"
@@ -60,6 +56,10 @@
     "method": "POST",
     "path": "/api/v1/courses/lock-group"
   },
+  "catalog.groupRoster": {
+    "method": "POST",
+    "path": "/api/v1/spaces/group-roster"
+  },
   "catalog.getProgress": {
     "method": "POST",
     "path": "/api/v1/courses/get-progress"
@@ -75,6 +75,10 @@
   "catalog.recordActivity": {
     "method": "POST",
     "path": "/api/v1/courses/record-activity"
+  },
+  "catalog.homeStats": {
+    "method": "POST",
+    "path": "/api/v1/spaces/home-stats"
   },
   "catalog.getActiveContext": {
     "method": "POST",
@@ -155,6 +159,18 @@
   "admin.ensureGroupSpace": {
     "method": "POST",
     "path": "/api/v1/admin/ensure-group-space"
+  },
+  "survey.listInterviews": {
+    "method": "POST",
+    "path": "/api/v1/survey/list-interviews"
+  },
+  "survey.addInterview": {
+    "method": "POST",
+    "path": "/api/v1/survey/add-interview"
+  },
+  "survey.featurePhotoState": {
+    "method": "POST",
+    "path": "/api/v1/survey/feature-photo-state"
   },
   "survey.activity": {
     "method": "POST",

@@ -69,6 +69,15 @@
     function residents() {
       return [...records.values()].filter(record => record.resource != null);
     }
+    // A swap temporarily owns two GPU models for one building. At most two
+    // loads run concurrently; keep the displayed LOD until the new one is ready.
+    function occupancy() {
+      return residents().length + [...pending].filter(token => token.record.resource == null).length;
+    }
+    function matchesWanted(record) {
+      return record.resource != null && record.resourceEntry?.variant === record.wanted &&
+        record.resourceEntry?.url === entryFor(record, record.wanted).url;
+    }
     function invalidate(record) {
       if (record.pending) record.pending.stale = true;
       record.wanted = null;
@@ -88,7 +97,8 @@
           token.record.failedRevision = revision;
           failed++;
           report(error, token.entry);
-          visible(token.record, false, true);
+          const candidate = view.get(token.record.key);
+          visible(token.record, !!token.record.resource && !!candidate && candidate.inView !== false, true);
         }
       } else if (!current || resource == null) {
         dispose(resource, token.entry);
@@ -99,10 +109,13 @@
         }
       } else {
         loaded++;
+        const oldResource = token.record.resource;
+        const oldEntry = token.record.resourceEntry;
         token.record.resource = resource;
         token.record.resourceEntry = token.entry;
         const candidate = view.get(token.record.key);
         visible(token.record, !!candidate && candidate.inView !== false, true);
+        dispose(oldResource, oldEntry);
       }
       pump();
     }
@@ -111,13 +124,14 @@
       pumping = true;
       try {
         for (const record of desired) {
-          if (pending.size >= 2 || residents().length + pending.size >= limit()) break;
-          if (record.resource != null || record.pending || record.failedRevision === revision) continue;
+          if (pending.size >= 2) break;
+          if (matchesWanted(record) || record.pending || record.failedRevision === revision) continue;
+          if (record.resource == null && occupancy() >= limit()) continue;
           const token = { record, entry: entryFor(record, record.wanted), stale: false };
           record.pending = token;
           pending.add(token);
           try {
-            Promise.resolve(options.load(token.entry)).then(
+            Promise.resolve(options.load({...token.entry, isCurrent: () => isCurrent(token)})).then(
               resource => settle(token, resource, null), error => settle(token, null, error));
           } catch (error) { settle(token, null, error); }
         }
@@ -157,8 +171,6 @@
         record.wanted = next;
         if (next) {
           record.lastUsed = revision;
-          if (record.resourceEntry && (record.resourceEntry.variant !== next ||
-            record.resourceEntry.url !== entryFor(record, next).url)) release(record);
           if (record.resource != null) {
             const candidate = view.get(record.key);
             visible(record, !!candidate && candidate.inView !== false);
@@ -175,7 +187,7 @@
         const ai = desired.indexOf(a), bi = desired.indexOf(b);
         return (bi < 0 ? Infinity : bi) - (ai < 0 ? Infinity : ai);
       })) {
-        if (residents().length + pending.size <= budget) break;
+        if (occupancy() <= budget) break;
         release(record);
       }
       pump();

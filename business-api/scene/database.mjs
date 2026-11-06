@@ -12,7 +12,7 @@ async function version(client,id){
 export async function executeOperation(c,op,i,identity){
  if(op==='find')return (await c.query(`SELECT id,revision,updated_at FROM public.scene_edit_projects
   WHERE teaching_project_id=$1::uuid AND village_id=$2::uuid AND space_id=$3 AND scope_kind=$4
-  AND group_id IS NOT DISTINCT FROM $5::text AND ($4<>'admin_sandbox' OR created_by=$6::uuid)
+  AND group_id IS NOT DISTINCT FROM $5::text AND ($4='group' OR created_by=$6::uuid)
   AND status='draft' ORDER BY updated_at DESC,id LIMIT 1`,[i.teachingProjectId,i.villageId,i.spaceId,i.scopeKind,i.groupId,identity.userId])).rows[0]??null;
  if(op==='load')return load(c,i.projectId);
  if(op==='versions')return (await c.query('SELECT * FROM public.scene_edit_versions WHERE project_id=$1::uuid ORDER BY created_at DESC,id LIMIT 100',[i.projectId])).rows;

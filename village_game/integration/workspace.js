@@ -1,7 +1,16 @@
 (function(root,factory){const c=typeof module==='object'&&module.exports,api=factory(c?require('./plan-adapter'):root.VillagePlanAdapter,c?require('./session'):root.VillagePlanSession,c?require('./overlay'):root.VillagePlanOverlay,c?require('../domain/scene'):root.VillageScene,c?require('../views/catalog'):root.VillageCatalog);if(c)module.exports=api;if(root)root.VillageSimulationWorkspace=api;})(typeof globalThis!=='undefined'?globalThis:this,function(Adapter,Session,Overlay,Scene,Catalog){
  'use strict';const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const statusText=r=>r?.ok?'已保存到方案':r?.errors?.join('；')||({'REVISION_CONFLICT':'方案有版本冲突，请返回设计处理后重试',NETWORK_ERROR:'网络不可用，配置仅保留为本机草稿',CONTEXT_CHANGED:'空间已切换，请重新打开模拟'})[r?.code]||('未完成：'+(r?.code||'请检查配置'));
- function workflow(c,step){return '<nav class="village-sim-steps" aria-label="准备模拟的五个步骤">'+[['area','① 模拟范围'],['roads','② 路网与出入口'],['facilities','③ 设施功能'],['people','④ 人群情境'],['run','⑤ 检查与运行']].map(([id,label])=>'<button data-step="'+id+'" aria-pressed="'+(step===id)+'">'+label+(id==='area'&&c.area?' ✓':'')+'</button>').join('')+'</nav>';}
+ function workflow(c, step) {
+  const steps = [
+   ['area', '模拟范围', c.area ? '已划定模拟范围' : '待划定边界'],
+   ['roads', '路网与出入口', c.roads.length + ' 条道路参与模拟'],
+   ['facilities', '设施功能', '已定义 ' + c.assignments.length + ' 处设施'],
+   ['people', '人群情境', c.settings.population + ' 位常住居民'],
+   ['run', '检查与运行', '核对设置后启动模拟']
+  ];
+  return '<div class="village-sim-rail-heading">配置流程</div><nav class="village-sim-steps" aria-label="准备模拟的五个步骤">'+steps.map(([id,label,detail], index)=>'<button data-step="'+id+'" aria-pressed="'+(step===id)+'"><span class="village-sim-step-number">'+(index+1)+'</span><span><strong>'+label+'</strong><small>'+detail+'</small></span></button>').join('')+'</nav>';
+ }
  function palette(category,chosen,c){const group=Catalog.CATEGORIES.find(g=>g.id===category)||Catalog.CATEGORIES[0],current=c.assignments.find(a=>a.key===chosen);return '<div class="village-sim-categories">'+Catalog.CATEGORIES.map(g=>'<button data-category="'+g.id+'" aria-pressed="'+(g.id===group.id)+'">'+escape(g.label)+'</button>').join('')+'</div><div class="village-sim-types">'+group.types.map(type=>'<button data-type="'+type+'" '+(!chosen?'disabled':'')+' aria-pressed="'+(current?.type===type)+'">'+Catalog.svg(type)+Catalog.preview(type)+'<b>'+escape(Scene.TYPES[type].label)+'</b><small>'+escape(Catalog.info(type).unit)+'</small></button>').join('')+'</div>';}
  function roadActions(c,items){
   const count=items.filter(i=>i.kind==='road'&&i.key.startsWith('object:')&&!c.roads.includes(i.key)).length;
@@ -60,7 +69,7 @@
   if(existing){const valid=Adapter.validateConfig(existing);if(!valid.ok)throw Error(valid.errors.join('；'));}
   const items=Adapter.catalog(options.readDocument(),options.context),byKey=new Map(items.map(x=>[x.key,x]));
   const host=globalThis.document.createElement('aside');host.className='village-simulation-workspace';host.setAttribute('aria-label','村庄模拟');globalThis.document.body.appendChild(host);
-  let tab='config',step=existing?.area?'facilities':'area',chosen='',category='living',report=null,guideOpen=!existing?.entry,message='先确定模拟范围，再核对道路、设施和人群。已有功能配置保留；模拟范围与公园范围分别保存。',busy=false,closed=false,frameId,lastTime=0,lastPaint=0,speed=3,lastViewKey='',drawingArea=false;
+  let tab='config',step=existing?.area?'facilities':'area',chosen='',category='living',report=null,guideOpen=!existing?.entry,message='',busy=false,closed=false,frameId,lastTime=0,lastPaint=0,speed=3,lastViewKey='',drawingArea=false;
   const overlay=Overlay.create({...options.environment,pickGround:options.pickGround,onDrawProgress(count){message='已点选 '+count+' 个模拟边界点；右键、双击或点“完成范围绘制”结束。';for(const node of host.querySelectorAll('[data-live-message],[data-draw-message]'))node.textContent=message;},onPick(purpose,p){
    const c=session.state().config;
    if(purpose==='area'){c.area=p;c.entryMode='auto';const r=apply(c);if(!r.ok){message=statusText(r);render();return r;}drawingArea=false;step='roads';message='模拟范围已确定，公园边界与建筑功能保留。现在核对范围内道路和自动对外口。';render();return r;}
@@ -89,12 +98,27 @@
    const mode=c.area&&c.entryMode!=='manual'?'auto':'manual';
    let content='';
    if(tab==='results')content='<h3>运行结果</h3>'+results(c);
-   else if(tab==='run'||step==='run')content='<h3>'+'村庄的一天'+'</h3>'+(c.morningMarket?'<div class="village-sim-actions"><button data-do="observe-market">观察早市</button><button data-do="cancel-follow">取消人物跟随</button></div>':'')+'<div data-clock></div><label>播放速度<select data-field="speed"><option value=".5" '+(speed===.5?'selected':'')+'>细看 · 2秒/分钟</option><option value="3" '+(speed===3?'selected':'')+'>观察 · 3分钟/秒</option><option value="15" '+(speed===15?'selected':'')+'>总览 · 15分钟/秒</option></select></label><div class="village-sim-actions"><button data-do="finish">完成周期并保存</button></div><p>可点击人物观察，或使用“观察早市”定位摊位。早市与家庭、工作和上学共同运行；收市后继续当天生活，结果随完整周期保存。</p><div data-counts></div><div data-market-live></div><div data-market-people></div><div data-events></div><button data-do="check-run">检查并进入运行 →</button><div data-run-report>'+reportHtml()+'</div>';
-   else if(step==='area')content='<h3>① 确定模拟范围</h3><p>这是一整片村庄生活实验区，可包含多处住宅、公园和农田，和单个设施的边界分别保存。</p><div class="village-sim-actions"><button class="village-sim-next" data-do="draw-area">'+(c.area?'重新绘制模拟范围':'绘制模拟范围')+'</button><button data-do="finish-area">完成范围绘制</button><button data-do="cancel-area">取消绘制</button></div>'+(options.context.villageBoundary?'<button data-do="village-area">采用整个村庄边界</button>':'')+'<p>'+(c.area?'已设置独立模拟范围；道路将在边界处裁切。':'尚未划定模拟范围。旧方案的设施和道路配置仍保留。')+'</p><p class="village-sim-hint">在地图依次点边界，右键或双击完成。无需避开建筑，但请完整包含参与模拟的设施；道路跨越边界的位置自动作为对外出入口。</p><button data-step="roads">下一步：道路与出入口 →</button>';
-   else if(step==='roads')content='<h3>② 核对路网与出入口</h3><p>范围内沿用本组现状道路；缺少入户巷道时再补画。系统不会把不相连的道路虚接起来。</p>'+roadActions(c,items)+'<details open data-setup-section="roads"><summary>选择参与模拟的道路（'+c.roads.length+'）</summary>'+roadChoices.map(i=>'<label class="village-sim-check"><input type="checkbox" data-road="'+escape(i.key)+'" '+(c.roads.includes(i.key)?'checked':'')+'>'+escape(i.name)+'</label>').join('')+'</details><p>对外口：'+(mode==='auto'?'按范围与道路交点自动识别':'手动指定')+'</p><div class="village-sim-actions"><button data-do="auto-entry">自动识别对外口</button><button data-do="entry">手动设置对外口</button><button data-do="entry-focus">定位村口</button></div><button data-do="check">检查方案</button><div data-report>'+reportHtml()+'</div><button data-step="facilities">下一步：定义设施 →</button>';
-   else if(step==='people')content='<h3>④ 设置人群情境</h3><p>默认生成岭南村庄的合成家庭与人物，包含成年、老年、儿童的男女画像；不用逐个人设置。家庭关系跨日保留，工作岗位结合农田和服务设施分配。</p>'+settings(c)+'<button data-do="suggest-population">按范围内住宅容量建议人数</button><p>已定义'+c.assignments.filter(a=>a.type==='home').length+'处住宅，当前常住人口'+c.settings.population+'人。学校、照护及经营设施的供给会影响行为；潜在客源不等于实际到访。</p><p class="village-sim-hint">当前为教学合成情境，未来可用真实人口调查替代。预算本轮不加入。</p><button data-do="check-run">检查并进入运行 →</button><div data-report>'+reportHtml()+'</div>';
-   else content='<h3>③ 赋予设施功能</h3><p>先点击地图中的房屋或场地，再点底部功能卡片。功能标识保留在原模型上；参数在右侧调整。</p><p>已定义'+c.assignments.length+'处设施。未定义对象保留背景，不必给全村每栋建筑都配功能。</p><button data-do="select">地图点选建筑／场地</button><button data-do="boundary-select">选择原设计范围</button><button data-step="people">下一步：人群情境 →</button><details><summary>启动检查清单</summary>'+startupGuide(c,items,report,guideOpen)+'</details><button data-do="check">检查方案</button><div data-report>'+reportHtml()+'</div>';
-   host.innerHTML='<header class="village-sim-topbar"><b>村庄的一天</b><nav aria-label="模拟步骤">'+[['config','配置'],['run','运行'],['results','结果']].map(([k,t])=>'<button data-tab="'+k+'" aria-pressed="'+(tab===k)+'">'+t+'</button>').join('')+'</nav><div><a href="village_game/" target="_blank" rel="noopener">虚拟村庄 ↗</a><button data-do="close" aria-label="返回场景设计">返回设计</button><button data-do="start" class="village-sim-primary">'+(s.snapshot?'重新模拟':'开始模拟')+'</button></div></header><aside class="village-sim-sidebar"><small>VILLAGE LIFE / '+(options.teachingVirtual?'虚拟教学':'真实方案')+'</small>'+marketControls(c,items)+(tab==='config'?workflow(c,step):'')+'<p role="status" data-live-message>'+escape(message)+'</p>'+content+'<footer>'+(options.teachingVirtual?'本地早市草稿 · 原全日村庄保留':'当前方案隔离保存 · 不覆盖共享现状')+'</footer></aside>'+(tab==='config'&&step==='facilities'?'<aside class="village-sim-inspector"><h3>所选设施</h3>'+facilityForm(c,items,chosen,category,false)+'</aside><section class="village-sim-palette" aria-label="底部设施功能卡片"><b>'+escape(chosen?(byKey.get(chosen)?.name||'所选对象')+' · 点击卡片设定功能':'先点选建筑或场地，再选择功能')+'</b>'+palette(category,chosen,c)+'</section>':'')+(tab==='config'&&step==='area'?'<aside class="village-sim-inspector village-sim-area-inspector"><h3>范围属性</h3><p>'+(c.area?'已划定模拟范围':'尚未划定模拟范围')+'</p><p>道路在范围边界裁切，跨界位置作为对外出入口。</p></aside>':'')+(tab==='run'?'<section class="village-sim-transport" aria-label="全日模拟进度"><button data-do="pause" data-playback-toggle>暂停</button><span>06:00</span><progress data-day-progress aria-label="当日进度" max="960" value="0"></progress><span>22:00</span></section>':'');
+   else if(tab==='run'||step==='run')content='<h3>'+'村庄的一天'+'</h3>'+(c.morningMarket?'<div class="village-sim-actions"><button data-do="observe-market">观察早市</button><button data-do="cancel-follow">取消人物跟随</button></div>':'')+'<div data-clock></div><div class="village-sim-actions"><button data-do="finish">完成周期并保存</button></div><p>可点击人物观察，或使用“观察早市”定位摊位。早市与家庭、工作和上学共同运行；收市后继续当天生活，结果随完整周期保存。</p><div data-counts></div><div data-market-live></div><div data-market-people></div><div data-events></div><button data-do="check-run">检查并进入运行 →</button><div data-run-report>'+reportHtml()+'</div>';
+   else if(step==='area')content='<p>这是一整片村庄生活实验区，可包含多处住宅、公园和农田，和单个设施的边界分别保存。</p><div class="village-sim-actions"><button class="village-sim-next" data-do="draw-area">'+(c.area?'重新绘制模拟范围':'绘制模拟范围')+'</button><button data-do="finish-area">完成范围绘制</button><button data-do="cancel-area">取消绘制</button></div>'+(options.context.villageBoundary?'<button data-do="village-area">采用整个村庄边界</button>':'')+'<p>'+(c.area?'已设置独立模拟范围；道路将在边界处裁切。':'尚未划定模拟范围。旧方案的设施和道路配置仍保留。')+'</p><p class="village-sim-hint">在地图依次点边界，右键或双击完成。无需避开建筑，但请完整包含参与模拟的设施；道路跨越边界的位置自动作为对外出入口。</p><button data-step="roads">下一步：道路与出入口 →</button>';
+   else if(step==='roads')content='<p>范围内沿用本组现状道路；缺少入户巷道时再补画。系统不会把不相连的道路虚接起来。</p>'+roadActions(c,items)+'<details open data-setup-section="roads"><summary>选择参与模拟的道路（'+c.roads.length+'）</summary>'+roadChoices.map(i=>'<label class="village-sim-check"><input type="checkbox" data-road="'+escape(i.key)+'" '+(c.roads.includes(i.key)?'checked':'')+'>'+escape(i.name)+'</label>').join('')+'</details><p>对外口：'+(mode==='auto'?'按范围与道路交点自动识别':'手动指定')+'</p><div class="village-sim-actions"><button data-do="auto-entry">自动识别对外口</button><button data-do="entry">手动设置对外口</button><button data-do="entry-focus">定位村口</button></div><button data-do="check">检查方案</button><div data-report>'+reportHtml()+'</div><button data-step="facilities">下一步：定义设施 →</button>';
+   else if(step==='people')content='<p>默认生成岭南村庄的合成家庭与人物，包含成年、老年、儿童的男女画像；不用逐个人设置。家庭关系跨日保留，工作岗位结合农田和服务设施分配。</p>'+settings(c)+'<button data-do="suggest-population">按范围内住宅容量建议人数</button><p>已定义'+c.assignments.filter(a=>a.type==='home').length+'处住宅，当前常住人口'+c.settings.population+'人。学校、照护及经营设施的供给会影响行为；潜在客源不等于实际到访。</p><p class="village-sim-hint">当前为教学合成情境，未来可用真实人口调查替代。预算本轮不加入。</p><button data-do="check-run">检查并进入运行 →</button><div data-report>'+reportHtml()+'</div>';
+   else content='<p>先点击地图中的房屋或场地，再点底部功能卡片。功能标识保留在原模型上；参数在右侧调整。</p><p>已定义'+c.assignments.length+'处设施。未定义对象保留背景，不必给全村每栋建筑都配功能。</p><button data-do="select">地图点选建筑／场地</button><button data-do="boundary-select">选择原设计范围</button><button data-step="people">下一步：人群情境 →</button><details><summary>启动检查清单</summary>'+startupGuide(c,items,report,guideOpen)+'</details><button data-do="check">检查方案</button><div data-report>'+reportHtml()+'</div>';
+   const entries = report?.entries?.length ?? (c.entry ? 1 : 0);
+   const points = Math.max(0, (c.area?.coordinates?.[0]?.length ?? 1) - 1);
+   const rows = pairs => '<dl class="village-sim-facts">'+pairs.map(([label,value])=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(String(value))+'</dd></div>').join('')+'</dl>';
+   const contextCards = {
+    area: ['范围属性','模拟范围', [['状态',c.area?'已划定':'待划定'],['边界点',points],['道路裁切',c.area?'按范围边界':'待划定范围']]],
+    roads: ['路网与出入口','道路参与模拟', [['已选道路',c.roads.length],['对外出入口',entries],['入口方式',mode==='auto'?'边界交点识别':'手动指定']]],
+    people: ['人群构成',c.morningMarket?'日常早市':'村庄日常生活',[['常住人口',c.settings.population],['日潜在客源',c.settings.visitorsPerDay],['模拟天数',c.settings.days]]],
+    run: ['运行设置','本次模拟',[['观察时段','06:00–22:00'],['模拟天数',c.settings.days],['随机种子',c.settings.seed]]]
+   };
+   const card = tab==='config' ? contextCards[step] : null;
+   const inspector = card ? '<aside class="village-sim-inspector village-sim-context"><h3>'+card[0]+'</h3><div class="village-sim-context-card"><strong>'+card[1]+'</strong></div>'+rows(card[2])+'</aside>'
+    : tab==='run' ? '<aside class="village-sim-inspector village-sim-context"><h3>实时指标</h3><div class="village-sim-context-card" data-counts></div><p data-market-live></p><h4>事件</h4><div class="village-sim-event-list" data-events></div></aside>' : '';
+   const dock = tab==='config'&&step==='roads' ? '<div class="village-sim-transport village-sim-context-dock"><strong>已选 '+c.roads.length+' 条道路 · '+entries+' 个对外口</strong><button data-do="entry">手动设置对外口</button></div>'
+    : tab==='config'&&step==='run' ? '<div class="village-sim-transport village-sim-context-dock"><strong>'+(report?.ok?'检查通过':'检查模拟配置')+'</strong><button data-do="check">检查方案</button></div>' : '';
+   if(tab==='run') content=content.replace('<div data-counts></div><div data-market-live></div>','').replace('<div data-events></div>','');
+   host.innerHTML='<header class="village-sim-topbar"><div class="village-sim-brand"><b>村庄的一天</b><small>场景设计 / 村庄生活模拟</small></div><nav aria-label="模拟步骤">'+[['config','配置'],['run','运行'],['results','结果']].map(([k,t])=>'<button data-tab="'+k+'" aria-pressed="'+(tab===k)+'">'+t+'</button>').join('')+'</nav><div><a href="village_game/" target="_blank" rel="noopener">虚拟村庄 ↗</a><button data-do="close" aria-label="返回场景设计">返回设计</button><button data-do="start" class="village-sim-primary">'+(s.snapshot?'重新模拟':'开始模拟')+'</button></div></header><aside class="village-sim-sidebar">'+(tab==='config'?workflow(c,step):'')+(options.teachingVirtual?marketControls(c,items):'')+'<p role="status" data-live-message>'+escape(message)+'</p>'+content+'<footer>'+(options.teachingVirtual?'本地早市草稿 · 原全日村庄保留':'当前方案隔离保存 · 不覆盖共享现状')+'</footer></aside>'+(tab==='config'&&step==='facilities'?'<aside class="village-sim-inspector"><h3>所选设施</h3>'+facilityForm(c,items,chosen,category,false)+'</aside><section class="village-sim-palette" aria-label="底部设施功能卡片"><b>'+escape(chosen?(byKey.get(chosen)?.name||'所选对象')+' · 点击卡片设定功能':'先点选建筑或场地，再选择功能')+'</b>'+palette(category,chosen,c)+'</section>':'')+inspector+dock+(tab==='run'?'<section class="village-sim-transport" aria-label="全日模拟进度"><button data-do="pause" data-playback-toggle>暂停</button><span data-transport-time>06:00</span><input type="range" data-day-progress aria-label="观察时刻" min="360" max="1320" value="360"><span>22:00</span><select aria-label="播放速度" data-field="speed"><option value=".5" '+(speed===.5?'selected':'')+'>细看 · 2秒/分钟</option><option value="3" '+(speed===3?'selected':'')+'>观察 · 3分钟/秒</option><option value="15" '+(speed===15?'selected':'')+'>总览 · 15分钟/秒</option></select></section>':'');
    if(!s.snapshot){if(report?.network)overlay.setPlan(report);else overlay.setSources(items,c,chosen);}
    host.setAttribute('data-drawing-area',String(drawingArea));if(drawingArea)host.innerHTML+='<div class="village-sim-draw-help"><span data-draw-message>'+escape(message)+'</span><button data-do="finish-area">完成范围绘制</button><button data-do="cancel-area">取消绘制</button></div>';
    const sidebar=host.querySelector('.village-sim-sidebar');if(sidebar)sidebar.scrollTop=scroll;
@@ -106,7 +130,13 @@
    host.setAttribute('aria-busy',String(busy));
    if(busy){const node=host.querySelector('[data-live-message]');if(node)node.textContent=s.phase==='saving'?'正在保存当前方案，请稍候；保存成功后才会启动。超时会保留草稿并给出提示。':s.phase==='preparing'?'方案已保存，正在准备人物与行程……':s.finishing?'正在结算本周期并保存结果……':'正在处理，请稍候……';}
    const progress = host.querySelector('[data-day-progress]');
-   if (progress) progress.value = Math.max(0, Math.min(960, (snap?.minute ?? 360) - 360));
+   if (progress) {
+    progress.disabled = busy || !snap || snap.runKind === 'morning-market';
+    if (!progress.matches?.(':active')) progress.value = Math.max(360, Math.min(1320, snap?.minute ?? 360));
+    progress.setAttribute?.('aria-valuetext', minuteLabel(Number(progress.value)));
+   }
+   const transportTime=host.querySelector('[data-transport-time]');
+   if(transportTime) transportTime.textContent=minuteLabel(snap?.minute ?? 360);
    const playback = host.querySelector('[data-playback-toggle]');
    if (playback) playback.textContent = s.playing ? '暂停' : '继续';
    const clock=host.querySelector('[data-clock]');if(clock)clock.textContent=snap?(snap.runKind==='morning-market'?'一次早市 ':'第'+snap.day+'天 ')+String(Math.floor(snap.minute/60)).padStart(2,'0')+':'+String(snap.minute%60).padStart(2,'0')+(s.finishing?' · 正在结算':s.done?' · 已结束':s.playing?' · 运行中':' · 已暂停'):'尚未开始运行';
@@ -116,7 +146,21 @@
    const events=host.querySelector('[data-events]');if(events&&snap)events.innerHTML=snap.events.slice(0,5).map(e=>'<p>'+escape(e.text)+'</p>').join('');
    host.querySelectorAll('button[data-do]').forEach(b=>{b.disabled=b.dataset.do==='focus'&&!byKey.has(chosen)||b.dataset.do==='entry-focus'&&!s.config.entry||['pause','finish'].includes(b.dataset.do)&&!s.snapshot||busy&&b.dataset.do!=='close';});
   }
+  host.addEventListener('pointerdown',event=>{
+   if(event.target.hasAttribute?.('data-day-progress')) session.pause();
+  });
+  host.addEventListener('input',event=>{
+   if(!event.target.hasAttribute?.('data-day-progress')) return;
+   const label=minuteLabel(Number(event.target.value));
+   event.target.setAttribute('aria-valuetext',label);
+   const time=host.querySelector('[data-transport-time]');
+   if(time)time.textContent=label;
+  });
   host.addEventListener('change',event=>{
+   if(event.target.hasAttribute?.('data-day-progress')){
+    try{session.seek(Number(event.target.value));}catch(error){message=error.message;render();}
+    return;
+   }
    const target=event.target,c=session.state().config,a=c.assignments.find(x=>x.key===chosen);
    if(target.dataset.field==='source'){if(!captureForm().ok){render();return;}chosen=target.value;category=Catalog.CATEGORIES.find(g=>g.types.includes(c.assignments.find(a=>a.key===chosen)?.type))?.id||category;render();return;}
    if(target.dataset.field==='speed'){speed=Number(target.value);return;}

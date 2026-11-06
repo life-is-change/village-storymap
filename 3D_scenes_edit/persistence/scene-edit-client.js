@@ -46,7 +46,7 @@
           let request = supabase.from("scene_edit_projects").select("id, revision, updated_at")
             .eq("teaching_project_id", scope.teachingProjectId).eq("village_id", scope.villageId)
             .eq("scope_kind", scope.scopeKind || "group");
-          request = scope.scopeKind === "admin_sandbox"
+          request = ["admin_sandbox","practice_personal"].includes(scope.scopeKind)
             ? request.is("group_id", null).eq("created_by", scope.ownerId)
             : request.eq("group_id", scope.groupId);
           return request.eq("space_id", scope.spaceId).eq("status", "draft")

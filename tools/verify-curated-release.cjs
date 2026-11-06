@@ -1,0 +1,4 @@
+const fs=require('node:fs'),crypto=require('node:crypto');
+const manifest=JSON.parse(fs.readFileSync('tmp/curated-release-20261105/manifest.json'));
+async function main(){const entries=Object.entries(manifest);let cursor=0,verified=0;await Promise.all(Array.from({length:4},async()=>{while(cursor<entries.length){const [name,spec]=entries[cursor++];const response=await fetch('https://8.148.248.237/'+name+'?verify=20261105-curated');if(!response.ok)throw Error('HTTP '+response.status+' '+name);const bytes=Buffer.from(await response.arrayBuffer());if(crypto.createHash('sha256').update(bytes).digest('hex')!==spec.after)throw Error('HASH_MISMATCH '+name);verified++;}}));const result={verified,total:entries.length,status:'HTTPS_HASHES_MATCH',at:new Date().toISOString()};fs.writeFileSync('tmp/curated-release-20261105/https-verification.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));}
+main().catch(e=>{console.error(e.message);process.exitCode=1});

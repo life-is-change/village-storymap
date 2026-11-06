@@ -223,7 +223,7 @@ test("asset library uses category filters, search and a collapsible compact grid
   assert.match(root.innerHTML, /data-action="asset-search"/);
   assert.match(root.innerHTML, /data-action="asset-category" data-value="all"/);
   assert.match(root.innerHTML, /data-action="asset-group" data-value="site"/);
-  assert.match(root.innerHTML, /地面与铺装/);
+  assert.match(root.innerHTML, /绿化与水景/);
   assert.match(root.innerHTML, /class="scene-asset-grid"/);
   assert.match(root.innerHTML, /data-action="toggle-inspector"/);
   assert.doesNotMatch(root.innerHTML, />curb</);

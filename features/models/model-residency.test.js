@@ -24,6 +24,28 @@ function harness(budget = 2) {
 }
 const candidate = (key, pixels = 200, extra = {}) => ({ key, pixels, distance: 10, inView: true, ...extra });
 
+test('LOD replacement keeps the displayed resource until its successor is ready, even at budget one', async()=>{
+ const h=harness(1);h.manager.register('a',{url:'high',lowUrl:'low'});
+ h.manager.update([candidate('a',200)]);const high=await h.finish(0);
+ h.manager.update([candidate('a',20)]);
+ assert.equal(h.requests.length,2);assert.equal(h.disposed.length,0);
+ assert.equal(h.manager.getState('a').visible,true);
+ for(let frame=0;frame<30;frame++)h.manager.update([candidate('a',20)]);
+ assert.equal(h.requests.length,2);assert.equal(h.disposed.length,0);
+ assert.ok(!h.visibility.some(v=>v.resource===high&&v.visible===false));
+ await h.finish(1);assert.equal(h.disposed.length,1);assert.equal(h.disposed[0].resource,high);
+ assert.equal(h.manager.getState('a').variant,'low');assert.equal(h.manager.getStats().resident,1);
+});
+
+test('failed or superseded LOD swaps leave the previous visible model intact',async()=>{
+ const h=harness(1);h.manager.register('a',{url:'high',lowUrl:'low'});h.manager.update([candidate('a',200)]);await h.finish(0);
+ h.manager.update([candidate('a',20)]);h.requests[1].reject(Error('network'));await tick();
+ assert.equal(h.disposed.length,0);assert.equal(h.manager.getState('a').visible,true);
+ h.manager.update([candidate('a',20)]);h.manager.update([candidate('a',200)]);
+ await h.finish(2);assert.equal(h.disposed.length,1);assert.equal(h.manager.getState('a').variant,'detail');
+ assert.equal(h.manager.getState('a').visible,true);
+});
+
 test('zoom around the LOD boundary does not destroy and reload the same model repeatedly',async()=>{
  const h=harness(1);h.manager.register('house',{url:'high.glb',lowUrl:'low.glb'});
  h.manager.update([candidate('house',101)]);await h.finish(0);
@@ -87,9 +109,11 @@ test('far models use an explicit low asset or fall back without loading the full
   assert(h.visibility.some(v => v.entry.key === 'plain' && !v.visible));
   await h.finish(0);
   h.manager.update([candidate('low', 200), candidate('plain', 20)]);
-  assert.equal(h.disposed.length, 1);
+  assert.equal(h.disposed.length, 0);
   assert.equal(h.requests[1].entry.url, 'full.glb');
-  assert.equal(h.manager.getStats().resident, 0);
+  assert.equal(h.manager.getStats().resident, 1);
+  await h.finish(1);
+  assert.equal(h.disposed.length, 1);
 });
 
 test('budget reserves pending requests and concurrency never exceeds two', async () => {

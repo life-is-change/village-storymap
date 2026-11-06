@@ -184,7 +184,7 @@ test("workbench mounts geoprocessing only for the active figure-ground task", as
   assert.equal(mounted.at(-1), panelMount);
 });
 
-test("geoprocessing workbench scripts share a cache-busting release version", () => {
+test("geoprocessing workbench scripts request their verified cache-busting releases", () => {
   const html = fs.readFileSync(path.join(__dirname, "../../index.html"), "utf8");
   const version = "20260926-aoi-draft-order";
 
@@ -197,7 +197,7 @@ test("geoprocessing workbench scripts share a cache-busting release version", ()
     "geoprocessing-panel.js",
     "course-workbench.js"
   ]) {
-    const expectedVersion = script === "course-workbench.js" ? "20261007-wait-chain2" : version;
+    const expectedVersion = script === "course-workbench.js" ? "20261007-wait-chain2" : script === "geoprocessing-context.js" ? "20261105-processing-repair" : script === "geoprocessing-panel.js" ? "20261105-processing-repair2" : version;
     assert.match(html, new RegExp(`${script.replace(".", "\\.")}\\?v=${expectedVersion}`));
   }
 });
@@ -301,7 +301,7 @@ test("object selection renders feedback before optional remote details finish", 
   assert.match(previewRenderer, /buildEditableDetailHtml\([^,]+,\s*layerKey,\s*false\)/);
   assert.match(previewRenderer, /照片与讨论正在加载/);
   assert.match(objectInfoLoader, /renderObjectInfoLoadingState\(layerKey,\s*sourceCode,\s*config,\s*baseRow\)/);
-  assert.match(objectInfoLoader, /Promise\.allSettled\(\[\s*surveyReviewPromise,\s*editPromise,\s*photosPromise,\s*commentsPromise\s*\]\)/);
+  assert.match(objectInfoLoader, /Promise\.allSettled\(\[\s*surveyReviewPromise,\s*editPromise,\s*photosPromise,\s*commentsPromise,\s*interviewsPromise\s*\]\)/);
 });
 
 test("map object selection avoids the built-in single-click recognition delay", () => {

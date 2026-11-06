@@ -30,7 +30,19 @@
   function apply(document, command) {
     const next = SceneDocument.clone(document);
     const type = command?.type;
-    if (type === "setSimulation") {
+    if (type === "batch") {
+      return (command.commands || []).reduce((current, item) => apply(current, item), next);
+    } else if (type === "addComponent") {
+      const ids = new Set(next.objects.map(o => o.id));
+      if (!command.group?.id || next.groups.some(g => g.id === command.group.id)) throw Error('Component requires fresh group');
+      for (const object of command.objects || []) {
+        if (ids.has(object.id) || !SceneDocument.validateObject(object).ok) throw Error('Invalid component child');
+        ids.add(object.id);
+      }
+      next.objects.push(...SceneDocument.clone(command.objects));
+      next.groups.push(SceneDocument.clone(command.group));
+      next.assetRefs = [...new Set([...next.assetRefs, ...command.objects.map(o => o.properties.assetRef)])];
+    } else if (type === "setSimulation") {
       next.metadata = { ...next.metadata, simulation: SceneDocument.clone(command.config) };
     } else if (type === "addMarketPreset") {
       const field = next.objects.find(o => o.id === command.fieldId);
@@ -65,6 +77,7 @@
         .filter((group) => group.objectIds.length);
     } else if (type === "duplicateObjects") {
       const ids = new Set(command.ids || []);
+      const groupMap = command.groupMap || {};
       const offset = Array.isArray(command.coordinateOffset) ? command.coordinateOffset : [0, 0];
       for (const source of next.objects.filter((object) => ids.has(object.id))) {
         const duplicate = SceneDocument.clone(source);
@@ -72,9 +85,12 @@
         if (!duplicate.id || next.objects.some((object) => object.id === duplicate.id)) {
           throw new Error(`duplicateObjects requires a fresh id for ${source.id}`);
         }
-        duplicate.groupId = null;
+        duplicate.groupId = groupMap[source.groupId] || null;
         shiftGeometry(duplicate.geometry, offset);
         next.objects.push(duplicate);
+      }
+      for (const group of next.groups.slice()) if (groupMap[group.id]) {
+        next.groups.push({ ...SceneDocument.clone(group), id:groupMap[group.id], objectIds:group.objectIds.map(id=>command.idMap[id]).filter(Boolean) });
       }
     } else if (type === "groupObjects") {
       if (!command.group?.id || next.groups.some((group) => group.id === command.group.id)) throw new Error("groupObjects requires a fresh group id");

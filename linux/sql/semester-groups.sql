@@ -138,7 +138,9 @@ BEGIN
   AND p.stage NOT IN ('completed','archived')
   AND api_private.profile_status()='active'
   AND public.context_space_mutable(p.id,new.village_id,new.space_id)
-  AND (new.scope_kind='admin_sandbox' OR new.scope_kind='group'
+  AND (new.scope_kind='admin_sandbox' OR
+   (new.scope_kind='practice_personal' AND new.created_by=auth.uid()
+    AND EXISTS(SELECT 1 FROM public.planning_spaces s WHERE s.id=new.space_id AND s.space_type='practice_personal' AND s.owner_id=auth.uid())) OR new.scope_kind='group'
    AND p.formal_village_id=new.village_id AND public.project_group_eligible(new.group_id,p.id)))
  THEN RAISE EXCEPTION 'SCENE_EDIT_FORBIDDEN'; END IF;
  RETURN new;

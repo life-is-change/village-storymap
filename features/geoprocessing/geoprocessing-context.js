@@ -33,7 +33,7 @@
   }
 
   async function enterPersonalGeoprocessingSpace({
-    personalSpace, spaces = [], villageId, teachingProjectId, getSpaceById, getCurrentSpaceId, selectSpace
+    personalSpace, spaces = [], villageId, teachingProjectId, getSpaceById, getCurrentSpaceId, selectSpace, switchTo2D
   }) {
     const planningSpace = spaces.find((space) =>
       ["practice_personal", "formal_personal"].includes(space?.spaceType)
@@ -44,6 +44,7 @@
     const id = planningSpace?.id || (legacyId && getSpaceById?.(legacyId) ? legacyId : null);
     if (!id) throw new Error("PERSONAL_SPACE_UNAVAILABLE");
     if (String(getCurrentSpaceId()) !== id) await selectSpace(id);
+    await switchTo2D?.();
     return id;
   }
 

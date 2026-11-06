@@ -20,7 +20,7 @@ test("scene studio schema defines the five scoped data responsibilities", () => 
     assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`, "i"), `${table} RLS`);
   }
   assert.match(sql, /scope_kind text not null default 'group'/i);
-  assert.match(sql, /scope_kind = 'admin_sandbox' and group_id is null/i);
+  assert.match(sql, /scope_kind in \('admin_sandbox', 'practice_personal'\) and group_id is null/i);
 });
 
 test("draft saving is atomic, revision guarded and baseline preserving", () => {

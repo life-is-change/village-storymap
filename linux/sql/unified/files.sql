@@ -104,7 +104,7 @@ DECLARE s jsonb;f api_private.business_files;c jsonb;v_result jsonb;space public
   SELECT * INTO f FROM api_private.business_files WHERE session_id=sid AND role='display';
   SELECT * INTO space FROM public.planning_spaces WHERE id=c->>'spaceId';
   SELECT * INTO personal FROM public.course_personal_spaces WHERE id::text=c->>'spaceId' AND owner_id=auth.uid();
-  scope:=CASE WHEN personal.id IS NOT NULL THEN 'personal' WHEN space.space_type IN('practice_shared','formal_shared') THEN 'shared' WHEN space.group_id IS NOT NULL THEN 'group' ELSE NULL END;
+  scope:=CASE WHEN personal.id IS NOT NULL OR (space.space_type IN('practice_personal','formal_personal') AND space.owner_id=auth.uid()) THEN 'personal' WHEN space.space_type IN('practice_shared','formal_shared') THEN 'shared' WHEN space.group_id IS NOT NULL THEN 'group' ELSE NULL END;
   IF scope IS NULL THEN RAISE EXCEPTION 'FORBIDDEN';END IF;asset:=gen_random_uuid();
   v_result:=to_jsonb(public.register_group_model(asset,p->>'name',f.logical_path,f.size,scope,space.group_id,coalesce(personal.course_id,space.course_id),c->>'spaceId'));
   metadata:=coalesce(p->'metadata','{}')||(SELECT coalesce(jsonb_object_agg(CASE role WHEN 'original' THEN 'originalStoragePath' WHEN 'low' THEN 'lowStoragePath' END,logical_path) FILTER(WHERE role IN('original','low')),'{}') FROM api_private.business_files WHERE session_id=sid);

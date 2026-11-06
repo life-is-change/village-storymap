@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 let api;try{api=await import('../unified/contracts.mjs');}catch{api={};}
 const context={teachingProjectId:'a0000000-0000-4000-8000-000000000001',villageId:'b0000000-0000-4000-8000-000000000001',spaceId:'group-space'};
 
+test('interview submission requires a vector and exactly the three interview fields',()=>{
+ const input={...context,objectCode:'B1',layerKey:'building',interviewedAt:'2026-11-04T01:30:00.000Z',interviewee:'村民',content:'访谈内容\n第二行',requestId:context.teachingProjectId};
+ assert.equal(api.parseOperation('survey.addInterview',input).readOnly,false);
+ for(const key of ['objectCode','layerKey','interviewedAt','interviewee','content'])assert.throws(()=>api.parseOperation('survey.addInterview',{...input,[key]:''}),{code:'INVALID_INPUT'});
+ assert.throws(()=>api.parseOperation('survey.addInterview',{...input,interviewedAt:'invalid'}),{code:'INVALID_INPUT'});
+ assert.throws(()=>api.parseOperation('survey.addInterview',{...input,authorId:context.teachingProjectId}),{code:'INVALID_INPUT'});
+});
+
 test('whole-village review initialization accepts more than 500 identities without expanding edit batches',()=>{
  const input={...context,datasetId:context.villageId,requestId:context.teachingProjectId,
   items:Array.from({length:2000},(_,i)=>({layerKey:'building',objectCode:'B'+i}))};

@@ -1,0 +1,4931 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "seed:curated:asset-001",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "木扶手座椅",
+      "footprintM": [
+        0.7234042679335316,
+        0.3617021339667658
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-001.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-001.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Bench",
+        "originalPath": "models/kenney/furniture/bench.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8085106428849205,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-001.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-001-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-002",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "软垫座椅",
+      "footprintM": [
+        0.7391304323882822,
+        0.3695652161941411
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-002.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-002.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Bench Cushion",
+        "originalPath": "models/kenney/furniture/benchCushion.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8478260534359519,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-002.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-002-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-003",
+      "kind": "asset",
+      "category": "table",
+      "catalogCategory": "table",
+      "label": "圆形休闲桌",
+      "footprintM": [
+        1.4168724156350674,
+        1.6360633948922112
+      ],
+      "defaultHeightM": 0.75,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-003.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-003.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Round Table",
+        "originalPath": "models/kenney/furniture/tableRound.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.045079213141209,
+          "targetHeightM": 0.75
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-003.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-003-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-004",
+      "kind": "asset",
+      "category": "bin",
+      "catalogCategory": "bin",
+      "label": "室内垃圾桶",
+      "footprintM": [
+        0.3883337193274413,
+        0.43775249331987254
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-004.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-004.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Trash Can",
+        "originalPath": "models/kenney/furniture/trashcan.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8697443987407518,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-004.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-004-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-005",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "弯臂路灯",
+      "footprintM": [
+        0.2962963216425805,
+        1.3333334473916123
+      ],
+      "defaultHeightM": 4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-005.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-005.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Curved Street Light",
+        "originalPath": "models/kenney/city-roads/light-curved.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 5.925926344548427,
+          "targetHeightM": 4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-005.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-005-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-006",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "traffic-fixture",
+      "label": "施工护栏",
+      "footprintM": [
+        0.7957895087535388,
+        1.705263241110092
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-006.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-006.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Construction Barrier",
+        "originalPath": "models/kenney/city-roads/construction-barrier.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 7.578947939040631,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-006.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-006-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-007",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "公园长椅",
+      "footprintM": [
+        1.3835721510267787,
+        0.8410343070137247
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-007.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-007.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Park Bench",
+        "originalPath": "models/kenney/coaster/bench.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.7294651630124342,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-007.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-007-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-008",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "公园入口牌架",
+      "footprintM": [
+        3.800821491550583,
+        1.4229980182373083
+      ],
+      "defaultHeightM": 3.0000000000000004,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-008.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-008.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Park Entrance",
+        "originalPath": "models/kenney/coaster/park-entrance.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.2320328831611858,
+          "targetHeightM": 3
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-008.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-008-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-009",
+      "kind": "structure",
+      "category": "stall",
+      "catalogCategory": "stall",
+      "label": "饮品售卖亭",
+      "footprintM": [
+        1.3827949456145021,
+        1.6593540006742038
+      ],
+      "defaultHeightM": 2.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-009.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-009.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Drink Stall",
+        "originalPath": "models/kenney/coaster/stall-drinks.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.3827949456145021,
+          "targetHeightM": 2.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-009.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-009-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-010",
+      "kind": "structure",
+      "category": "stall",
+      "catalogCategory": "stall",
+      "label": "食品售卖亭",
+      "footprintM": [
+        1.7540779199049945,
+        2.0198597544815917
+      ],
+      "defaultHeightM": 2.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-010.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-010.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Food Stall",
+        "originalPath": "models/kenney/coaster/stall-food.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6832163951829828,
+          "targetHeightM": 2.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-010.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-010-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-011",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "咨询服务亭",
+      "footprintM": [
+        1.7333333333333334,
+        1.993333395322164
+      ],
+      "defaultHeightM": 2.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-011.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-011.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Information Stall",
+        "originalPath": "models/kenney/coaster/stall-information.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.7333333333333334,
+          "targetHeightM": 2.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-011.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-011-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-012",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "sculpture",
+      "label": "公共卫生间亭",
+      "footprintM": [
+        1.9999998637608212,
+        2.1199997411455604
+      ],
+      "defaultHeightM": 2.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-012.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-012.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Toilet Stall",
+        "originalPath": "models/kenney/coaster/stall-toilets.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9999998637608212,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-012.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-012-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-013",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "圆形景观喷泉",
+      "footprintM": [
+        3.3333332008785725,
+        3.3333332008785725
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-013.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-013.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Round Fountain",
+        "originalPath": "models/kenney/fantasy-town/fountain-round-detail.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6666666004392863,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-013.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-013-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-014",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "方形景观喷泉",
+      "footprintM": [
+        3.3333332008785725,
+        3.3333332008785725
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-014.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-014.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Square Fountain",
+        "originalPath": "models/kenney/fantasy-town/fountain-square-detail.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6666666004392863,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-014.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-014-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-015",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "木栅栏段",
+      "footprintM": [
+        0.21710531764413576,
+        2.8947368784294243
+      ],
+      "defaultHeightM": 1.1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-015.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-015.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Fence",
+        "originalPath": "models/kenney/fantasy-town/fence.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.8947368784294243,
+          "targetHeightM": 1.1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-015.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-015-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-016",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "木栅栏门",
+      "footprintM": [
+        0.21710531764413576,
+        2.8947368784294243
+      ],
+      "defaultHeightM": 1.1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-016.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-016.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Fence Gate",
+        "originalPath": "models/kenney/fantasy-town/fence-gate.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.8947368784294243,
+          "targetHeightM": 1.1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-016.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-016-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-017",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "庭院灯笼",
+      "footprintM": [
+        0.3477642780322254,
+        0.36041130346165084
+      ],
+      "defaultHeightM": 2.5,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-017.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-017.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Lantern",
+        "originalPath": "models/kenney/fantasy-town/lantern.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6066838105356802,
+          "targetHeightM": 2.5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-017.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-017-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-018",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "石阶与扶手",
+      "footprintM": [
+        0.8470587769424328,
+        0.4152248984225518
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-018.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-018.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stone Steps with Handrail",
+        "originalPath": "models/kenney/fantasy-town/stairs-stone-handrail.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.8304497968451036,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-018.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-018-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-019",
+      "kind": "structure",
+      "category": "stall",
+      "catalogCategory": "stall",
+      "label": "绿色棚摊",
+      "footprintM": [
+        1.9402047922607135,
+        1.9402047922607135
+      ],
+      "defaultHeightM": 2.4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-019.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-019.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Green Market Stall",
+        "originalPath": "models/kenney/fantasy-town/stall-green.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9402047922607135,
+          "targetHeightM": 2.4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-019.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-019-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-020",
+      "kind": "structure",
+      "category": "stall",
+      "catalogCategory": "stall",
+      "label": "红色棚摊",
+      "footprintM": [
+        1.9402047922607135,
+        1.9402047922607135
+      ],
+      "defaultHeightM": 2.4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-020.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-020.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Red Market Stall",
+        "originalPath": "models/kenney/fantasy-town/stall-red.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9402047922607135,
+          "targetHeightM": 2.4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-020.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-020-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-021",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "摊位长凳",
+      "footprintM": [
+        0.5188437247408734,
+        1.8758196842638912
+      ],
+      "defaultHeightM": 0.45,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-021.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-021.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stall Bench",
+        "originalPath": "models/kenney/fantasy-town/stall-bench.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9955528606613404,
+          "targetHeightM": 0.45
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-021.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-021-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-022",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "market-equipment",
+      "label": "手推车",
+      "footprintM": [
+        1.500877174666976,
+        2.252095072895572
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-022.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-022.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Cart",
+        "originalPath": "models/kenney/fantasy-town/cart.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6806679977409285,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-022.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-022-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-023",
+      "kind": "structure",
+      "category": "play-equipment",
+      "catalogCategory": "play-equipment",
+      "label": "儿童滑梯",
+      "footprintM": [
+        1.399999796902718,
+        5.049999544134905
+      ],
+      "defaultHeightM": 2.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-023.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-023.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "leonkin Playground",
+        "sourceUrl": null,
+        "license": "CC0 1.0 / Public Domain Dedication",
+        "originalLabel": "Playground Slide",
+        "originalPath": "models/leonkin-playground/slide.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9999998719604092,
+          "targetHeightM": 2.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-023.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-023-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-024",
+      "kind": "structure",
+      "category": "play-equipment",
+      "catalogCategory": "play-equipment",
+      "label": "儿童秋千",
+      "footprintM": [
+        1.7384272840511958,
+        2.3893802726042033
+      ],
+      "defaultHeightM": 2.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-024.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-024.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "leonkin Playground",
+        "sourceUrl": null,
+        "license": "CC0 1.0 / Public Domain Dedication",
+        "originalLabel": "Playground Swing",
+        "originalPath": "models/leonkin-playground/swing.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9955751729259893,
+          "targetHeightM": 2.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-024.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-024-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-025",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "圆背椅",
+      "footprintM": [
+        0.37362639289837485,
+        0.37362639289837485
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-025.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-025.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Rounded Chair",
+        "originalPath": "models/kenney/furniture/chairRounded.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8681319366545392,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-025.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-025-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-026",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "软垫单椅",
+      "footprintM": [
+        0.3695652161941411,
+        0.3695652161941411
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-026.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-026.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Cushion Chair",
+        "originalPath": "models/kenney/furniture/chairCushion.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8478260534359519,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-026.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-026-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-027",
+      "kind": "asset",
+      "category": "table",
+      "catalogCategory": "table",
+      "label": "交叉脚桌",
+      "footprintM": [
+        1.839566780833146,
+        0.9657948042782633
+      ],
+      "defaultHeightM": 0.7499999999999999,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-027.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-027.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Cross Table",
+        "originalPath": "models/kenney/furniture/tableCross.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.1588117879956714,
+          "targetHeightM": 0.75
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-027.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-027-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-028",
+      "kind": "asset",
+      "category": "table",
+      "catalogCategory": "table",
+      "label": "桌布餐桌",
+      "footprintM": [
+        1.9315896211868373,
+        1.026921048841741
+      ],
+      "defaultHeightM": 0.75,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-028.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-028.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Cloth Table",
+        "originalPath": "models/kenney/furniture/tableCloth.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.2954453889327673,
+          "targetHeightM": 0.75
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-028.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-028-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-029",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "休闲躺椅",
+      "footprintM": [
+        0.8521738623400952,
+        0.7130435109363832
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-029.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-029.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Lounge Chair",
+        "originalPath": "models/kenney/furniture/loungeChair.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.739130403233837,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-029.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-029-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-030",
+      "kind": "asset",
+      "category": "table",
+      "catalogCategory": "table",
+      "label": "边桌",
+      "footprintM": [
+        0.9037518792286157,
+        0.3720010066323596
+      ],
+      "defaultHeightM": 0.65,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-030.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-030.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Side Table",
+        "originalPath": "models/kenney/furniture/sideTable.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6909137186218295,
+          "targetHeightM": 0.65
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-030.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-030-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-031",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "planter-fixture",
+      "label": "小型盆栽甲",
+      "footprintM": [
+        0.4733036382742235,
+        0.47330364939407454
+      ],
+      "defaultHeightM": 0.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-031.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-031.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Small Plant 1",
+        "originalPath": "models/kenney/furniture/plantSmall1.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.999999978712626,
+          "targetHeightM": 0.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-031.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-031-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-032",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "planter-fixture",
+      "label": "小型盆栽乙",
+      "footprintM": [
+        0.4733036382742235,
+        0.47330364939407454
+      ],
+      "defaultHeightM": 0.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-032.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-032.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Small Plant 2",
+        "originalPath": "models/kenney/furniture/plantSmall2.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.999999978712626,
+          "targetHeightM": 0.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-032.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-032-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-033",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "圆形落地灯",
+      "footprintM": [
+        0.30054302689430834,
+        0.3470372023856967
+      ],
+      "defaultHeightM": 1.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-033.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-033.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Round Floor Lamp",
+        "originalPath": "models/kenney/furniture/lampRoundFloor.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9767441531656373,
+          "targetHeightM": 1.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-033.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-033-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-034",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "壁灯",
+      "footprintM": [
+        0.6105478989455378,
+        0.4050000195577745
+      ],
+      "defaultHeightM": 0.24999999999999997,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-034.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-034.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Wall Lamp",
+        "originalPath": "models/kenney/furniture/lampWall.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.6939655774562024,
+          "targetHeightM": 0.25
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-034.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-034-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-035",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "方形路灯",
+      "footprintM": [
+        0.3333333250549108,
+        1.5833332132962066
+      ],
+      "defaultHeightM": 4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-035.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-035.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Square Street Light",
+        "originalPath": "models/kenney/city-roads/light-square.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 6.666666401757145,
+          "targetHeightM": 4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-035.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-035-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-036",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "双弯臂路灯",
+      "footprintM": [
+        0.2962963216425805,
+        2.370370573140644
+      ],
+      "defaultHeightM": 4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-036.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-036.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Double Curved Street Light",
+        "originalPath": "models/kenney/city-roads/light-curved-double.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 5.925926344548427,
+          "targetHeightM": 4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-036.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-036-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-037",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "traffic-fixture",
+      "label": "施工警示灯",
+      "footprintM": [
+        0.2887700826228799,
+        0.2887700826228799
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-037.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-037.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Construction Warning Light",
+        "originalPath": "models/kenney/city-roads/construction-light.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.8502676153091766,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-037.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-037-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-038",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "bridge",
+      "label": "小型桥面",
+      "footprintM": [
+        2.3076929425347013,
+        2.3076929425347013
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-038.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-038.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Road Bridge",
+        "originalPath": "models/kenney/city-roads/road-bridge.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.30769239233796,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-038.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-038-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-039",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "traffic-fixture",
+      "label": "道路交叉铺装块",
+      "footprintM": [
+        4.000000089406969,
+        4.000000089406969
+      ],
+      "defaultHeightM": 0.08,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-039.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-039.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Roads",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Road Crossing",
+        "originalPath": "models/kenney/city-roads/road-crossing.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.000000089406969,
+          "targetHeightM": 0.08
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-039.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-039-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-040",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "矮木围栏",
+      "footprintM": [
+        4.500000289257832,
+        2.9558822377020935
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-040.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-040.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Low Fence",
+        "originalPath": "models/kenney/city-suburban/fence-low.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.5294117275818824,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-040.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-040-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-041",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "长木围栏",
+      "footprintM": [
+        4.250000618121774,
+        1.4583334363535387
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-041.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-041.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Long Fence",
+        "originalPath": "models/kenney/city-suburban/fence-1x3.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.3333335688080883,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-041.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-041-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-042",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "paving-module",
+      "label": "短石板步道块",
+      "footprintM": [
+        1.120000029802323,
+        1.600000059604646
+      ],
+      "defaultHeightM": 0.08,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-042.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-042.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stone Path Short",
+        "originalPath": "models/kenney/city-suburban/path-stones-short.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 8.000000178813938,
+          "targetHeightM": 0.08
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-042.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-042-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-043",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "paving-module",
+      "label": "长石板步道块",
+      "footprintM": [
+        1.120000029802323,
+        3.200000119209292
+      ],
+      "defaultHeightM": 0.08,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-043.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-043.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stone Path Long",
+        "originalPath": "models/kenney/city-suburban/path-stones-long.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 8.000000178813938,
+          "targetHeightM": 0.08
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-043.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-043-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-044",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "paving-module",
+      "label": "不规则石板步道块",
+      "footprintM": [
+        1.24499299924805,
+        2.8908036401302435
+      ],
+      "defaultHeightM": 0.08,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-044.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-044.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stone Path Irregular",
+        "originalPath": "models/kenney/city-suburban/path-stones-messy.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 8.000000178813938,
+          "targetHeightM": 0.08
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-044.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-044-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-045",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "planter-fixture",
+      "label": "户外花箱",
+      "footprintM": [
+        1.3550936005021192,
+        1.0163201751360047
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-045.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-045.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Outdoor Planter",
+        "originalPath": "models/kenney/city-suburban/planter.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.3877339507741286,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-045.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-045-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-046",
+      "kind": "asset",
+      "category": "tree",
+      "catalogCategory": "tree",
+      "label": "大乔木",
+      "footprintM": [
+        1.6462387990665928,
+        1.9009126349730545
+      ],
+      "defaultHeightM": 6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-046.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-046.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Large Tree",
+        "originalPath": "models/kenney/city-suburban/tree-large.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 7.822686197304285,
+          "targetHeightM": 6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-046.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-046-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-047",
+      "kind": "asset",
+      "category": "tree",
+      "catalogCategory": "tree",
+      "label": "小乔木",
+      "footprintM": [
+        1.4846149592722642,
+        1.7142855190576116
+      ],
+      "defaultHeightM": 4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-047.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-047.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Suburban",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Small Tree",
+        "originalPath": "models/kenney/city-suburban/tree-small.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 7.054673329771772,
+          "targetHeightM": 4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-047.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-047-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-048",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "排队入口栏",
+      "footprintM": [
+        1.2972973641729284,
+        1.2972973641729284
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-048.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-048.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Queue Entrance",
+        "originalPath": "models/kenney/coaster/queue-entrance.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.2972973641729284,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-048.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-048-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-049",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "活动入口牌架",
+      "footprintM": [
+        1.7333333333333334,
+        1.811333331267039
+      ],
+      "defaultHeightM": 2.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-049.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-049.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Event Entrance",
+        "originalPath": "models/kenney/coaster/ride-entrance.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.7333333333333334,
+          "targetHeightM": 2.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-049.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-049-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-050",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "站台围栏",
+      "footprintM": [
+        2.619047638870782,
+        1.7460317592471881
+      ],
+      "defaultHeightM": 1.1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-050.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-050.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Station Fence",
+        "originalPath": "models/kenney/coaster/station-fence.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.7460317592471881,
+          "targetHeightM": 1.1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-050.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-050-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-051",
+      "kind": "asset",
+      "category": "bin",
+      "catalogCategory": "bin",
+      "label": "户外垃圾桶",
+      "footprintM": [
+        0.8734177049364661,
+        0.8734177049364661
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-051.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-051.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Outdoor Trash Bin 2",
+        "originalPath": "models/kenney/coaster/trash.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.0604820024516464,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-051.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-051-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-052",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "shrub",
+      "label": "花卉种植箱",
+      "footprintM": [
+        2.550095279308744,
+        2.5796952105919537
+      ],
+      "defaultHeightM": 0.45,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-052.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-052.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Coaster",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Flower Bed",
+        "originalPath": "models/kenney/coaster/flowers.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.283508818473509,
+          "targetHeightM": 0.45
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-052.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-052-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-053",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "boundary-fixture",
+      "label": "直线绿篱",
+      "footprintM": [
+        0.8,
+        3.2
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-053.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-053.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Hedge",
+        "originalPath": "models/kenney/fantasy-town/hedge.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.2,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-053.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-053-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-054",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "boundary-fixture",
+      "label": "转角绿篱",
+      "footprintM": [
+        3.2,
+        3.2
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-054.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-054.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Curved Hedge",
+        "originalPath": "models/kenney/fantasy-town/hedge-curved.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.2,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-054.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-054-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-055",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "boundary-fixture",
+      "label": "绿篱门洞",
+      "footprintM": [
+        1,
+        4
+      ],
+      "defaultHeightM": 1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-055.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-055.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Hedge Gate",
+        "originalPath": "models/kenney/fantasy-town/hedge-gate.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4,
+          "targetHeightM": 1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-055.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-055-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-056",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "boundary-fixture",
+      "label": "高绿篱",
+      "footprintM": [
+        0.9999999565382817,
+        2.4999999006589295
+      ],
+      "defaultHeightM": 1.5000000000000002,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-056.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-056.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Large Hedge",
+        "originalPath": "models/kenney/fantasy-town/hedge-large.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.4999999006589295,
+          "targetHeightM": 1.5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-056.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-056-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-057",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "宽石阶与扶手",
+      "footprintM": [
+        0.8470587769424328,
+        0.8304497968451036
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-057.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-057.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Wide Stone Steps with Handrail",
+        "originalPath": "models/kenney/fantasy-town/stairs-wide-stone-handrail.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.8304497968451036,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-057.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-057-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-058",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "木阶与扶手",
+      "footprintM": [
+        0.8470587769424328,
+        0.4152248984225518
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-058.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-058.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Wood Steps with Handrail",
+        "originalPath": "models/kenney/fantasy-town/stairs-wood-handrail.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.8304497968451036,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-058.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-058-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-059",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "landscape-fixture",
+      "label": "简式圆形喷泉",
+      "footprintM": [
+        4.285714267467966,
+        4.285714267467966
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-059.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-059.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Round Fountain Basic",
+        "originalPath": "models/kenney/fantasy-town/fountain-round.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.142857133733983,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-059.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-059-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-060",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "摊位小凳",
+      "footprintM": [
+        0.5188437247408734,
+        0.5188437247408734
+      ],
+      "defaultHeightM": 0.45,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-060.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-060.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Stall Stool",
+        "originalPath": "models/kenney/fantasy-town/stall-stool.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.9955528606613404,
+          "targetHeightM": 0.45
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-060.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-060-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-061",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "market-equipment",
+      "label": "高架手推车",
+      "footprintM": [
+        1.2453542631477277,
+        1.9384047094034154
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-061.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-061.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "High Cart",
+        "originalPath": "models/kenney/fantasy-town/cart-high.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.394535776512525,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-061.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-061-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-062",
+      "kind": "asset",
+      "category": "tree",
+      "catalogCategory": "tree",
+      "label": "圆冠乔木",
+      "footprintM": [
+        1.8515400857413786,
+        1.8515400857413786
+      ],
+      "defaultHeightM": 5,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-062.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-062.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Round Canopy Tree",
+        "originalPath": "models/kenney/fantasy-town/tree-high-round.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8177588320034117,
+          "targetHeightM": 5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-062.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-062-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-063",
+      "kind": "structure",
+      "category": "pavilion",
+      "catalogCategory": "pavilion",
+      "label": "八角木亭",
+      "footprintM": [
+        4.148753343920507,
+        4.114251985546983
+      ],
+      "defaultHeightM": 3.5,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-063.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-063.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Poly by Google via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/0cRW-BhHD16",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Gazebo",
+        "originalPath": "models/green-diamond/props/gazebo.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.398920434433193,
+          "targetHeightM": 3.5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-063.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-063-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-064",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "木廊架",
+      "footprintM": [
+        3.2427866614697964,
+        4.0046512117573325
+      ],
+      "defaultHeightM": 2.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-064.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-064.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Daniel Doran via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/akMzoP0qU7f",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Pergola",
+        "originalPath": "models/green-diamond/props/pergola.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.6511617283247871,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-064.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-064-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-065",
+      "kind": "structure",
+      "category": "play-equipment",
+      "catalogCategory": "play-equipment",
+      "label": "儿童攀爬架",
+      "footprintM": [
+        2.2969543676430404,
+        2.2671528030665
+      ],
+      "defaultHeightM": 2.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-065.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-065.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Poly by Google via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/0-7U_RTHzKT",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Climbing Frame",
+        "originalPath": "models/green-diamond/props/playground_climbing_frame.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.24178457319032529,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-065.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-065-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-066",
+      "kind": "structure",
+      "category": "play-equipment",
+      "catalogCategory": "play-equipment",
+      "label": "双座秋千架",
+      "footprintM": [
+        2.0307858394559894,
+        3.5727385382974384
+      ],
+      "defaultHeightM": 2.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-066.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-066.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Poly by Google via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/e-IJdcqZH4p",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Two-seat Swing Set",
+        "originalPath": "models/green-diamond/props/playground_swings.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.023582432596022697,
+          "targetHeightM": 2.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-066.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-066-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-067",
+      "kind": "asset",
+      "category": "fitness",
+      "catalogCategory": "fitness",
+      "label": "篮球架",
+      "footprintM": [
+        1.7917035649332165,
+        2.469842897929635
+      ],
+      "defaultHeightM": 4,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-067.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-067.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Poly by Google via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/85FpUr2fHkH",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Basketball Hoop",
+        "originalPath": "models/green-diamond/props/basketball_hoop.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9953908957761961,
+          "targetHeightM": 4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-067.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-067-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-068",
+      "kind": "asset",
+      "category": "fitness",
+      "catalogCategory": "fitness",
+      "label": "户外双杠",
+      "footprintM": [
+        2.02824482437066,
+        0.7831836743854275
+      ],
+      "defaultHeightM": 1.23,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-068.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-068.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "green-diamond project-authored",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Outdoor Parallel Bars",
+        "originalPath": "models/green-diamond/props/fitness_parallel_bars.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.0040816131108807,
+          "targetHeightM": 1.23
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-068.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-068-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-069",
+      "kind": "asset",
+      "category": "fitness",
+      "catalogCategory": "fitness",
+      "label": "户外单杠",
+      "footprintM": [
+        3.839999727143187,
+        0.23999999039702966
+      ],
+      "defaultHeightM": 2.7,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-069.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-069.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "green-diamond project-authored",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Outdoor Pull-up Bars",
+        "originalPath": "models/green-diamond/props/fitness_pullup_bars.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9999999823393649,
+          "targetHeightM": 2.7
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-069.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-069-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-070",
+      "kind": "structure",
+      "category": "play-equipment",
+      "catalogCategory": "play-equipment",
+      "label": "儿童摇摇马",
+      "footprintM": [
+        0.9299996661767624,
+        0.599999976903202
+      ],
+      "defaultHeightM": 1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-070.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-070.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "green-diamond project-authored",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Spring Rider",
+        "originalPath": "models/green-diamond/props/playground_spring_rider.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9999999217689098,
+          "targetHeightM": 1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-070.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-070-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-071",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "traffic-fixture",
+      "label": "隔离柱",
+      "footprintM": [
+        0.3670594170621576,
+        0.37649901589663204
+      ],
+      "defaultHeightM": 0.9000000000000001,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-071.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-071.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "J-Toastie via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/JSQJ07PFj2",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Bollard",
+        "originalPath": "models/green-diamond/props/bollard.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.5396835639191837,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-071.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-071-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-072",
+      "kind": "asset",
+      "category": "shrub",
+      "catalogCategory": "planter-fixture",
+      "label": "灌木花箱",
+      "footprintM": [
+        2.3684874594446703,
+        0.7660371468416837
+      ],
+      "defaultHeightM": 1.12,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-072.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-072.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "J-Toastie via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/wn85Xr9lM3",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Planter with Bushes",
+        "originalPath": "models/green-diamond/props/planter.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.9984700068924083,
+          "targetHeightM": 1.12
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-072.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-072-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-073",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "户外遮阳伞",
+      "footprintM": [
+        2.107295740832604,
+        1.8822968674371965
+      ],
+      "defaultHeightM": 2.5,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-073.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-073.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "S. Paul Michael via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/2li3sdSkmCI",
+        "license": "CC-BY 3.0",
+        "originalLabel": "Outdoor Umbrella",
+        "originalPath": "models/green-diamond/props/pool_umbrella.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.7134162272318525,
+          "targetHeightM": 2.5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-073.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-073-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-074",
+      "kind": "asset",
+      "category": "bin",
+      "catalogCategory": "bin",
+      "label": "公园废物箱",
+      "footprintM": [
+        0.8749993925697779,
+        0.8749998407684463
+      ],
+      "defaultHeightM": 1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-074.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-074.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Isa Lousberg via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/2UXIdGYkg9",
+        "license": "CC0 1.0",
+        "originalLabel": "Park Litter Bin",
+        "originalPath": "models/green-diamond/props/trash_bin_park.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.8749993713822044,
+          "targetHeightM": 1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-074.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-074-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-075",
+      "kind": "asset",
+      "category": "light",
+      "catalogCategory": "light",
+      "label": "现代路灯",
+      "footprintM": [
+        0.2741981318121157,
+        2.201848009327936
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-075.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-075.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Quaternius via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/0lxF8Dl1jU",
+        "license": "CC0 1.0",
+        "originalLabel": "Street Light Variant",
+        "originalPath": "models/green-diamond/props/street_light.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.7526948748437406,
+          "targetHeightM": 5
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-075.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-075-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-076",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "铁艺围栏",
+      "footprintM": [
+        2.399999992514151,
+        0.10173533074643784
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-076.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-076.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kay Lousberg via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/MDROOJeCSQ",
+        "license": "CC0 1.0",
+        "originalLabel": "Iron Fence / Railing",
+        "originalPath": "models/green-diamond/props/fence_iron.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.600000011539583,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-076.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-076-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-077",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "boundary-fixture",
+      "label": "铁丝网围栏",
+      "footprintM": [
+        2.221692245336097,
+        0.0718065591757922
+      ],
+      "defaultHeightM": 1.7999999999999998,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-077.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-077.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Quaternius via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/qWKhREFj7H",
+        "license": "CC0 1.0",
+        "originalLabel": "Chain-link Fence",
+        "originalPath": "models/green-diamond/props/fence_chainlink.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.6260150852704669,
+          "targetHeightM": 1.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-077.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-077-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-078",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "traffic-fixture",
+      "label": "出入口道闸",
+      "footprintM": [
+        4.4900003083394235,
+        0.46000002521735067
+      ],
+      "defaultHeightM": 1.04,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-078.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-078.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "green-diamond project-authored",
+        "sourceUrl": null,
+        "license": "CC0 1.0",
+        "originalLabel": "Boom Barrier",
+        "originalPath": "models/green-diamond/props/boom_barrier.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.0000000366797828,
+          "targetHeightM": 1.04
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-078.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-078-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-079",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "traffic-fixture",
+      "label": "交通锥",
+      "footprintM": [
+        0.6886464580687379,
+        0.6886464648672689
+      ],
+      "defaultHeightM": 0.65,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-079.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-079.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Quaternius via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/lAx8JytxGD",
+        "license": "CC0 1.0",
+        "originalLabel": "Traffic Cone",
+        "originalPath": "models/green-diamond/props/traffic_cone.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.0208710534500216,
+          "targetHeightM": 0.65
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-079.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-079-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-080",
+      "kind": "asset",
+      "category": "bin",
+      "catalogCategory": "bin",
+      "label": "大型垃圾收集箱",
+      "footprintM": [
+        1.683702643982921,
+        0.8933937994300803
+      ],
+      "defaultHeightM": 1.4000000000000001,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-080.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-080.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Quaternius via green-diamond",
+        "sourceUrl": "https://poly.pizza/m/PKsbolkZSr",
+        "license": "CC0 1.0",
+        "originalLabel": "Dumpster",
+        "originalPath": "models/green-diamond/props/dumpster.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 0.6895891275426632,
+          "targetHeightM": 1.4
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-080.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-080-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-081",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "event-equipment",
+      "label": "活动音箱",
+      "footprintM": [
+        0.27906977789683096,
+        0.2790697778968282
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-081.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-081.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": "https://kenney.nl/assets/furniture-kit",
+        "license": "CC0 1.0",
+        "originalLabel": "Speaker",
+        "originalPath": "models/kenney/furniture/speaker.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.8856065831102686,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-081.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-081-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-082",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "event-equipment",
+      "label": "小型音箱",
+      "footprintM": [
+        0.2980069286129632,
+        0.26820621174815756
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-082.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-082.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Furniture",
+        "sourceUrl": "https://kenney.nl/assets/furniture-kit",
+        "license": "CC0 1.0",
+        "originalLabel": "Small Speaker",
+        "originalPath": "models/kenney/furniture/speakerSmall.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.0135603025162276,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-082.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-082-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-083",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "小型雨棚",
+      "footprintM": [
+        0.9999999999999992,
+        0.3697282765846208
+      ],
+      "defaultHeightM": 1,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-083.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-083.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Commercial",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Awning",
+        "originalPath": "models/kenney/city-commercial/detail-awning.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.4999999627470957,
+          "targetHeightM": 1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-083.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-083-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-084",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "宽幅雨棚",
+      "footprintM": [
+        1.9999999999999984,
+        0.3697282765846208
+      ],
+      "defaultHeightM": 0.9999999999999999,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-084.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-084.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/City Commercial",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Wide Awning",
+        "originalPath": "models/kenney/city-commercial/detail-awning-wide.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.4999999627470957,
+          "targetHeightM": 1
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-084.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-084-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-085",
+      "kind": "structure",
+      "category": "pavilion",
+      "catalogCategory": "pavilion",
+      "label": "活动帐篷",
+      "footprintM": [
+        4.000000068119595,
+        4.000000068119595
+      ],
+      "defaultHeightM": 2.8000000000000003,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-085.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-085.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Racing",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Event Tent",
+        "originalPath": "models/kenney/racing/tent.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.000000068119595,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-085.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-085-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-086",
+      "kind": "structure",
+      "category": "pavilion",
+      "catalogCategory": "pavilion",
+      "label": "长形活动帐篷",
+      "footprintM": [
+        8.00000013623919,
+        4.000000068119595
+      ],
+      "defaultHeightM": 2.8000000000000003,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-086.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-086.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Racing",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Long Event Tent",
+        "originalPath": "models/kenney/racing/tentLong.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.000000068119595,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-086.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-086-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-087",
+      "kind": "structure",
+      "category": "pavilion",
+      "catalogCategory": "pavilion",
+      "label": "双顶帐篷",
+      "footprintM": [
+        4.977777836646563,
+        4.400000075688438
+      ],
+      "defaultHeightM": 2.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-087.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-087.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Racing",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Double Tent Roof",
+        "originalPath": "models/kenney/racing/tentRoofDouble.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 4.44444447808375,
+          "targetHeightM": 2.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-087.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-087-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-088",
+      "kind": "structure",
+      "category": "stage",
+      "catalogCategory": "event-equipment",
+      "label": "木质活动平台",
+      "footprintM": [
+        1.277602633201499,
+        1.277602633201499
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-088.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-088.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Mini Forest",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Wood Platform",
+        "originalPath": "models/kenney/mini-forest/platform.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.2776024808994149,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-088.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-088-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-089",
+      "kind": "structure",
+      "category": "stage",
+      "catalogCategory": "event-equipment",
+      "label": "架高活动平台",
+      "footprintM": [
+        2.0799999237060547,
+        2.0799999237060547
+      ],
+      "defaultHeightM": 0.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-089.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-089.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Mini Forest",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Raised Platform",
+        "originalPath": "models/kenney/mini-forest/building-platform.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 1.6,
+          "targetHeightM": 0.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-089.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-089-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-090",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "多向木质导视牌",
+      "footprintM": [
+        0.8377228526512621,
+        0.16814476056475425
+      ],
+      "defaultHeightM": 1.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-090.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-090.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Survival",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Direction Signpost",
+        "originalPath": "models/kenney/survival/signpost.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.9123630861882934,
+          "targetHeightM": 1.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-090.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-090-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-091",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "sign",
+      "label": "单向导视牌",
+      "footprintM": [
+        0.8162586801175278,
+        0.16814476056475425
+      ],
+      "defaultHeightM": 1.8,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-091.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-091.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Survival",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Single Direction Sign",
+        "originalPath": "models/kenney/survival/signpost-single.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.9123630861882934,
+          "targetHeightM": 1.8
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-091.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-091-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-092",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "bridge",
+      "label": "滨水木桥",
+      "footprintM": [
+        3.1199998390674613,
+        3.1199998390674613
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-092.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-092.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Nature",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Wood Footbridge",
+        "originalPath": "models/kenney/nature/bridge_wood.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.999999955296517,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-092.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-092-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-093",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "bridge",
+      "label": "石拱步桥",
+      "footprintM": [
+        3.1199998390674613,
+        3.1199998390674613
+      ],
+      "defaultHeightM": 1.2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-093.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-093.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Nature",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Stone Footbridge",
+        "originalPath": "models/kenney/nature/bridge_stone.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.999999955296517,
+          "targetHeightM": 1.2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-093.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-093-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-094",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "planter-fixture",
+      "label": "大型户外花盆",
+      "footprintM": [
+        1.6907892571272065,
+        1.4642665168007236
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-094.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-094.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Nature",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Large Outdoor Pot",
+        "originalPath": "models/kenney/nature/pot_large.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.999999955296517,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-094.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-094-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-095",
+      "kind": "asset",
+      "category": "sculpture",
+      "catalogCategory": "planter-fixture",
+      "label": "小型户外花盆",
+      "footprintM": [
+        0.7241409841239234,
+        0.6271244748591256
+      ],
+      "defaultHeightM": 0.6,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-095.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-095.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Nature",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Small Outdoor Pot",
+        "originalPath": "models/kenney/nature/pot_small.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.238806163343207,
+          "targetHeightM": 0.6
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-095.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-095-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-096",
+      "kind": "asset",
+      "category": "bench",
+      "catalogCategory": "bench",
+      "label": "街角休闲长椅",
+      "footprintM": [
+        1.2547661095883864,
+        0.6693020801704338
+      ],
+      "defaultHeightM": 0.85,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-096.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-096.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Retro Urban",
+        "sourceUrl": "https://kenney.nl/assets/retro-urban-kit",
+        "license": "CC0 1.0",
+        "originalLabel": "Retro Urban Bench",
+        "originalPath": "models/kenney/retro-urban/detail-bench.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.0777712828050356,
+          "targetHeightM": 0.85
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-096.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-096-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-097",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "街边小遮阳棚",
+      "footprintM": [
+        1.9160689572824654,
+        0.9615700863160074
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-097.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-097.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Retro Urban",
+        "sourceUrl": "https://kenney.nl/assets/retro-urban-kit",
+        "license": "CC0 1.0",
+        "originalLabel": "Retro Small Awning",
+        "originalPath": "models/kenney/retro-urban/detail-awning-small.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.205233493688822,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-097.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-097-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-098",
+      "kind": "structure",
+      "category": "pergola",
+      "catalogCategory": "pergola",
+      "label": "街边宽遮阳棚",
+      "footprintM": [
+        3.205233493688822,
+        0.9615700863160074
+      ],
+      "defaultHeightM": 0.9,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-098.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-098.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Retro Urban",
+        "sourceUrl": "https://kenney.nl/assets/retro-urban-kit",
+        "license": "CC0 1.0",
+        "originalLabel": "Retro Wide Awning",
+        "originalPath": "models/kenney/retro-urban/detail-awning-wide.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 3.205233493688822,
+          "targetHeightM": 0.9
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-098.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-098-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-099",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "culture-display",
+      "label": "绿色文化旗幡",
+      "footprintM": [
+        0.11913969937202151,
+        1.1913967096691052
+      ],
+      "defaultHeightM": 2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-099.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-099.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Green Banner",
+        "originalPath": "models/kenney/fantasy-town/banner-green.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.3827934193382103,
+          "targetHeightM": 2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-099.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-099-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:asset-100",
+      "kind": "asset",
+      "category": "sign",
+      "catalogCategory": "culture-display",
+      "label": "红色文化旗幡",
+      "footprintM": [
+        0.11913969937202151,
+        1.1913967096691052
+      ],
+      "defaultHeightM": 2,
+      "renderer": "glb",
+      "fileType": "glb",
+      "url": "3D_scenes_edit/assets/curated/models/asset-100.glb?v=20261105",
+      "lowUrl": "3D_scenes_edit/assets/curated/models/asset-100.glb?v=20261105",
+      "status": "published",
+      "metadata": {
+        "source": "Kenney/Fantasy Town",
+        "sourceUrl": "https://kenney.nl/",
+        "license": "CC0 1.0",
+        "originalLabel": "Red Banner",
+        "originalPath": "models/kenney/fantasy-town/banner-red.glb",
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md",
+        "calibration": {
+          "metersPerUnit": 2.3827934193382103,
+          "targetHeightM": 2
+        }
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-100.png?v=20261105",
+      "topViewUrl": "3D_scenes_edit/assets/curated/thumbnails/asset-100-top.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-elderly-activity-corner",
+      "kind": "group",
+      "category": "composite",
+      "label": "老年活动角",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-003",
+          "offsetM": [
+            0.25544006886180215,
+            -0.6994413822147443
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            -1.149404825033491,
+            -0.6994413822147443
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            1.6602849627570953,
+            -0.6994413822147443
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            0.25544006886180215,
+            -2.104286276110037
+          ],
+          "headingDeg": -180,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-001",
+          "offsetM": [
+            0.25544006886180215,
+            2.1102484055758417
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-045",
+          "offsetM": [
+            -2.7549418466281117,
+            1.1067877670792041
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-035",
+          "offsetM": [
+            3.265821984351716,
+            1.1067877670792041
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        6.864977293758343,
+        4.582198945118449
+      ],
+      "defaultHeightM": 4,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.003460638496638,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-elderly-activity-corner.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-childrens-play-area",
+      "kind": "group",
+      "category": "composite",
+      "label": "儿童活动角",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-023",
+          "offsetM": [
+            -2.5387246763323104,
+            -0.8666667236958061
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-024",
+          "offsetM": [
+            2.2501639846853676,
+            -0.8666667236958061
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -0.14428034582347116,
+            2.724999772067452
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-051",
+          "offsetM": [
+            3.4473861499397875,
+            2.724999772067452
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-005",
+          "offsetM": [
+            -3.7359468415867294,
+            2.724999772067452
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        7.76819000481604,
+        6.7833329915265175
+      ],
+      "defaultHeightM": 4,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.1972221652544195,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-childrens-play-area.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-small-market",
+      "kind": "group",
+      "category": "composite",
+      "label": "乡村小市集",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-019",
+          "offsetM": [
+            -3.2493565179701345,
+            0.8495242350544763
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-020",
+          "offsetM": [
+            0,
+            0.8495242350544763
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-010",
+          "offsetM": [
+            3.2493565179701345,
+            0.8495242350544763
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-022",
+          "offsetM": [
+            -4.332475357293513,
+            -1.858272863253969
+          ],
+          "headingDeg": -25,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-011",
+          "offsetM": [
+            4.332475357293513,
+            -1.858272863253969
+          ],
+          "headingDeg": 25,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            -5.41559419661689,
+            3.0157619137012324
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            5.41559419661689,
+            3.0157619137012324
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        11.178952671266007,
+        6.391935130864116
+      ],
+      "defaultHeightM": 2.6,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.0831188393233782,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-small-market.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-food-drink-zone",
+      "kind": "group",
+      "category": "composite",
+      "label": "餐饮休闲角",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-010",
+          "offsetM": [
+            -4.3061008019589835,
+            1.843879133974561
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-009",
+          "offsetM": [
+            2.1599932776140385,
+            1.843879133974561
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-003",
+          "offsetM": [
+            -2.366272578087077,
+            -2.035777313769252
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-003",
+          "offsetM": [
+            0.866774461699434,
+            -2.035777313769252
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-026",
+          "offsetM": [
+            -3.659491394001681,
+            -2.035777313769252
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-026",
+          "offsetM": [
+            2.1599932776140385,
+            -2.035777313769252
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-051",
+          "offsetM": [
+            4.746430909443247,
+            -2.035777313769252
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        10.36627952382296,
+        5.707618022430714
+      ],
+      "defaultHeightM": 2.6,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.2932188159146043,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-food-drink-zone.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-fountain-plaza",
+      "kind": "group",
+      "category": "composite",
+      "label": "喷泉休憩小广场",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-013",
+          "offsetM": [
+            0,
+            -0.554498269156297
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-001",
+          "offsetM": [
+            -3,
+            -0.554498269156297
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-001",
+          "offsetM": [
+            3,
+            -0.554498269156297
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-001",
+          "offsetM": [
+            0,
+            -3.554498269156297
+          ],
+          "headingDeg": -180,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            -4,
+            2.445501730843703
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            4,
+            2.445501730843703
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-052",
+          "offsetM": [
+            0,
+            2.445501730843703
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        8.347764278032226,
+        7.47069867227936
+      ],
+      "defaultHeightM": 2.5,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-fountain-plaza.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-village-entrance",
+      "kind": "group",
+      "category": "composite",
+      "label": "村口入口节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-008",
+          "offsetM": [
+            0,
+            1.7466368739024092
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            -3,
+            2.746636873902409
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            3,
+            2.746636873902409
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-045",
+          "offsetM": [
+            -4,
+            0.24663687390240918
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-045",
+          "offsetM": [
+            4,
+            0.24663687390240918
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -4,
+            -2.253363126097591
+          ],
+          "headingDeg": -25,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            4,
+            -2.253363126097591
+          ],
+          "headingDeg": 25,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        9.609378671297051,
+        5.85368505126647
+      ],
+      "defaultHeightM": 3.0000000000000004,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-village-entrance.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-quiet-garden",
+      "kind": "group",
+      "category": "composite",
+      "label": "安静休憩花园",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-014",
+          "offsetM": [
+            0,
+            -0.4666629249138925
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-053",
+          "offsetM": [
+            -3,
+            -0.4666629249138925
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-053",
+          "offsetM": [
+            3,
+            -0.4666629249138925
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-029",
+          "offsetM": [
+            -1.5,
+            -2.9666629249138925
+          ],
+          "headingDeg": -180,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-029",
+          "offsetM": [
+            1.5,
+            -2.9666629249138925
+          ],
+          "headingDeg": -180,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-030",
+          "offsetM": [
+            0,
+            -2.9666629249138925
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-052",
+          "offsetM": [
+            0,
+            2.0333370750861075
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        9.2,
+        6.646369360764169
+      ],
+      "defaultHeightM": 0.8,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-quiet-garden.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-walkway-rest",
+      "kind": "group",
+      "category": "composite",
+      "label": "步道休憩节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-043",
+          "offsetM": [
+            0.12592591958935473,
+            -0.7499999701976771
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            2.1259259195893545,
+            -0.7499999701976771
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-045",
+          "offsetM": [
+            -1.8740740804106453,
+            -0.7499999701976771
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-005",
+          "offsetM": [
+            3.6259259195893545,
+            0.7500000298023229
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-053",
+          "offsetM": [
+            -3.3740740804106455,
+            0.7500000298023229
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        7.54814816082129,
+        4.700000059604646
+      ],
+      "defaultHeightM": 4,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-walkway-rest.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-public-toilet-corner",
+      "kind": "group",
+      "category": "composite",
+      "label": "公共厕所服务点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-012",
+          "offsetM": [
+            0.1166666687362723,
+            -0.7041069622433054
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-051",
+          "offsetM": [
+            2.416666668736272,
+            -2.2041069622433054
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -2.383333331263728,
+            -2.2041069622433054
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-035",
+          "offsetM": [
+            3.116666668736272,
+            1.2958930377566946
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-053",
+          "offsetM": [
+            -2.883333331263728,
+            1.2958930377566946
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        6.566666662527455,
+        5.791786075513389
+      ],
+      "defaultHeightM": 4,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-public-toilet-corner.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-night-rest",
+      "kind": "group",
+      "category": "composite",
+      "label": "夜间照明休憩点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-002",
+          "offsetM": [
+            0,
+            0.2782230864831059
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            -2,
+            1.278223086483106
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            2,
+            1.278223086483106
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-031",
+          "offsetM": [
+            -1.5,
+            -1.221776913516894
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-032",
+          "offsetM": [
+            1.5,
+            -1.221776913516894
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        4.347764278032225,
+        2.9168574764278627
+      ],
+      "defaultHeightM": 2.5,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-night-rest.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-market-gateway",
+      "kind": "group",
+      "category": "composite",
+      "label": "市集入口组",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-048",
+          "offsetM": [
+            -0.11251665356380469,
+            0.3368151917582909
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-019",
+          "offsetM": [
+            -3.1125166535638047,
+            -1.6631848082417091
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-020",
+          "offsetM": [
+            2.8874833464361953,
+            -1.6631848082417091
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-061",
+          "offsetM": [
+            -4.112516653563805,
+            1.3368151917582909
+          ],
+          "headingDeg": -30,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-011",
+          "offsetM": [
+            3.8874833464361953,
+            1.3368151917582909
+          ],
+          "headingDeg": 30,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        10.2727440904265,
+        5.266574408744132
+      ],
+      "defaultHeightM": 2.6,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-market-gateway.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-landscape-steps",
+      "kind": "group",
+      "category": "composite",
+      "label": "台阶景观节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-057",
+          "offsetM": [
+            0,
+            0.06473261457615087
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-054",
+          "offsetM": [
+            -3,
+            0.06473261457615087
+          ],
+          "headingDeg": -20,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-054",
+          "offsetM": [
+            3,
+            0.06473261457615087
+          ],
+          "headingDeg": 20,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            -2,
+            -1.9352673854238491
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-017",
+          "offsetM": [
+            2,
+            -1.9352673854238491
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        10.101480845157047,
+        4.230946074309349
+      ],
+      "defaultHeightM": 2.5,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-landscape-steps.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-gazebo-tea-corner",
+      "kind": "group",
+      "category": "composite",
+      "label": "亭下茶叙节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-063",
+          "offsetM": [
+            0,
+            0.16294629032367514
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-003",
+          "offsetM": [
+            0,
+            -0.037053709676324875
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            -1.3,
+            -0.037053709676324875
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            1.3,
+            -0.037053709676324875
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            -3,
+            -1.8370537096763249
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            3,
+            -1.8370537096763249
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        8.36848745944467,
+        4.440144566194333
+      ],
+      "defaultHeightM": 3.5,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-gazebo-tea-corner.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-pergola-rest-area",
+      "kind": "group",
+      "category": "composite",
+      "label": "廊架休憩区",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-064",
+          "offsetM": [
+            0,
+            -0.7089527156215631
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -2,
+            -0.7089527156215631
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            2,
+            -0.7089527156215631
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            -3,
+            -3.0089527156215627
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            3,
+            -3.0089527156215627
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            0,
+            2.291047284378437
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        8.36848745944467,
+        6.78394257808481
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-pergola-rest-area.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-fitness-station",
+      "kind": "group",
+      "category": "composite",
+      "label": "户外健身点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-069",
+          "offsetM": [
+            -1.658749916356648,
+            -1.604666083735627
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-068",
+          "offsetM": [
+            1.9412500836433522,
+            -1.604666083735627
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            0.14125008364335212,
+            1.1953339162643728
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            -2.858749916356648,
+            0.895333916264373
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-074",
+          "offsetM": [
+            3.141250083643352,
+            0.895333916264373
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        7.157499559856483,
+        3.9925158418566817
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-fitness-station.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-basketball-rest-corner",
+      "kind": "group",
+      "category": "composite",
+      "label": "篮球活动角",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-067",
+          "offsetM": [
+            0,
+            -1.728432313274286
+          ],
+          "headingDeg": -180,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -2.7,
+            2.2715676867257137
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            2.7,
+            2.2715676867257137
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            -3,
+            -1.728432313274286
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            3,
+            -1.728432313274286
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        6.274198131812116,
+        5.926707524478207
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-basketball-rest-corner.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-playground-expanded",
+      "kind": "group",
+      "category": "composite",
+      "label": "综合儿童活动场",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-065",
+          "offsetM": [
+            0.1271431896142503,
+            -1.0437499258416147
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-066",
+          "offsetM": [
+            -2.8728568103857497,
+            0.9562500741583853
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-023",
+          "offsetM": [
+            3.1271431896142503,
+            0.9562500741583853
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-070",
+          "offsetM": [
+            0.1271431896142503,
+            2.456250074158385
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -3.3728568103857497,
+            -3.043749925841615
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-074",
+          "offsetM": [
+            3.6271431896142503,
+            -3.043749925841615
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        8.12928577179828,
+        6.962499692451676
+      ],
+      "defaultHeightM": 2.8,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-playground-expanded.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-shaded-market",
+      "kind": "group",
+      "category": "composite",
+      "label": "遮阳乡村市集",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-086",
+          "offsetM": [
+            -0.05811403966658979,
+            0.6814082825925059
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-019",
+          "offsetM": [
+            -2.294883102463613,
+            0.6814082825925059
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-020",
+          "offsetM": [
+            2.1786550231304336,
+            0.6814082825925059
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-022",
+          "offsetM": [
+            -4.5316521652606365,
+            -1.5553607802045175
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-011",
+          "offsetM": [
+            4.415424085927457,
+            -1.5553607802045175
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        10.564181505188248,
+        5.3628166333046074
+      ],
+      "defaultHeightM": 2.8000000000000003,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.1183845313985117,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-shaded-market.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-small-stage",
+      "kind": "group",
+      "category": "composite",
+      "label": "小型活动舞台",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-089",
+          "offsetM": [
+            0,
+            -1.162409399336155
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-081",
+          "offsetM": [
+            -2.5,
+            -0.362409399336155
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-081",
+          "offsetM": [
+            2.5,
+            -0.362409399336155
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-100",
+          "offsetM": [
+            -3,
+            -2.662409399336155
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-099",
+          "offsetM": [
+            3,
+            -2.662409399336155
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            0,
+            2.837590600663845
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        6.119139699372021,
+        6.516215508341415
+      ],
+      "defaultHeightM": 2,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-small-stage.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-waterfront-wood-bridge",
+      "kind": "group",
+      "category": "composite",
+      "label": "滨水木桥节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-092",
+          "offsetM": [
+            0,
+            -0.1798321633999942
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            -3,
+            -2.179832163399994
+          ],
+          "headingDeg": -35,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-007",
+          "offsetM": [
+            3,
+            -2.179832163399994
+          ],
+          "headingDeg": 35,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            -4,
+            1.8201678366000058
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            4,
+            1.8201678366000058
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        8.274198131812115,
+        5.842183682527947
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-waterfront-wood-bridge.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-stone-bridge-garden",
+      "kind": "group",
+      "category": "composite",
+      "label": "石桥小花园",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-093",
+          "offsetM": [
+            0,
+            0.6593035820890809
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-054",
+          "offsetM": [
+            -3.366473457716801,
+            -1.5850120563887864
+          ],
+          "headingDeg": -20,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-054",
+          "offsetM": [
+            3.366473457716801,
+            -1.5850120563887864
+          ],
+          "headingDeg": 20,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-094",
+          "offsetM": [
+            -2.8053945480973344,
+            2.903619220566948
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-094",
+          "offsetM": [
+            2.8053945480973344,
+            2.903619220566948
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        10.83442776059065,
+        7.27150495793462
+      ],
+      "defaultHeightM": 1.2,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.1221578192389337,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-stone-bridge-garden.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-shaded-dining",
+      "kind": "group",
+      "category": "composite",
+      "label": "遮阳餐饮休闲区",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-073",
+          "offsetM": [
+            -0.9888428527623315,
+            -0.8275502468884136
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-003",
+          "offsetM": [
+            -0.9888428527623315,
+            -0.8275502468884136
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            -2.284092257029053,
+            -0.8275502468884136
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-025",
+          "offsetM": [
+            0.3064065515043898,
+            -0.8275502468884136
+          ],
+          "headingDeg": 90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-074",
+          "offsetM": [
+            2.0334057571933513,
+            1.3311987602227884
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        4.941810906956481,
+        3.5373973612140235
+      ],
+      "defaultHeightM": 2.5,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1.079374503555601,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-shaded-dining.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-wayfinding-node",
+      "kind": "group",
+      "category": "composite",
+      "label": "导视与文化展示节点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-090",
+          "offsetM": [
+            0,
+            1.3694763426253322
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-100",
+          "offsetM": [
+            -2.5,
+            1.3694763426253322
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-099",
+          "offsetM": [
+            2.5,
+            1.3694763426253322
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            -2.5,
+            -0.6305236573746678
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-072",
+          "offsetM": [
+            2.5,
+            -0.6305236573746678
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-096",
+          "offsetM": [
+            0,
+            -1.6305236573746678
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        7.368487459444671,
+        3.9303493949197694
+      ],
+      "defaultHeightM": 2,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-wayfinding-node.png?v=20261105"
+    },
+    {
+      "id": "seed:curated:combo-waste-service-point",
+      "kind": "group",
+      "category": "composite",
+      "label": "垃圾收集服务点",
+      "children": [
+        {
+          "assetRef": "seed:curated:asset-080",
+          "offsetM": [
+            -0.44604945586817313,
+            -0.9950389409979596
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-077",
+          "offsetM": [
+            -2.446049455868173,
+            -0.9950389409979596
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-077",
+          "offsetM": [
+            1.5539505441318269,
+            -0.9950389409979596
+          ],
+          "headingDeg": -90,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-078",
+          "offsetM": [
+            -0.44604945586817313,
+            1.5049610590020404
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        },
+        {
+          "assetRef": "seed:curated:asset-075",
+          "offsetM": [
+            2.553950544131827,
+            1.0049610590020404
+          ],
+          "headingDeg": 0,
+          "scale": 1,
+          "heightOffsetM": 0
+        }
+      ],
+      "footprintM": [
+        5.382099220075769,
+        4.2117701273320165
+      ],
+      "defaultHeightM": 5.000000000000001,
+      "metadata": {
+        "source": "Curated scene combinations",
+        "layoutSpread": 1,
+        "attributionUrl": "3D_scenes_edit/assets/curated/ATTRIBUTION.md"
+      },
+      "thumbnailUrl": "3D_scenes_edit/assets/curated/thumbnails/combo-waste-service-point.png?v=20261105"
+    }
+  ]
+}

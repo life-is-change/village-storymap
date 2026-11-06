@@ -87,7 +87,7 @@
   function renderRunStatus(run, {personalExperience = false} = {}) {
     const progress = Number(run?.progress || 0);
     const failed = run?.status === "failed";
-    const stage = failed ? "处理失败" : (run?.current_stage || "等待领取");
+    const stage = failed ? "处理失败" : run?.status === "completed" ? "处理完成" : (run?.current_stage || "等待领取");
     return `<div class="geoprocessing-run" data-run-id="${escapeHtml(run?.id)}">
       <div class="geoprocessing-run-heading"><strong>任务进度</strong><span>${escapeHtml(run?.status || "queued")}</span></div>
       <span class="geoprocessing-run-stage">${escapeHtml(stage)} · ${progress}%</span>
@@ -154,7 +154,8 @@
   function createGeoprocessingPanel({
     container, client, aoiController, courseId, teachingProjectId = null,
     villageId, spaceId = null, datasetId = null, availability = "offline", sourceStatus = null,
-    onCompleted, onPreview, onImported, onStartAoi, onBeforeImport, onDiscard
+    onCompleted, onPreview, onImported, onStartAoi, onBeforeImport, onDiscard,
+    schedule = setTimeout, cancelSchedule = clearTimeout
   }) {
     let run = null;
     let unsubscribe = null;
@@ -165,6 +166,12 @@
     let artifactHtml = null;
     let artifactRevision = 0;
     let artifactRequest = null;
+    let artifactRetryTimer = null;
+    let artifactRetryCount = 0;
+    function cancelArtifactRetry() {
+      if (artifactRetryTimer !== null) cancelSchedule(artifactRetryTimer);
+      artifactRetryTimer = null;
+    }
     let currentSourceStatus = sourceStatus;
     const submissionGuard = createSubmissionGuard();
     function showMessage(message) {
@@ -175,6 +182,7 @@
       const slot = container.querySelector("[data-artifact-list]");
       if (destroyed || !slot || run?.status !== "completed") return;
       if (artifactRequest) return artifactRequest;
+      if (force) { cancelArtifactRetry(); artifactRetryCount = 0; }
       if (artifactHtml !== null && !force) { slot.innerHTML = artifactHtml; return; }
       const runId = run.id;
       const revision = artifactRevision;
@@ -191,7 +199,18 @@
         }));
         if (!isCurrent()) return;
         artifacts = nextArtifacts;
-        artifactHtml = links.length ? `<strong>个人成果</strong><ul>${links.join("")}</ul>` : "任务已完成，暂未找到成果文件。请稍后刷新下载链接。";
+        // Worker completion can precede the outbox publishing artifact rows.
+        // Never cache an empty list as the final result.
+        artifactHtml = links.length ? `<strong>个人成果</strong><ul>${links.join("")}</ul>` : null;
+        if (links.length) cancelArtifactRetry();
+        else if (artifactRetryCount < 6 && artifactRetryTimer === null) {
+          artifactRetryCount++;
+          artifactRetryTimer = schedule(() => {
+            artifactRetryTimer = null;
+            if (isCurrent()) return loadArtifactLinks();
+          }, Math.min(10000, artifactRetryCount * 2000));
+          artifactRetryTimer?.unref?.();
+        }
       } catch (_) {
         if (!isCurrent()) return;
         if (artifactHtml === null) artifactHtml = "成果链接暂时不可用，请点击刷新下载链接重试。";
@@ -199,7 +218,9 @@
       }
       if (isCurrent()) {
         const currentSlot = container.querySelector("[data-artifact-list]");
-        if (currentSlot) currentSlot.innerHTML = artifactHtml;
+        if (currentSlot) currentSlot.innerHTML = artifactHtml ?? (artifactRetryCount < 6
+          ? "计算已完成，成果正在同步，将自动刷新…"
+          : "成果同步时间较长，请点击刷新下载链接重试。");
       }
       })();
       artifactRequest = request;
@@ -223,6 +244,8 @@
       const previous = run;
       if (previous?.id === next.id && ["completed", "failed", "canceled"].includes(previous.status) && isActiveRun(next)) return;
       if (previous?.id !== next.id) {
+        cancelArtifactRetry();
+        artifactRetryCount = 0;
         artifactRevision++;
         artifactRequest = null;
         artifactHtml = null;
@@ -370,6 +393,7 @@
       },
       destroy() {
         destroyed = true;
+        cancelArtifactRetry();
         artifactRevision++;
         stopSubscription();
         container.removeEventListener("click", click);

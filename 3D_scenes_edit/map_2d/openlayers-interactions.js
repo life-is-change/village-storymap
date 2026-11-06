@@ -58,7 +58,9 @@
       if (tool === "move") {
         const translate = add(new ol.interaction.Translate({ features: select.getFeatures() }));
         translate.on("translateend", () => {
-          for (const feature of selectedObjectFeatures(select.getFeatures())) onGeometryChange(value(feature, "sceneObjectId"), geometryObject(feature));
+          const items=selectedObjectFeatures(select.getFeatures()).map(feature=>({id:value(feature,'sceneObjectId'),geometry:geometryObject(feature)}));
+          if(options.onTranslate)options.onTranslate(items);
+          else for(const item of items)onGeometryChange(item.id,item.geometry);
         });
       } else if (tool === "edit-nodes") {
         const modify = add(new ol.interaction.Modify({ features: select.getFeatures() }));

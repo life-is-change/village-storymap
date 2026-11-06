@@ -5,7 +5,7 @@ CREATE FUNCTION public.current_profile_role() RETURNS text LANGUAGE sql STABLE S
 CREATE FUNCTION public.current_profile_student_key() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$ SELECT student_id||'::'||display_name FROM profiles WHERE id=auth.uid() $$;
 CREATE TABLE public.courses(id text primary key,title text,village_id text);
 CREATE TABLE public.group_memberships(group_id text,student_key text);
-CREATE TABLE public.planning_spaces(id text primary key,title text,course_id text,group_id text,space_type text,teaching_project_id uuid,village_id uuid);
+CREATE TABLE public.planning_spaces(id text primary key,owner_id uuid,title text,course_id text,group_id text,space_type text,teaching_project_id uuid,village_id uuid);
 CREATE TABLE public.course_personal_spaces(id uuid primary key,title text,owner_id uuid,course_id text,village_id uuid,space_type text);
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;

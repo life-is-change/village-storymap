@@ -107,10 +107,11 @@
       if (!isPath(object)) return geometry;
       return snapPathEndpoints(geometry, [...(options.baselineRoads || []), ...history.present.objects.filter(o => o.id !== object.id && isPath(o)).map(o => o.geometry)], rules);
     }
-    function checkBoundary(object, geometry) {
+    function checkBoundary(object, geometry, candidates = history.present.objects) {
+      if((object.properties?.templateId||String(object.properties?.assetRef||'').startsWith('seed:curated:'))&&geometry?.type==='Point')return checkFootprint({...object,geometry},candidates);
       const siteId = object.properties?.siteId;
       if (siteId) {
-        const site = history.present.objects.find(o => o.id === siteId && isField(o));
+        const site = candidates.find(o => o.id === siteId && isField(o));
         if (!site || !rules.containsGeometry(site.geometry, geometry)) return {code:'OUTSIDE_SITE',message:'组件超出所选场地，请移回范围内或将归属改为独立组件'};
         if (layerFor(site.layerId)?.locked) return {code:'LAYER_LOCKED',message:'所属场地图层已锁定'};
       }
@@ -149,6 +150,78 @@
       if (rules.intersectsAny(input.geometry, baselineBuildings)) onStatus({ level: "warning", code: "BASELINE_COLLISION", message: "对象与现状建筑相交" });
       render();
       return { ok: true, object };
+    }
+
+    function checkFootprint(object, candidates) {
+      if(object.geometry?.type!=='Point')return checkBoundary(object,object.geometry,candidates);
+      const p=object.geometry.coordinates, size=object.properties?.footprintM||[1,1],scale=object.transform?.scale||[1,1,1];
+      const angle=-(object.transform?.headingDeg||0)*Math.PI/180;
+      const ring=[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]].map(([u,v])=>{
+        const x=u*size[0]*scale[0]/2,y=v*size[1]*scale[1]/2;
+        return rules.fromLocalMeters([x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle)],p);
+      });
+      return checkBoundary(object,{type:'Polygon',coordinates:[ring]},candidates);
+    }
+
+    function createMarketComponent(template, coordinate, catalog) {
+      const [width,depth]=template.footprintM||[14,10],groupId=groupIdFactory();
+      const field={id:idFactory(),kind:'surface',category:'activity-field',geometry:{type:'Polygon',coordinates:[[[-width/2,-depth/2],[width/2,-depth/2],[width/2,depth/2],[-width/2,depth/2],[-width/2,-depth/2]].map(p=>rules.fromLocalMeters(p,coordinate))]},properties:{displayName:template.label,siteId:placementSiteId||null,templateId:template.id},layerId:'design',groupId:null,zIndex:history.present.objects.length};
+      const error=checkBoundary(field,field.geometry);if(error)return reject(error.code,error.message);
+      if(rules.intersectsAny(field.geometry,baselineBuildings))return reject('BASELINE_COLLISION','早市场地与现状建筑相交，请调整位置');
+      const preset=MarketPreset.createMarketPreset({field,idPrefix:idFactory(),assets:catalog});
+      if(!preset.ok)return reject('INVALID_MARKET',preset.errors.join('；'));
+      preset.command.objects[0].properties.siteId=placementSiteId||null;
+      for(const object of preset.command.objects)object.properties.templateId=template.id;
+      const ids=preset.command.objects.map(o=>o.id);
+      apply({type:'batch',commands:[{type:'addObject',object:field},preset.command,{type:'groupObjects',ids,group:{id:groupId,name:template.label,templateId:template.id}}]});
+      selectedIds=ids;render();return {ok:true,groupId,objects:history.present.objects.filter(o=>ids.includes(o.id))};
+    }
+
+    function createComponent(template,coordinate,catalog) {
+      if(template?.kind!=='group'||!template.children?.length)return reject('INVALID_COMPONENT','组合模板无效');
+      if(layerFor('design')?.locked)return reject('LAYER_LOCKED','图层已锁定');
+      if(template.metadata?.preset==='morning-market')return createMarketComponent(template,coordinate,catalog);
+      const byId=new Map((catalog||[]).map(a=>[a.id,a])),groupId=groupIdFactory(),objects=[];
+      const site=history.present.objects.find(o=>o.id===placementSiteId&&isField(o));
+      for(const child of template.children){
+        const asset=byId.get(child.assetRef);
+        if(!asset||!['asset','structure'].includes(asset.kind))return reject('MISSING_COMPONENT_ASSET','组合中有缺失素材，请刷新后重试');
+        const scale=Number(child.scale)||1;
+        const properties={assetRef:asset.id,displayName:asset.label,footprintM:asset.footprintM,heightM:asset.defaultHeightM,
+          siteId:placementSiteId||null,templateId:template.id};
+        if(asset.category==='stall')Object.assign(properties,{produceKind:'vegetables',...(site?.properties?.marketId===site?.id&&site?{marketId:site.id,marketRole:'stall',sceneRole:'site-component'}:{})});
+        const object={id:idFactory(),kind:asset.kind,category:asset.category,geometry:{type:'Point',coordinates:rules.fromLocalMeters(child.offsetM,coordinate)},
+          properties,layerId:'design',groupId,zIndex:history.present.objects.length+objects.length,
+          transform:{...defaultTransform(),headingDeg:child.headingDeg||0,heightOffsetM:child.heightOffsetM||0,scale:[scale,scale,scale]}};
+        const validation=SceneDocument.validateObject(object);if(!validation.ok)return reject('INVALID_COMPONENT',validation.errors.join('; '));
+        const error=checkFootprint(object);if(error)return reject(error.code,error.message);
+        objects.push(object);
+      }
+      apply({type:'addComponent',objects,group:{id:groupId,name:template.label,templateId:template.id,objectIds:objects.map(o=>o.id)}});
+      selectedIds=objects.map(o=>o.id);render();
+      return {ok:true,groupId,objects};
+    }
+
+    function selectGroup(id) {
+      const group=history.present.groups.find(g=>g.id===id);
+      return select(group?.objectIds||[]);
+    }
+
+    function mapObjectCoordinates(object,mapper) {
+      const map=value=>typeof value[0]==='number'?mapper(value):value.map(map);
+      return {...object,geometry:{...object.geometry,coordinates:map(object.geometry.coordinates)},properties:{...object.properties,
+        ...(object.properties?.marketGate?{marketGate:mapper(object.properties.marketGate)}:{})}};
+    }
+
+    function transformPoints(objects,mapper) {
+      const commands=[],updates=objects.map(mapper),candidates=history.present.objects.map(o=>updates.find(u=>u.id===o.id)||o);
+      for(const object of objects){
+        if(layerFor(object.layerId)?.locked)return reject('LAYER_LOCKED','组合内有锁定对象');
+        const updated=updates.find(o=>o.id===object.id),error=checkFootprint(updated,candidates);
+        if(error)return reject(error.code,error.message);
+        commands.push({type:'updateObject',id:object.id,patch:{geometry:updated.geometry,...(updated.transform?{transform:updated.transform}:{}),properties:updated.properties}});
+      }
+      apply({type:'batch',commands});return {ok:true};
     }
 
     function select(ids, selectOptions) {
@@ -191,7 +264,7 @@
       }
       for (const id of editable) {
         const object=history.present.objects.find(o=>o.id===id);
-        const updated={...object,...patch,properties:{...object.properties,...patch.properties}};
+        const updated={...object,...patch,properties:{...object.properties,...patch.properties},transform:{...object.transform,...patch.transform}};
         const error=checkBoundary(updated,updated.geometry);
         if(error)return reject(error.code,error.message,id);
       }
@@ -205,9 +278,15 @@
       const first = history.present.objects.find((object) => selectedIds.includes(object.id));
       const origin = first?.geometry?.type === "Point" ? first.geometry.coordinates : [114, 30];
       const shifted = rules.fromLocalMeters([1, 1], origin);
-      const command = { type: "duplicateObjects", ids: selectedIds, idMap, coordinateOffset: [shifted[0] - origin[0], shifted[1] - origin[1]] };
-      for (const object of Commands.execute(history, command).present.objects.filter(object => Object.values(idMap).includes(object.id))) {
-        const error = checkBoundary(object, object.geometry);
+      const groupMap=Object.fromEntries(history.present.groups.filter(g=>g.objectIds.every(id=>selectedIds.includes(id))).map(g=>[g.id,groupIdFactory()]));
+      const offset=[shifted[0]-origin[0],shifted[1]-origin[1]];
+      const duplicate = { type: "duplicateObjects", ids: selectedIds, idMap, groupMap, coordinateOffset: offset };
+      const fixes=history.present.objects.filter(o=>selectedIds.includes(o.id)).map(o=>({type:'updateObject',id:idMap[o.id],patch:{properties:{...o.properties,
+        ...(idMap[o.properties?.siteId]?{siteId:idMap[o.properties.siteId]}:{}),...(idMap[o.properties?.marketId]?{marketId:idMap[o.properties.marketId]}:{}),
+        ...(o.properties?.marketGate?{marketGate:o.properties.marketGate.map((n,k)=>n+(offset[k]||0))}:{})}}}));
+      const command={type:'batch',commands:[duplicate,...fixes]},candidate=Commands.execute(history,command).present;
+      for (const object of candidate.objects.filter(object => Object.values(idMap).includes(object.id))) {
+        const error = object.properties?.templateId ? checkFootprint(object,candidate.objects) : checkBoundary(object, object.geometry,candidate.objects);
         if (error) return reject(error.code, error.message);
       }
       apply(command);
@@ -221,6 +300,11 @@
         return reject("OBJECT_NOT_MOVABLE", "三维视图只能水平移动点状组件", id);
       }
       if (layerFor(object.layerId)?.locked) return reject("LAYER_LOCKED", "图层已锁定", id);
+      const group=history.present.groups.find(g=>g.id===object.groupId&&g.objectIds.every(key=>selectedIds.includes(key)));
+      if(group&&selectedIds.includes(id)){
+        const delta=rules.toLocalMeters(coordinate,object.geometry.coordinates);
+        return transformPoints(history.present.objects.filter(o=>group.objectIds.includes(o.id)),o=>mapObjectCoordinates(o,p=>rules.fromLocalMeters(delta,p)));
+      }
       const geometry = { type: "Point", coordinates: coordinate.slice(0, 2).map(Number) };
       const boundaryError = checkBoundary(object, geometry);
       if (boundaryError) return reject(boundaryError.code, boundaryError.message, id);
@@ -230,6 +314,14 @@
     }
 
     function rotateSelection(degrees) {
+      const objects=history.present.objects.filter(o=>selectedIds.includes(o.id));
+      const completeGroup=history.present.groups.some(g=>g.objectIds.length===objects.length&&g.objectIds.every(id=>selectedIds.includes(id)));
+      if(objects.length>1&&(objects.every(o=>o.geometry?.type==='Point')||completeGroup)&&Number.isFinite(Number(degrees))){
+        const points=objects.flatMap(o=>o.geometry.type==='Point'?[o.geometry.coordinates]:o.geometry.type==='Polygon'?o.geometry.coordinates[0].slice(0,-1):o.geometry.coordinates);
+        const center=[0,1].map(k=>points.reduce((sum,p)=>sum+p[k],0)/points.length),angle=-Number(degrees)*Math.PI/180;
+        return transformPoints(objects,o=>{const updated=mapObjectCoordinates(o,p=>{const [x,y]=rules.toLocalMeters(p,center);return rules.fromLocalMeters([x*Math.cos(angle)-y*Math.sin(angle),x*Math.sin(angle)+y*Math.cos(angle)],center);});
+          if(o.transform)updated.transform={...o.transform,headingDeg:(o.transform.headingDeg||0)+Number(degrees)};return updated;});
+      }
       if (selectedIds.length !== 1) return reject('ONE_GEOMETRY_REQUIRED','请逐个旋转范围或道路');
       const id=selectedIds[0],object=history.present.objects.find(o=>o.id===id);
       const geometry=id==='selection-boundary'?history.present.selectionBoundary:object?.geometry;
@@ -264,6 +356,8 @@
       },
       setTool(nextTool) { if (!TOOLS.includes(nextTool)) throw new Error(`Unknown tool: ${nextTool}`); tool = nextTool; render(); },
       createObject,
+      createComponent,
+      selectGroup,
       placeMorningMarket(assets, options={}) {
         const field = selectedIds.length === 1 && history.present.objects.find(o => o.id === selectedIds[0]);
         if (!field || !isField(field)) return reject('MARKET_FIELD_REQUIRED', '请先选择一个活动场地，再布置早市');
@@ -274,7 +368,14 @@
         if (history.present.objects.some(o => o.id !== field.id && !(options.replace&&o.properties?.marketId===field.id&&['stall','aisle'].includes(o.properties?.marketRole)) && rules.containsGeometry(field.geometry, o.geometry))) return reject('MARKET_OCCUPIED', '场地内已有组件，请先移开后布置早市');
         const preset = MarketPreset.createMarketPreset({field:options.replace?{...field,properties:{...field.properties,marketId:undefined}}:field, idPrefix:idFactory(), assets});
         if (!preset.ok) return reject('INVALID_MARKET', preset.errors.join('；'));
-        apply({...preset.command,replace:!!options.replace});
+        const group=history.present.groups.find(g=>g.id===field.groupId);
+        if(group){
+          const replacedIds=new Set(history.present.objects.filter(o=>o.id===field.id||options.replace&&o.properties?.marketId===field.id&&['stall','aisle'].includes(o.properties?.marketRole)).map(o=>o.id));
+          preset.command.objects[0].properties.siteId=field.properties?.siteId||null;
+          for(const object of preset.command.objects)if(field.properties?.templateId)object.properties.templateId=field.properties.templateId;
+          const ids=[...group.objectIds.filter(id=>!replacedIds.has(id)),...preset.command.objects.map(o=>o.id)];
+          apply({type:'batch',commands:[{type:'ungroupObjects',groupId:group.id},{...preset.command,replace:!!options.replace},{type:'groupObjects',ids,group:{id:group.id,name:group.name,templateId:group.templateId}}]});
+        }else apply({...preset.command,replace:!!options.replace});
         onStatus({level:'info',message:'混合早市已布置：棚摊、长摊台与地摊按米排列；可逐个调整，撤销可恢复原布置'});
         return {ok:true,marketId:preset.marketId};
       },
@@ -303,8 +404,10 @@
         return { ok: true, groupId: id };
       },
       ungroupSelection() {
+        if(history.present.objects.some(o=>selectedIds.includes(o.id)&&layerFor(o.layerId)?.locked))return reject('LAYER_LOCKED','图层已锁定');
         const groups = new Set(history.present.objects.filter((object) => selectedIds.includes(object.id)).map((object) => object.groupId).filter(Boolean));
-        for (const groupId of groups) apply({ type: "ungroupObjects", groupId });
+        if(groups.size)apply({type:'batch',commands:[...groups].map(groupId=>({type:'ungroupObjects',groupId}))});
+        return {ok:true};
       },
       alignSelection(axis) { apply({ type: "alignObjects", ids: selectedIds, axis }); },
       distributeSelection(axis) { apply({ type: "distributeObjects", ids: selectedIds, axis }); },

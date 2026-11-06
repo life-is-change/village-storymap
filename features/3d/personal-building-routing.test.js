@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync('app-3d.js','utf8');
 const readShared=source.slice(source.indexOf('  async function list3DBuildingsFromDb('),source.indexOf('  async function list3DPersonalBuildings('));
 const readPersonal=source.slice(source.indexOf('  async function list3DPersonalBuildings('),source.indexOf('  async function list3DRoadsFromDb('));
-const loadBody=source.slice(source.indexOf('  async function loadBuildingsNow()'),source.indexOf('  const loadBuildings ='));
+const loadBody=source.slice(source.indexOf('  async function loadBuildingsNow('),source.indexOf('  const loadBuildings ='));
 function fixture(space,{forbidPersonal=false,resolve=false}={}){
  const calls=[];let keys=0,base;
  const ctx={viewer:{dataSources:{remove(){}}},clearAllReplacementModels(){},clearActiveEntity(){},buildingsDataSource:null,roadsDataSource:null,
