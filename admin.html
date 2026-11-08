@@ -679,7 +679,14 @@
               <div class="admin-card-header">
                 <h1>留言管理</h1>
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <select id="adminMessageSortSelect" class="community-message-sort-select" style="height:32px;">
+                  <select id="adminMessageTypeSelect" class="community-message-sort-select" aria-label="记录类型" style="height:32px;">
+                    <option value="all">全部类型</option>
+                    <option value="discussion">班级讨论</option>
+                    <option value="problem">问题标记</option>
+                    <option value="comment">要素讨论</option>
+                    <option value="interview">访谈</option>
+                  </select>
+                  <select id="adminMessageSortSelect" class="community-message-sort-select" aria-label="排序" style="height:32px;">
                     <option value="time_desc">时间晚→早</option>
                     <option value="time_asc">时间早→晚</option>
                     <option value="likes_desc">点赞多→少</option>
@@ -891,6 +898,6 @@
   <script defer src="features/data/scene-services.js"></script>
   <script defer src="features/data/platform-services.js"></script>
   <script defer src="features/community/problem-types.js?v=20261106-problem-types"></script>
-  <script defer src="admin.js?v=20261108-message-management"></script>
+  <script defer src="admin.js?v=20261108-record-types"></script>
 </body>
 </html>

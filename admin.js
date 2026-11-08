@@ -807,14 +807,29 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return (a - b) * direction;
   }
 
-  function messageTypeLabel(category) {
-    return category ? window.CommunityProblemTypes.meta(category).label : "班级讨论";
+  function messageKind(row) {
+    return row.record_kind || (row.category ? "problem" : "discussion");
   }
 
+  function messageTypeLabel(row) {
+    switch (messageKind(row)) {
+      case "comment": return "要素讨论";
+      case "interview": return "访谈";
+      case "problem": return `问题标记 · ${window.CommunityProblemTypes.meta(row.category).label}`;
+      default: return "班级讨论";
+    }
+  }
+
+  function isSurveyRecord(row) {
+    return row.record_kind === "comment" || row.record_kind === "interview";
+  }
+
+  let messageRenderVersion = 0;
   async function renderMessages() {
     const tbody = $("adminMessageTableBody");
     const countEl = $("adminMessageCount");
     if (!tbody) return;
+    const renderVersion = ++messageRenderVersion;
 
     tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">加载中...</td></tr>`;
 
@@ -822,22 +837,26 @@ const ENABLE_SUPABASE_SYNC = (() => {
     try {
       rows = await fetchAllMessages();
     } catch (error) {
+      if (renderVersion !== messageRenderVersion) return;
       console.warn("读取留言列表失败：", error);
       tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">留言加载失败，请刷新页面重试。</td></tr>';
       if (countEl) countEl.textContent = "加载失败";
       return;
     }
-    if (countEl) countEl.textContent = `共 ${rows.length} 条留言`;
+    if (renderVersion !== messageRenderVersion) return;
+    const type = $("adminMessageTypeSelect")?.value || "all";
+    if (type !== "all") rows = rows.filter(row => messageKind(row) === type);
+    if (countEl) countEl.textContent = `共 ${rows.length} 条记录`;
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">暂无留言</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">暂无符合条件的记录</td></tr>`;
       return;
     }
 
     // 获取每条留言的点赞和评论数
     const messageMeta = await Promise.all(
       rows.map(async (msg) => {
-        const [likers, replies] = await Promise.all([
+        const [likers, replies] = isSurveyRecord(msg) ? [null, null] : await Promise.all([
           readMessageInteractions(() => fetchMessageLikes(msg.id, msg)),
           readMessageInteractions(() => fetchMessageReplies(msg.id, msg))
         ]);
@@ -845,10 +864,12 @@ const ENABLE_SUPABASE_SYNC = (() => {
           msg,
           likeCount: likers?.length ?? null,
           replyCount: replies?.length ?? null,
-          createdAt: Date.parse(msg.created_at || "") || 0
+          createdAt: Date.parse(msg.interviewed_at || msg.created_at || "") || 0
         };
       })
     );
+
+    if (renderVersion !== messageRenderVersion) return;
 
     // 排序
     messageMeta.sort((a, b) => {
@@ -870,22 +891,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
     tbody.innerHTML = messageMeta.map((meta) => {
       const msg = meta.msg;
       const id = escapeHtml(String(msg.id));
-      const typeLabel = escapeHtml(messageTypeLabel(msg.category));
+      const typeLabel = escapeHtml(messageTypeLabel(msg));
       const reporter = escapeHtml(msg.reporter_name || "—");
       const likes = meta.likeCount;
       const replies = meta.replyCount;
-      const time = formatDate(msg.created_at);
+      const time = formatDate(msg.interviewed_at || msg.created_at);
+      const surveyRecord = isSurveyRecord(msg);
       return `
         <tr>
           <td class="cell-muted">${id}</td>
           <td>${typeLabel}</td>
-          <td><button type="button" class="admin-btn" data-view-message-id="${msg.id}" style="min-height:28px;padding:0 10px;font-size:12px;">查看</button></td>
+          <td><button type="button" class="admin-btn" data-view-message-id="${id}" style="min-height:28px;padding:0 10px;font-size:12px;">查看</button></td>
           <td>${reporter}</td>
-          <td>${likes ?? "不可读取"}</td>
-          <td>${replies ?? "不可读取"}</td>
+          <td>${surveyRecord ? "—" : likes ?? "不可读取"}</td>
+          <td>${surveyRecord ? "—" : replies ?? "不可读取"}</td>
           <td class="cell-muted">${time}</td>
           <td>
-            <button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-message-id="${msg.id}">删除</button>
+            ${surveyRecord ? "—" : `<button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-message-id="${id}">删除</button>`}
           </td>
         </tr>
       `;
@@ -949,6 +971,18 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return;
     }
 
+    if (isSurveyRecord(msg)) {
+      const object = [msg.village_name, msg.layer_key, msg.object_code].filter(Boolean).join(" · ");
+      body.innerHTML = `
+        <h4>${escapeHtml(messageTypeLabel(msg))}</h4>
+        <p>关联要素：${escapeHtml(object || "—")}</p>
+        <p>记录人：${escapeHtml(msg.reporter_name || "—")}</p>
+        ${msg.record_kind === "interview" ? `<p>访谈对象：${escapeHtml(msg.interviewee || "—")}</p>` : ""}
+        <p>时间：${formatDate(msg.interviewed_at || msg.created_at)}</p>
+        <div style="white-space:pre-wrap;overflow-wrap:anywhere;">${escapeHtml(msg.description || "（无内容）")}</div>`;
+      return;
+    }
+
     // 获取照片
     let photos = [];
     try {
@@ -972,7 +1006,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     });
 
     const content = escapeHtml(msg.description || "（无描述）");
-    const typeLabel = escapeHtml(messageTypeLabel(msg.category));
+    const typeLabel = escapeHtml(messageTypeLabel(msg));
     const reporter = escapeHtml(msg.reporter_name || "—");
     const time = formatDate(msg.created_at);
 
@@ -1129,6 +1163,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       });
     }
 
+    $("adminMessageTypeSelect")?.addEventListener("change", renderMessages);
     const sortSelect = $("adminMessageSortSelect");
     if (sortSelect) {
       sortSelect.value = messageBoardSortOrder;
