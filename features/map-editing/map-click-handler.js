@@ -1,6 +1,9 @@
 ﻿(function () {
   async function acquireSelectedFeatureLock(deps, feature, layerKey) {
-    const objectCode = deps.normalizeCode(feature?.get?.("sourceCode"));
+    const sourceCode = feature?.get?.("sourceCode");
+    const objectCode = deps.usesSharedSurveyGeometryWorkflow?.(layerKey)
+      ? String(sourceCode ?? "").trim()
+      : deps.normalizeCode(sourceCode);
     const result = await deps.acquireFeatureEditLock(layerKey, objectCode);
     if (result?.success) return true;
     if (result?.reason === "locked") {

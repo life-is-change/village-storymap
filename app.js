@@ -4592,6 +4592,7 @@ function buildMapClickHandlerDeps() {
     getCurrentSpaceId: () => currentSpaceId,
     getCurrentGeometryEditLayer: () => currentGeometryEditLayer,
     acquireFeatureEditLock,
+    usesSharedSurveyGeometryWorkflow,
     releaseFeatureEditLock,
     is2DMeasureActive: () => measure2DState.active,
     getActiveFeature: () => activeFeature,

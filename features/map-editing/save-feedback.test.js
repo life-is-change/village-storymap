@@ -6,6 +6,8 @@ test('a newly saved building can be deleted before its review appears in the loc
  let objectCode = 'H001';
  const persistedCode = 'B-N-abc123';
  const feature={get:key=>({layerKey:'building',sourceCode:objectCode,baseRow:{}}[key])};
+ window.MapHitPolicyModule = {pickFeatureAtPixel: () => feature};
+ vm.runInNewContext(fs.readFileSync(__dirname+'/map-click-handler.js','utf8'),{window});
  const state={mode:'idle',dirtyCodes:new Set(['building::H001']),deletedCodes:new Set(),pendingAddedFeatures:[feature],pendingDeletedFeatures:[],originalGeoms:new Map()};
  const normalizeCode = code => String(code).replace(/-/g, '').toUpperCase();
  const featureKey = (layer, code) => layer + '::' + normalizeCode(code);
@@ -21,7 +23,7 @@ test('a newly saved building can be deleted before its review appears in the loc
    assert.equal(change.objectCode, objectCode);
    if (serverReview) {
      assert.equal(change.action, 'delete');
-     assert.equal(change.lockToken, 'delete-lock');
+     assert.equal(change.lockToken, 'delete-lock:' + change.objectCode);
      assert.equal(change.expectedGeometryRevision, 1);
      serverReview = null;
    } else {
@@ -53,8 +55,21 @@ test('a newly saved building can be deleted before its review appears in the loc
  assert.equal(reviewReads, 0);
  assert.equal(locks.size, 0);
  objectCode = persistedCode;
- locks.set(featureKey('building', objectCode), {lockToken:'delete-lock'});
- state.pendingDeletedFeatures.push(feature);
+ state.mode = 'delete';
+ Object.assign(deps, {
+   getPlanMap: () => ({}),
+   getPlanVectorLayer: () => ({changed() {}}),
+   getPlanVectorSource: () => ({removeFeature() {}}),
+   getActiveFeature: () => null,
+   updateBuildingEditorToolbarState() {},
+   getCommunityTaskEditState: () => ({}),
+   getCurrentGeometryEditLayer: () => 'building',
+   acquireFeatureEditLock: async (layer, code) => {
+     locks.set(featureKey(layer, code), {lockToken:'delete-lock:' + code});
+     return {success:true};
+   }
+ });
+ await window.MapClickHandlerModule.handlePlanMapSingleClick(deps, {pixel:[0,0]});
  assert.equal((await api.saveDirtyBuildings(deps)).success,true);
  assert.equal(reviewReads, 1);
  assert.equal(serverReview, null);
