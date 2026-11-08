@@ -7798,6 +7798,11 @@ async function handlePhotoDelete(photoRecord, context) {
   }
 }
 
+function parseRoadWidthEdit(value) {
+  const text = value.trim();
+  return /^\d+(?:\.\d+)?$/.test(text) && Number.isFinite(Number(text)) && Number(text) > 0 ? text : null;
+}
+
 async function handleFieldSave(context, fieldKey, newValue) {
   if (!context?.allowEdit) {
     showToast("仅空间创建者可修改该空间要素。", "error");
@@ -7805,6 +7810,10 @@ async function handleFieldSave(context, fieldKey, newValue) {
   }
 
   const saveStatus = document.getElementById("saveStatus");
+  if (context.layerKey === "road" && fieldKey === "道路宽度" && parseRoadWidthEdit(newValue) === null) {
+    if (saveStatus) saveStatus.textContent = "请输入大于 0 的道路宽度，单位为米，例如 4.5。";
+    return false;
+  }
   if (saveStatus) saveStatus.textContent = "正在保存...";
 
   try {
@@ -7903,11 +7912,16 @@ function bindInlineEdit(context) {
       const valueEl = rowEl.querySelector(".house-value");
       if (!valueEl || rowEl.querySelector(".inline-edit-input")) return;
 
-      const currentText = valueEl.textContent;
+      const isRoadWidth = context.layerKey === "road" && fieldKey === "道路宽度";
+      const currentText = isRoadWidth ? valueEl.textContent.replace(/m$/, "") : valueEl.textContent;
       const currentValue = currentText === "—" ? "" : currentText;
 
       const input = document.createElement("input");
       input.type = "text";
+      if (isRoadWidth) {
+        input.inputMode = "decimal";
+        input.setAttribute("aria-label", "道路宽度（米）");
+      }
       input.className = "inline-edit-input";
       input.value = currentValue;
       input.style.cssText = "flex:1;padding:4px 8px;border:1px solid #1976d2;border-radius:4px;font-size:14px;outline:none;";
@@ -7919,6 +7933,8 @@ function bindInlineEdit(context) {
       input.select();
 
       const saveEdit = async () => {
+        if (!input.isConnected || input.disabled) return;
+        input.disabled = true;
         const newValue = input.value;
         if (newValue !== currentValue) {
           const success = await handleFieldSave(context, fieldKey, newValue);
@@ -8140,7 +8156,10 @@ async function showObjectInfo(baseRow, layerKey, sourceCode, options = {}) {
     }))
   ];
 
-  const detailHtml = buildEditableDetailHtml(mergedRow, layerKey, allowLayerEdit);
+  const roadWidthHint = layerKey === "road" && !allowLayerEdit
+    ? `<div class="save-status">${potentiallyEditable ? "完成上方几何校核后，可在此编辑道路宽度。" : "当前空间只读，无法编辑道路宽度。"}</div>`
+    : "";
+  const detailHtml = buildEditableDetailHtml(mergedRow, layerKey, allowLayerEdit) + roadWidthHint;
   const saveStatusHtml = options.flashSaved
     ? `<div id="saveStatus" class="save-status success-inline">保存成功。</div>`
     : `<div id="saveStatus" class="save-status"></div>`;

@@ -7,6 +7,15 @@ global.window = {};
 require("./data-service.js");
 const service = global.window.DataServiceModule;
 const communityTasks = require("../../community-tasks.js");
+const roadWidthSource = require("node:fs").readFileSync(require("node:path").resolve(__dirname, "../../app.js"), "utf8");
+
+test("road width accepts a positive number in meters", () => {
+  const start = roadWidthSource.indexOf("function parseRoadWidthEdit(");
+  const end = roadWidthSource.indexOf("\nasync function handleFieldSave(", start);
+  const parse = require("node:vm").runInNewContext(roadWidthSource.slice(start, end) + ";parseRoadWidthEdit");
+  assert.equal(parse(" 4.5 "), "4.5");
+  for (const invalid of ["", "0", "-2", "4m", "NaN", "Infinity"]) assert.equal(parse(invalid), null);
+});
 
 function context(spaceType = "formal_shared") {
   return {

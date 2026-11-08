@@ -25,6 +25,13 @@ test('drawer message actions and replies use compact styled controls', () => {
   assert.match(rule('.project-settings-drawer .community-reply-content'), /font-size:\s*12px/);
 });
 
+test('drawer problem labels use compact badges and wrap custom categories', () => {
+  const badge = rule('.project-settings-drawer .community-message-category');
+  assert.match(badge, /display:\s*inline-flex/);
+  assert.match(badge, /border-radius:\s*999px/);
+  assert.match(badge, /overflow-wrap:\s*anywhere/);
+});
+
 test('empty reply areas stay hidden until the user opens them', () => {
   assert.match(css, /\.project-settings-drawer \.community-replies\.is-empty:not\(\.is-open\)\s*\{[^}]*display:\s*none/);
   assert.match(css, /\.project-settings-drawer \.community-message-composer\s*\{/);
