@@ -740,7 +740,7 @@
             afterProps: props,
             expectedRevision: Number(baseRow.__featureRevision || feature.get("featureRevision") || 0),
             ...(deps.getFeatureEditLockToken?.(layerKey, code) ? { lockToken: deps.getFeatureEditLockToken(layerKey, code) } : {}),
-            ...deps.getSurveyGeometryEvidence?.(layerKey, code, action)
+            ...(await deps.getSurveyGeometryEvidence?.(layerKey, code, action))
           }, feature));
         }
 
@@ -759,7 +759,7 @@
               afterProps: null,
               expectedRevision: Number((feature.get("baseRow") || {}).__featureRevision || feature.get("featureRevision") || 0),
               ...(deps.getFeatureEditLockToken?.(layerKey, code) ? { lockToken: deps.getFeatureEditLockToken(layerKey, code) } : {}),
-              ...deps.getSurveyGeometryEvidence?.(layerKey, code, "delete")
+              ...(await deps.getSurveyGeometryEvidence?.(layerKey, code, "delete"))
             }, feature));
           }
         }
@@ -809,6 +809,8 @@
           }
           state.pendingDeletedFeatures = [];
           deps.showToast("有要素已上传照片，不能直接删除；可以继续编辑顶点。", "info");
+        } else if (error.code === "SURVEY_FEATURE_NOT_FOUND" || error.message === "SURVEY_FEATURE_NOT_FOUND") {
+          deps.showToast("找不到该要素的几何校核记录。请刷新空间后重试，若仍失败请联系管理员核对。", "error");
         } else deps.showToast(`${layerLabel}保存失败，请稍后重试。`, "error");
         return { success: false, reason: "save_failed", error };
       } finally {

@@ -3614,11 +3614,16 @@ function usesSharedSurveyGeometryWorkflow(layerKey) {
     && ["building", "road", "water"].includes(String(layerKey || ""));
 }
 
-function getSurveyGeometryEvidence(layerKey, objectCode, action) {
+async function getSurveyGeometryEvidence(layerKey, objectCode, action) {
   if (!usesSharedSurveyGeometryWorkflow(layerKey)) return {};
-  const lock = buildingEditState.activeFeatureLocks.get(buildDirtyFeatureKey(layerKey, objectCode));
-  const review = surveyReviewByKey.get(surveyReviewKey(layerKey, objectCode));
+  const lockKey = buildDirtyFeatureKey(layerKey, objectCode);
+  const lock = buildingEditState.activeFeatureLocks.get(lockKey);
   if (!lock?.lockToken) throw new Error("FEATURE_LOCK_REQUIRED");
+  const review = action === "add" ? null : (
+    surveyReviewByKey.get(surveyReviewKey(layerKey, objectCode))
+    || await getSurveyReviewClient().getReview(layerKey, objectCode)
+  );
+  if (buildingEditState.activeFeatureLocks.get(lockKey) !== lock) throw new Error("FEATURE_LOCK_REQUIRED");
   if (action !== "add" && !review) throw new Error("SURVEY_FEATURE_NOT_FOUND");
   return {
     expectedGeometryRevision: action === "add"
