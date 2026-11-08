@@ -233,6 +233,46 @@
       font-weight: 500;
     }
 
+    .admin-message-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .admin-message-select {
+      font: inherit;
+      font-size: 13px;
+      color: #1f3552;
+      min-height: 36px;
+      padding: 0 30px 0 12px;
+      border: 1px solid #d5e0e5;
+      border-radius: 8px;
+      background: #f7fafb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%2355687c' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .admin-message-select:hover { border-color: #8ea8a1; }
+    .admin-message-select:focus-visible { outline: 2px solid #23765c; outline-offset: 2px; }
+    .admin-message-controls .admin-count { margin-left: 4px; white-space: nowrap; }
+    .admin-message-table { min-width: 720px; font: inherit; font-size: 13px; }
+    .admin-message-table thead th,
+    .admin-message-table tbody td { padding: 11px 14px; }
+    .admin-message-table thead th { font-size: inherit; font-weight: 600; letter-spacing: 0; }
+    .admin-message-table tbody td { font-weight: 400; }
+    .admin-message-table td:not(:nth-child(2)) { white-space: nowrap; }
+    .admin-message-table td:nth-child(2) { min-width: 104px; }
+    .admin-message-table .cell-muted,
+    .admin-message-table .admin-record-number { color: #55687c; font-weight: 400; font-variant-numeric: tabular-nums; }
+    .admin-record-type { font-weight: 500; }
+    .admin-message-table .admin-btn {
+      font: inherit;
+      min-height: 30px;
+      padding: 0 10px;
+      white-space: nowrap;
+    }
+
     .admin-empty {
       padding: 48px 28px;
       text-align: center;
@@ -678,15 +718,15 @@
             <div class="admin-card">
               <div class="admin-card-header">
                 <h1>留言管理</h1>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <select id="adminMessageTypeSelect" class="community-message-sort-select" aria-label="记录类型" style="height:32px;">
+                <div class="admin-message-controls">
+                  <select id="adminMessageTypeSelect" class="admin-message-select" aria-label="记录类型">
                     <option value="all">全部类型</option>
                     <option value="discussion">班级讨论</option>
                     <option value="problem">问题标记</option>
                     <option value="comment">要素讨论</option>
                     <option value="interview">访谈</option>
                   </select>
-                  <select id="adminMessageSortSelect" class="community-message-sort-select" aria-label="排序" style="height:32px;">
+                  <select id="adminMessageSortSelect" class="admin-message-select" aria-label="排序">
                     <option value="time_desc">时间晚→早</option>
                     <option value="time_asc">时间早→晚</option>
                     <option value="likes_desc">点赞多→少</option>
@@ -694,14 +734,14 @@
                     <option value="replies_desc">评论多→少</option>
                     <option value="replies_asc">评论少→多</option>
                   </select>
-                  <span id="adminMessageCount" class="admin-count">共 0 条留言</span>
+                  <span id="adminMessageCount" class="admin-count">共 0 条记录</span>
                 </div>
               </div>
               <div class="admin-table-wrap">
-                <table class="admin-table">
+                <table class="admin-table admin-message-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
+                      <th>编号</th>
                       <th>类型</th>
                       <th>详情</th>
                       <th>上报人</th>
@@ -898,6 +938,6 @@
   <script defer src="features/data/scene-services.js"></script>
   <script defer src="features/data/platform-services.js"></script>
   <script defer src="features/community/problem-types.js?v=20261106-problem-types"></script>
-  <script defer src="admin.js?v=20261108-record-types"></script>
+  <script defer src="admin.js?v=20261108-record-layout"></script>
 </body>
 </html>

@@ -824,6 +824,20 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return row.record_kind === "comment" || row.record_kind === "interview";
   }
 
+  function messageDisplayNumbers(rows) {
+    const totals = new Map();
+    const ordered = [...rows].sort((a, b) =>
+      (Date.parse(a.created_at) || 0) - (Date.parse(b.created_at) || 0)
+      || String(a.id).localeCompare(String(b.id), "en", { numeric: true })
+    );
+    return new Map(ordered.map(row => {
+      const kind = messageKind(row);
+      const number = (totals.get(kind) || 0) + 1;
+      totals.set(kind, number);
+      return [row.id, `${kind} ${String(number).padStart(2, "0")}`];
+    }));
+  }
+
   let messageRenderVersion = 0;
   async function renderMessages() {
     const tbody = $("adminMessageTableBody");
@@ -844,6 +858,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
       return;
     }
     if (renderVersion !== messageRenderVersion) return;
+    const displayNumbers = messageDisplayNumbers(rows);
     const type = $("adminMessageTypeSelect")?.value || "all";
     if (type !== "all") rows = rows.filter(row => messageKind(row) === type);
     if (countEl) countEl.textContent = `共 ${rows.length} 条记录`;
@@ -899,9 +914,9 @@ const ENABLE_SUPABASE_SYNC = (() => {
       const surveyRecord = isSurveyRecord(msg);
       return `
         <tr>
-          <td class="cell-muted">${id}</td>
-          <td>${typeLabel}</td>
-          <td><button type="button" class="admin-btn" data-view-message-id="${id}" style="min-height:28px;padding:0 10px;font-size:12px;">查看</button></td>
+          <td class="admin-record-number">${escapeHtml(displayNumbers.get(msg.id))}</td>
+          <td><span class="admin-record-type">${typeLabel}</span></td>
+          <td><button type="button" class="admin-btn" data-view-message-id="${id}">查看</button></td>
           <td>${reporter}</td>
           <td>${surveyRecord ? "—" : likes ?? "不可读取"}</td>
           <td>${surveyRecord ? "—" : replies ?? "不可读取"}</td>
