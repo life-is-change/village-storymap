@@ -759,8 +759,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return data || [];
   }
 
-  async function fetchMessageLikes(messageId) {
-    if(services.community)return services.community.execute('community.listLikes',{...messageContext(await localMessage(messageId)),id:Number(messageId)});
+  async function fetchMessageLikes(messageId, row) {
+    if(services.community)return services.community.execute('community.listLikes',{...messageContext(row),id:Number(messageId)});
     if (!supabaseClient || !messageId) return [];
     const { data, error } = await supabaseClient
       .from(OBJECT_EDITS_TABLE)
@@ -775,8 +775,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return Array.isArray(data?.data?.likers) ? data.data.likers : [];
   }
 
-  async function fetchMessageReplies(messageId) {
-    if(services.community)return services.community.execute('community.listReplies',{...messageContext(await localMessage(messageId)),id:Number(messageId)});
+  async function fetchMessageReplies(messageId, row) {
+    if(services.community)return services.community.execute('community.listReplies',{...messageContext(row),id:Number(messageId)});
     if (!supabaseClient || !messageId) return [];
     const { data, error } = await supabaseClient
       .from(OBJECT_EDITS_TABLE)
@@ -791,14 +791,42 @@ const ENABLE_SUPABASE_SYNC = (() => {
     return Array.isArray(data?.data?.replies) ? data.data.replies : [];
   }
 
+  async function readMessageInteractions(read) {
+    try {
+      return await read();
+    } catch (error) {
+      console.warn("读取留言互动失败：", error);
+      return null;
+    }
+  }
+
+  function compareMessageCounts(a, b, direction) {
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
+    return (a - b) * direction;
+  }
+
+  function messageTypeLabel(category) {
+    return category ? window.CommunityProblemTypes.meta(category).label : "班级讨论";
+  }
+
   async function renderMessages() {
     const tbody = $("adminMessageTableBody");
     const countEl = $("adminMessageCount");
     if (!tbody) return;
 
-    tbody.innerHTML = `<tr><td colspan="9" class="admin-empty">加载中...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="admin-empty">加载中...</td></tr>`;
 
-    const rows = await fetchAllMessages();
+    let rows;
+    try {
+      rows = await fetchAllMessages();
+    } catch (error) {
+      console.warn("读取留言列表失败：", error);
+      tbody.innerHTML = '<tr><td colspan="8" class="admin-empty">留言加载失败，请刷新页面重试。</td></tr>';
+      if (countEl) countEl.textContent = "加载失败";
+      return;
+    }
     if (countEl) countEl.textContent = `共 ${rows.length} 条留言`;
 
     if (rows.length === 0) {
@@ -809,12 +837,14 @@ const ENABLE_SUPABASE_SYNC = (() => {
     // 获取每条留言的点赞和评论数
     const messageMeta = await Promise.all(
       rows.map(async (msg) => {
-        const likers = await fetchMessageLikes(msg.id);
-        const replies = await fetchMessageReplies(msg.id);
+        const [likers, replies] = await Promise.all([
+          readMessageInteractions(() => fetchMessageLikes(msg.id, msg)),
+          readMessageInteractions(() => fetchMessageReplies(msg.id, msg))
+        ]);
         return {
           msg,
-          likeCount: likers.length,
-          replyCount: replies.length,
+          likeCount: likers?.length ?? null,
+          replyCount: replies?.length ?? null,
           createdAt: Date.parse(msg.created_at || "") || 0
         };
       })
@@ -826,33 +856,21 @@ const ENABLE_SUPABASE_SYNC = (() => {
         case "time_desc": return b.createdAt - a.createdAt;
         case "time_asc": return a.createdAt - b.createdAt;
         case "likes_desc":
-          if (a.likeCount !== b.likeCount) return b.likeCount - a.likeCount;
-          return b.createdAt - a.createdAt;
+          return compareMessageCounts(a.likeCount, b.likeCount, -1) || b.createdAt - a.createdAt;
         case "likes_asc":
-          if (a.likeCount !== b.likeCount) return a.likeCount - b.likeCount;
-          return b.createdAt - a.createdAt;
+          return compareMessageCounts(a.likeCount, b.likeCount, 1) || b.createdAt - a.createdAt;
         case "replies_desc":
-          if (a.replyCount !== b.replyCount) return b.replyCount - a.replyCount;
-          return b.createdAt - a.createdAt;
+          return compareMessageCounts(a.replyCount, b.replyCount, -1) || b.createdAt - a.createdAt;
         case "replies_asc":
-          if (a.replyCount !== b.replyCount) return a.replyCount - b.replyCount;
-          return b.createdAt - a.createdAt;
+          return compareMessageCounts(a.replyCount, b.replyCount, 1) || b.createdAt - a.createdAt;
         default: return b.createdAt - a.createdAt;
       }
     });
 
-    const typeMeta = {
-      garbage: { label: "垃圾堆积" },
-      road_damage: { label: "道路破损" },
-      drainage_issue: { label: "排水问题" },
-      safety_hazard: { label: "安全隐患" },
-      public_space_need: { label: "公共空间需求" }
-    };
-
     tbody.innerHTML = messageMeta.map((meta) => {
       const msg = meta.msg;
       const id = escapeHtml(String(msg.id));
-      const typeLabel = escapeHtml(typeMeta[msg.category]?.label || msg.category || "—");
+      const typeLabel = escapeHtml(messageTypeLabel(msg.category));
       const reporter = escapeHtml(msg.reporter_name || "—");
       const likes = meta.likeCount;
       const replies = meta.replyCount;
@@ -863,8 +881,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
           <td>${typeLabel}</td>
           <td><button type="button" class="admin-btn" data-view-message-id="${msg.id}" style="min-height:28px;padding:0 10px;font-size:12px;">查看</button></td>
           <td>${reporter}</td>
-          <td>${likes}</td>
-          <td>${replies}</td>
+          <td>${likes ?? "不可读取"}</td>
+          <td>${replies ?? "不可读取"}</td>
           <td class="cell-muted">${time}</td>
           <td>
             <button type="button" class="admin-btn admin-btn-danger admin-delete-btn" data-delete-message-id="${msg.id}">删除</button>
@@ -945,7 +963,8 @@ const ENABLE_SUPABASE_SYNC = (() => {
     }
 
     // 获取追评
-    const replies = await fetchMessageReplies(messageId);
+    const replyRows = await readMessageInteractions(() => fetchMessageReplies(messageId, msg));
+    const replies = replyRows || [];
     replies.sort((a, b) => {
       const ta = Date.parse(a.created_at || "") || 0;
       const tb = Date.parse(b.created_at || "") || 0;
@@ -953,14 +972,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
     });
 
     const content = escapeHtml(msg.description || "（无描述）");
-    const typeMeta = {
-      garbage: { label: "垃圾堆积" },
-      road_damage: { label: "道路破损" },
-      drainage_issue: { label: "排水问题" },
-      safety_hazard: { label: "安全隐患" },
-      public_space_need: { label: "公共空间需求" }
-    };
-    const typeLabel = escapeHtml(typeMeta[msg.category]?.label || msg.category || "—");
+    const typeLabel = escapeHtml(messageTypeLabel(msg.category));
     const reporter = escapeHtml(msg.reporter_name || "—");
     const time = formatDate(msg.created_at);
 
@@ -1010,7 +1022,7 @@ const ENABLE_SUPABASE_SYNC = (() => {
             </div>
           `).join("")}
         </div>`
-      : '<div style="padding:16px;border-radius:12px;background:rgba(31,53,82,0.04);color:#5f7385;text-align:center;font-size:14px;">暂无追评</div>';
+      : `<div class="admin-empty">${replyRows === null ? "追评暂不可读取" : "暂无追评"}</div>`;
 
     body.innerHTML = `
       <div style="margin-bottom:12px;">
@@ -1090,7 +1102,11 @@ const ENABLE_SUPABASE_SYNC = (() => {
     tbody.addEventListener("click", (event) => {
       const viewBtn = event.target.closest("[data-view-message-id]");
       if (viewBtn) {
-        showMessageDetailModal(viewBtn.dataset.viewMessageId);
+        showMessageDetailModal(viewBtn.dataset.viewMessageId).catch((error) => {
+          console.warn("读取留言详情失败：", error);
+          const body = $("adminMessageDetailBody");
+          if (body) body.textContent = "留言详情加载失败，请关闭后重试。";
+        });
         return;
       }
       const deleteBtn = event.target.closest("[data-delete-message-id]");
