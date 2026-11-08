@@ -3,19 +3,22 @@ test('a newly saved building can be deleted before its review appears in the loc
  const window={PersonalEditVersionModule:{withFeatureVersion:x=>x}};
  vm.runInNewContext(fs.readFileSync(__dirname+'/geometry-editor.js','utf8'),{window,console});
  const api=window.GeometryEditorModule, snapshots=[];
- const feature={get:key=>({layerKey:'building',sourceCode:'b',baseRow:{}}[key])};
- const state={mode:'idle',dirtyCodes:new Set(['building::b']),deletedCodes:new Set(),pendingAddedFeatures:[feature],pendingDeletedFeatures:[],originalGeoms:new Map()};
- const featureKey = (layer, code) => layer + '::' + code;
- const locks = new Map([['building::b', {lockToken:'add-lock'}]]);
+ let objectCode = 'H001';
+ const persistedCode = 'B-N-abc123';
+ const feature={get:key=>({layerKey:'building',sourceCode:objectCode,baseRow:{}}[key])};
+ const state={mode:'idle',dirtyCodes:new Set(['building::H001']),deletedCodes:new Set(),pendingAddedFeatures:[feature],pendingDeletedFeatures:[],originalGeoms:new Map()};
+ const normalizeCode = code => String(code).replace(/-/g, '').toUpperCase();
+ const featureKey = (layer, code) => layer + '::' + normalizeCode(code);
+ const locks = new Map([[featureKey('building', objectCode), {lockToken:'add-lock'}]]);
  let serverReview = null;
  let reviewReads = 0;
  api.getFeaturesOnMapByLayer=()=>state.pendingAddedFeatures;
  api.clearBuildingInteractions=()=>api.updateBuildingEditorToolbarState();
  api.updateBuildingEditorToolbarState=()=>snapshots.push([state.pendingDeletedFeatures.length,!!state.isSaving]);
- const deps={getBuildingEditState:()=>state,isEditableSpace:()=>true,isEditableGeometryLayer:()=>true,getLayerLabel:()=>'',getCurrent2DBuildingSpaceId:()=> 's',getLayerCodeField:()=> 'id',getLayerNameField:()=> 'name',normalizeCode:String,buildDirtyFeatureKey:featureKey,olFeatureToDbGeometry:()=>({}),cloneJson:x=>({...x}),summarizeFeatureChanges:()=>({text:'保存'}),requestFeatureSaveNote:async()=>'',saveFeatureEditBatch:async({changes})=>{
+ const deps={getBuildingEditState:()=>state,isEditableSpace:()=>true,isEditableGeometryLayer:()=>true,usesSharedSurveyGeometryWorkflow:()=>true,getLayerLabel:()=>'',getCurrent2DBuildingSpaceId:()=> 's',getLayerCodeField:()=> 'id',getLayerNameField:()=> 'name',normalizeCode,buildDirtyFeatureKey:featureKey,olFeatureToDbGeometry:()=>({}),cloneJson:x=>({...x}),summarizeFeatureChanges:()=>({text:'保存'}),requestFeatureSaveNote:async()=>'',saveFeatureEditBatch:async({changes})=>{
    const [change] = changes;
    assert.equal(changes.length, 1);
-   assert.equal(change.objectCode, 'b');
+   assert.equal(change.objectCode, objectCode);
    if (serverReview) {
      assert.equal(change.action, 'delete');
      assert.equal(change.lockToken, 'delete-lock');
@@ -40,9 +43,8 @@ test('a newly saved building can be deleted before its review appears in the loc
      surveyReviewByKey: new Map(),
      getSurveyReviewClient: () => ({getReview: async (layer, code) => {
        assert.equal(layer, 'building');
-       assert.equal(code, 'b');
        reviewReads += 1;
-       return serverReview;
+       return code === persistedCode ? serverReview : null;
      }}),
      window: {SurveyReviewModelModule:{normalizeReviewRow: row => row}}
    }
@@ -50,7 +52,8 @@ test('a newly saved building can be deleted before its review appears in the loc
  assert.equal((await api.saveDirtyBuildings(deps)).success,true);
  assert.equal(reviewReads, 0);
  assert.equal(locks.size, 0);
- locks.set('building::b', {lockToken:'delete-lock'});
+ objectCode = persistedCode;
+ locks.set(featureKey('building', objectCode), {lockToken:'delete-lock'});
  state.pendingDeletedFeatures.push(feature);
  assert.equal((await api.saveDirtyBuildings(deps)).success,true);
  assert.equal(reviewReads, 1);

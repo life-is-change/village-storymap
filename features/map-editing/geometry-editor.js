@@ -698,9 +698,15 @@
         const codeField = deps.getLayerCodeField(layerKey);
         const nameField = deps.getLayerNameField(layerKey);
         const addedFeatures = new Set(state.pendingAddedFeatures || []);
+        const sharedSurvey = deps.usesSharedSurveyGeometryWorkflow?.(layerKey);
+        // The shared survey API keys reviews and locks by the original object code.
+        const getObjectCode = (feature) => {
+          const sourceCode = feature.get("sourceCode");
+          return sharedSurvey ? String(sourceCode ?? "").trim() : deps.normalizeCode(sourceCode);
+        };
         const changes = [];
         for (const feature of targetFeatures) {
-          const code = deps.normalizeCode(feature.get("sourceCode"));
+          const code = getObjectCode(feature);
           const baseRow = feature.get("baseRow") || {};
           const props = deps.cloneJson(baseRow || {});
           const geom = deps.olFeatureToDbGeometry(feature);
@@ -746,7 +752,7 @@
 
         for (const feature of (state.pendingDeletedFeatures || [])) {
           if (feature.get("layerKey") !== layerKey) continue;
-          const code = deps.normalizeCode(feature.get("sourceCode"));
+          const code = getObjectCode(feature);
           if (code) {
             changes.push(window.PersonalEditVersionModule.withFeatureVersion({
               action: "delete",
