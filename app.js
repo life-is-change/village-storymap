@@ -5634,7 +5634,7 @@ async function submitCommunityMessage({ category, description, photoFile, lng, l
 
     if (category) {
       try {
-        const OL = await getOlReady();
+        const OL = await (olReady || window.__olReady);
         const format = new OL.GeoJSON();
         // 如果 Supabase 返回的数据缺少坐标字段，用传入的参数补充
         const safeLng = Number(lng);
@@ -5919,6 +5919,8 @@ async function refreshCommunityTasksOnMapAsync() {
 }
 
 async function refreshCommunityMessageBoard() {
+  const boardSpaceId = currentSpaceId;
+  const boardVillageContext = activeVillageContext;
   let listEl = document.getElementById("communityMessageList");
   let boardEl = document.getElementById("communityMessageBoard");
 
@@ -6170,21 +6172,30 @@ async function refreshCommunityMessageBoard() {
     });
 
     listEl.querySelectorAll("[data-msg-locate]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const msgId = Number(btn.dataset.msgLocate);
-        if (!planVectorSource || !planMap) return;
-        const feature = planVectorSource.getFeatures().find((f) => f.get("sourceCode") === `TASK_${msgId}`);
-        if (!feature) {
-          showToast("未找到该留言的地图标记", "error");
-          return;
-        }
-        doSetActiveFeature(feature);
-        planVectorLayer?.changed();
-        const geom = feature.getGeometry();
-        if (geom) {
-          const coordinate = geom.getCoordinates();
-          planMap.getView().setCenter(coordinate);
+      btn.addEventListener("click", async () => {
+        const message = messages.find((row) => String(row.id) === btn.dataset.msgLocate);
+        const isCurrent = () => boardSpaceId === currentSpaceId && boardVillageContext === activeVillageContext;
+        if (!message || !isCurrent()) return;
+        try {
+          if (!plan2dView?.classList.contains("active")) await switchTo2DView();
+          const OL = await (olReady || window.__olReady);
+          if (!isCurrent()) return;
+          if (!planMap || !planVectorSource || !OL) throw new Error("2D 地图尚未就绪");
+          const feature = planVectorSource.getFeatures().find((f) => f.get("sourceCode") === `TASK_${message.id}`)
+            || addCommunityTaskFeatureToMap(message, new OL.GeoJSON());
+          if (!feature) throw new Error("该留言没有可用的地图坐标");
+          const category = window.CommunityProblemTypes.filterKey(message.category);
+          if (category && !communityTaskVisibleCategories.has(category)) {
+            communityTaskVisibleCategories.add(category);
+            syncCommunityTaskUiState();
+            saveAppState();
+          }
+          doSetActiveFeature(feature);
+          planVectorLayer?.changed();
+          planMap.getView().setCenter(feature.getGeometry().getCoordinates());
           planMap.getView().setZoom(19);
+        } catch (error) {
+          if (isCurrent()) showToast(error?.message || "无法定位该留言", "error");
         }
       });
     });
