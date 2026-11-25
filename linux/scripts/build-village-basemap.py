@@ -18,7 +18,7 @@ HALF_WORLD = math.pi * 6378137
 TILE = 256
 
 
-def build(source, output, minimum, maximum):
+def build(source, output, minimum, maximum, nodata=0):
     with rasterio.open(source) as image:
         if image.crs != rasterio.crs.CRS.from_epsg(3857) or image.count != 3 or image.dtypes[0] != "uint8":
             raise ValueError("Expected a three-band RGB Byte raster in EPSG:3857")
@@ -33,9 +33,10 @@ def build(source, output, minimum, maximum):
             bottom = math.ceil((HALF_WORLD - image.bounds.bottom) / span)
             transform = from_origin(-HALF_WORLD + left * span, HALF_WORLD - top * span,
                                     span / TILE, span / TILE)
-            # The downloader fills pixels outside its selection with RGB black.
+            # Mask a pixel only when all three channels match the fill value.
             with WarpedVRT(image, transform=transform, width=(right - left) * TILE,
-                           height=(bottom - top) * TILE, add_alpha=True, src_nodata=0,
+                           height=(bottom - top) * TILE, add_alpha=True, src_nodata=nodata,
+                           UNIFIED_SRC_NODATA="YES",
                            resampling=Resampling.average) as vrt:
                 for x in range(left, right):
                     folder = output / str(zoom) / str(x)
@@ -55,5 +56,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--nodata", type=int, choices=range(256), default=0,
+                        metavar="0–255", help="RGB fill value outside the image coverage")
     args = parser.parse_args()
-    build(args.source, args.output, 14, 21)
+    build(args.source, args.output, 14, 21, args.nodata)
