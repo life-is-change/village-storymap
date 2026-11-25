@@ -199,6 +199,7 @@ let planVectorLayer = null;
 let planOnlineLayer = null;
 let planLabelLayer = null;
 let planHighResLayer = null;
+let planVillageTileLayer = null;
 let edgeLabelSource = null;
 let edgeLabelLayer = null;
 let initialBaselineSource = null;
@@ -1956,6 +1957,19 @@ async function unloadVillageContext() {
   invalidateWaterDbCache();
 }
 
+function syncVillageBasemapTiles(XYZ) {
+  const tiles = window.VillageBasemapTiles?.forVillage(activeVillageContext.villageId);
+  planVillageTileLayer.setExtent(tiles?.bounds);
+  planVillageTileLayer.setSource(tiles ? new XYZ({
+    url: tiles.url,
+    minZoom: tiles.minZoom,
+    maxZoom: tiles.maxZoom,
+    wrapX: false,
+    crossOrigin: "anonymous",
+    transition: 0
+  }) : null);
+}
+
 async function applyVillageDatasetToPlanMap(resources) {
   const resolver = window.VillageDatasetResolverModule;
   activeBasemapGeoref = resolver?.resolveBasemapGeoref
@@ -1980,6 +1994,7 @@ async function applyVillageDatasetToPlanMap(resources) {
       crossOrigin: "anonymous"
     }));
   }
+  syncVillageBasemapTiles(OL.XYZ);
   planVectorLayer?.setExtent?.(getBasemapRenderExtent(activeBasemapGeoref) || undefined);
 
   if (extent.length === 4 && extent.every(Number.isFinite)
@@ -2617,6 +2632,7 @@ function syncBasemapUIBySpace(spaceId) {
   if (!shouldShow) {
     if (planOnlineLayer) planOnlineLayer.setVisible(false);
     if (planHighResLayer) planHighResLayer.setVisible(false);
+    planVillageTileLayer?.setVisible(false);
     if (planLabelLayer) planLabelLayer.setVisible(false);
     return;
   }
@@ -2631,6 +2647,7 @@ function syncBasemapUIBySpace(spaceId) {
   if (planHighResLayer) {
     planHighResLayer.setVisible(useHighRes);
   }
+  planVillageTileLayer?.setVisible(useHighRes && !!planVillageTileLayer.getSource());
 
   if (planLabelLayer) {
     planLabelLayer.setVisible(labelVisible);
@@ -3077,7 +3094,7 @@ async function ensureVillage3DLoaded() {
 
     await loadScriptOnce("features/3d/reality-inset.js?v=20261029-object-details", "reality-inset-script");
     await loadScriptOnce("features/models/group-model-library.js?v=20261020-unified-routing", "group-model-library-script");
-    await loadScriptOnce("app-3d.js?v=20261106-ready-swap", "village-3d-script");
+    await loadScriptOnce("app-3d.js?v=20261125-shenjing-tiles", "village-3d-script");
 
     if (!window.Village3D || typeof window.Village3D.enter !== "function") {
       throw new Error("3D 模块加载完成但未找到 Village3D.enter。");
@@ -6886,6 +6903,8 @@ async function ensurePlanMap() {
   });
 
   planVectorLayer.setZIndex(4);
+  planVillageTileLayer = new TileLayer({ visible: false, zIndex: 3 });
+  syncVillageBasemapTiles(XYZ);
 
   edgeLabelSource = new VectorSource();
   edgeLabelLayer = new VectorLayer({
@@ -6896,7 +6915,7 @@ async function ensurePlanMap() {
 
   planMap = new Map({
     target: "map2d",
-    layers: [planOnlineLayer, planLabelLayer, planHighResLayer, planVectorLayer, edgeLabelLayer],
+    layers: [planOnlineLayer, planLabelLayer, planHighResLayer, planVillageTileLayer, planVectorLayer, edgeLabelLayer],
     view: new View({
       center: [
         (georef.minX + georef.maxX) / 2,

@@ -1403,6 +1403,23 @@ const ENABLE_SUPABASE_SYNC = (() => {
       console.warn("无法加载本地正射影像，3D 白模将使用纯色地球底图。", error);
     }
 
+    if (isCurrentImagery()) {
+      const tiles = globalThis.VillageBasemapTiles?.forVillage(getActiveVillage3DContext().villageId);
+      if (tiles) {
+        const provider = new Cesium.UrlTemplateImageryProvider({
+          url: tiles.url,
+          tilingScheme: new Cesium.WebMercatorTilingScheme(),
+          rectangle: Cesium.Rectangle.fromDegrees(...tiles.bounds),
+          minimumLevel: tiles.minZoom,
+          maximumLevel: tiles.maxZoom,
+          hasAlphaChannel: true
+        });
+        viewer.imageryLayers.addImageryProvider(provider);
+        viewer.scene.requestRender?.();
+        hasImagery = true;
+      }
+    }
+
     if (!hasImagery && viewer.scene?.globe) {
       try {
         const solidBaseProvider = createSolidColorBaseImageryProvider("#c8d8e8");
